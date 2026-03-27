@@ -1,26 +1,78 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-cream: #F5F0E8;
+  --color-cream-dark: #EDE5D8;
+  --color-cream-warm: #EDE5D8;
+  --color-terracotta: #C1513A;
+  --color-terracotta-dark: #A8402B;
+  --color-terracotta-light: #D4745F;
+  --color-darkblue: #1E3A5F;
+  --color-darkblue-light: #2A4F7A;
+  --color-sage: #6B8F6E;
+  --color-sage-light: #8FB092;
+  --color-tan: #D4A96A;
+  --color-tan-light: #E0C08A;
+  --color-brown: #2C1810;
+  --color-brown-light: #6B5244;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-cream);
+  color: var(--color-brown);
+  font-family: var(--font-sans);
+}
+
+/* MDX prose styling */
+.prose {
+  max-width: 65ch;
+  line-height: 1.75;
+}
+.prose h1 { font-size: 1.875rem; font-weight: 700; margin-top: 2rem; margin-bottom: 1rem; color: var(--color-darkblue); }
+.prose h2 { font-size: 1.5rem; font-weight: 600; margin-top: 1.75rem; margin-bottom: 0.75rem; color: var(--color-darkblue); }
+.prose h3 { font-size: 1.25rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.5rem; color: var(--color-darkblue); }
+.prose p { margin-bottom: 1.25rem; }
+.prose ul, .prose ol { margin-bottom: 1.25rem; padding-left: 1.5rem; }
+.prose ul { list-style-type: disc; }
+.prose ol { list-style-type: decimal; }
+.prose li { margin-bottom: 0.375rem; }
+.prose a { color: var(--color-terracotta); text-decoration: underline; }
+.prose a:hover { color: var(--color-terracotta-dark); }
+.prose blockquote {
+  border-left: 3px solid var(--color-tan);
+  padding-left: 1rem;
+  font-style: italic;
+  color: var(--color-brown-light);
+  margin-bottom: 1.25rem;
+}
+.prose code {
+  background: var(--color-cream-dark);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+}
+.prose pre {
+  background: var(--color-darkblue);
+  color: var(--color-cream);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin-bottom: 1.25rem;
+}
+.prose pre code {
+  background: transparent;
+  padding: 0;
+}
+.prose img {
+  border-radius: 0.5rem;
+  margin: 1.5rem 0;
+}
+.prose hr {
+  border-color: var(--color-tan-light);
+  margin: 2rem 0;
 }
