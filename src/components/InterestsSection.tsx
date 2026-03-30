@@ -38,11 +38,11 @@ const columns = [
     items: ["Baltimore Ravens", "Washington Wizards", "Juventus"],
   },
   {
-    emoji: "🎯",
-    label: "Recent Favorites",
+    emoji: "🏛️",
+    label: "Favorite Architects",
     labelColor: "text-sage",
     dotColor: "bg-sage",
-    items: ["Running", "Basketball", "Learning guitar"],
+    items: ["Louis Kahn", "Tadao Ando", "Peter Zumthor"],
   },
   {
     emoji: "🌍",

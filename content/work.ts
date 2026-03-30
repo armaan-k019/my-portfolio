@@ -15,7 +15,7 @@ export const workEntries: WorkEntry[] = [
     role: "AI Research Intern",
     dates: "Sep 2025 – Present",
     bullets: [
-      "Building an interactive competitive intelligence agent used across internal teams to autonomously monitor competitor pricing, product changes, and market activity throughout the South American fintech space, at a Y Combinator-backed global fintech startup valued at $2.5 billion",
+      "Building an interactive competitive intelligence agent used across internal teams to autonomously monitor competitor pricing, product changes, and market activity throughout North and South American fintech spaces, at a Y Combinator-backed global fintech startup valued at $2.5 billion",
       "Designing the data pipeline for aggregating and synthesizing financial news into structured insights for internal strategy and product teams",
     ],
     link: "",

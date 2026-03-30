@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import Link from "next/link";
 import CategoryTag from "./CategoryTag";
 import type { Category, Project } from "../../content/projects";
 
@@ -68,6 +69,7 @@ export default function ProjectsSection({ projects }: { projects: Project[] }) {
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.5, delay: i * 0.08, ease: "easeOut" }}
             >
+              <Link href={`/projects/${project.slug}`} className="block h-full">
               <div
                 className={`bg-white rounded-xl p-5 shadow-sm hover:shadow-md border-l-4 border-l-transparent hover:-translate-y-1 transition-all duration-200 h-full ${getHoverBorderClass(project.category)}`}
               >
@@ -103,6 +105,7 @@ export default function ProjectsSection({ projects }: { projects: Project[] }) {
                   </span>
                 )}
               </div>
+              </Link>
             </motion.div>
           ))}
         </AnimatePresence>
