@@ -72,8 +72,8 @@ export default function CurrentlyWorkingOn() {
             {wipProjects.map((project) => (
               <div key={project.title}>
                 <div className="flex items-center gap-2 mb-1">
-                  <h4 className="font-semibold text-terracotta">{project.title}</h4>
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${project.statusColor}`}>
+                  <h4 className="font-semibold text-terracotta truncate min-w-0">{project.title}</h4>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 ${project.statusColor}`}>
                     {project.status}
                   </span>
                 </div>

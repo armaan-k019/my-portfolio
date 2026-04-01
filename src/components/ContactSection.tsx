@@ -15,6 +15,10 @@ const PROJECT_OPTIONS = [
   "UrbanGPT",
   "Tempo",
   "Yield",
+  "Edo Commons",
+  "Intersecting Realms",
+  "Framed",
+  "Archipedia",
 ];
 
 export default function ContactSection() {
