@@ -19,6 +19,7 @@ export const projects: Project[] = [
     blurb: "Adaptive reuse of the Quarry Yards in Atlanta, inspired by the Edo period of Japan.",
     description: "A proposal for the adaptive reuse of the Quarry Yards site in Atlanta, inspired by the communal and ecological principles of Japan's Edo period. The project reimagines an underutilized industrial landscape as a mixed-use commons rooted in community ownership, ecological restoration, and shared infrastructure.",
     stack: [],
+    status: "In Progress",
   },
   {
     slug: "intersecting-realms",

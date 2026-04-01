@@ -13,6 +13,10 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Armaan Kazi | Portfolio",
   description: "CS student at Georgia Tech. I build things and write about them.",
+  icons: {
+    icon: '/logos/ak-logo.png',
+    apple: '/logos/ak-logo.png',
+  },
 };
 
 export default function RootLayout({

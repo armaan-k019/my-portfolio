@@ -836,6 +836,17 @@ function TempoInner() {
 }
 
 export default function TempoPage() {
+  if (!CLIENT_ID) {
+    return (
+      <div className="min-h-screen bg-cream flex flex-col items-center justify-center px-6 text-center">
+        <p className="text-lg font-semibold text-darkblue mb-2">Spotify integration is currently unavailable.</p>
+        <p className="text-sm text-brown-light max-w-sm">Please check back soon.</p>
+        <Link href="/#projects" className="mt-8 text-sm text-terracotta hover:text-terracotta-dark transition-colors">
+          &larr; Back to projects
+        </Link>
+      </div>
+    );
+  }
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-cream flex items-center justify-center">

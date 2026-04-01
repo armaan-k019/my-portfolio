@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import type { AcousticMetrics, OctaveBandRT60, SurfaceGroup } from '@/types';
 import { OCTAVE_BANDS } from '@/lib/acoustics';
@@ -9,6 +9,7 @@ interface MetricsPanelProps {
   metrics: AcousticMetrics;
   shapeDescription: string;
   surfaceGroups: SurfaceGroup[];
+  materialVersion: number;
 }
 
 // ─── Octave band bar chart ─────────────────────────────────────────────────────
@@ -47,37 +48,99 @@ function OctaveBandChart({ octaveBandRT60 }: { octaveBandRT60: OctaveBandRT60 })
 
 function RT60Badge({ rt60 }: { rt60: number }) {
   if (rt60 < 0.3)
-    return (
-      <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-        Dry / Anechoic
-      </span>
-    );
+    return <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">Dry / Anechoic</span>;
   if (rt60 < 0.8)
-    return (
-      <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
-        Speech Optimized
-      </span>
-    );
+    return <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">Speech Optimized</span>;
   if (rt60 < 2.0)
-    return (
-      <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
-        Musical / Reverberant
-      </span>
-    );
+    return <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">Musical / Reverberant</span>;
+  return <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">Highly Reverberant</span>;
+}
+
+// ─── RT60 waveform ─────────────────────────────────────────────────────────────
+
+function RT60Waveform({ rt60, reflections }: { rt60: number; reflections: number }) {
+  const [playing, setPlaying] = useState(false);
+  const rafRef   = useRef<number>(0);
+  const phaseRef = useRef(0);
+  const pathRef  = useRef<SVGPathElement>(null);
+  const W = 232, H = 52;
+
+  useEffect(() => {
+    if (!playing) {
+      cancelAnimationFrame(rafRef.current);
+      return;
+    }
+    const amplitude  = Math.max(6, Math.min(20, 3 + reflections * 0.25));
+    const cycles     = Math.max(1.5, 3.5 / Math.max(rt60, 0.1));
+    const speed      = 0.015 / Math.max(rt60, 0.1);
+
+    function buildD(phase: number) {
+      const parts: string[] = [];
+      for (let x = 0; x <= W; x += 2) {
+        const t = (x / W) * cycles * 2 * Math.PI + phase;
+        const y = H / 2 - Math.sin(t) * amplitude;
+        parts.push(`${x === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`);
+      }
+      return parts.join(' ');
+    }
+
+    function tick() {
+      phaseRef.current += speed;
+      if (pathRef.current) {
+        pathRef.current.setAttribute('d', buildD(phaseRef.current));
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    }
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [playing, rt60, reflections]);
+
   return (
-    <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">
-      Highly Reverberant
-    </span>
+    <div className="space-y-2 pt-1 border-t border-[#E8E0D4]">
+      <button
+        onClick={() => setPlaying(p => !p)}
+        className="w-full py-1.5 px-4 rounded-lg border border-[#E8E0D4] bg-white text-xs font-medium text-[#6B6054] hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors"
+      >
+        {playing ? 'Stop Waveform' : 'Play Waveform'}
+      </button>
+      {playing && (
+        <div className="rounded-lg bg-[#1a1a2e] p-2 overflow-hidden">
+          <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+            <path
+              ref={pathRef}
+              d={`M0,${H / 2} L${W},${H / 2}`}
+              stroke="#FF6B35"
+              strokeWidth={1.5}
+              fill="none"
+              strokeLinecap="round"
+            />
+          </svg>
+          <p className="text-[9px] text-white/30 text-right mt-0.5 pr-1">
+            RT60 {rt60.toFixed(2)}s · {reflections} reflections
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 
-export default function MetricsPanel({ metrics, shapeDescription, surfaceGroups }: MetricsPanelProps) {
-  const [summary, setSummary] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+export default function MetricsPanel({ metrics, shapeDescription, surfaceGroups, materialVersion }: MetricsPanelProps) {
+  const [summary, setSummary]     = useState<string | null>(null);
+  const [loading, setLoading]     = useState(false);
   const [timestamp, setTimestamp] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError]         = useState<string | null>(null);
+  const [recalcShow, setRecalcShow] = useState(false);
+  const prevMatVer = useRef(0);
+
+  useEffect(() => {
+    if (materialVersion === prevMatVer.current) return;
+    prevMatVer.current = materialVersion;
+    setRecalcShow(true);
+    const t = setTimeout(() => setRecalcShow(false), 700);
+    return () => clearTimeout(t);
+  }, [materialVersion]);
 
   async function handleAnalyze() {
     setLoading(true);
@@ -155,7 +218,6 @@ export default function MetricsPanel({ metrics, shapeDescription, surfaceGroups 
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       doc.text('Claude Analysis', 14, yAfterBands + 8);
-
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
       const plainText = summary.replace(/<[^>]+>/g, '').replace(/#{1,6}\s/g, '').trim();
@@ -172,7 +234,12 @@ export default function MetricsPanel({ metrics, shapeDescription, surfaceGroups 
     <div className="flex flex-col gap-4 h-full">
       {/* ─── Room Metrics ─────────────────────────────────────────────────────── */}
       <div className="bg-white/80 rounded-xl border border-[#E8E0D4] shadow-sm p-4 space-y-3">
-        <h3 className="font-semibold text-sm text-[#2C1810]">Room Metrics</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-sm text-[#2C1810]">Room Metrics</h3>
+          {recalcShow && (
+            <span className="text-[10px] text-[#FF6B35] animate-pulse">Recalculating…</span>
+          )}
+        </div>
 
         <div className="space-y-2">
           <div className="flex justify-between items-center">
@@ -213,6 +280,9 @@ export default function MetricsPanel({ metrics, shapeDescription, surfaceGroups 
           </p>
           <OctaveBandChart octaveBandRT60={metrics.octaveBandRT60} />
         </div>
+
+        {/* Waveform */}
+        <RT60Waveform rt60={metrics.rt60} reflections={metrics.earlyReflections} />
       </div>
 
       {/* ─── Claude Analysis ─────────────────────────────────────────────────── */}

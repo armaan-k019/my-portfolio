@@ -77,7 +77,7 @@ function HowToUsePanel() {
   ];
 
   return (
-    <div className="bg-white/80 rounded-xl border border-[#E8E0D4] shadow-sm overflow-hidden">
+    <div className="bg-white/80 rounded-xl border border-[#E8E0D4] shadow-sm">
       <button
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#F5F0E8]/60 transition-colors"
@@ -123,6 +123,84 @@ function HowToUsePanel() {
   );
 }
 
+// ─── How it works panel ────────────────────────────────────────────────────────
+
+function HowItWorksPanel() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="bg-white/80 rounded-xl border border-[#E8E0D4] shadow-sm">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#F5F0E8]/60 transition-colors"
+      >
+        <span className="font-semibold text-xs text-[#2C1810]">How it works</span>
+        <span className="text-[#9B8E85] text-xs">{open ? '−' : '+'}</span>
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 space-y-4 border-t border-[#E8E0D4] mt-0">
+          {/* Sabine's Formula */}
+          <div className="mt-3">
+            <p className="text-xs font-semibold text-[#2C1810] mb-1">Sabine&apos;s Formula</p>
+            <div className="bg-[#F5F0E8] rounded-lg px-3 py-2 mb-2 text-center">
+              <span className="text-xs font-mono text-[#2C1810]">RT60 = 0.161 &times; V / A</span>
+            </div>
+            <p className="text-[11px] text-[#6B6054] leading-relaxed">
+              <strong className="text-[#2C1810]">V</strong> is the room volume in m³.{' '}
+              <strong className="text-[#2C1810]">A</strong> is the total acoustic absorption in sabins (m²),
+              calculated as the sum of each surface&apos;s area multiplied by its absorption coefficient α.
+              The constant 0.161 comes from the speed of sound (343 m/s) and the natural logarithm of 10⁶.
+            </p>
+          </div>
+
+          {/* Absorption coefficient */}
+          <div className="border-t border-[#E8E0D4] pt-3">
+            <p className="text-xs font-semibold text-[#2C1810] mb-1">Absorption Coefficient (α)</p>
+            <p className="text-[11px] text-[#6B6054] leading-relaxed">
+              α ranges from 0 (perfect reflector, e.g. bare concrete α ≈ 0.02) to 1 (perfect absorber, e.g.
+              acoustic foam α ≈ 0.95). Each material has a different α at each octave band — carpet absorbs
+              more at high frequencies, while concrete absorbs almost nothing across the spectrum.
+            </p>
+          </div>
+
+          {/* Octave bands */}
+          <div className="border-t border-[#E8E0D4] pt-3">
+            <p className="text-xs font-semibold text-[#2C1810] mb-1">Octave Band Analysis</p>
+            <p className="text-[11px] text-[#6B6054] leading-relaxed">
+              RT60 is calculated separately at six octave bands: 125, 250, 500, 1k, 2k, and 4k Hz.
+              Each band uses that material&apos;s α value at that frequency, giving a frequency-dependent
+              reverberation profile. Speech intelligibility is most sensitive to the 500 Hz – 2 kHz range.
+            </p>
+          </div>
+
+          {/* Ray casting */}
+          <div className="border-t border-[#E8E0D4] pt-3">
+            <p className="text-xs font-semibold text-[#2C1810] mb-1">Ray Casting</p>
+            <p className="text-[11px] text-[#6B6054] leading-relaxed">
+              Sound rays are emitted in a uniform spherical pattern from each source using the Fibonacci
+              sphere algorithm. Each ray is traced through the room, reflecting off the nearest triangle
+              face using the law of reflection (angle of incidence = angle of reflection). The number of
+              reflections detected is the early reflections count shown in the metrics.
+            </p>
+          </div>
+
+          {/* Early reflections */}
+          <div className="border-t border-[#E8E0D4] pt-3">
+            <p className="text-xs font-semibold text-[#2C1810] mb-1">Early Reflections</p>
+            <p className="text-[11px] text-[#6B6054] leading-relaxed">
+              Early reflections are sound paths that reach the listener within ~50ms of the direct sound.
+              They reinforce spatial impression and perceived room size. A high early reflection count
+              with a long RT60 can indicate a reverberant, diffuse space — common in concert halls and
+              cathedrals. A low count with short RT60 indicates a dry, absorptive space suited for speech.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AcousticFormPage() {
@@ -137,6 +215,9 @@ export default function AcousticFormPage() {
   const [metrics, setMetrics]               = useState<AcousticMetrics>(
     () => computeMetrics(DEFAULT_ROOM, [], detectSurfaceGroups(DEFAULT_ROOM.vertices, DEFAULT_ROOM.faces)),
   );
+  const [materialVersion, setMaterialVersion] = useState(0);
+  const [editingReceiverId, setEditingReceiverId] = useState<string | null>(null);
+  const [editPos, setEditPos]               = useState<Vector3D>({ x: 0, y: 0, z: 0 });
 
   useEffect(() => {
     const newGroups = detectSurfaceGroups(roomShape.vertices, roomShape.faces);
@@ -179,6 +260,17 @@ export default function AcousticFormPage() {
       const next = prev.filter(r => r.id !== id);
       return next.map((r, i) => ({ ...r, label: `R${i + 1}` }));
     });
+    if (editingReceiverId === id) setEditingReceiverId(null);
+  }
+
+  function startEditReceiver(rp: ReceiverPoint) {
+    setEditingReceiverId(rp.id);
+    setEditPos({ ...rp.position });
+  }
+
+  function confirmEditReceiver() {
+    setReceiverPoints(prev => prev.map(r => r.id === editingReceiverId ? { ...r, position: editPos } : r));
+    setEditingReceiverId(null);
   }
 
   const shapeDescription =
@@ -192,10 +284,9 @@ export default function AcousticFormPage() {
       {/* ─── Three-column layout ─────────────────────────────────────────────── */}
       <div className="flex flex-1 min-h-0 max-w-screen-2xl w-full mx-auto p-4 gap-4">
 
-        {/* Left - shape input + materials + sources/receivers */}
-        <aside className="w-80 flex-shrink-0 overflow-y-auto min-h-0 flex flex-col gap-3">
+        {/* Left - title + how to use + shape input */}
+        <aside className="w-72 flex-shrink-0 overflow-y-auto min-h-0 flex flex-col gap-3">
 
-          {/* Title - no special header, same treatment as Fine Print */}
           <div>
             <Link
               href="/#projects"
@@ -214,6 +305,8 @@ export default function AcousticFormPage() {
 
           <HowToUsePanel />
 
+          <HowItWorksPanel />
+
           <ShapeInputPanel
             roomShape={roomShape}
             sourcePosition={sourcePositions[0]}
@@ -222,8 +315,26 @@ export default function AcousticFormPage() {
             maxBounces={maxBounces}
             onMaxBouncesChange={setMaxBounces}
           />
+        </aside>
 
-          <MaterialPanel groups={surfaceGroups} onChange={setSurfaceGroups} />
+        {/* Center - Three.js canvas */}
+        <main className="flex-1 min-w-0 min-h-0 rounded-xl overflow-hidden border border-[#E8E0D4] shadow-sm">
+          <ThreeCanvas
+            roomShape={roomShape}
+            sourcePositions={sourcePositions}
+            soundRays={soundRays}
+            receiverPoints={receiverPoints}
+            onSourceDrag={handleSourceDrag}
+          />
+        </main>
+
+        {/* Right - materials + sources + receivers + metrics */}
+        <aside className="w-72 flex-shrink-0 overflow-y-auto min-h-0 flex flex-col gap-3">
+
+          <MaterialPanel
+            groups={surfaceGroups}
+            onChange={(g) => { setSurfaceGroups(g); setMaterialVersion(v => v + 1); }}
+          />
 
           {/* ─── Sources ──────────────────────────────────────────────────────── */}
           <div className="bg-white/80 rounded-xl border border-[#E8E0D4] shadow-sm p-4 space-y-2">
@@ -270,41 +381,61 @@ export default function AcousticFormPage() {
               <p className="text-[10px] text-[#9B8E85] italic">No receivers added.</p>
             )}
             {receiverPoints.map((rp, i) => (
-              <div key={rp.id} className="flex items-center gap-2 text-xs text-[#2C1810]">
-                <span
-                  className="w-3 h-3 rounded-full shrink-0"
-                  style={{ backgroundColor: ['#34d399','#60a5fa','#f472b6','#a78bfa','#fb923c'][i] }}
-                />
-                <span className="flex-1">
-                  {rp.label} &nbsp;
-                  <span className="text-[#9B8E85] tabular-nums">
-                    ({rp.position.x.toFixed(1)}, {rp.position.y.toFixed(1)}, {rp.position.z.toFixed(1)})
+              <div key={rp.id} className="space-y-1">
+                <div className="flex items-center gap-2 text-xs text-[#2C1810]">
+                  <span
+                    className="w-3 h-3 rounded-full shrink-0"
+                    style={{ backgroundColor: ['#34d399','#60a5fa','#f472b6','#a78bfa','#fb923c'][i] }}
+                  />
+                  <span className="flex-1">
+                    {rp.label} &nbsp;
+                    <span className="text-[#9B8E85] tabular-nums">
+                      ({rp.position.x.toFixed(1)}, {rp.position.y.toFixed(1)}, {rp.position.z.toFixed(1)})
+                    </span>
                   </span>
-                </span>
-                <button onClick={() => removeReceiver(rp.id)} className="text-[#9B8E85] hover:text-red-500 transition-colors">×</button>
+                  <button
+                    onClick={() => editingReceiverId === rp.id ? setEditingReceiverId(null) : startEditReceiver(rp)}
+                    className="text-[#9B8E85] hover:text-[#FF6B35] transition-colors text-[10px] px-1"
+                    title="Edit position"
+                  >
+                    ✎
+                  </button>
+                  <button onClick={() => removeReceiver(rp.id)} className="text-[#9B8E85] hover:text-red-500 transition-colors">×</button>
+                </div>
+                {editingReceiverId === rp.id && (
+                  <div className="pl-5 space-y-1.5">
+                    <div className="grid grid-cols-3 gap-1">
+                      {(['x', 'y', 'z'] as const).map(axis => (
+                        <div key={axis} className="flex flex-col gap-0.5">
+                          <label className="text-[9px] uppercase text-[#9B8E85] font-medium">{axis}</label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={editPos[axis]}
+                            onChange={e => setEditPos(p => ({ ...p, [axis]: parseFloat(e.target.value) || 0 }))}
+                            className="w-full px-1.5 py-1 text-[11px] border border-[#E8E0D4] rounded focus:outline-none focus:border-[#FF6B35] bg-white text-[#2C1810]"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={confirmEditReceiver}
+                      className="w-full py-1 text-[10px] rounded bg-[#FF6B35]/10 text-[#FF6B35] font-medium hover:bg-[#FF6B35]/20 transition-colors"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
             <p className="text-[10px] text-[#9B8E85]">Shown as coloured spheres in 3D view. Max 5.</p>
           </div>
-        </aside>
 
-        {/* Center - Three.js canvas */}
-        <main className="flex-1 min-w-0 min-h-0 rounded-xl overflow-hidden border border-[#E8E0D4] shadow-sm">
-          <ThreeCanvas
-            roomShape={roomShape}
-            sourcePositions={sourcePositions}
-            soundRays={soundRays}
-            receiverPoints={receiverPoints}
-            onSourceDrag={handleSourceDrag}
-          />
-        </main>
-
-        {/* Right - metrics panel */}
-        <aside className="w-72 flex-shrink-0 overflow-y-auto min-h-0">
           <MetricsPanel
             metrics={metrics}
             shapeDescription={shapeDescription}
             surfaceGroups={surfaceGroups}
+            materialVersion={materialVersion}
           />
         </aside>
       </div>

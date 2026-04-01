@@ -26,7 +26,7 @@ export async function POST(request: Request): Promise<Response> {
       await resend.emails.send({
         from: 'Portfolio Feedback <onboarding@resend.dev>',
         to:   'archarmaan@gmail.com',
-        subject: `Portfolio feedback: ${project}`,
+        subject: `New feedback from ${project}: ${from}`,
         html: `
           <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
             <h2 style="color:#2C1810;margin:0 0 4px">Portfolio Feedback</h2>
