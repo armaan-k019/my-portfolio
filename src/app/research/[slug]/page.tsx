@@ -11,7 +11,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const entry = getResearchEntry(slug);
-  return { title: entry ? `${entry.title} — Armaan Kazi` : "Not Found" };
+  return { title: entry ? `${entry.title} | Armaan Kazi` : "Not Found" };
 }
 
 export default async function ResearchPage({ params }: { params: Promise<{ slug: string }> }) {

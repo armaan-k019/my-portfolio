@@ -1,7 +1,7 @@
 import { getBlogPosts } from "@/lib/mdx";
 import BlogList from "@/components/BlogList";
 
-export const metadata = { title: "Blog — Armaan Kazi" };
+export const metadata = { title: "Blog | Armaan Kazi" };
 
 export default function BlogPage() {
   const posts = getBlogPosts();

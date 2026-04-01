@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import * as THREE from 'three';
 import type { RoomShape, Vector3D } from '@/types';
 import { getDefaultRoom } from '@/lib/geometry';
 import { parseNaturalLanguageResponse } from '@/lib/geometry';
@@ -11,77 +12,279 @@ import VertexTable from '@/components/VertexTable';
 const PRESETS: Record<string, () => RoomShape> = {
   rectangle: getDefaultRoom,
   lshaped: () => {
-    // L-shaped room: union of two rectangles in the XZ plane, 4m tall
-    // Rectangle A: (0–10) × (0–6), Rectangle B: (0–5) × (6–12)
     const vertices: Vector3D[] = [
-      // Bottom (y=0)
-      { x: 0,  y: 0, z: 0  }, // 0
-      { x: 10, y: 0, z: 0  }, // 1
-      { x: 10, y: 0, z: 6  }, // 2
-      { x: 5,  y: 0, z: 6  }, // 3
-      { x: 5,  y: 0, z: 12 }, // 4
-      { x: 0,  y: 0, z: 12 }, // 5
-      // Top (y=4)
-      { x: 0,  y: 4, z: 0  }, // 6
-      { x: 10, y: 4, z: 0  }, // 7
-      { x: 10, y: 4, z: 6  }, // 8
-      { x: 5,  y: 4, z: 6  }, // 9
-      { x: 5,  y: 4, z: 12 }, // 10
-      { x: 0,  y: 4, z: 12 }, // 11
+      { x: 0,  y: 0, z: 0  }, { x: 10, y: 0, z: 0  }, { x: 10, y: 0, z: 6  },
+      { x: 5,  y: 0, z: 6  }, { x: 5,  y: 0, z: 12 }, { x: 0,  y: 0, z: 12 },
+      { x: 0,  y: 4, z: 0  }, { x: 10, y: 4, z: 0  }, { x: 10, y: 4, z: 6  },
+      { x: 5,  y: 4, z: 6  }, { x: 5,  y: 4, z: 12 }, { x: 0,  y: 4, z: 12 },
     ];
     const faces = [
-      // Bottom (−Y)
       { a: 0, b: 1, c: 3 }, { a: 1, b: 2, c: 3 },
       { a: 0, b: 3, c: 5 }, { a: 3, b: 4, c: 5 },
-      // Top (+Y)
       { a: 6, b: 9, c: 7 }, { a: 7, b: 9, c: 8 },
       { a: 6, b: 11, c: 9 }, { a: 9, b: 11, c: 10 },
-      // Front z=0 (−Z)
       { a: 0, b: 6, c: 1 }, { a: 1, b: 6, c: 7 },
-      // Right x=10 (+X)
       { a: 1, b: 7, c: 2 }, { a: 2, b: 7, c: 8 },
-      // Inner step z=6, x=5..10 (+Z partial)
       { a: 2, b: 8, c: 3 }, { a: 3, b: 8, c: 9 },
-      // Inner step x=5, z=6..12 (+X partial)
       { a: 3, b: 9, c: 4 }, { a: 4, b: 9, c: 10 },
-      // Back z=12 (+Z)
       { a: 4, b: 10, c: 5 }, { a: 5, b: 10, c: 11 },
-      // Left x=0 (−X)
       { a: 5, b: 11, c: 0 }, { a: 0, b: 11, c: 6 },
     ];
     return { vertices, faces };
   },
   trapezoidal: () => {
-    // Trapezoidal room: front wall 6m wide, back wall 12m wide, 8m deep, 4m tall
     const vertices: Vector3D[] = [
-      // Bottom (y=0)
-      { x: 2,  y: 0, z: 0  }, // 0 front-left
-      { x: 8,  y: 0, z: 0  }, // 1 front-right
-      { x: 12, y: 0, z: 8  }, // 2 back-right
-      { x: 0,  y: 0, z: 8  }, // 3 back-left
-      // Top (y=4)
-      { x: 2,  y: 4, z: 0  }, // 4
-      { x: 8,  y: 4, z: 0  }, // 5
-      { x: 12, y: 4, z: 8  }, // 6
-      { x: 0,  y: 4, z: 8  }, // 7
+      { x: 2,  y: 0, z: 0 }, { x: 8,  y: 0, z: 0 },
+      { x: 12, y: 0, z: 8 }, { x: 0,  y: 0, z: 8 },
+      { x: 2,  y: 4, z: 0 }, { x: 8,  y: 4, z: 0 },
+      { x: 12, y: 4, z: 8 }, { x: 0,  y: 4, z: 8 },
     ];
     const faces = [
-      // Bottom (−Y)
       { a: 0, b: 1, c: 3 }, { a: 1, b: 2, c: 3 },
-      // Top (+Y)
       { a: 4, b: 7, c: 5 }, { a: 5, b: 7, c: 6 },
-      // Front (−Z)
       { a: 0, b: 4, c: 1 }, { a: 1, b: 4, c: 5 },
-      // Back (+Z)
       { a: 3, b: 2, c: 7 }, { a: 2, b: 6, c: 7 },
-      // Left
       { a: 0, b: 3, c: 4 }, { a: 3, b: 7, c: 4 },
-      // Right
       { a: 1, b: 5, c: 2 }, { a: 2, b: 5, c: 6 },
     ];
     return { vertices, faces };
   },
 };
+
+// ─── 3D file parsers ───────────────────────────────────────────────────────────
+
+function bufGeomToRoomShape(geo: THREE.BufferGeometry): RoomShape {
+  const pos = geo.getAttribute('position') as THREE.BufferAttribute;
+  if (!pos) throw new Error('No position attribute in geometry');
+
+  const vertices: Vector3D[] = [];
+  const faces = [];
+
+  if (geo.index) {
+    // Indexed geometry - deduplicate vertices
+    const map = new Map<string, number>();
+    const getOrAdd = (i: number): number => {
+      const key = `${pos.getX(i).toFixed(6)},${pos.getY(i).toFixed(6)},${pos.getZ(i).toFixed(6)}`;
+      if (map.has(key)) return map.get(key)!;
+      const idx = vertices.length;
+      vertices.push({ x: pos.getX(i), y: pos.getY(i), z: pos.getZ(i) });
+      map.set(key, idx);
+      return idx;
+    };
+    for (let i = 0; i < geo.index.count; i += 3) {
+      const a = getOrAdd(geo.index.getX(i));
+      const b = getOrAdd(geo.index.getX(i + 1));
+      const c = getOrAdd(geo.index.getX(i + 2));
+      if (a !== b && b !== c && a !== c) faces.push({ a, b, c });
+    }
+  } else {
+    // Non-indexed - each triple of positions is a face
+    for (let i = 0; i < pos.count; i++) {
+      vertices.push({ x: pos.getX(i), y: pos.getY(i), z: pos.getZ(i) });
+    }
+    for (let i = 0; i < vertices.length; i += 3) {
+      if (i + 2 < vertices.length) faces.push({ a: i, b: i + 1, c: i + 2 });
+    }
+  }
+
+  if (vertices.length < 4 || faces.length < 2)
+    throw new Error('Geometry has too few vertices/faces to be a room.');
+  return { vertices, faces };
+}
+
+async function parseOBJ(file: File): Promise<RoomShape> {
+  const { OBJLoader } = await import('three/examples/jsm/loaders/OBJLoader.js');
+  const text = await file.text();
+  const loader = new OBJLoader();
+  const group = loader.parse(text);
+  const allVertices: Vector3D[] = [];
+  const allFaces: { a: number; b: number; c: number }[] = [];
+
+  group.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+    const geo = child.geometry as THREE.BufferGeometry;
+    const offset = allVertices.length;
+    const pos = geo.getAttribute('position') as THREE.BufferAttribute;
+    if (!pos) return;
+    if (geo.index) {
+      for (let i = 0; i < pos.count; i++) allVertices.push({ x: pos.getX(i), y: pos.getY(i), z: pos.getZ(i) });
+      for (let i = 0; i < geo.index.count; i += 3) {
+        allFaces.push({ a: offset + geo.index.getX(i), b: offset + geo.index.getX(i + 1), c: offset + geo.index.getX(i + 2) });
+      }
+    } else {
+      for (let i = 0; i < pos.count; i++) allVertices.push({ x: pos.getX(i), y: pos.getY(i), z: pos.getZ(i) });
+      for (let i = 0; i < pos.count; i += 3) allFaces.push({ a: offset + i, b: offset + i + 1, c: offset + i + 2 });
+    }
+  });
+
+  if (allVertices.length < 4 || allFaces.length < 2) throw new Error('OBJ file contains no usable mesh geometry.');
+  return { vertices: allVertices, faces: allFaces };
+}
+
+async function parseSTL(file: File): Promise<RoomShape> {
+  const { STLLoader } = await import('three/examples/jsm/loaders/STLLoader.js');
+  const buf = await file.arrayBuffer();
+  const loader = new STLLoader();
+  const geo = loader.parse(buf);
+  return bufGeomToRoomShape(geo);
+}
+
+async function parseDXF(file: File): Promise<RoomShape> {
+  const text = await file.text();
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const DxfParser = require('dxf-parser');
+  const parser = new DxfParser();
+  const dxf = parser.parseSync(text) as {
+    entities: Array<{
+      type: string;
+      vertices?: Array<{ x: number; y: number; z?: number }>;
+    }>;
+  };
+
+  const vertices: Vector3D[] = [];
+  const faces: { a: number; b: number; c: number }[] = [];
+
+  for (const entity of dxf.entities ?? []) {
+    if (entity.type === '3DFACE' && entity.vertices) {
+      const base = vertices.length;
+      for (const v of entity.vertices.slice(0, 4)) {
+        vertices.push({ x: v.x, y: v.y, z: v.z ?? 0 });
+      }
+      faces.push({ a: base, b: base + 1, c: base + 2 });
+      if (entity.vertices.length >= 4) faces.push({ a: base, b: base + 2, c: base + 3 });
+    }
+  }
+
+  if (vertices.length < 4) throw new Error('DXF contains no 3DFACE entities. Only 3DFACE geometry is supported.');
+  return { vertices, faces };
+}
+
+async function parse3DM(file: File): Promise<RoomShape> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch('/api/parse-3dm', { method: 'POST', body: formData });
+  const data = await res.json() as { vertices?: Vector3D[]; faces?: { a: number; b: number; c: number }[]; error?: string };
+  if (!res.ok || data.error) throw new Error(data.error ?? 'Failed to parse .3dm file');
+  if (!data.vertices || !data.faces) throw new Error('Invalid response from parse-3dm');
+  return { vertices: data.vertices, faces: data.faces };
+}
+
+async function parseIFC(file: File): Promise<RoomShape> {
+  const WebIFC = await import('web-ifc');
+  const api = new WebIFC.IfcAPI();
+  await api.Init();
+  const buf = await file.arrayBuffer();
+  const modelID = api.OpenModel(new Uint8Array(buf));
+
+  const vertices: Vector3D[] = [];
+  const faces: { a: number; b: number; c: number }[] = [];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  api.StreamAllMeshes(modelID, (flatMesh: any) => {
+    const geoms = flatMesh.geometries;
+    for (let gi = 0; gi < geoms.size(); gi++) {
+      const geom = geoms.get(gi);
+      const meshData = api.GetGeometry(modelID, geom.geometryExpressID);
+      const vBuf = api.GetVertexArray(meshData.GetVertexData(), meshData.GetVertexDataSize());
+      const iBuf = api.GetIndexArray(meshData.GetIndexData(), meshData.GetIndexDataSize());
+      const base = vertices.length;
+      // Vertex stride is 6 floats: x,y,z,nx,ny,nz
+      for (let i = 0; i < vBuf.length; i += 6) {
+        vertices.push({ x: vBuf[i], y: vBuf[i + 1], z: vBuf[i + 2] });
+      }
+      for (let i = 0; i < iBuf.length; i += 3) {
+        faces.push({ a: base + iBuf[i], b: base + iBuf[i + 1], c: base + iBuf[i + 2] });
+      }
+      meshData.delete();
+    }
+  });
+
+  api.CloseModel(modelID);
+  if (vertices.length < 4) throw new Error('IFC file contains no geometry.');
+  return { vertices, faces };
+}
+
+// ─── Import tab ────────────────────────────────────────────────────────────────
+
+type ImportStatus = 'idle' | 'parsing' | 'done' | 'error';
+
+function FileImportTab({ onRoomChange }: { onRoomChange: (s: RoomShape) => void }) {
+  const [status, setStatus] = useState<ImportStatus>('idle');
+  const [msg, setMsg] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function handleFile(file: File) {
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    setStatus('parsing');
+    setMsg(`Parsing ${file.name}…`);
+    try {
+      let shape: RoomShape;
+      if (ext === 'obj') shape = await parseOBJ(file);
+      else if (ext === 'stl') shape = await parseSTL(file);
+      else if (ext === 'dxf') shape = await parseDXF(file);
+      else if (ext === '3dm') shape = await parse3DM(file);
+      else if (ext === 'ifc') shape = await parseIFC(file);
+      else throw new Error(`Unsupported format: .${ext}`);
+      onRoomChange(shape);
+      setStatus('done');
+      setMsg(`${file.name}: ${shape.faces.length} polygons, ${shape.vertices.length} vertices`);
+    } catch (err) {
+      setStatus('error');
+      setMsg(err instanceof Error ? err.message : 'Failed to parse file.');
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div
+        className="border-2 border-dashed border-[#E8E0D4] rounded-xl p-6 text-center cursor-pointer hover:border-[#FF6B35]/60 transition-colors"
+        onClick={() => fileRef.current?.click()}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          const f = e.dataTransfer.files[0];
+          if (f) handleFile(f);
+        }}
+      >
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".obj,.stl,.dxf,.ifc,.3dm"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handleFile(f);
+          }}
+        />
+        <p className="text-xs font-medium text-[#2C1810]">Drop or click to import</p>
+        <p className="text-xs text-[#6B6054] mt-1">.obj .stl .dxf .ifc .3dm</p>
+      </div>
+
+      {status === 'parsing' && (
+        <div className="flex items-center gap-2 text-xs text-[#6B6054]">
+          <span className="inline-block h-3 w-3 rounded-full border-2 border-[#FF6B35] border-t-transparent animate-spin" />
+          {msg}
+        </div>
+      )}
+      {status === 'done' && (
+        <p className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2">{msg}</p>
+      )}
+      {status === 'error' && (
+        <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{msg}</p>
+      )}
+
+      <div className="text-xs text-[#6B6054] leading-relaxed">
+        <p className="font-medium text-[#2C1810] mb-1">Supported formats</p>
+        <ul className="space-y-0.5">
+          <li><span className="font-mono">.obj/.stl</span>: Standard mesh (Three.js)</li>
+          <li><span className="font-mono">.dxf</span>: Drawing Exchange Format (3DFACE entities)</li>
+          <li><span className="font-mono">.3dm</span>: Rhino 3D (mesh objects)</li>
+          <li><span className="font-mono">.ifc</span>: Industry Foundation Classes</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 
@@ -90,6 +293,8 @@ interface ShapeInputPanelProps {
   sourcePosition: Vector3D;
   onRoomChange: (shape: RoomShape) => void;
   onSourceChange: (pos: Vector3D) => void;
+  maxBounces: number;
+  onMaxBouncesChange: (n: number) => void;
 }
 
 export default function ShapeInputPanel({
@@ -97,8 +302,10 @@ export default function ShapeInputPanel({
   sourcePosition,
   onRoomChange,
   onSourceChange,
+  maxBounces,
+  onMaxBouncesChange,
 }: ShapeInputPanelProps) {
-  const [tab, setTab] = useState<'describe' | 'manual'>('describe');
+  const [tab, setTab] = useState<'describe' | 'manual' | 'import'>('describe');
   const [description, setDescription] = useState('');
   const [generating, setGenerating] = useState(false);
   const [descError, setDescError] = useState<string | null>(null);
@@ -135,16 +342,10 @@ export default function ShapeInputPanel({
   }
 
   function handleApplyVertices() {
-    // Rebuild faces using a simple ear-clipping approximation isn't viable here —
-    // instead, keep the existing faces and just update vertex positions.
-    // If the user adds/removes vertices, they'd need to use "Describe Room" or a preset.
     const newShape: RoomShape = {
       vertices: localVertices,
       faces: roomShape.faces.filter(
-        (f) =>
-          f.a < localVertices.length &&
-          f.b < localVertices.length &&
-          f.c < localVertices.length,
+        (f) => f.a < localVertices.length && f.b < localVertices.length && f.c < localVertices.length,
       ),
     };
     onRoomChange(newShape);
@@ -164,12 +365,14 @@ export default function ShapeInputPanel({
     onSourceChange({ ...sourcePosition, [axis]: Math.max(-50, Math.min(50, value)) });
   }
 
+  const TAB_LABELS = { describe: 'Describe', manual: 'Manual', import: 'Import 3D' };
+
   return (
     <div className="flex flex-col gap-4 h-full overflow-y-auto">
       {/* Tab switcher */}
       <div className="bg-white/80 rounded-xl border border-[#E8E0D4] shadow-sm overflow-hidden">
         <div className="flex border-b border-[#E8E0D4]">
-          {(['describe', 'manual'] as const).map((t) => (
+          {(['describe', 'manual', 'import'] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -179,13 +382,13 @@ export default function ShapeInputPanel({
                   : 'text-[#6B6054] hover:text-[#2C1810]'
               }`}
             >
-              {t === 'describe' ? 'Describe Room' : 'Manual Vertices'}
+              {TAB_LABELS[t]}
             </button>
           ))}
         </div>
 
         <div className="p-4">
-          {tab === 'describe' ? (
+          {tab === 'describe' && (
             <div className="space-y-3">
               <textarea
                 value={description}
@@ -207,31 +410,26 @@ export default function ShapeInputPanel({
                     <span className="inline-block h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
                     Generating…
                   </>
-                ) : (
-                  'Generate Shape'
-                )}
+                ) : 'Generate Shape'}
               </button>
             </div>
-          ) : (
+          )}
+
+          {tab === 'manual' && (
             <div className="space-y-3">
-              {/* Preset dropdown */}
               <div className="flex gap-2">
                 <select
                   defaultValue=""
                   onChange={(e) => handlePreset(e.target.value)}
                   className="flex-1 px-2 py-1.5 text-xs border border-[#E8E0D4] rounded-lg bg-white text-[#2C1810] focus:outline-none focus:border-[#FF6B35]"
                 >
-                  <option value="" disabled>
-                    Load preset…
-                  </option>
+                  <option value="" disabled>Load preset…</option>
                   <option value="rectangle">Rectangle (10×8×4)</option>
                   <option value="lshaped">L-Shaped Room</option>
                   <option value="trapezoidal">Trapezoidal Room</option>
                 </select>
               </div>
-
               <VertexTable vertices={localVertices} onChange={setLocalVertices} />
-
               <div className="flex gap-2">
                 <button
                   onClick={handleApplyVertices}
@@ -247,15 +445,18 @@ export default function ShapeInputPanel({
                   }}
                   className="flex-1 py-1.5 rounded-lg border border-[#E8E0D4] text-xs text-[#6B6054] hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors"
                 >
-                  Reset Default
+                  Reset
                 </button>
               </div>
             </div>
           )}
+
+          {tab === 'import' && (
+            <FileImportTab onRoomChange={(shape) => { onRoomChange(shape); setLocalVertices(shape.vertices); }} />
+          )}
         </div>
       </div>
 
-      {/* Reset button always visible */}
       {tab === 'describe' && (
         <button
           onClick={() => {
@@ -287,6 +488,23 @@ export default function ShapeInputPanel({
           ))}
         </div>
         <p className="text-xs text-[#6B6054]">Position in meters from origin</p>
+      </div>
+
+      {/* Ray settings */}
+      <div className="bg-white/80 rounded-xl border border-[#E8E0D4] shadow-sm p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-xs text-[#2C1810]">Ray Bounces</h3>
+          <span className="text-xs font-medium text-[#FF6B35]">{maxBounces}</span>
+        </div>
+        <input
+          type="range"
+          min={1}
+          max={10}
+          value={maxBounces}
+          onChange={(e) => onMaxBouncesChange(Number(e.target.value))}
+          className="w-full accent-[#FF6B35]"
+        />
+        <p className="text-xs text-[#6B6054]">Number of reflections to simulate (1–10)</p>
       </div>
     </div>
   );

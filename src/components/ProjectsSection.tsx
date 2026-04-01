@@ -68,44 +68,43 @@ export default function ProjectsSection({ projects }: { projects: Project[] }) {
               viewport={{ once: true, margin: "-80px" }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.5, delay: i * 0.08, ease: "easeOut" }}
+              className="relative h-full"
             >
               <Link href={`/projects/${project.slug}`} className="block h-full">
-              <div
-                className={`bg-white rounded-xl p-5 shadow-sm hover:shadow-md border-l-4 border-l-transparent hover:-translate-y-1 transition-all duration-200 h-full ${getHoverBorderClass(project.category)}`}
-              >
-                <div className="flex items-start justify-between mb-1">
-                  <div className="flex items-center gap-2 flex-wrap">
+                <div
+                  className={`bg-white rounded-xl p-5 shadow-sm hover:shadow-md border-l-4 border-l-transparent hover:-translate-y-1 transition-all duration-200 h-full ${getHoverBorderClass(project.category)}`}
+                >
+                  <div className="flex items-start justify-between mb-1">
                     <h3 className="font-medium text-brown">{project.title}</h3>
-                    {project.link && (
-                      <a
-                        href={project.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-brown-light hover:text-terracotta transition-colors"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                        </svg>
-                      </a>
-                    )}
+                    <CategoryTag category={project.category} />
                   </div>
-                  <CategoryTag category={project.category} />
+                  <p className="text-sm text-brown-light mb-3">{project.blurb}</p>
+                  {project.status && (
+                    <span
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                        project.status === "Coming Soon"
+                          ? "bg-tan/20 text-tan border-tan/40"
+                          : "bg-sage/20 text-sage border-sage/40"
+                      }`}
+                    >
+                      {project.status}
+                    </span>
+                  )}
                 </div>
-                <p className="text-sm text-brown-light mb-3">{project.blurb}</p>
-                {project.status && (
-                  <span
-                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                      project.status === "Coming Soon"
-                        ? "bg-tan/20 text-tan border-tan/40"
-                        : "bg-sage/20 text-sage border-sage/40"
-                    }`}
-                  >
-                    {project.status}
-                  </span>
-                )}
-              </div>
               </Link>
+              {project.link && (
+                <a
+                  href={project.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="absolute top-3 right-3 z-10 w-6 h-6 flex items-center justify-center rounded-md text-brown-light/40 hover:text-terracotta hover:bg-terracotta/10 transition-colors"
+                  aria-label={`Visit ${project.title}`}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                  </svg>
+                </a>
+              )}
             </motion.div>
           ))}
         </AnimatePresence>

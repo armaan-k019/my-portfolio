@@ -21,11 +21,11 @@ export const projects: Project[] = [
     stack: [],
   },
   {
-    slug: "l-squared",
-    title: "L\u00B2",
+    slug: "intersecting-realms",
+    title: "Intersecting Realms",
     category: "architecture",
-    blurb: "A building formed by the intersection of two L-shaped volumes in the Old Fourth Ward, Atlanta.",
-    description: "A design situated in Atlanta's Old Fourth Ward, exploring how educational architecture can activate public space, support creative pedagogy, and respond to the cultural memory of its neighborhood. The massing is generated from the intersection of two L-shaped forms.",
+    blurb: "An architectural exploration of overlapping spatial and cultural boundaries.",
+    description: "An architectural project exploring the intersection of distinct spatial and cultural realms, examining how boundaries between different modes of inhabitation can become generative design opportunities.",
     stack: [],
   },
   {

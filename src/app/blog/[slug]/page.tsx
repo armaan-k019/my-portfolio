@@ -10,7 +10,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const post = getBlogPost(slug);
-  return { title: post ? `${post.title} — Armaan Kazi` : "Not Found" };
+  return { title: post ? `${post.title} | Armaan Kazi` : "Not Found" };
 }
 
 export default async function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {

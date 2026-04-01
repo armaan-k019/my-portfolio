@@ -44,7 +44,7 @@ interface Form {
   baseScale: number;
 }
 
-// ── Form 1 (bottom-right): Twisted prism — unchanged ──
+// ── Form 1 (bottom-right): Twisted prism - unchanged ──
 function twistedPrism(): Face3D[] {
   const faces: Face3D[] = [];
   const steps = 8;

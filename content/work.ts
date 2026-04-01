@@ -6,6 +6,7 @@ export interface WorkEntry {
   bullets: string[];
   link?: string;
   cardBg?: string;
+  type?: "studentOrg";
 }
 
 export const workEntries: WorkEntry[] = [
@@ -84,5 +85,33 @@ export const workEntries: WorkEntry[] = [
     ],
     link: "",
     cardBg: "#ffffff",
+  },
+  {
+    name: "AIAS",
+    logo: "/logos/aias.png",
+    role: "Executive Board",
+    dates: "October 2024 – Present",
+    bullets: [
+      "Represent studio interests in executive board meetings, contributing to strategic decisions that align organizational initiatives with design and academic objectives",
+      "Coordinate and streamline communication channels between leadership and stakeholders, supporting the execution of AIAS events and initiatives",
+      "Advise on studio-related operations, providing actionable recommendations that enhance workflows and promote engagement with architectural programming",
+    ],
+    link: "",
+    cardBg: "#ffffff",
+    type: "studentOrg",
+  },
+  {
+    name: "TEAM Buzz",
+    logo: "/logos/teambuzz.png",
+    role: "Executive Board",
+    dates: "Aug 2025 – Present",
+    bullets: [
+      "Contribute to organizing one of the largest single-day service events in the Southeastern United States, mobilizing 1,500–2,000+ volunteers annually across 50+ Atlanta non-profit partners",
+      "Support operations of a 25+ year legacy organization recognized as a cornerstone of Georgia Tech's campus leadership and annual Homecoming Week programming",
+      "Coordinate logistics and community outreach efforts that connect the Georgia Tech community with the greater Atlanta area",
+    ],
+    link: "",
+    cardBg: "#B3A369",
+    type: "studentOrg",
   },
 ];

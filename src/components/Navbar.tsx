@@ -7,13 +7,13 @@ import { AnimatePresence, motion } from "framer-motion";
 
 const sections = [
   { id: "about", label: "About" },
-  { id: "work", label: "Work" },
+  { id: "work", label: "Experience" },
   { id: "projects", label: "Projects" },
   { id: "research", label: "Research" },
-  { id: "favorites", label: "Favorites" },
 ];
 
 const pages = [
+  { href: "/demos", label: "Demos" },
   { href: "/blog", label: "Blog" },
   { href: "/photography", label: "Photography" },
 ];
@@ -77,13 +77,13 @@ export default function Navbar() {
         }}
       >
         <div className="max-w-5xl mx-auto px-6 flex items-center justify-between h-16">
-          <Link href="/" className="flex flex-col leading-tight">
+          <Link href="/" className="flex flex-col leading-tight shrink-0">
             <span className="text-sm font-semibold text-darkblue tracking-wide">Armaan Kazi</span>
-            <span className="text-[11px] text-brown-light">Architecture + Computer Science @ GT, Sustainable Architecture Certificate</span>
+            <span className="text-[11px] text-brown-light">Architecture + CS @ Georgia Tech · Sustainable Architecture Certificate</span>
           </Link>
 
           {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-6">
+          <div className="hidden md:flex items-center gap-6 ml-16">
             {sections.map((s) => (
               <a
                 key={s.id}

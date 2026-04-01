@@ -1,12 +1,49 @@
 'use client';
 
 import { useState } from 'react';
-import type { AcousticMetrics } from '@/types';
+import { marked } from 'marked';
+import type { AcousticMetrics, OctaveBandRT60, SurfaceGroup } from '@/types';
+import { OCTAVE_BANDS } from '@/lib/acoustics';
 
 interface MetricsPanelProps {
   metrics: AcousticMetrics;
   shapeDescription: string;
+  surfaceGroups: SurfaceGroup[];
 }
+
+// ─── Octave band bar chart ─────────────────────────────────────────────────────
+
+const BAND_COLORS = ['#818cf8', '#60a5fa', '#34d399', '#facc15', '#fb923c', '#f87171'];
+const BAND_SHORT  = ['125', '250', '500', '1k', '2k', '4k'];
+
+function OctaveBandChart({ octaveBandRT60 }: { octaveBandRT60: OctaveBandRT60 }) {
+  const values = [
+    octaveBandRT60.hz125, octaveBandRT60.hz250, octaveBandRT60.hz500,
+    octaveBandRT60.hz1000, octaveBandRT60.hz2000, octaveBandRT60.hz4000,
+  ];
+  const maxVal = Math.max(...values, 0.1);
+
+  return (
+    <div className="space-y-1.5">
+      {values.map((val, i) => (
+        <div key={OCTAVE_BANDS[i]} className="flex items-center gap-2">
+          <span className="text-xs text-[#6B6054] w-6 shrink-0 text-right">{BAND_SHORT[i]}</span>
+          <div className="flex-1 bg-[#F5F0E8] rounded-full h-2 overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${(val / maxVal) * 100}%`, backgroundColor: BAND_COLORS[i] }}
+            />
+          </div>
+          <span className="text-xs text-[#2C1810] w-10 text-right shrink-0 tabular-nums">
+            {val.toFixed(2)}s
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── RT60 badge ────────────────────────────────────────────────────────────────
 
 function RT60Badge({ rt60 }: { rt60: number }) {
   if (rt60 < 0.3)
@@ -34,7 +71,9 @@ function RT60Badge({ rt60 }: { rt60: number }) {
   );
 }
 
-export default function MetricsPanel({ metrics, shapeDescription }: MetricsPanelProps) {
+// ─── Component ─────────────────────────────────────────────────────────────────
+
+export default function MetricsPanel({ metrics, shapeDescription, surfaceGroups }: MetricsPanelProps) {
   const [summary, setSummary] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [timestamp, setTimestamp] = useState<string | null>(null);
@@ -47,7 +86,7 @@ export default function MetricsPanel({ metrics, shapeDescription }: MetricsPanel
       const res = await fetch('/api/acoustic-summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ metrics, shapeDescription }),
+        body: JSON.stringify({ metrics, shapeDescription, surfaceGroups }),
       });
       const data = await res.json() as { summary?: string; error?: string };
       if (!res.ok || data.error) {
@@ -64,29 +103,94 @@ export default function MetricsPanel({ metrics, shapeDescription }: MetricsPanel
     }
   }
 
+  async function handleExport() {
+    const { jsPDF } = await import('jspdf');
+    const doc = new jsPDF();
+    const now = new Date().toLocaleString();
+
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Acoustic Form: Analysis Report', 14, 20);
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(120, 96, 84);
+    doc.text(`Generated: ${now}`, 14, 28);
+    const descLines = doc.splitTextToSize(shapeDescription, 182) as string[];
+    doc.text(descLines, 14, 34);
+
+    const yAfterDesc = 34 + descLines.length * 5;
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Room Metrics', 14, yAfterDesc + 8);
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Volume:           ${metrics.volume.toFixed(1)} m³`, 14, yAfterDesc + 16);
+    doc.text(`Surface Area:     ${metrics.surfaceArea.toFixed(1)} m²`, 14, yAfterDesc + 23);
+    doc.text(`RT60 (500 Hz):    ${metrics.rt60.toFixed(2)} s`, 14, yAfterDesc + 30);
+    doc.text(`Early Reflections: ${metrics.earlyReflections}`, 14, yAfterDesc + 37);
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Octave Band RT60', 14, yAfterDesc + 48);
+
+    const bandLabels = ['125 Hz', '250 Hz', '500 Hz', '1 kHz', '2 kHz', '4 kHz'];
+    const bandValues = [
+      metrics.octaveBandRT60.hz125, metrics.octaveBandRT60.hz250, metrics.octaveBandRT60.hz500,
+      metrics.octaveBandRT60.hz1000, metrics.octaveBandRT60.hz2000, metrics.octaveBandRT60.hz4000,
+    ];
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    bandLabels.forEach((label, i) => {
+      doc.text(`${label}: ${bandValues[i].toFixed(2)} s`, 14, yAfterDesc + 56 + i * 7);
+    });
+
+    const yAfterBands = yAfterDesc + 56 + bandLabels.length * 7;
+
+    if (summary) {
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Claude Analysis', 14, yAfterBands + 8);
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      const plainText = summary.replace(/<[^>]+>/g, '').replace(/#{1,6}\s/g, '').trim();
+      const analysisLines = doc.splitTextToSize(plainText, 182) as string[];
+      doc.text(analysisLines, 14, yAfterBands + 16);
+    }
+
+    doc.save('acoustic-report.pdf');
+  }
+
+  const summaryHtml = summary ? String(marked.parse(summary)) : null;
+
   return (
     <div className="flex flex-col gap-4 h-full">
-      {/* Display metrics */}
+      {/* ─── Room Metrics ─────────────────────────────────────────────────────── */}
       <div className="bg-white/80 rounded-xl border border-[#E8E0D4] shadow-sm p-4 space-y-3">
         <h3 className="font-semibold text-sm text-[#2C1810]">Room Metrics</h3>
 
         <div className="space-y-2">
           <div className="flex justify-between items-center">
             <span className="text-xs text-[#6B6054]">Volume</span>
-            <span className="text-sm font-medium text-[#2C1810]">
+            <span className="text-sm font-medium text-[#2C1810] tabular-nums">
               {metrics.volume.toFixed(1)} m³
             </span>
           </div>
           <div className="flex justify-between items-center">
             <span className="text-xs text-[#6B6054]">Surface Area</span>
-            <span className="text-sm font-medium text-[#2C1810]">
+            <span className="text-sm font-medium text-[#2C1810] tabular-nums">
               {metrics.surfaceArea.toFixed(1)} m²
             </span>
           </div>
           <div className="flex flex-col gap-1">
             <div className="flex justify-between items-center">
-              <span className="text-xs text-[#6B6054]">RT60</span>
-              <span className="text-sm font-medium text-[#2C1810]">
+              <span className="text-xs text-[#6B6054]">RT60 <span className="text-[#9B8E85]">(500 Hz)</span></span>
+              <span className="text-sm font-medium text-[#2C1810] tabular-nums">
                 {metrics.rt60.toFixed(2)} s
               </span>
             </div>
@@ -96,14 +200,22 @@ export default function MetricsPanel({ metrics, shapeDescription }: MetricsPanel
           </div>
           <div className="flex justify-between items-center">
             <span className="text-xs text-[#6B6054]">Early Reflections</span>
-            <span className="text-sm font-medium text-[#2C1810]">
+            <span className="text-sm font-medium text-[#2C1810] tabular-nums">
               {metrics.earlyReflections}
             </span>
           </div>
         </div>
+
+        {/* Octave band chart */}
+        <div className="pt-1 border-t border-[#E8E0D4]">
+          <p className="text-xs text-[#6B6054] mb-2">
+            Octave Band RT60 <span className="text-[#9B8E85]">(Hz)</span>
+          </p>
+          <OctaveBandChart octaveBandRT60={metrics.octaveBandRT60} />
+        </div>
       </div>
 
-      {/* Claude Analysis */}
+      {/* ─── Claude Analysis ─────────────────────────────────────────────────── */}
       <div className="bg-white/80 rounded-xl border border-[#E8E0D4] shadow-sm p-4 flex flex-col gap-3 flex-1">
         <h3 className="font-semibold text-sm text-[#2C1810]">Claude Analysis</h3>
 
@@ -112,18 +224,24 @@ export default function MetricsPanel({ metrics, shapeDescription }: MetricsPanel
           disabled={loading}
           className="w-full py-2 px-4 rounded-lg bg-[#FF6B35] text-white text-sm font-medium hover:bg-[#e55e2b] disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
         >
-          {loading ? 'Analyzing with Claude...' : 'Analyze Acoustics'}
+          {loading ? 'Analyzing with Claude…' : 'Analyze Acoustics'}
         </button>
 
         {error && (
           <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
         )}
 
-        {summary && (
-          <div className="flex flex-col gap-1.5">
-            <blockquote className="border-l-2 border-[#FF6B35] pl-3 text-xs text-[#2C1810] leading-relaxed italic">
-              {summary}
-            </blockquote>
+        {summaryHtml && (
+          <div className="flex flex-col gap-2">
+            <div
+              className="text-xs text-[#2C1810] leading-relaxed
+                [&_h1]:font-bold [&_h1]:text-sm [&_h1]:mb-1
+                [&_h2]:font-semibold [&_h2]:text-xs [&_h2]:mt-2 [&_h2]:mb-1
+                [&_h3]:font-semibold [&_h3]:text-xs [&_h3]:mt-1.5 [&_h3]:mb-0.5
+                [&_p]:mb-1.5 [&_ul]:pl-4 [&_ul]:mb-1.5 [&_li]:mb-0.5 [&_li]:list-disc
+                [&_strong]:font-semibold"
+              dangerouslySetInnerHTML={{ __html: summaryHtml }}
+            />
             {timestamp && (
               <p className="text-xs text-[#6B6054]">Last analyzed at {timestamp}</p>
             )}
@@ -135,6 +253,14 @@ export default function MetricsPanel({ metrics, shapeDescription }: MetricsPanel
             Click above to get an expert acoustic analysis from Claude.
           </p>
         )}
+
+        {/* Export */}
+        <button
+          onClick={handleExport}
+          className="mt-auto w-full py-1.5 px-4 rounded-lg border border-[#E8E0D4] bg-white text-xs font-medium text-[#6B6054] hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors"
+        >
+          Export Report (PDF)
+        </button>
       </div>
     </div>
   );

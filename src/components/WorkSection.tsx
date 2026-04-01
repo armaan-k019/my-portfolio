@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import Modal from "./Modal";
+import CurrentlyWorkingOn from "./CurrentlyWorkingOn";
 import { workEntries, type WorkEntry } from "../../content/work";
 
 const fadeUp = {
@@ -72,10 +73,19 @@ export default function WorkSection() {
                 <p className={`text-xs font-semibold tracking-wide uppercase ${dark ? "text-white" : "text-darkblue"}`}>
                   {entry.name}
                 </p>
+                {entry.type === "studentOrg" && (
+                  <p className={`text-[10px] mt-0.5 ${dark ? "text-white/50" : "text-brown-light/60"}`}>
+                    Student Org
+                  </p>
+                )}
               </div>
             </motion.button>
           );
         })}
+      </div>
+
+      <div className="mt-8">
+        <CurrentlyWorkingOn />
       </div>
 
       <Modal open={!!selected} onClose={() => setSelected(null)}>

@@ -11,13 +11,22 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
     "@types/three": "^0.183.1",
+    "dxf-parser": "^1.1.2",
     "framer-motion": "^12.38.0",
     "gray-matter": "^4.0.3",
+    "jspdf": "^4.2.1",
+    "marked": "^17.0.5",
     "next": "16.2.1",
     "next-mdx-remote": "^6.0.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "three": "^0.183.2"
+    "recharts": "^3.8.1",
+    "resend": "^6.10.0",
+    "rhino3dm": "^8.17.0",
+    "three": "^0.183.2",
+    "web-ifc": "^0.0.77",
+    "ws": "^8.20.0",
+    "yahoo-finance2": "^3.14.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

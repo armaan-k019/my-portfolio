@@ -10,7 +10,19 @@ interface Loophole {
   how: string;
 }
 
-function extractTextFromFile(file: File): Promise<string> {
+function readFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      resolve(dataUrl.split(",")[1]);
+    };
+    reader.onerror = () => reject(new Error("Failed to read file."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function readFileAsText(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
@@ -63,20 +75,26 @@ export default function FinePrintPage() {
     setHasSearched(false);
 
     try {
-      const content = await extractTextFromFile(file);
+      const isPDF = file.type === "application/pdf" || file.name.endsWith(".pdf");
 
-      if (content.trim().length === 0) {
-        setError(
-          "Could not extract text from this file. For PDFs, try copying the text into a .txt file instead."
-        );
-        setLoading(false);
-        return;
+      let body: Record<string, string>;
+      if (isPDF) {
+        const base64 = await readFileAsBase64(file);
+        body = { base64, mediaType: "application/pdf", context };
+      } else {
+        const content = await readFileAsText(file);
+        if (content.trim().length === 0) {
+          setError("File appears to be empty.");
+          setLoading(false);
+          return;
+        }
+        body = { content, context };
       }
 
       const res = await fetch("/api/fine-print", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content, context }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
@@ -117,6 +135,9 @@ export default function FinePrintPage() {
           surface the real loopholes, genuine gaps, ambiguities, and exploitable
           clauses hiding in the fine print.
         </p>
+        <p className="text-xs text-brown-light/60 mt-3 italic">
+          Fine Print is just for fun. Loopholes are AI-generated for entertainment purposes only; not legal advice.
+        </p>
       </header>
 
       {/* Upload area */}
@@ -141,7 +162,7 @@ export default function FinePrintPage() {
           <div>
             <p className="text-sage font-medium">{file.name}</p>
             <p className="text-xs text-brown-light mt-1">
-              {(file.size / 1024).toFixed(1)} KB — click or drop to replace
+              {(file.size / 1024).toFixed(1)} KB · click or drop to replace
             </p>
           </div>
         ) : (
@@ -188,9 +209,7 @@ export default function FinePrintPage() {
       {loading && (
         <div className="mt-10 flex flex-col items-center gap-3">
           <div className="w-6 h-6 border-2 border-terracotta/30 border-t-terracotta rounded-full animate-spin" />
-          <p className="text-sm text-brown-light">
-            Reading the fine print...
-          </p>
+          <p className="text-sm text-brown-light">Reading the fine print...</p>
         </div>
       )}
 

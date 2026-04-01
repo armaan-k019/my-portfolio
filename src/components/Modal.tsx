@@ -7,9 +7,10 @@ interface ModalProps {
   open: boolean;
   onClose: () => void;
   children: React.ReactNode;
+  panelClassName?: string;
 }
 
-export default function Modal({ open, onClose, children }: ModalProps) {
+export default function Modal({ open, onClose, children, panelClassName }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
 
   const handleKeyDown = useCallback(
@@ -70,11 +71,11 @@ export default function Modal({ open, onClose, children }: ModalProps) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.2 }}
-            className="relative bg-cream rounded-xl shadow-xl max-w-lg w-full max-h-[80vh] overflow-y-auto outline-none"
+            className={`relative bg-cream rounded-xl shadow-xl w-full max-h-[85vh] overflow-y-auto outline-none ${panelClassName ?? "max-w-lg"}`}
           >
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 z-10 text-white/80 hover:text-white transition-colors text-sm"
+              className="absolute top-4 right-4 z-10 text-brown-light/60 hover:text-brown transition-colors text-sm"
               aria-label="Close dialog"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">

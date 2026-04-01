@@ -10,7 +10,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const project = projects.find((p) => p.slug === slug);
-  return { title: project ? `${project.title} — Armaan Kazi` : "Not Found" };
+  return { title: project ? `${project.title} | Armaan Kazi` : "Not Found" };
 }
 
 export default async function ProjectPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -42,18 +42,6 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
             </span>
           </div>
           <p className="text-brown-light leading-relaxed mb-4">{project.description}</p>
-          {project.stack.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-4">
-              {project.stack.map((tag) => (
-                <span
-                  key={tag}
-                  className="text-xs px-2 py-0.5 rounded-full bg-sage/15 text-sage font-medium"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
           {project.link && (
             <a
               href={project.link}

@@ -1,71 +1,93 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-const client = new Anthropic();
+const SYSTEM_PROMPT = `You are a sharp legal and logical analyst specializing in finding loopholes, ambiguities, and exploitable gaps in documents of all kinds, from legal contracts to board game rules.
 
-const SYSTEM_PROMPT = `You are Fine Print, an expert document analyst specializing in finding genuine loopholes, ambiguities, and exploitable clauses in documents.
+When given a document, your job is to identify real, grounded, practically exploitable loopholes. These should be genuine gaps in the rules or language, not absurd, violent, or completely out-of-spirit findings.
 
-Your job:
-1. Read the provided document carefully.
-2. Infer the document type from its content (contract, game rules, terms of service, lease agreement, informal agreement, etc.).
-3. Identify real, practical loopholes — genuine gaps, ambiguities, undefined terms, conflicting clauses, or exploitable language within the spirit of the document.
-4. For each loophole, provide a short punchy title, a clear explanation of the gap, and practical advice on how someone could leverage it.
+If context is provided about the user's situation, prioritize loopholes that are most relevant and useful to them specifically.
 
-Tone calibration:
-- For casual/fun documents (game rules, friend group agreements, informal policies): be witty, playful, and entertaining while still being accurate.
-- For legal/contractual/formal documents (leases, contracts, terms of service, NDAs): be neutral, precise, and analytical.
+Adapt your tone to the document type:
+- For casual/fun documents (game rules, informal policies): use a witty, playful tone
+- For legal/formal documents (contracts, leases, terms): use a neutral, precise, analytical tone
 
-Rules:
-- Every loophole must be grounded in the actual text. Do not invent problems that don't exist.
-- Do not suggest anything absurd, violent, illegal beyond the document's scope, or wildly out-of-spirit.
-- Focus on genuinely useful findings: undefined terms, missing enforcement mechanisms, ambiguous language, conflicting provisions, missing edge cases, one-sided clauses.
-- If the user provides context about their situation, tailor your analysis to their perspective.
+Respond with ONLY a valid JSON object in this exact format. No preamble, no explanation, no markdown code fences, no text before or after:
 
-You MUST respond with valid JSON in exactly this format:
 {
   "loopholes": [
     {
-      "title": "Short punchy name",
-      "what": "Clear explanation of the gap, ambiguity, or exploitable clause",
-      "how": "Practical advice on how to leverage this"
+      "title": "Short punchy title",
+      "what": "Clear explanation of the gap or ambiguity",
+      "how": "Practical advice on how to exploit this"
     }
   ]
 }
 
-If no meaningful loopholes exist, return: { "loopholes": [] }`;
+Return between 3 and 8 loopholes. If no meaningful loopholes exist, return {"loopholes": []}.
+
+CRITICAL: Your entire response must be a single valid JSON object. Do not include any text, explanation, or markdown before or after the JSON. Do not use code fences. Begin your response with { and end with }. If you include any text outside the JSON object your response will be unusable.`;
 
 export async function POST(request: Request) {
   try {
-    const { content, context } = await request.json();
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const { base64, mediaType, content, context } = await request.json();
 
-    if (!content || typeof content !== "string" || content.trim().length === 0) {
-      return Response.json(
-        { error: "Document content is required." },
-        { status: 400 }
-      );
+    // Build content blocks
+    type ContentBlock =
+      | { type: "document"; source: { type: "base64"; media_type: "application/pdf"; data: string } | { type: "text"; media_type: "text/plain"; data: string } }
+      | { type: "text"; text: string };
+
+    const blocks: ContentBlock[] = [];
+
+    if (base64) {
+      console.log('[fine-print] PDF mode - base64 length:', base64.length, 'mediaType:', mediaType);
+      blocks.push({
+        type: "document",
+        source: { type: "base64", media_type: "application/pdf", data: base64 },
+      });
+    } else if (content && typeof content === "string" && content.trim().length > 0) {
+      console.log('[fine-print] Text mode - content length:', content.length, 'first 500 chars:', content.slice(0, 500));
+      blocks.push({
+        type: "document",
+        source: { type: "text", media_type: "text/plain", data: content },
+      });
+    } else {
+      return Response.json({ error: "Document content is required." }, { status: 400 });
     }
 
-    let userMessage = `Here is the document to analyze:\n\n---\n${content}\n---`;
-    if (context && typeof context === "string" && context.trim().length > 0) {
-      userMessage += `\n\nContext about my situation: ${context.trim()}`;
-    }
+    blocks.push({
+      type: "text",
+      text: context?.trim() ? `Context about my situation: ${context.trim()}` : "Find all loopholes in this document.",
+    });
 
     const message = await client.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userMessage }],
+      messages: [{ role: "user", content: blocks as Anthropic.MessageParam["content"] }],
     });
 
     const textBlock = message.content.find((b) => b.type === "text");
     if (!textBlock || textBlock.type !== "text") {
-      return Response.json(
-        { error: "No response received from analysis." },
-        { status: 500 }
-      );
+      return Response.json({ error: "No response received from analysis." }, { status: 500 });
     }
 
-    const parsed = JSON.parse(textBlock.text);
-    return Response.json(parsed);
+    console.log('[fine-print] Claude raw response:', textBlock.text.slice(0, 300));
+
+    let cleanText = textBlock.text.trim();
+    cleanText = cleanText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '');
+    const firstBrace = cleanText.indexOf('{');
+    const lastBrace = cleanText.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1) {
+      cleanText = cleanText.slice(firstBrace, lastBrace + 1);
+    }
+
+    try {
+      const parsed = JSON.parse(cleanText);
+      return Response.json(parsed);
+    } catch (e) {
+      console.error('JSON parse failed. Raw text:', textBlock.text);
+      throw e;
+    }
   } catch (err) {
     console.error("Fine Print API error:", err);
     return Response.json(
