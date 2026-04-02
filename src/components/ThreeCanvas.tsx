@@ -12,6 +12,7 @@ export interface ThreeCanvasProps {
   onSourceDrag?: (index: number, newPos: Vector3D) => void;
   onReceiverDrag?: (id: string, newPos: Vector3D) => void;
   surfaceGroups?: SurfaceGroup[];
+  vizMode?: 'particles' | 'static';
 }
 
 // ─── Ray / receiver colours ───────────────────────────────────────────────────
@@ -101,6 +102,7 @@ function buildFaceGeo(roomShape: RoomShape, faces: { a: number; b: number; c: nu
 export default function ThreeCanvas({
   roomShape, sourcePositions, soundRays, receiverPoints,
   onSourceDrag, onReceiverDrag, surfaceGroups,
+  vizMode: vizModeProp = 'static',
 }: ThreeCanvasProps) {
   const containerRef       = useRef<HTMLDivElement>(null);
   const sceneRef           = useRef<THREE.Scene | null>(null);
@@ -124,10 +126,9 @@ export default function ThreeCanvas({
   const waveParticlesRef   = useRef<WaveParticle[]>([]);
   const particleGeoRef     = useRef<THREE.SphereGeometry | null>(null);
 
-  // Viz mode toggle
-  const [vizMode, setVizMode] = useState<'particles' | 'static'>('static');
-  const vizModeRef = useRef<'particles' | 'static'>('static');
-  useEffect(() => { vizModeRef.current = vizMode; }, [vizMode]);
+  // Viz mode (controlled by parent via prop)
+  const vizModeRef = useRef<'particles' | 'static'>(vizModeProp);
+  useEffect(() => { vizModeRef.current = vizModeProp; }, [vizModeProp]);
 
   // Prop refs (for stable closures in mouse handlers)
   const receiverPointsRef  = useRef(receiverPoints);
@@ -619,20 +620,8 @@ export default function ThreeCanvas({
         style={{ cursor: dragSourceRef.current.active || dragReceiverRef.current.active ? 'crosshair' : orbitRef.current.isDragging ? 'grabbing' : 'grab' }}
       />
 
-      {/* Top-right: viewport label + viz toggle */}
-      <div className="absolute top-3 right-3 flex items-center gap-2">
-        <button
-          onClick={() => setVizMode(m => m === 'particles' ? 'static' : 'particles')}
-          className="text-[10px] font-mono px-2 py-0.5 rounded border transition-colors select-none"
-          style={{
-            backgroundColor: vizMode === 'particles' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.12)',
-            borderColor: 'rgba(255,255,255,0.12)',
-            color: 'rgba(255,255,255,0.5)',
-          }}
-          title="Toggle ray visualization mode"
-        >
-          {vizMode === 'particles' ? '◉ particles' : '— static'}
-        </button>
+      {/* Top-right: viewport label */}
+      <div className="absolute top-3 right-3">
         <span className="text-[10px] text-white/30 font-mono select-none pointer-events-none uppercase tracking-widest">
           Perspective
         </span>

@@ -212,6 +212,7 @@ export default function AcousticFormPage() {
   );
   const [receiverPoints, setReceiverPoints] = useState<ReceiverPoint[]>([]);
   const [maxBounces, setMaxBounces]         = useState(5);
+  const [vizMode, setVizMode]               = useState<'particles' | 'static'>('static');
   const [metrics, setMetrics]               = useState<AcousticMetrics>(
     () => computeMetrics(DEFAULT_ROOM, [], detectSurfaceGroups(DEFAULT_ROOM.vertices, DEFAULT_ROOM.faces)),
   );
@@ -334,6 +335,8 @@ export default function AcousticFormPage() {
             onSourceChange={(pos) => setSourcePositions(prev => [pos, ...prev.slice(1)])}
             maxBounces={maxBounces}
             onMaxBouncesChange={setMaxBounces}
+            vizMode={vizMode}
+            onVizModeChange={setVizMode}
           />
         </aside>
 
@@ -347,6 +350,7 @@ export default function AcousticFormPage() {
             onSourceDrag={handleSourceDrag}
             onReceiverDrag={handleReceiverDrag}
             surfaceGroups={surfaceGroups}
+            vizMode={vizMode}
           />
         </main>
 

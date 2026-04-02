@@ -424,6 +424,8 @@ interface ShapeInputPanelProps {
   onSourceChange: (pos: Vector3D) => void;
   maxBounces: number;
   onMaxBouncesChange: (n: number) => void;
+  vizMode: 'particles' | 'static';
+  onVizModeChange: (mode: 'particles' | 'static') => void;
 }
 
 export default function ShapeInputPanel({
@@ -433,6 +435,8 @@ export default function ShapeInputPanel({
   onSourceChange,
   maxBounces,
   onMaxBouncesChange,
+  vizMode,
+  onVizModeChange,
 }: ShapeInputPanelProps) {
   const [tab, setTab] = useState<'describe' | 'manual' | 'import'>('describe');
   const [description, setDescription] = useState('');
@@ -634,6 +638,25 @@ export default function ShapeInputPanel({
           className="w-full accent-[#FF6B35]"
         />
         <p className="text-xs text-[#6B6054]">Number of reflections to simulate (1–10)</p>
+
+        <div className="flex items-center justify-between pt-1 border-t border-[#E8E0D4]">
+          <span className="text-xs text-[#2C1810] font-medium">Ray visualization</span>
+          <div className="flex rounded-lg border border-[#E8E0D4] overflow-hidden text-[11px]">
+            {(['static', 'particles'] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => onVizModeChange(m)}
+                className={`px-2.5 py-1 font-medium transition-colors ${
+                  vizMode === m
+                    ? 'bg-[#FF6B35] text-white'
+                    : 'bg-white text-[#6B6054] hover:text-[#2C1810]'
+                }`}
+              >
+                {m === 'static' ? '— static' : '◉ particles'}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
