@@ -72,12 +72,12 @@ export const projects: Project[] = [
     stack: ["Next.js", "Polygon.io", "Claude API", "Recharts"],
   },
   {
-    slug: "tempo",
-    title: "Tempo",
+    slug: "pulse",
+    title: "Pulse",
     category: "cs",
-    blurb: "A guided visual journey through any song.",
-    description: "Search any song and watch a generative visual landscape come alive as it plays. Powered by Spotify's audio features, Tempo maps music into a living, breathing visualization that moves with the song in real time.",
-    stack: ["Next.js", "Spotify API", "Three.js"],
+    blurb: "A live data portrait of Georgia Tech's campus.",
+    description: "A live data portrait of Georgia Tech's campus — bus locations, crowd density, dining wait times, and an AI assistant that helps you navigate your day.",
+    stack: ["Next.js", "Google Maps", "TransLoc API", "Claude API"],
   },
   {
     slug: "fine-print",
