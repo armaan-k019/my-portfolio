@@ -1,4 +1,3 @@
-import rhino3dm from 'rhino3dm';
 import type { Vector3D, Face } from '@/types';
 
 export async function POST(request: Request): Promise<Response> {
@@ -13,8 +12,42 @@ export async function POST(request: Request): Promise<Response> {
     const buf = await file.arrayBuffer();
     const arr = new Uint8Array(buf);
 
-    const rhino = await rhino3dm();
-    const doc = rhino.File3dm.fromByteArray(arr);
+    // Dynamic import avoids module-load failures when rhino3dm WASM is unavailable
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let rhino3dmLoader: any;
+    try {
+      rhino3dmLoader = (await import('rhino3dm')).default;
+    } catch (importErr) {
+      console.error('[parse-3dm] Failed to load rhino3dm module:', importErr);
+      return Response.json(
+        { error: 'The .3dm parser module could not be loaded on this server. Try .obj or .stl instead.' },
+        { status: 500 },
+      );
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let rhino: any;
+    try {
+      rhino = await rhino3dmLoader();
+    } catch (initErr) {
+      console.error('[parse-3dm] Failed to initialize rhino3dm:', initErr);
+      return Response.json(
+        { error: 'Failed to initialize the .3dm parser. The file may be corrupt or too large.' },
+        { status: 500 },
+      );
+    }
+
+    let doc;
+    try {
+      doc = rhino.File3dm.fromByteArray(arr);
+      if (!doc) throw new Error('fromByteArray returned null');
+    } catch (parseErr) {
+      console.error('[parse-3dm] Failed to parse file bytes:', parseErr);
+      return Response.json(
+        { error: 'Could not read .3dm file. Make sure it was saved from Rhino 6 or later.' },
+        { status: 422 },
+      );
+    }
 
     const vertices: Vector3D[] = [];
     const faces: Face[] = [];
@@ -38,12 +71,18 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     if (vertices.length < 4) {
-      return Response.json({ error: '3DM file contains no mesh geometry.' }, { status: 422 });
+      return Response.json(
+        { error: '3DM file contains no mesh geometry. Make sure the model has meshes (not only NURBS surfaces). In Rhino, run Mesh on your surfaces before exporting.' },
+        { status: 422 },
+      );
     }
 
     return Response.json({ vertices, faces });
   } catch (err) {
-    console.error('parse-3dm route error:', err);
-    return Response.json({ error: 'Failed to parse .3dm file' }, { status: 500 });
+    console.error('[parse-3dm] Unexpected error:', err instanceof Error ? err.stack : err);
+    return Response.json(
+      { error: `Failed to parse .3dm: ${err instanceof Error ? err.message : String(err)}` },
+      { status: 500 },
+    );
   }
 }

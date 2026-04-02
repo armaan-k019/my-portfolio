@@ -88,7 +88,7 @@ export default function Navbar() {
             </div>
             <div className="flex flex-col leading-tight">
               <span className="text-sm font-semibold text-darkblue tracking-wide">Armaan Kazi</span>
-              <span className="text-[11px] text-brown-light">Architecture + CS @ Georgia Tech · Sustainable Architecture Certificate</span>
+              <span className="hidden sm:block text-[11px] text-brown-light">Architecture + CS @ Georgia Tech · Sustainable Architecture Certificate</span>
             </div>
           </Link>
 

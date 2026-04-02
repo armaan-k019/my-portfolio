@@ -204,13 +204,59 @@ async function parseIFC(file: File): Promise<RoomShape> {
   return { vertices, faces };
 }
 
+// ─── Transform helpers ─────────────────────────────────────────────────────────
+
+function applyTransform(
+  shape: RoomShape,
+  scale: number,
+  rotX: number,
+  rotY: number,
+  rotZ: number,
+): RoomShape {
+  // Compute centroid
+  const n = shape.vertices.length;
+  const cx = shape.vertices.reduce((s, v) => s + v.x, 0) / n;
+  const cy = shape.vertices.reduce((s, v) => s + v.y, 0) / n;
+  const cz = shape.vertices.reduce((s, v) => s + v.z, 0) / n;
+
+  const rx = (rotX * Math.PI) / 180;
+  const ry = (rotY * Math.PI) / 180;
+  const rz = (rotZ * Math.PI) / 180;
+  const [cosX, sinX] = [Math.cos(rx), Math.sin(rx)];
+  const [cosY, sinY] = [Math.cos(ry), Math.sin(ry)];
+  const [cosZ, sinZ] = [Math.cos(rz), Math.sin(rz)];
+
+  const vertices: Vector3D[] = shape.vertices.map(({ x, y, z }) => {
+    // Translate to centroid
+    let px = x - cx, py = y - cy, pz = z - cz;
+    // Rotate Z
+    let tx = px * cosZ - py * sinZ; let ty = px * sinZ + py * cosZ;
+    px = tx; py = ty;
+    // Rotate X
+    let ty2 = py * cosX - pz * sinX; let tz2 = py * sinX + pz * cosX;
+    py = ty2; pz = tz2;
+    // Rotate Y
+    let tx3 = px * cosY + pz * sinY; let tz3 = -px * sinY + pz * cosY;
+    px = tx3; pz = tz3;
+    // Scale and translate back
+    return { x: px * scale + cx, y: py * scale + cy, z: pz * scale + cz };
+  });
+
+  return { vertices, faces: shape.faces };
+}
+
 // ─── Import tab ────────────────────────────────────────────────────────────────
 
-type ImportStatus = 'idle' | 'parsing' | 'done' | 'error';
+type ImportStatus = 'idle' | 'parsing' | 'ready' | 'error';
 
 function FileImportTab({ onRoomChange }: { onRoomChange: (s: RoomShape) => void }) {
-  const [status, setStatus] = useState<ImportStatus>('idle');
-  const [msg, setMsg] = useState('');
+  const [status, setStatus]     = useState<ImportStatus>('idle');
+  const [msg, setMsg]           = useState('');
+  const [rawShape, setRawShape] = useState<RoomShape | null>(null);
+  const [scale, setScale]       = useState(1.0);
+  const [rotX, setRotX]         = useState(0);
+  const [rotY, setRotY]         = useState(0);
+  const [rotZ, setRotZ]         = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function handleFile(file: File) {
@@ -225,13 +271,20 @@ function FileImportTab({ onRoomChange }: { onRoomChange: (s: RoomShape) => void 
       else if (ext === '3dm') shape = await parse3DM(file);
       else if (ext === 'ifc') shape = await parseIFC(file);
       else throw new Error(`Unsupported format: .${ext}`);
-      onRoomChange(shape);
-      setStatus('done');
+      setRawShape(shape);
+      setScale(1.0);
+      setRotX(0); setRotY(0); setRotZ(0);
+      setStatus('ready');
       setMsg(`${file.name}: ${shape.faces.length} polygons, ${shape.vertices.length} vertices`);
     } catch (err) {
       setStatus('error');
       setMsg(err instanceof Error ? err.message : 'Failed to parse file.');
     }
+  }
+
+  function handleApply() {
+    if (!rawShape) return;
+    onRoomChange(applyTransform(rawShape, scale, rotX, rotY, rotZ));
   }
 
   return (
@@ -266,11 +319,72 @@ function FileImportTab({ onRoomChange }: { onRoomChange: (s: RoomShape) => void 
           {msg}
         </div>
       )}
-      {status === 'done' && (
-        <p className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2">{msg}</p>
-      )}
       {status === 'error' && (
         <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{msg}</p>
+      )}
+
+      {status === 'ready' && rawShape && (
+        <div className="space-y-3 border border-[#E8E0D4] rounded-xl p-3 bg-white/60">
+          <p className="text-xs text-green-700">{msg}</p>
+
+          {/* Scale */}
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-[11px] font-medium text-[#2C1810]">Scale</span>
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={scale}
+                onChange={e => setScale(Math.max(0.01, parseFloat(e.target.value) || 1))}
+                className="w-16 text-[11px] text-right px-1.5 py-0.5 border border-[#E8E0D4] rounded bg-white text-[#2C1810] focus:outline-none focus:border-[#FF6B35]"
+              />
+            </div>
+            <input
+              type="range" min="0.01" max="10" step="0.01"
+              value={scale}
+              onChange={e => setScale(parseFloat(e.target.value))}
+              className="w-full h-1.5 accent-[#FF6B35] cursor-pointer"
+            />
+          </div>
+
+          {/* Rotation */}
+          <div className="space-y-1.5">
+            <p className="text-[11px] font-medium text-[#2C1810]">Rotation (degrees)</p>
+            {([['X', rotX, setRotX], ['Y', rotY, setRotY], ['Z', rotZ, setRotZ]] as [string, number, (v: number) => void][]).map(([axis, val, setter]) => (
+              <div key={axis} className="flex items-center gap-2">
+                <span className="text-[11px] text-[#6B6054] w-3">{axis}</span>
+                <input
+                  type="range" min="-180" max="180" step="1"
+                  value={val}
+                  onChange={e => setter(parseInt(e.target.value))}
+                  className="flex-1 h-1.5 accent-[#FF6B35] cursor-pointer"
+                />
+                <input
+                  type="number" min="-180" max="180" step="1"
+                  value={val}
+                  onChange={e => setter(parseInt(e.target.value) || 0)}
+                  className="w-14 text-[11px] text-right px-1.5 py-0.5 border border-[#E8E0D4] rounded bg-white text-[#2C1810] focus:outline-none focus:border-[#FF6B35]"
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={handleApply}
+              className="flex-1 py-1.5 text-xs font-medium rounded-lg bg-[#FF6B35] text-white hover:bg-[#e55e2b] transition-colors"
+            >
+              Apply to scene
+            </button>
+            <button
+              onClick={() => { setRotX(0); setRotY(0); setRotZ(0); setScale(1); }}
+              className="px-3 py-1.5 text-xs rounded-lg border border-[#E8E0D4] text-[#6B6054] hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors"
+            >
+              Reset
+            </button>
+          </div>
+        </div>
       )}
 
       <div className="text-xs text-[#6B6054] leading-relaxed">

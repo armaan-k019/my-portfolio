@@ -281,8 +281,24 @@ export default function AcousticFormPage() {
   return (
     <div className="h-screen bg-[#F5F0E8] flex flex-col overflow-hidden">
 
-      {/* ─── Three-column layout ─────────────────────────────────────────────── */}
-      <div className="flex flex-1 min-h-0 max-w-screen-2xl w-full mx-auto p-4 gap-4">
+      {/* ─── Mobile message ──────────────────────────────────────────────────── */}
+      <div className="lg:hidden flex flex-col items-center justify-center h-full px-8 text-center gap-4">
+        <div className="w-12 h-12 rounded-full bg-[#FF6B35]/10 flex items-center justify-center">
+          <svg className="w-6 h-6 text-[#FF6B35]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25A2.25 2.25 0 015.25 3h13.5A2.25 2.25 0 0121 5.25z" />
+          </svg>
+        </div>
+        <h2 className="text-xl font-semibold text-[#2C1810]">Desktop required</h2>
+        <p className="text-sm text-[#6B6054] max-w-xs leading-relaxed">
+          Acoustic Form uses a three-panel layout with a 3D viewport. Please open it on a laptop or desktop for the full experience.
+        </p>
+        <Link href="/#projects" className="mt-2 text-sm text-[#FF6B35] hover:text-[#e55e2b] transition-colors">
+          &larr; Back to projects
+        </Link>
+      </div>
+
+      {/* ─── Three-column layout (desktop only) ─────────────────────────────── */}
+      <div className="hidden lg:flex flex-1 min-h-0 max-w-screen-2xl w-full mx-auto p-4 gap-4">
 
         {/* Left - title + how to use + shape input */}
         <aside className="w-72 flex-shrink-0 overflow-y-auto min-h-0 flex flex-col gap-3">

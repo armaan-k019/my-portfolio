@@ -191,6 +191,10 @@ export default function IsometricBackground() {
       },
     ];
 
+    // Accumulated angles per form - avoids jump when speed changes
+    const formAngles = forms.map(f => f.rotOffset);
+    let lastTime = 0;
+
     function resize() {
       canvas!.width = window.innerWidth;
       canvas!.height = window.innerHeight;
@@ -207,6 +211,9 @@ export default function IsometricBackground() {
     }
 
     function draw(time: number) {
+      const dt = lastTime > 0 ? (time - lastTime) * 0.001 : 0;
+      lastTime = time;
+
       ctx!.clearRect(0, 0, canvas!.width, canvas!.height);
       const w = canvas!.width;
       const h = canvas!.height;
@@ -243,10 +250,15 @@ export default function IsometricBackground() {
       const viewScale = Math.min(w, h) / 900;
       const speed = hoveredRef.current ? 0.5 : 1.0;
 
-      for (const form of forms) {
+      for (let fi = 0; fi < forms.length; fi++) {
+        formAngles[fi] += forms[fi].rotSpeed * speed * dt;
+      }
+
+      for (let fi = 0; fi < forms.length; fi++) {
+        const form = forms[fi];
         const cx = form.cx * w;
         const cy = form.cy * h;
-        const angle = (time * 0.001 * form.rotSpeed * speed) + form.rotOffset;
+        const angle = formAngles[fi];
         const s = viewScale * form.baseScale;
 
         const projected: { pts2d: Vec2[]; depth: number; normal: Vec3 }[] = [];

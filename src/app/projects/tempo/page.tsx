@@ -150,23 +150,43 @@ async function startPlayback(deviceId: string, uri: string, token: string) {
 
 // ─── Color helpers ────────────────────────────────────────────────────────────
 
-function sampleDominantColor(url: string): Promise<[number, number, number]> {
+// Extract a palette of up to 4 distinct vibrant colors from an album art URL.
+// Samples each quadrant of the image and picks the most saturated pixel in each.
+function sampleAlbumPalette(url: string): Promise<[number, number, number][]> {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
+      const SIZE = 40;
       const c = document.createElement("canvas");
-      c.width = c.height = 10;
+      c.width = c.height = SIZE;
       const ctx = c.getContext("2d");
-      if (!ctx) { resolve([80, 80, 200]); return; }
-      ctx.drawImage(img, 0, 0, 10, 10);
-      const d = ctx.getImageData(0, 0, 10, 10).data;
-      let r = 0, g = 0, b = 0;
-      for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; }
-      const n = d.length / 4;
-      resolve([r / n, g / n, b / n]);
+      if (!ctx) { resolve([[0.3, 0.3, 1.0]]); return; }
+      ctx.drawImage(img, 0, 0, SIZE, SIZE);
+
+      // Sample one vibrant color from each quadrant
+      const half = SIZE / 2;
+      const regions = [
+        { x: 0, y: 0 }, { x: half, y: 0 },
+        { x: 0, y: half }, { x: half, y: half },
+      ];
+
+      const palette: [number, number, number][] = [];
+      for (const { x, y } of regions) {
+        const d = ctx.getImageData(x, y, half, half).data;
+        let bestR = 128, bestG = 128, bestB = 200, bestSat = -1;
+        for (let i = 0; i < d.length; i += 4) {
+          const r = d[i], g = d[i + 1], b = d[i + 2];
+          const max = Math.max(r, g, b);
+          const min = Math.min(r, g, b);
+          const sat = max > 20 ? (max - min) / max : 0;
+          if (sat > bestSat) { bestSat = sat; bestR = r; bestG = g; bestB = b; }
+        }
+        palette.push([bestR / 255, bestG / 255, bestB / 255]);
+      }
+      resolve(palette);
     };
-    img.onerror = () => resolve([80, 80, 200]);
+    img.onerror = () => resolve([[0.3, 0.3, 1.0]]);
     img.src = url;
   });
 }
@@ -310,14 +330,15 @@ function TempoInner() {
   const [useCustom,   setUseCustom]   = useState(false);
 
   // stable refs for values used inside animation loop / async closures
-  const tokenRef      = useRef<string | null>(null);
-  const featuresRef   = useRef<AudioFeatures>({ tempo: 120, energy: 0.6, danceability: 0.6, valence: 0.5 });
-  const albumRGBRef   = useRef<[number, number, number]>([0.3, 0.3, 1.0]);
-  const startMsRef    = useRef(0);
-  const progressRef   = useRef(0);
-  const useCustomRef  = useRef(false);
-  const userColorRef  = useRef("#5588ff");
-  const curColorRef   = useRef<[number, number, number]>([0.25, 0.25, 0.9]);
+  const tokenRef        = useRef<string | null>(null);
+  const featuresRef     = useRef<AudioFeatures>({ tempo: 120, energy: 0.6, danceability: 0.6, valence: 0.5 });
+  const albumPaletteRef = useRef<[number, number, number][]>([[0.3, 0.3, 1.0]]);
+  const startMsRef      = useRef(0);
+  const progressRef     = useRef(0);
+  const useCustomRef    = useRef(false);
+  const userColorRef    = useRef("#5588ff");
+  const curColorRef     = useRef<[number, number, number]>([0.25, 0.25, 0.9]);
+  const isPlayingRef    = useRef(false);
 
   // DOM / Three.js refs
   const canvasRef     = useRef<HTMLCanvasElement>(null);
@@ -328,10 +349,11 @@ function TempoInner() {
   const debounceRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // keep refs in sync
-  useEffect(() => { tokenRef.current    = token; },    [token]);
-  useEffect(() => { progressRef.current = progress; }, [progress]);
+  useEffect(() => { tokenRef.current     = token; },     [token]);
+  useEffect(() => { progressRef.current  = progress; },  [progress]);
   useEffect(() => { useCustomRef.current = useCustom; }, [useCustom]);
   useEffect(() => { userColorRef.current = userColor; }, [userColor]);
+  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
 
   // ── OAuth callback on mount ──────────────────────────────────────────────
   useEffect(() => {
@@ -452,11 +474,10 @@ function TempoInner() {
         featuresRef.current = f;
       } catch { /* keep defaults */ }
 
-      // album color
+      // album color palette
       const imgUrl = t.album.images[0]?.url;
       if (imgUrl) {
-        const [r, g, b] = await sampleDominantColor(imgUrl);
-        albumRGBRef.current = [r / 255, g / 255, b / 255];
+        albumPaletteRef.current = await sampleAlbumPalette(imgUrl);
       }
 
       await startPlayback(deviceIdRef.current, t.uri, tokenRef.current!);
@@ -492,16 +513,33 @@ function TempoInner() {
     let lastBeat    = 0;
     const lerp      = (a: number, b: number, t: number) => a + (b - a) * t;
 
+    let paletteT = 0;
+
     function frame() {
       animIdRef.current = requestAnimationFrame(frame);
+
+      // Freeze all updates while paused; keep rAF loop alive to resume smoothly
+      if (!isPlayingRef.current) return;
 
       const f    = featuresRef.current;
       const audio = simAudio(Date.now(), startMsRef.current, f);
 
+      // ── palette cycling: blend between adjacent palette colors every ~10s ──
+      paletteT += 0.0008;
+      const palette  = albumPaletteRef.current;
+      const pLen     = palette.length;
+      const pPhase   = paletteT % pLen;
+      const pIdx     = Math.floor(pPhase);
+      const pFrac    = pPhase - pIdx;
+      const pA       = palette[pIdx % pLen];
+      const pB       = palette[(pIdx + 1) % pLen];
+      const ar = lerp(pA[0], pB[0], pFrac);
+      const ag = lerp(pA[1], pB[1], pFrac);
+      const ab = lerp(pA[2], pB[2], pFrac);
+
       // ── target color ──────────────────────────────────────────────────
       const hue   = energyToHue(audio.energy);
       const [hr, hg, hb] = hslToRgb01(hue, 0.8, 0.5);
-      const [ar, ag, ab] = albumRGBRef.current;
       let tr = hr * 0.55 + ar * 0.45;
       let tg = hg * 0.55 + ag * 0.45;
       let tb = hb * 0.55 + ab * 0.45;
@@ -645,10 +683,14 @@ function TempoInner() {
                 </div>
 
                 {/* Premium disclaimer */}
-                <div className="mb-5 px-4 py-3 rounded-xl border border-tan/30 bg-white/40">
+                <div className="mb-5 px-4 py-3 rounded-xl border border-tan/30 bg-white/40 space-y-1.5">
                   <p className="text-xs text-brown-light leading-relaxed">
                     <span className="font-semibold text-brown">Requires Spotify Premium.</span>{" "}
-                    Free accounts cannot stream audio via the Web Playback SDK. In-browser playback is a Spotify Premium feature.
+                    In-browser audio streaming is a Spotify Premium feature. Free accounts cannot use the Web Playback SDK.
+                  </p>
+                  <p className="text-xs text-brown-light leading-relaxed">
+                    <span className="font-semibold text-brown">Your own account.</span>{" "}
+                    Clicking &ldquo;Connect Spotify&rdquo; opens Spotify&apos;s login page where you authorize with your own credentials. No account is shared.
                   </p>
                 </div>
 
@@ -683,9 +725,9 @@ function TempoInner() {
                   <div className="mb-5">
                     <button onClick={() => startSpotifyAuth()}
                       className="w-full px-5 py-2.5 text-sm font-medium bg-terracotta text-white rounded-lg hover:bg-terracotta-dark transition-colors">
-                      Connect Spotify
+                      Connect with Spotify
                     </button>
-                    <p className="text-xs text-brown-light mt-2 text-center">Connect first, then search any song</p>
+                    <p className="text-xs text-brown-light mt-2 text-center">You&apos;ll be redirected to Spotify to sign in, then brought back here.</p>
                   </div>
                 )}
 
