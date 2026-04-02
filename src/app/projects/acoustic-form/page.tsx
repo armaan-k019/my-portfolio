@@ -239,6 +239,10 @@ export default function AcousticFormPage() {
     setSourcePositions(prev => prev.map((p, i) => (i === index ? newPos : p)));
   }, []);
 
+  const handleReceiverDrag = useCallback((id: string, newPos: Vector3D) => {
+    setReceiverPoints(prev => prev.map(r => r.id === id ? { ...r, position: newPos } : r));
+  }, []);
+
   function addSource() {
     if (sourcePositions.length >= 3) return;
     setSourcePositions(prev => [...prev, { x: prev[0].x + 2, y: prev[0].y, z: prev[0].z + 2 }]);
@@ -341,6 +345,8 @@ export default function AcousticFormPage() {
             soundRays={soundRays}
             receiverPoints={receiverPoints}
             onSourceDrag={handleSourceDrag}
+            onReceiverDrag={handleReceiverDrag}
+            surfaceGroups={surfaceGroups}
           />
         </main>
 

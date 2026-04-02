@@ -4,7 +4,8 @@ import { useState, useRef } from 'react';
 import * as THREE from 'three';
 import type { RoomShape, Vector3D } from '@/types';
 import { getDefaultRoom } from '@/lib/geometry';
-import { parseNaturalLanguageResponse } from '@/lib/geometry';
+import { buildRoom } from '@/lib/MeshFactory';
+import type { ShapeParams } from '@/types';
 import VertexTable from '@/components/VertexTable';
 
 // ─── Preset rooms ──────────────────────────────────────────────────────────────
@@ -435,18 +436,18 @@ export default function ShapeInputPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ description }),
       });
-      const data = await res.json() as { vertices?: unknown; faces?: unknown; error?: string };
+      const data = await res.json() as Partial<ShapeParams> & { error?: string };
       if (!res.ok || data.error) {
         setDescError(data.error ?? 'Failed to parse room description.');
         return;
       }
-      const parsed = parseNaturalLanguageResponse(data);
-      if (!parsed) {
-        setDescError('Claude returned an invalid room geometry. Try a different description.');
+      if (!data.archetype || !data.dimensions) {
+        setDescError('Unexpected response from server. Try a different description.');
         return;
       }
-      onRoomChange(parsed);
-      setLocalVertices(parsed.vertices);
+      const roomShape = buildRoom(data as ShapeParams);
+      onRoomChange(roomShape);
+      setLocalVertices(roomShape.vertices);
     } catch (err) {
       console.error('parse-shape fetch error:', err);
       setDescError('Network error. Please try again.');

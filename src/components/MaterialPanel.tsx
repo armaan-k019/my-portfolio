@@ -13,6 +13,17 @@ const MATERIAL_OPTIONS: MaterialType[] = [
   'concrete', 'brick', 'wood', 'carpet', 'glass', 'acoustic', 'gypsum', 'upholstered',
 ];
 
+const MATERIAL_DOT_COLORS: Record<MaterialType, string> = {
+  concrete:    '#6b7280',
+  brick:       '#c1513a',
+  wood:        '#b5874c',
+  carpet:      '#2d5a3d',
+  glass:       '#7ec8e3',
+  acoustic:    '#3b5ba5',
+  gypsum:      '#e8e4d9',
+  upholstered: '#5b3a6b',
+};
+
 export default function MaterialPanel({ groups, onChange }: MaterialPanelProps) {
   const [flashIndex, setFlashIndex] = useState<number | null>(null);
 
@@ -41,7 +52,12 @@ export default function MaterialPanel({ groups, onChange }: MaterialPanelProps) 
             className="flex items-center gap-2 rounded-lg px-1.5 py-0.5 transition-colors duration-500"
             style={{ backgroundColor: flashIndex === i ? 'rgba(255, 107, 53, 0.08)' : 'transparent' }}
           >
-            <span className="text-xs text-[#2C1810] w-16 shrink-0 font-medium">{group.label}</span>
+            <span
+              className="w-3 h-3 rounded-sm shrink-0 border border-black/10"
+              style={{ backgroundColor: MATERIAL_DOT_COLORS[group.material] }}
+              title={group.material}
+            />
+            <span className="text-xs text-[#2C1810] w-14 shrink-0 font-medium">{group.label}</span>
             <select
               value={group.material}
               onChange={(e) => setMaterial(i, e.target.value as MaterialType)}

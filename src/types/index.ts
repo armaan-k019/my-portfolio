@@ -52,3 +52,16 @@ export type ReceiverPoint = {
   position: Vector3D;
   label: string;
 };
+
+export type ShapeArchetype = 'orthogonal' | 'pitched' | 'cylinder' | 'barrel_vault' | 'dome';
+
+export type ShapeParams = {
+  archetype: ShapeArchetype;
+  dimensions: {
+    length?: number;
+    width?: number;
+    height?: number;
+    radius?: number;
+    peak_height?: number;
+  };
+};

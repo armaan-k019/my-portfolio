@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
-import type { RoomShape, Vector3D, SoundRay, ReceiverPoint } from '@/types';
+import type { RoomShape, Vector3D, SoundRay, ReceiverPoint, SurfaceGroup, MaterialType } from '@/types';
 
 export interface ThreeCanvasProps {
   roomShape: RoomShape;
@@ -10,55 +10,66 @@ export interface ThreeCanvasProps {
   soundRays: SoundRay[];
   receiverPoints: ReceiverPoint[];
   onSourceDrag?: (index: number, newPos: Vector3D) => void;
+  onReceiverDrag?: (id: string, newPos: Vector3D) => void;
+  surfaceGroups?: SurfaceGroup[];
 }
 
-// ─── Ray colours by reflection order ─────────────────────────────────────────
+// ─── Ray / receiver colours ───────────────────────────────────────────────────
 const RAY_COLORS = ['#FFFFFF', '#FFE566', '#FF9500', '#FF3B30', '#8B0000'];
 const RECEIVER_COLORS = ['#34d399', '#60a5fa', '#f472b6', '#a78bfa', '#fb923c'];
 
-function getRayColor(bounceIndex: number): THREE.Color {
-  return new THREE.Color(RAY_COLORS[Math.min(bounceIndex, RAY_COLORS.length - 1)]);
-}
+// ─── Material → Three.js colour mapping ──────────────────────────────────────
+const MATERIAL_COLORS: Record<MaterialType, number> = {
+  concrete:    0x6b7280,
+  brick:       0xc1513a,
+  wood:        0xb5874c,
+  carpet:      0x2d5a3d,
+  glass:       0x7ec8e3,
+  acoustic:    0x3b5ba5,
+  gypsum:      0xe8e4d9,
+  upholstered: 0x5b3a6b,
+};
 
-// ─── Grid floor ───────────────────────────────────────────────────────────────
+const WAVE_PERIOD = 3.0; // seconds for one full wave cycle
+
+type WaveParticle = {
+  mesh: THREE.Mesh;
+  path: THREE.Vector3[];
+  segLengths: number[];
+  totalLen: number;
+  phase: number;
+};
+
+// ─── Scene geometry builders ──────────────────────────────────────────────────
+
 function buildGrid(): THREE.Group {
   const group = new THREE.Group();
-  const size = 40;
-  const step = 1;
-  const mat = new THREE.LineBasicMaterial({ color: 0x2a2a2a, transparent: true, opacity: 0.8 });
+  const size = 40, step = 1;
+  const mat       = new THREE.LineBasicMaterial({ color: 0x2a2a2a, transparent: true, opacity: 0.8 });
   const matAccent = new THREE.LineBasicMaterial({ color: 0x3a3a3a, transparent: true, opacity: 0.6 });
 
   for (let i = -size; i <= size; i++) {
     const isAccent = i % 5 === 0;
-    const pts = [new THREE.Vector3(-size, 0, i), new THREE.Vector3(size, 0, i)];
-    const geo = new THREE.BufferGeometry().setFromPoints(pts);
-    group.add(new THREE.Line(geo, isAccent ? matAccent : mat));
-    const pts2 = [new THREE.Vector3(i, 0, -size), new THREE.Vector3(i, 0, size)];
-    const geo2 = new THREE.BufferGeometry().setFromPoints(pts2);
-    group.add(new THREE.Line(geo2, isAccent ? matAccent : mat));
+    const m = isAccent ? matAccent : mat;
+    const g1 = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-size, 0, i), new THREE.Vector3(size, 0, i)]);
+    const g2 = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(i, 0, -size), new THREE.Vector3(i, 0, size)]);
+    group.add(new THREE.Line(g1, m));
+    group.add(new THREE.Line(g2, m));
   }
   return group;
 }
 
-// ─── Axis lines (XYZ) ─────────────────────────────────────────────────────────
 function buildAxes(): THREE.Group {
   const group = new THREE.Group();
-  const len = 4;
-  const axes: [number, number, number, number][] = [
-    [len, 0, 0, 0xff4444], [0, len, 0, 0x44ff44], [0, 0, len, 0x4488ff],
-  ];
-  for (const [x, y, z, color] of axes) {
-    const geo = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(0, 0, 0), new THREE.Vector3(x, y, z),
-    ]);
+  for (const [x, y, z, color] of [[4,0,0,0xff4444],[0,4,0,0x44ff44],[0,0,4,0x4488ff]] as [number,number,number,number][]) {
+    const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(x,y,z)]);
     group.add(new THREE.Line(geo, new THREE.LineBasicMaterial({ color })));
   }
   return group;
 }
 
-// ─── Room geometry ─────────────────────────────────────────────────────────────
-function buildRoomGeometry(roomShape: RoomShape): THREE.BufferGeometry {
-  const { vertices, faces } = roomShape;
+function buildFaceGeo(roomShape: RoomShape, faces: { a: number; b: number; c: number }[]): THREE.BufferGeometry {
+  const { vertices } = roomShape;
   const positions: number[] = [];
   const normals: number[] = [];
 
@@ -77,27 +88,43 @@ function buildRoomGeometry(roomShape: RoomShape): THREE.BufferGeometry {
 
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geo.setAttribute('normal',   new THREE.Float32BufferAttribute(normals,   3));
   return geo;
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 
 export default function ThreeCanvas({
-  roomShape, sourcePositions, soundRays, receiverPoints, onSourceDrag,
+  roomShape, sourcePositions, soundRays, receiverPoints,
+  onSourceDrag, onReceiverDrag, surfaceGroups,
 }: ThreeCanvasProps) {
-  const containerRef   = useRef<HTMLDivElement>(null);
-  const sceneRef       = useRef<THREE.Scene | null>(null);
-  const cameraRef      = useRef<THREE.PerspectiveCamera | null>(null);
-  const rendererRef    = useRef<THREE.WebGLRenderer | null>(null);
-  const animFrameRef   = useRef<number>(0);
-  const roomMeshRef    = useRef<THREE.Mesh | null>(null);
-  const wireframeRef   = useRef<THREE.LineSegments | null>(null);
-  const sourceGroupRef = useRef<THREE.Group | null>(null);
-  const receiverGroupRef = useRef<THREE.Group | null>(null);
-  const rayGroupRef    = useRef<THREE.Group | null>(null);
+  const containerRef       = useRef<HTMLDivElement>(null);
+  const sceneRef           = useRef<THREE.Scene | null>(null);
+  const cameraRef          = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendererRef        = useRef<THREE.WebGLRenderer | null>(null);
+  const animFrameRef       = useRef<number>(0);
 
-  // Status bar info
+  // Room mesh refs
+  const roomMeshRef        = useRef<THREE.Mesh | null>(null);
+  const wireframeRef       = useRef<THREE.LineSegments | null>(null);
+  const surfaceMeshGroupRef = useRef<THREE.Group | null>(null);
+
+  // Object groups
+  const sourceGroupRef     = useRef<THREE.Group | null>(null);
+  const receiverGroupRef   = useRef<THREE.Group | null>(null);
+
+  // Ray lines (dim static) + wave particles
+  const rayLinesGroupRef   = useRef<THREE.Group | null>(null);
+  const waveGroupRef       = useRef<THREE.Group | null>(null);
+  const waveParticlesRef   = useRef<WaveParticle[]>([]);
+  const particleGeoRef     = useRef<THREE.SphereGeometry | null>(null);
+
+  // Prop refs (for stable closures in mouse handlers)
+  const receiverPointsRef  = useRef(receiverPoints);
+  const onReceiverDragRef  = useRef(onReceiverDrag);
+  useEffect(() => { receiverPointsRef.current = receiverPoints; }, [receiverPoints]);
+  useEffect(() => { onReceiverDragRef.current = onReceiverDrag; }, [onReceiverDrag]);
+
   const [hoverPos, setHoverPos]   = useState<Vector3D | null>(null);
   const [faceCount, setFaceCount] = useState(0);
   const [activeMode, setActiveMode] = useState<'orbit' | 'drag'>('orbit');
@@ -109,6 +136,9 @@ export default function ThreeCanvas({
   });
   const dragSourceRef = useRef({
     active: false, sourceIndex: -1, plane: new THREE.Plane(),
+  });
+  const dragReceiverRef = useRef({
+    active: false, receiverId: '', originalY: 0, plane: new THREE.Plane(),
   });
 
   function updateCamera(camera: THREE.PerspectiveCamera) {
@@ -145,20 +175,21 @@ export default function ThreeCanvas({
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Lights - subtle for dark viewport
     scene.add(new THREE.AmbientLight(0xffffff, 0.25));
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
     dirLight.position.set(10, 20, 10);
     scene.add(dirLight);
 
-    // Grid + axes
     scene.add(buildGrid());
     scene.add(buildAxes());
 
-    // Groups
-    const rayGroup = new THREE.Group();
-    scene.add(rayGroup);
-    rayGroupRef.current = rayGroup;
+    const rayLinesGroup = new THREE.Group();
+    scene.add(rayLinesGroup);
+    rayLinesGroupRef.current = rayLinesGroup;
+
+    const waveGroup = new THREE.Group();
+    scene.add(waveGroup);
+    waveGroupRef.current = waveGroup;
 
     const sourceGroup = new THREE.Group();
     scene.add(sourceGroup);
@@ -168,6 +199,10 @@ export default function ThreeCanvas({
     scene.add(receiverGroup);
     receiverGroupRef.current = receiverGroup;
 
+    const surfaceMeshGroup = new THREE.Group();
+    scene.add(surfaceMeshGroup);
+    surfaceMeshGroupRef.current = surfaceMeshGroup;
+
     const resizeObserver = new ResizeObserver(() => {
       const w2 = container.clientWidth, h2 = container.clientHeight;
       renderer.setSize(w2, h2);
@@ -176,18 +211,47 @@ export default function ThreeCanvas({
     });
     resizeObserver.observe(container);
 
-    let t = Date.now();
-    function animate() {
+    function animate(timestamp: number) {
       animFrameRef.current = requestAnimationFrame(animate);
-      const elapsed = (Date.now() - t) / 1000;
-      const opacity = 0.3 + 0.3 * Math.sin(elapsed * Math.PI);
-      rayGroup.children.forEach((child) => {
-        const line = child as THREE.Line;
-        if (line.material instanceof THREE.LineBasicMaterial) line.material.opacity = opacity;
-      });
+      const elapsed = timestamp * 0.001;
+
+      // Update wave particles
+      for (const p of waveParticlesRef.current) {
+        if (p.totalLen < 0.01) continue;
+        const t = ((elapsed + p.phase) % WAVE_PERIOD) / WAVE_PERIOD;
+        const targetDist = t * p.totalLen;
+
+        let accDist = 0;
+        let segIdx = 0;
+        const tempPos = new THREE.Vector3();
+        tempPos.copy(p.path[0]);
+
+        for (let j = 0; j < p.segLengths.length; j++) {
+          if (accDist + p.segLengths[j] >= targetDist) {
+            const localT = (targetDist - accDist) / Math.max(p.segLengths[j], 1e-6);
+            tempPos.lerpVectors(p.path[j], p.path[j + 1], Math.min(1, localT));
+            segIdx = j;
+            break;
+          }
+          accDist += p.segLengths[j];
+          segIdx = j;
+        }
+
+        p.mesh.position.copy(tempPos);
+
+        const mat = p.mesh.material as THREE.MeshBasicMaterial;
+        mat.color.set(RAY_COLORS[Math.min(segIdx, RAY_COLORS.length - 1)]);
+
+        // Opacity: decay per bounce, fade in first 5%, fade out last 20%
+        let opacity = Math.pow(0.65, segIdx);
+        if (t < 0.05)  opacity *= t / 0.05;
+        else if (t > 0.8) opacity *= (1 - (t - 0.8) / 0.2);
+        mat.opacity = Math.max(0, opacity);
+      }
+
       renderer.render(scene, camera);
     }
-    animate();
+    animFrameRef.current = requestAnimationFrame(animate);
 
     return () => {
       cancelAnimationFrame(animFrameRef.current);
@@ -214,8 +278,8 @@ export default function ThreeCanvas({
     }
 
     function onMouseDown(e: MouseEvent) {
-      if (!cameraRef.current || !sourceGroupRef.current) return;
-      // Shift+click → pan mode (don't test source hits)
+      if (!cameraRef.current) return;
+
       if (e.shiftKey) {
         orbitRef.current.isPanning = true;
         orbitRef.current.lastX = e.clientX;
@@ -223,20 +287,44 @@ export default function ThreeCanvas({
         setActiveMode('orbit');
         return;
       }
+
       getMouseNDC(e);
       raycaster.setFromCamera(mouse, cameraRef.current);
-      const hits = raycaster.intersectObjects(sourceGroupRef.current.children);
-      if (hits.length > 0 && onSourceDrag) {
-        const mesh = hits[0].object as THREE.Mesh;
-        const idx = sourceGroupRef.current.children.indexOf(mesh);
-        dragSourceRef.current = {
-          active: true, sourceIndex: idx,
-          plane: new THREE.Plane(new THREE.Vector3(0, 1, 0), -mesh.position.y),
-        };
-        setActiveMode('drag');
-        e.stopPropagation();
-        return;
+
+      // Source drag (highest priority)
+      if (sourceGroupRef.current && onSourceDrag) {
+        const hits = raycaster.intersectObjects(sourceGroupRef.current.children);
+        if (hits.length > 0) {
+          const mesh = hits[0].object as THREE.Mesh;
+          const idx = sourceGroupRef.current.children.indexOf(mesh);
+          dragSourceRef.current = {
+            active: true, sourceIndex: idx,
+            plane: new THREE.Plane(new THREE.Vector3(0, 1, 0), -mesh.position.y),
+          };
+          setActiveMode('drag');
+          e.stopPropagation();
+          return;
+        }
       }
+
+      // Receiver drag
+      if (receiverGroupRef.current && onReceiverDragRef.current) {
+        const hits = raycaster.intersectObjects(receiverGroupRef.current.children);
+        if (hits.length > 0) {
+          const idx = receiverGroupRef.current.children.indexOf(hits[0].object);
+          const rp = receiverPointsRef.current[idx];
+          if (rp) {
+            dragReceiverRef.current = {
+              active: true, receiverId: rp.id, originalY: rp.position.y,
+              plane: new THREE.Plane(new THREE.Vector3(0, 1, 0), -rp.position.y),
+            };
+            setActiveMode('drag');
+            e.stopPropagation();
+            return;
+          }
+        }
+      }
+
       orbitRef.current.isDragging = true;
       orbitRef.current.lastX = e.clientX;
       orbitRef.current.lastY = e.clientY;
@@ -246,7 +334,6 @@ export default function ThreeCanvas({
     function onMouseMove(e: MouseEvent) {
       if (!cameraRef.current) return;
       getMouseNDC(e);
-      // Update status bar world position on ground plane
       raycaster.setFromCamera(mouse, cameraRef.current);
       const wp = new THREE.Vector3();
       if (raycaster.ray.intersectPlane(groundPlane, wp)) {
@@ -263,12 +350,23 @@ export default function ThreeCanvas({
         return;
       }
 
+      if (dragReceiverRef.current.active && onReceiverDragRef.current) {
+        const target = new THREE.Vector3();
+        raycaster.ray.intersectPlane(dragReceiverRef.current.plane, target);
+        if (target) {
+          onReceiverDragRef.current(dragReceiverRef.current.receiverId, {
+            x: target.x, y: dragReceiverRef.current.originalY, z: target.z,
+          });
+        }
+        return;
+      }
+
       const dx = e.clientX - orbitRef.current.lastX;
       const dy = e.clientY - orbitRef.current.lastY;
 
       if (orbitRef.current.isPanning && cameraRef.current) {
         const camera = cameraRef.current;
-        camera.updateMatrixWorld(); // must be fresh before reading column vectors
+        camera.updateMatrixWorld();
         const speed = orbitRef.current.radius * 0.0015;
         const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
         const up    = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
@@ -292,6 +390,7 @@ export default function ThreeCanvas({
       orbitRef.current.isDragging = false;
       orbitRef.current.isPanning = false;
       dragSourceRef.current.active = false;
+      dragReceiverRef.current.active = false;
       setActiveMode('orbit');
     }
 
@@ -314,30 +413,54 @@ export default function ThreeCanvas({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onSourceDrag]);
 
-  // ─── Room mesh ─────────────────────────────────────────────────────────────
+  // ─── Room mesh + surface groups ────────────────────────────────────────────
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
-    if (roomMeshRef.current) { scene.remove(roomMeshRef.current); roomMeshRef.current.geometry.dispose(); }
-    if (wireframeRef.current) { scene.remove(wireframeRef.current); wireframeRef.current.geometry.dispose(); }
-    if (roomShape.vertices.length < 3 || roomShape.faces.length === 0) return;
 
+    // Clear existing room meshes
+    if (roomMeshRef.current)   { scene.remove(roomMeshRef.current); roomMeshRef.current.geometry.dispose(); roomMeshRef.current = null; }
+    if (wireframeRef.current)  { scene.remove(wireframeRef.current); wireframeRef.current.geometry.dispose(); wireframeRef.current = null; }
+    const smg = surfaceMeshGroupRef.current;
+    if (smg) {
+      while (smg.children.length > 0) {
+        const child = smg.children[0] as THREE.Mesh;
+        child.geometry.dispose();
+        (child.material as THREE.Material).dispose();
+        smg.remove(child);
+      }
+    }
+
+    if (roomShape.vertices.length < 3 || roomShape.faces.length === 0) return;
     setFaceCount(roomShape.faces.length);
 
-    const geo = buildRoomGeometry(roomShape);
-    const solidMat = new THREE.MeshLambertMaterial({
-      color: 0x2d4a6e, transparent: true, opacity: 0.18, side: THREE.DoubleSide,
-    });
-    const solid = new THREE.Mesh(geo, solidMat);
-    scene.add(solid);
-    roomMeshRef.current = solid;
+    if (surfaceGroups && surfaceGroups.length > 0 && smg) {
+      // Per-group colored meshes
+      for (const group of surfaceGroups) {
+        const subFaces = group.faceIndices.map(i => roomShape.faces[i]).filter(Boolean);
+        if (subFaces.length === 0) continue;
+        const geo = buildFaceGeo(roomShape, subFaces);
+        const color = MATERIAL_COLORS[group.material] ?? 0x2d4a6e;
+        const mat = new THREE.MeshLambertMaterial({ color, transparent: true, opacity: 0.30, side: THREE.DoubleSide });
+        smg.add(new THREE.Mesh(geo, mat));
+      }
+    } else {
+      // Single default mesh
+      const geo = buildFaceGeo(roomShape, roomShape.faces);
+      const mat = new THREE.MeshLambertMaterial({ color: 0x2d4a6e, transparent: true, opacity: 0.18, side: THREE.DoubleSide });
+      const solid = new THREE.Mesh(geo, mat);
+      scene.add(solid);
+      roomMeshRef.current = solid;
+    }
 
-    const edgesGeo = new THREE.EdgesGeometry(geo);
-    const wireMat = new THREE.LineBasicMaterial({ color: 0x5b8fd4, linewidth: 1 });
-    const wire = new THREE.LineSegments(edgesGeo, wireMat);
+    // Wireframe always shown
+    const fullGeo = buildFaceGeo(roomShape, roomShape.faces);
+    const edgesGeo = new THREE.EdgesGeometry(fullGeo);
+    fullGeo.dispose();
+    const wire = new THREE.LineSegments(edgesGeo, new THREE.LineBasicMaterial({ color: 0x5b8fd4, linewidth: 1 }));
     scene.add(wire);
     wireframeRef.current = wire;
-  }, [roomShape]);
+  }, [roomShape, surfaceGroups]);
 
   // ─── Source spheres ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -371,7 +494,7 @@ export default function ThreeCanvas({
     }
     receiverPoints.forEach((rp, i) => {
       const color = new THREE.Color(RECEIVER_COLORS[i % RECEIVER_COLORS.length]);
-      const geo = new THREE.SphereGeometry(0.16, 12, 12);
+      const geo = new THREE.SphereGeometry(0.18, 14, 14);
       const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.6 });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.position.set(rp.position.x, rp.position.y, rp.position.z);
@@ -379,61 +502,115 @@ export default function ThreeCanvas({
     });
   }, [receiverPoints]);
 
-  // ─── Sound rays ────────────────────────────────────────────────────────────
+  // ─── Wave particles + dim ray lines ────────────────────────────────────────
   useEffect(() => {
-    const rayGroup = rayGroupRef.current;
-    if (!rayGroup) return;
-    while (rayGroup.children.length > 0) {
-      const child = rayGroup.children[0] as THREE.Line;
-      child.geometry.dispose();
-      if (child.material instanceof THREE.LineBasicMaterial) child.material.dispose();
-      rayGroup.remove(child);
-    }
-    for (const ray of soundRays) {
-      const points: THREE.Vector3[] = [
-        new THREE.Vector3(ray.origin.x, ray.origin.y, ray.origin.z),
-        ...ray.bounces.map((b) => new THREE.Vector3(b.x, b.y, b.z)),
-      ];
-      if (points.length < 2) continue;
-      for (let i = 0; i < points.length - 1; i++) {
-        const geo = new THREE.BufferGeometry().setFromPoints([points[i], points[i + 1]]);
-        const mat = new THREE.LineBasicMaterial({ color: getRayColor(i), transparent: true, opacity: 0.6 });
-        rayGroup.add(new THREE.Line(geo, mat));
+    // Clear dim ray lines
+    const linesGroup = rayLinesGroupRef.current;
+    if (linesGroup) {
+      while (linesGroup.children.length > 0) {
+        const child = linesGroup.children[0] as THREE.Line;
+        child.geometry.dispose();
+        (child.material as THREE.Material).dispose();
+        linesGroup.remove(child);
       }
     }
+
+    // Clear old particles
+    const waveGroup = waveGroupRef.current;
+    if (waveGroup) {
+      while (waveGroup.children.length > 0) {
+        const child = waveGroup.children[0] as THREE.Mesh;
+        (child.material as THREE.Material).dispose();
+        waveGroup.remove(child);
+      }
+    }
+    if (particleGeoRef.current) {
+      particleGeoRef.current.dispose();
+      particleGeoRef.current = null;
+    }
+    waveParticlesRef.current = [];
+
+    if (soundRays.length === 0) return;
+
+    // Dim static lines (structural guides for the particles)
+    if (linesGroup) {
+      const dimMats = RAY_COLORS.map(c =>
+        new THREE.LineBasicMaterial({ color: new THREE.Color(c), transparent: true, opacity: 0.07 }),
+      );
+      for (const ray of soundRays) {
+        const path = [
+          new THREE.Vector3(ray.origin.x, ray.origin.y, ray.origin.z),
+          ...ray.bounces.map(b => new THREE.Vector3(b.x, b.y, b.z)),
+        ];
+        if (path.length < 2) continue;
+        for (let i = 0; i < path.length - 1; i++) {
+          const geo = new THREE.BufferGeometry().setFromPoints([path[i], path[i + 1]]);
+          linesGroup.add(new THREE.Line(geo, dimMats[Math.min(i, dimMats.length - 1)]));
+        }
+      }
+    }
+
+    // Wave particles
+    if (!waveGroup) return;
+    const sharedGeo = new THREE.SphereGeometry(0.1, 6, 6);
+    particleGeoRef.current = sharedGeo;
+    const newParticles: WaveParticle[] = [];
+
+    soundRays.forEach((ray, i) => {
+      const path: THREE.Vector3[] = [
+        new THREE.Vector3(ray.origin.x, ray.origin.y, ray.origin.z),
+        ...ray.bounces.map(b => new THREE.Vector3(b.x, b.y, b.z)),
+      ];
+      if (path.length < 2) return;
+
+      const segLengths: number[] = [];
+      let totalLen = 0;
+      for (let j = 0; j < path.length - 1; j++) {
+        const len = path[j].distanceTo(path[j + 1]);
+        segLengths.push(len);
+        totalLen += len;
+      }
+      if (totalLen < 0.01) return;
+
+      const mat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(RAY_COLORS[0]),
+        transparent: true,
+        opacity: 1.0,
+      });
+      const mesh = new THREE.Mesh(sharedGeo, mat);
+      mesh.position.copy(path[0]);
+      waveGroup.add(mesh);
+
+      newParticles.push({
+        mesh, path, segLengths, totalLen,
+        phase: (i / Math.max(soundRays.length, 1)) * WAVE_PERIOD,
+      });
+    });
+
+    waveParticlesRef.current = newParticles;
   }, [soundRays]);
 
   return (
     <div className="relative w-full h-full bg-[#1a1a1a]">
-      {/* ─── Three.js canvas ───────────────────────────────────────────────── */}
       <div
         ref={containerRef}
         className="w-full h-full"
-        style={{ cursor: dragSourceRef.current.active ? 'crosshair' : orbitRef.current.isDragging ? 'grabbing' : 'grab' }}
+        style={{ cursor: dragSourceRef.current.active || dragReceiverRef.current.active ? 'crosshair' : orbitRef.current.isDragging ? 'grabbing' : 'grab' }}
       />
 
-      {/* ─── Top-right viewport label ──────────────────────────────────────── */}
+      {/* Top-right viewport label */}
       <div className="absolute top-3 right-3 text-[10px] text-white/30 font-mono select-none pointer-events-none uppercase tracking-widest">
         Perspective
       </div>
 
-      {/* ─── Axis legend (bottom-left corner) ─────────────────────────────── */}
+      {/* Axis legend */}
       <div className="absolute bottom-8 left-3 flex flex-col gap-0.5 pointer-events-none select-none">
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-px bg-[#ff4444] inline-block" />
-          <span className="text-[9px] text-white/40 font-mono">X</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-px bg-[#44ff44] inline-block" />
-          <span className="text-[9px] text-white/40 font-mono">Y</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-px bg-[#4488ff] inline-block" />
-          <span className="text-[9px] text-white/40 font-mono">Z</span>
-        </div>
+        <div className="flex items-center gap-1.5"><span className="w-3 h-px bg-[#ff4444] inline-block" /><span className="text-[9px] text-white/40 font-mono">X</span></div>
+        <div className="flex items-center gap-1.5"><span className="w-3 h-px bg-[#44ff44] inline-block" /><span className="text-[9px] text-white/40 font-mono">Y</span></div>
+        <div className="flex items-center gap-1.5"><span className="w-3 h-px bg-[#4488ff] inline-block" /><span className="text-[9px] text-white/40 font-mono">Z</span></div>
       </div>
 
-      {/* ─── Ray colour legend ─────────────────────────────────────────────── */}
+      {/* Ray colour legend */}
       <div className="absolute top-3 left-3 flex flex-col gap-1 pointer-events-none select-none">
         <p className="text-[9px] text-white/30 font-mono uppercase tracking-widest mb-0.5">Reflections</p>
         {RAY_COLORS.map((color, i) => (
@@ -446,7 +623,7 @@ export default function ThreeCanvas({
         ))}
       </div>
 
-      {/* ─── Receiver legend ───────────────────────────────────────────────── */}
+      {/* Receiver legend */}
       {receiverPoints.length > 0 && (
         <div className="absolute top-3 left-24 flex flex-col gap-1 pointer-events-none select-none">
           <p className="text-[9px] text-white/30 font-mono uppercase tracking-widest mb-0.5">Receivers</p>
@@ -459,10 +636,10 @@ export default function ThreeCanvas({
         </div>
       )}
 
-      {/* ─── Status bar ────────────────────────────────────────────────────── */}
+      {/* Status bar */}
       <div className="absolute bottom-0 left-0 right-0 h-7 bg-[#111]/80 border-t border-white/5 flex items-center px-3 gap-4 pointer-events-none select-none">
         <span className="text-[10px] text-white/30 font-mono">
-          {activeMode === 'drag' ? 'DRAG SOURCE' : 'ORBIT'}
+          {activeMode === 'drag' ? 'DRAG' : 'ORBIT'}
         </span>
         <span className="text-[10px] text-white/20 font-mono">|</span>
         <span className="text-[10px] text-white/30 font-mono">
@@ -477,7 +654,7 @@ export default function ThreeCanvas({
           </>
         )}
         <span className="ml-auto text-[10px] text-white/20 font-mono">
-          drag: orbit · shift+drag: pan · scroll: zoom · click source: move
+          drag: orbit · shift+drag: pan · scroll: zoom · click src/rcvr: drag
         </span>
       </div>
     </div>
