@@ -113,11 +113,17 @@ export default function ThreeCanvas({
   const sourceGroupRef     = useRef<THREE.Group | null>(null);
   const receiverGroupRef   = useRef<THREE.Group | null>(null);
 
-  // Ray lines (dim static) + wave particles
+  // Ray lines + wave particles
   const rayLinesGroupRef   = useRef<THREE.Group | null>(null);
+  const rayLineMatsRef     = useRef<THREE.LineBasicMaterial[]>([]);
   const waveGroupRef       = useRef<THREE.Group | null>(null);
   const waveParticlesRef   = useRef<WaveParticle[]>([]);
   const particleGeoRef     = useRef<THREE.SphereGeometry | null>(null);
+
+  // Viz mode toggle
+  const [vizMode, setVizMode] = useState<'particles' | 'static'>('particles');
+  const vizModeRef = useRef<'particles' | 'static'>('particles');
+  useEffect(() => { vizModeRef.current = vizMode; }, [vizMode]);
 
   // Prop refs (for stable closures in mouse handlers)
   const receiverPointsRef  = useRef(receiverPoints);
@@ -214,39 +220,48 @@ export default function ThreeCanvas({
     function animate(timestamp: number) {
       animFrameRef.current = requestAnimationFrame(animate);
       const elapsed = timestamp * 0.001;
+      const mode = vizModeRef.current;
 
-      // Update wave particles
-      for (const p of waveParticlesRef.current) {
-        if (p.totalLen < 0.01) continue;
-        const t = ((elapsed + p.phase) % WAVE_PERIOD) / WAVE_PERIOD;
-        const targetDist = t * p.totalLen;
+      if (mode === 'static') {
+        // Pulse static line opacity, hide particles
+        const lineOpacity = 0.28 + 0.28 * Math.sin(elapsed * Math.PI);
+        for (const mat of rayLineMatsRef.current) mat.opacity = lineOpacity;
+        if (waveGroupRef.current) waveGroupRef.current.visible = false;
+      } else {
+        // Keep lines dim, show + animate particles
+        for (const mat of rayLineMatsRef.current) mat.opacity = 0.07;
+        if (waveGroupRef.current) waveGroupRef.current.visible = true;
 
-        let accDist = 0;
-        let segIdx = 0;
-        const tempPos = new THREE.Vector3();
-        tempPos.copy(p.path[0]);
+        for (const p of waveParticlesRef.current) {
+          if (p.totalLen < 0.01) continue;
+          const t = ((elapsed + p.phase) % WAVE_PERIOD) / WAVE_PERIOD;
+          const targetDist = t * p.totalLen;
 
-        for (let j = 0; j < p.segLengths.length; j++) {
-          if (accDist + p.segLengths[j] >= targetDist) {
-            const localT = (targetDist - accDist) / Math.max(p.segLengths[j], 1e-6);
-            tempPos.lerpVectors(p.path[j], p.path[j + 1], Math.min(1, localT));
+          let accDist = 0;
+          let segIdx = 0;
+          const tempPos = new THREE.Vector3();
+          tempPos.copy(p.path[0]);
+
+          for (let j = 0; j < p.segLengths.length; j++) {
+            if (accDist + p.segLengths[j] >= targetDist) {
+              const localT = (targetDist - accDist) / Math.max(p.segLengths[j], 1e-6);
+              tempPos.lerpVectors(p.path[j], p.path[j + 1], Math.min(1, localT));
+              segIdx = j;
+              break;
+            }
+            accDist += p.segLengths[j];
             segIdx = j;
-            break;
           }
-          accDist += p.segLengths[j];
-          segIdx = j;
+
+          p.mesh.position.copy(tempPos);
+          const mat = p.mesh.material as THREE.MeshBasicMaterial;
+          mat.color.set(RAY_COLORS[Math.min(segIdx, RAY_COLORS.length - 1)]);
+
+          let opacity = Math.pow(0.65, segIdx);
+          if (t < 0.05) opacity *= t / 0.05;
+          else if (t > 0.8) opacity *= (1 - (t - 0.8) / 0.2);
+          mat.opacity = Math.max(0, opacity);
         }
-
-        p.mesh.position.copy(tempPos);
-
-        const mat = p.mesh.material as THREE.MeshBasicMaterial;
-        mat.color.set(RAY_COLORS[Math.min(segIdx, RAY_COLORS.length - 1)]);
-
-        // Opacity: decay per bounce, fade in first 5%, fade out last 20%
-        let opacity = Math.pow(0.65, segIdx);
-        if (t < 0.05)  opacity *= t / 0.05;
-        else if (t > 0.8) opacity *= (1 - (t - 0.8) / 0.2);
-        mat.opacity = Math.max(0, opacity);
       }
 
       renderer.render(scene, camera);
@@ -504,7 +519,7 @@ export default function ThreeCanvas({
 
   // ─── Wave particles + dim ray lines ────────────────────────────────────────
   useEffect(() => {
-    // Clear dim ray lines
+    // Clear ray lines
     const linesGroup = rayLinesGroupRef.current;
     if (linesGroup) {
       while (linesGroup.children.length > 0) {
@@ -514,6 +529,7 @@ export default function ThreeCanvas({
         linesGroup.remove(child);
       }
     }
+    rayLineMatsRef.current = [];
 
     // Clear old particles
     const waveGroup = waveGroupRef.current;
@@ -532,11 +548,12 @@ export default function ThreeCanvas({
 
     if (soundRays.length === 0) return;
 
-    // Dim static lines (structural guides for the particles)
+    // Static ray lines (dim in particle mode, pulsing in static mode)
     if (linesGroup) {
       const dimMats = RAY_COLORS.map(c =>
         new THREE.LineBasicMaterial({ color: new THREE.Color(c), transparent: true, opacity: 0.07 }),
       );
+      rayLineMatsRef.current = dimMats;
       for (const ray of soundRays) {
         const path = [
           new THREE.Vector3(ray.origin.x, ray.origin.y, ray.origin.z),
@@ -598,9 +615,23 @@ export default function ThreeCanvas({
         style={{ cursor: dragSourceRef.current.active || dragReceiverRef.current.active ? 'crosshair' : orbitRef.current.isDragging ? 'grabbing' : 'grab' }}
       />
 
-      {/* Top-right viewport label */}
-      <div className="absolute top-3 right-3 text-[10px] text-white/30 font-mono select-none pointer-events-none uppercase tracking-widest">
-        Perspective
+      {/* Top-right: viewport label + viz toggle */}
+      <div className="absolute top-3 right-3 flex items-center gap-2">
+        <button
+          onClick={() => setVizMode(m => m === 'particles' ? 'static' : 'particles')}
+          className="text-[10px] font-mono px-2 py-0.5 rounded border transition-colors select-none"
+          style={{
+            backgroundColor: vizMode === 'particles' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.12)',
+            borderColor: 'rgba(255,255,255,0.12)',
+            color: 'rgba(255,255,255,0.5)',
+          }}
+          title="Toggle ray visualization mode"
+        >
+          {vizMode === 'particles' ? '◉ particles' : '— static'}
+        </button>
+        <span className="text-[10px] text-white/30 font-mono select-none pointer-events-none uppercase tracking-widest">
+          Perspective
+        </span>
       </div>
 
       {/* Axis legend */}
