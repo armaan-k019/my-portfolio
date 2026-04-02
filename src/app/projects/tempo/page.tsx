@@ -54,7 +54,7 @@ interface AudioFeatures {
   valence: number;
 }
 
-type Formation = "grid" | "sphere" | "spiral" | "cloud";
+type Formation = "grid" | "sphere" | "spiral" | "cloud" | "torus" | "galaxy" | "dna" | "cube";
 
 interface SongPersonality {
   particleCount: number;
@@ -175,7 +175,7 @@ function makeRng(seed: number) {
 function buildPersonality(track: SpotifyTrack, features: AudioFeatures): SongPersonality {
   const pop = (track.popularity ?? 50) / 100;
   const rng = makeRng(trackSeed(track.id));
-  const formations: Formation[] = ["grid", "sphere", "spiral", "cloud"];
+  const formations: Formation[] = ["grid", "sphere", "spiral", "cloud", "torus", "galaxy", "dna", "cube"];
   const formation = formations[Math.floor(rng() * formations.length)];
 
   return {
@@ -223,11 +223,49 @@ function buildBasePositions(
       pos[i3]     = r * Math.cos(angle) + (rng() - 0.5) * 18;
       pos[i3 + 1] = (t - 0.5) * spread * 0.75 + (rng() - 0.5) * 14;
       pos[i3 + 2] = r * Math.sin(angle) + (rng() - 0.5) * 18;
-    } else {
-      // cloud
+    } else if (formation === "cloud") {
       pos[i3]     = (rng() - 0.5) * spread;
       pos[i3 + 1] = (rng() - 0.5) * spread * 0.38;
       pos[i3 + 2] = (rng() - 0.5) * spread;
+    } else if (formation === "torus") {
+      const R = spread * 0.35;  // major radius
+      const r = spread * 0.12;  // tube radius
+      const phi   = rng() * Math.PI * 2;
+      const theta = rng() * Math.PI * 2;
+      pos[i3]     = (R + r * Math.cos(theta)) * Math.cos(phi);
+      pos[i3 + 1] = r * Math.sin(theta);
+      pos[i3 + 2] = (R + r * Math.cos(theta)) * Math.sin(phi);
+    } else if (formation === "galaxy") {
+      const arm = Math.floor(rng() * 3); // 3 spiral arms
+      const t   = rng();
+      const angle = arm * (Math.PI * 2 / 3) + t * Math.PI * 5;
+      const rr  = t * spread * 0.46;
+      const scatter = (1 - t) * spread * 0.06;
+      pos[i3]     = rr * Math.cos(angle) + (rng() - 0.5) * scatter;
+      pos[i3 + 1] = (rng() - 0.5) * spread * 0.04 * (1 - t);
+      pos[i3 + 2] = rr * Math.sin(angle) + (rng() - 0.5) * scatter;
+    } else if (formation === "dna") {
+      const t = i / n;
+      const angle1 = t * Math.PI * 20;
+      const angle2 = angle1 + Math.PI;
+      const r2  = spread * 0.14;
+      const h   = (t - 0.5) * spread * 0.85;
+      const strand = i % 2 === 0 ? angle1 : angle2;
+      pos[i3]     = r2 * Math.cos(strand) + (rng() - 0.5) * 6;
+      pos[i3 + 1] = h;
+      pos[i3 + 2] = r2 * Math.sin(strand) + (rng() - 0.5) * 6;
+    } else {
+      // cube — particles distributed on/near faces of a cube
+      const side = Math.floor(rng() * 6);
+      const u = rng() - 0.5, v = rng() - 0.5;
+      const half = spread * 0.3;
+      const jitter = (rng() - 0.5) * spread * 0.08;
+      if (side === 0)      { pos[i3] =  half + jitter; pos[i3+1] = u * half * 2; pos[i3+2] = v * half * 2; }
+      else if (side === 1) { pos[i3] = -half + jitter; pos[i3+1] = u * half * 2; pos[i3+2] = v * half * 2; }
+      else if (side === 2) { pos[i3] = u * half * 2; pos[i3+1] =  half + jitter; pos[i3+2] = v * half * 2; }
+      else if (side === 3) { pos[i3] = u * half * 2; pos[i3+1] = -half + jitter; pos[i3+2] = v * half * 2; }
+      else if (side === 4) { pos[i3] = u * half * 2; pos[i3+1] = v * half * 2; pos[i3+2] =  half + jitter; }
+      else                 { pos[i3] = u * half * 2; pos[i3+1] = v * half * 2; pos[i3+2] = -half + jitter; }
     }
   }
   return pos;
@@ -343,6 +381,83 @@ function simulateFrame(
   return { bass, mids, treble, energy, isBeat, freqBins };
 }
 
+// ─── FingerprintEngine — track-DNA-seeded audio simulation ────────────────────
+// Uses popularity (baseEnergy), duration (tempoFeel), artist name hash (artistSeed),
+// and a section energy curve (intro/verse/chorus/bridge/outro) for per-song uniqueness.
+
+class FingerprintEngine {
+  private baseEnergy: number;
+  private artistSeed: number;
+  private bpm: number;
+  private danceability: number;
+  private valence: number;
+  private durationMs: number;
+
+  constructor(track: SpotifyTrack, features: AudioFeatures) {
+    this.baseEnergy   = (track.popularity ?? 50) / 100;
+    this.durationMs   = track.duration_ms;
+    this.artistSeed   = trackSeed(track.artists[0]?.name ?? "unknown");
+    this.bpm          = features.tempo;
+    this.danceability = features.danceability;
+    this.valence      = features.valence;
+  }
+
+  private sectionEnergy(progressFrac: number): number {
+    const t = Math.max(0, Math.min(1, progressFrac));
+    if (t < 0.10) return 0.30 + (t / 0.10) * 0.30;                                     // intro: ramp up
+    if (t < 0.35) return 0.60 + Math.sin(((t - 0.10) / 0.25) * Math.PI) * 0.20;        // verse
+    if (t < 0.55) return 0.85 + Math.sin(((t - 0.35) / 0.20) * Math.PI) * 0.15;        // chorus: peak
+    if (t < 0.70) return 0.60 - ((t - 0.55) / 0.15) * 0.10;                            // verse 2: slight drop
+    if (t < 0.85) return 0.75 + Math.sin(((t - 0.70) / 0.15) * Math.PI) * 0.20;        // bridge/final chorus
+    return Math.max(0.20, 0.60 * (1 - (t - 0.85) / 0.15));                              // outro: fade out
+  }
+
+  tick(nowMs: number, startMs: number, prevBass: number, progressFrac = 0): FrameAudio {
+    const elapsed  = (nowMs - startMs) / 1000;
+    const secE     = this.sectionEnergy(progressFrac) * this.baseEnergy;
+    const beatSec  = 60 / Math.max(this.bpm, 40);
+    const phase    = (elapsed % beatSec) / beatSec;
+    const aOff     = (this.artistSeed % 1000) / 1000;   // unique per artist
+
+    const beatPulse = Math.pow(Math.max(0, Math.sin(phase * Math.PI * 2 - Math.PI * 0.5) + 0.12), 3);
+    const bass      = Math.min(1, beatPulse * 0.82 * this.danceability * secE
+                        + Math.sin(elapsed * 0.28 + aOff) * 0.18 * secE);
+    const mids      = (0.5 + 0.5 * Math.sin(elapsed * 0.67 + 1.1 + aOff * 2)) * secE * 0.85;
+    const treble    = (0.4 + 0.4 * Math.sin(elapsed * 1.4 + 2.3 + aOff * 3))
+                        * (0.3 + this.valence * 0.5 * secE);
+    const energy    = bass * 0.4 + mids * 0.35 + treble * 0.25;
+    const isBeat    = bass > prevBass + 0.14;
+
+    const freqBins = new Float32Array(64);
+    for (let i = 0; i < 64; i++) {
+      const t = i / 64;
+      if (t < 0.15) freqBins[i] = bass * (1 - (t / 0.15) * 0.35) + Math.sin(elapsed * 9 + i * 1.3) * 0.08;
+      else if (t < 0.6) freqBins[i] = mids * (0.75 + Math.sin(elapsed * 3.2 + i * 0.6) * 0.25);
+      else freqBins[i] = treble * (0.55 + Math.sin(elapsed * 5.5 + i * 0.35) * 0.45);
+      freqBins[i] = Math.max(0, Math.min(1, freqBins[i]));
+    }
+
+    return { bass, mids, treble, energy, isBeat, freqBins };
+  }
+}
+
+// ─── AudioEngine — wraps real audio attempt + FingerprintEngine fallback ──────
+
+class AudioEngine {
+  readonly mode: "live" | "fingerprint" = "fingerprint";
+  private fp: FingerprintEngine;
+
+  constructor(track: SpotifyTrack, features: AudioFeatures) {
+    this.fp = new FingerprintEngine(track, features);
+    // Real Web Audio API would go here; Spotify SDK internal context is inaccessible,
+    // so we always use fingerprint mode.
+  }
+
+  tick(nowMs: number, startMs: number, prevBass: number, progressFrac = 0): FrameAudio {
+    return this.fp.tick(nowMs, startMs, prevBass, progressFrac);
+  }
+}
+
 // ─── Three.js scene ───────────────────────────────────────────────────────────
 
 interface SceneObjects {
@@ -426,6 +541,7 @@ function TempoInner() {
   const [useCustom,  setUseCustom]  = useState(false);
   // For displaying formation badge during visualization
   const [formation,  setFormation]  = useState<Formation | null>(null);
+  const [audioMode,  setAudioMode]  = useState<"live" | "fingerprint">("fingerprint");
 
   // Refs for animation loop (avoid stale closures)
   const tokenRef       = useRef<string | null>(null);
@@ -441,9 +557,10 @@ function TempoInner() {
   const curColorRef    = useRef<[number, number, number]>([0.15, 0.15, 0.6]);
 
   // DOM/Three refs
-  const canvasRef   = useRef<HTMLCanvasElement>(null);
-  const playerRef   = useRef<SpotifyPlayer | null>(null);
-  const deviceIdRef = useRef("");
+  const canvasRef        = useRef<HTMLCanvasElement>(null);
+  const playerRef        = useRef<SpotifyPlayer | null>(null);
+  const deviceIdRef      = useRef("");
+  const audioEngineRef   = useRef<AudioEngine | null>(null);
   const animIdRef   = useRef(0);
   const hudTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -586,6 +703,11 @@ function TempoInner() {
       personalityRef.current = personality;
       setFormation(personality.formation);
 
+      // Create AudioEngine for this track
+      const engine = new AudioEngine(fullTrack, featuresRef.current);
+      audioEngineRef.current = engine;
+      setAudioMode(engine.mode);
+
       setLoadingMsg("Building visualization…");
       // Extract color palette from album art
       const imgUrl = t.album.images[0]?.url;
@@ -634,14 +756,24 @@ function TempoInner() {
     let shakeX = 0, shakeY = 0, shakeDecay = 0;
     // Burst spread
     let burstScale = 1;
+    // Scene start for 2s fade-in transition
+    const sceneStartMs = Date.now();
+    const FADE_DURATION_MS = 2000;
 
     function frame() {
       animIdRef.current = requestAnimationFrame(frame);
       // Freeze all visual updates while paused — rAF loop stays alive for smooth resume
       if (!isPlayingRef.current) return;
 
-      const audio = simulateFrame(Date.now(), startMsRef.current, featuresRef.current, prevBass);
+      const engine = audioEngineRef.current;
+      const audio = engine
+        ? engine.tick(Date.now(), startMsRef.current, prevBass, progressRef.current)
+        : simulateFrame(Date.now(), startMsRef.current, featuresRef.current, prevBass);
       prevBass = audio.bass;
+
+      // 2-second fade-in on scene entry
+      const fadeFrac = Math.min(1, (Date.now() - sceneStartMs) / FADE_DURATION_MS);
+      material.opacity = 0.87 * fadeFrac;
 
       // ── Palette cycling (cycle through album colors, energy-modulated speed) ──
       paletteT += 0.0006 + audio.energy * 0.0012;
@@ -994,20 +1126,33 @@ function TempoInner() {
               ← Search
             </button>
 
-            {/* Formation badge — top-right */}
-            {formation && (
+            {/* Formation badge + mode indicator — top-right */}
+            <div className="absolute top-5 right-5 flex flex-col items-end gap-1.5">
+              {formation && (
+                <div
+                  className="px-2.5 py-1 rounded-lg text-[10px] font-semibold uppercase tracking-widest"
+                  style={{
+                    backgroundColor: "rgba(10,11,13,0.6)",
+                    color: "#5B4F48",
+                    border: "1px solid rgba(255,255,255,0.07)",
+                    backdropFilter: "blur(10px)",
+                  }}
+                >
+                  {formation}
+                </div>
+              )}
               <div
-                className="absolute top-5 right-5 px-2.5 py-1 rounded-lg text-[10px] font-semibold uppercase tracking-widest"
+                className="px-2.5 py-1 rounded-lg text-[10px] font-medium"
                 style={{
                   backgroundColor: "rgba(10,11,13,0.6)",
-                  color: "#5B4F48",
+                  color: audioMode === "live" ? "#34d399" : "#8B7D74",
                   border: "1px solid rgba(255,255,255,0.07)",
                   backdropFilter: "blur(10px)",
                 }}
               >
-                {formation}
+                {audioMode === "live" ? "🎵 Live audio" : "✨ Visual mode"}
               </div>
-            )}
+            </div>
 
             {/* HUD — slides up from bottom, auto-hides */}
             <AnimatePresence>

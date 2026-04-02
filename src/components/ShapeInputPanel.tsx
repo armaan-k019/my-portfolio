@@ -262,6 +262,13 @@ function FileImportTab({ onRoomChange }: { onRoomChange: (s: RoomShape) => void 
 
   async function handleFile(file: File) {
     const ext = file.name.split('.').pop()?.toLowerCase();
+    // Crash guard: reject oversized files before parsing
+    const MAX_BYTES = 50 * 1024 * 1024; // 50 MB
+    if (file.size > MAX_BYTES) {
+      setStatus('error');
+      setMsg(`File too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum is 50 MB.`);
+      return;
+    }
     setStatus('parsing');
     setMsg(`Parsing ${file.name}…`);
     try {
@@ -272,6 +279,13 @@ function FileImportTab({ onRoomChange }: { onRoomChange: (s: RoomShape) => void 
       else if (ext === '3dm') shape = await parse3DM(file);
       else if (ext === 'ifc') shape = await parseIFC(file);
       else throw new Error(`Unsupported format: .${ext}`);
+      // Crash guard: reject meshes with too many polygons
+      const MAX_FACES = 100_000;
+      if (shape.faces.length > MAX_FACES) {
+        setStatus('error');
+        setMsg(`Model has ${shape.faces.length.toLocaleString()} polygons — maximum is ${MAX_FACES.toLocaleString()}. Please simplify the mesh before importing.`);
+        return;
+      }
       setRawShape(shape);
       setScale(1.0);
       setRotX(0); setRotY(0); setRotZ(0);

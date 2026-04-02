@@ -47,8 +47,12 @@ export const MATERIAL_DATA: Record<MaterialType, { name: string; bands: number[]
   carpet:      { name: 'Carpet',             bands: [0.05, 0.10, 0.20, 0.30, 0.40, 0.50] },
   glass:       { name: 'Glass',              bands: [0.03, 0.03, 0.03, 0.03, 0.03, 0.02] },
   acoustic:    { name: 'Acoustic Panels',    bands: [0.20, 0.45, 0.70, 0.80, 0.85, 0.80] },
-  gypsum:      { name: 'Gypsum Board',       bands: [0.08, 0.09, 0.05, 0.04, 0.04, 0.03] },
-  upholstered: { name: 'Upholstered Seating',bands: [0.20, 0.30, 0.45, 0.60, 0.70, 0.70] },
+  gypsum:          { name: 'Gypsum Board',         bands: [0.08, 0.09, 0.05, 0.04, 0.04, 0.03] },
+  upholstered:     { name: 'Upholstered Seating',  bands: [0.20, 0.30, 0.45, 0.60, 0.70, 0.70] },
+  acoustic_foam:   { name: 'Acoustic Foam',         bands: [0.15, 0.35, 0.70, 0.90, 0.95, 0.90] },
+  heavy_drape:     { name: 'Heavy Drape',           bands: [0.14, 0.35, 0.55, 0.72, 0.70, 0.65] },
+  carpet_concrete: { name: 'Carpet on Concrete',    bands: [0.02, 0.06, 0.14, 0.37, 0.60, 0.65] },
+  glass_plate:     { name: 'Plate Glass',           bands: [0.18, 0.06, 0.04, 0.03, 0.02, 0.02] },
 };
 
 export const OCTAVE_BANDS = ['125 Hz', '250 Hz', '500 Hz', '1 kHz', '2 kHz', '4 kHz'] as const;

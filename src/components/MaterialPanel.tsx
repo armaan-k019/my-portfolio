@@ -11,17 +11,22 @@ interface MaterialPanelProps {
 
 const MATERIAL_OPTIONS: MaterialType[] = [
   'concrete', 'brick', 'wood', 'carpet', 'glass', 'acoustic', 'gypsum', 'upholstered',
+  'acoustic_foam', 'heavy_drape', 'carpet_concrete', 'glass_plate',
 ];
 
 const MATERIAL_DOT_COLORS: Record<MaterialType, string> = {
-  concrete:    '#6b7280',
-  brick:       '#c1513a',
-  wood:        '#b5874c',
-  carpet:      '#2d5a3d',
-  glass:       '#7ec8e3',
-  acoustic:    '#3b5ba5',
-  gypsum:      '#e8e4d9',
-  upholstered: '#5b3a6b',
+  concrete:        '#6b7280',
+  brick:           '#c1513a',
+  wood:            '#b5874c',
+  carpet:          '#2d5a3d',
+  glass:           '#7ec8e3',
+  acoustic:        '#3b5ba5',
+  gypsum:          '#e8e4d9',
+  upholstered:     '#5b3a6b',
+  acoustic_foam:   '#f97316',
+  heavy_drape:     '#7c3aed',
+  carpet_concrete: '#166534',
+  glass_plate:     '#bae6fd',
 };
 
 export default function MaterialPanel({ groups, onChange }: MaterialPanelProps) {

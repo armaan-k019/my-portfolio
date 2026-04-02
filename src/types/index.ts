@@ -15,7 +15,11 @@ export type MaterialType =
   | 'glass'
   | 'acoustic'
   | 'gypsum'
-  | 'upholstered';
+  | 'upholstered'
+  | 'acoustic_foam'
+  | 'heavy_drape'
+  | 'carpet_concrete'
+  | 'glass_plate';
 
 export type SurfaceGroup = {
   label: string;         // "Floor", "Ceiling", "Walls", "Face 0–N"
@@ -53,7 +57,7 @@ export type ReceiverPoint = {
   label: string;
 };
 
-export type ShapeArchetype = 'orthogonal' | 'pitched' | 'cylinder' | 'barrel_vault' | 'dome';
+export type ShapeArchetype = 'orthogonal' | 'pitched' | 'cylinder' | 'barrel_vault' | 'dome' | 'sloped_auditorium' | 'pyramid' | 'wedge';
 
 export type ShapeParams = {
   archetype: ShapeArchetype;
@@ -63,5 +67,7 @@ export type ShapeParams = {
     height?: number;
     radius?: number;
     peak_height?: number;
+    front_height?: number;
+    rear_height?: number;
   };
 };

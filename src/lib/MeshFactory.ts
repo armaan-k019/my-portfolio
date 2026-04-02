@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { ShapeParams, RoomShape, Vector3D, Face } from '@/types';
+import type { ShapeParams, ShapeArchetype, RoomShape, Vector3D, Face } from '@/types';
 import { getDefaultRoom } from '@/lib/geometry';
 
 // ─── Internal helpers ──────────────────────────────────────────────────────────
@@ -148,18 +148,88 @@ function buildBarrelVault(d: ShapeParams['dimensions']): RoomShape {
   return bufferGeoToRoomShape(geo);
 }
 
+function buildSlopedAuditorium(d: ShapeParams['dimensions']): RoomShape {
+  // Rectangular floor plan; front wall is lower, rear wall is higher (raked seating feel)
+  const w  = clamp(d.width,        2, 200, 12);
+  const l  = clamp(d.length,       2, 200, 20);
+  const fh = clamp(d.front_height, 1, 60,  3);   // front (stage) wall height
+  const rh = clamp(d.rear_height,  1, 60,  7);   // rear (back) wall height
+
+  // Cross-section: trapezoid in XY, extruded along Z (length)
+  const shape = new THREE.Shape();
+  shape.moveTo(0, 0);
+  shape.lineTo(w, 0);
+  shape.lineTo(w, fh);
+  shape.lineTo(0, rh);
+  shape.closePath();
+
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: l, bevelEnabled: false });
+  return bufferGeoToRoomShape(geo);
+}
+
+function buildPyramid(d: ShapeParams['dimensions']): RoomShape {
+  // Square base with apex at center top
+  const w  = clamp(d.width,  2, 200, 10);
+  const l  = clamp(d.length, 2, 200, 10);
+  const h  = clamp(d.height, 1, 60,  8);
+
+  const half_w = w / 2;
+  const half_l = l / 2;
+
+  // Floor (two triangles), 4 triangular faces
+  const positions: number[] = [
+    // Floor
+    0, 0, 0,     w, 0, 0,     w, 0, l,
+    0, 0, 0,     w, 0, l,     0, 0, l,
+    // Front face (z=0)
+    0, 0, 0,     w, 0, 0,     half_w, h, half_l,
+    // Right face (x=w)
+    w, 0, 0,     w, 0, l,     half_w, h, half_l,
+    // Back face (z=l)
+    w, 0, l,     0, 0, l,     half_w, h, half_l,
+    // Left face (x=0)
+    0, 0, l,     0, 0, 0,     half_w, h, half_l,
+  ];
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  return bufferGeoToRoomShape(geo);
+}
+
+function buildWedge(d: ShapeParams['dimensions']): RoomShape {
+  // Wedge: rectangular base, one long edge at full height, opposite edge at floor level (zero height).
+  // Like a door-stop or ramp shape.
+  const w  = clamp(d.width,        2, 200, 8);
+  const l  = clamp(d.length,       2, 200, 12);
+  const fh = clamp(d.front_height, 0, 60,  0);   // height at front (z=0)
+  const rh = clamp(d.rear_height,  1, 60,  5);   // height at rear (z=l)
+
+  const shape = new THREE.Shape();
+  shape.moveTo(0, 0);
+  shape.lineTo(w, 0);
+  shape.lineTo(w, fh);
+  shape.lineTo(0, rh);
+  shape.closePath();
+
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: l, bevelEnabled: false });
+  return bufferGeoToRoomShape(geo);
+}
+
 // ─── Public API ────────────────────────────────────────────────────────────────
 
 /** Build a RoomShape from a ShapeParams archetype + dimensions. */
 export function buildRoom(params: ShapeParams): RoomShape {
   try {
-    switch (params.archetype) {
-      case 'orthogonal':   return buildOrthogonal(params.dimensions);
-      case 'cylinder':     return buildCylinder(params.dimensions);
-      case 'dome':         return buildDome(params.dimensions);
-      case 'pitched':      return buildPitched(params.dimensions);
-      case 'barrel_vault': return buildBarrelVault(params.dimensions);
-      default:             return buildOrthogonal(params.dimensions);
+    switch (params.archetype as ShapeArchetype) {
+      case 'orthogonal':         return buildOrthogonal(params.dimensions);
+      case 'cylinder':           return buildCylinder(params.dimensions);
+      case 'dome':               return buildDome(params.dimensions);
+      case 'pitched':            return buildPitched(params.dimensions);
+      case 'barrel_vault':       return buildBarrelVault(params.dimensions);
+      case 'sloped_auditorium':  return buildSlopedAuditorium(params.dimensions);
+      case 'pyramid':            return buildPyramid(params.dimensions);
+      case 'wedge':              return buildWedge(params.dimensions);
+      default:                   return buildOrthogonal(params.dimensions);
     }
   } catch (err) {
     console.error('[MeshFactory] buildRoom error:', err);

@@ -20,14 +20,18 @@ const RECEIVER_COLORS = ['#34d399', '#60a5fa', '#f472b6', '#a78bfa', '#fb923c'];
 
 // ─── Material → Three.js colour mapping ──────────────────────────────────────
 const MATERIAL_COLORS: Record<MaterialType, number> = {
-  concrete:    0x6b7280,
-  brick:       0xc1513a,
-  wood:        0xb5874c,
-  carpet:      0x2d5a3d,
-  glass:       0x7ec8e3,
-  acoustic:    0x3b5ba5,
-  gypsum:      0xe8e4d9,
-  upholstered: 0x5b3a6b,
+  concrete:        0x6b7280,
+  brick:           0xc1513a,
+  wood:            0xb5874c,
+  carpet:          0x2d5a3d,
+  glass:           0x7ec8e3,
+  acoustic:        0x3b5ba5,
+  gypsum:          0xe8e4d9,
+  upholstered:     0x5b3a6b,
+  acoustic_foam:   0xf97316,
+  heavy_drape:     0x7c3aed,
+  carpet_concrete: 0x166534,
+  glass_plate:     0xbae6fd,
 };
 
 const WAVE_PERIOD = 3.0; // seconds for one full wave cycle
@@ -121,8 +125,8 @@ export default function ThreeCanvas({
   const particleGeoRef     = useRef<THREE.SphereGeometry | null>(null);
 
   // Viz mode toggle
-  const [vizMode, setVizMode] = useState<'particles' | 'static'>('particles');
-  const vizModeRef = useRef<'particles' | 'static'>('particles');
+  const [vizMode, setVizMode] = useState<'particles' | 'static'>('static');
+  const vizModeRef = useRef<'particles' | 'static'>('static');
   useEffect(() => { vizModeRef.current = vizMode; }, [vizMode]);
 
   // Prop refs (for stable closures in mouse handlers)

@@ -259,7 +259,7 @@ export default function UrbanGPTPage() {
   // ── Load Google Maps ───────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!mapsKey) return;
+    if (!mapsKey) return; // Maps only loads if key present; Nominatim fallback handles no-key case
     if (window.google?.maps) { setMapsLoaded(true); return; }
     window.__urbanGPTMapsReady = () => setMapsLoaded(true);
     if (document.getElementById("urban-gpt-maps-script")) return;
@@ -320,9 +320,33 @@ export default function UrbanGPTPage() {
     [unit]
   );
 
-  const handleAnalyze = () => {
-    if (!place) return;
-    doAnalyze(place, radiusIndex);
+  async function geocodeAddress(addr: string): Promise<{ lat: number; lng: number; formatted: string } | null> {
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1&countrycodes=us`;
+      const res = await fetch(url, { headers: { "Accept-Language": "en", "User-Agent": "UrbanGPT/1.0" } });
+      const data = await res.json() as { lat: string; lon: string; display_name: string }[];
+      if (!data.length) return null;
+      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), formatted: data[0].display_name };
+    } catch {
+      return null;
+    }
+  }
+
+  const handleAnalyze = async () => {
+    if (place) { doAnalyze(place, radiusIndex); return; }
+    if (!address.trim()) return;
+    setLoading(true);
+    setError("");
+    try {
+      const geo = await geocodeAddress(address.trim());
+      if (!geo) { setError("Could not find that address. Try being more specific."); setLoading(false); return; }
+      setPlace(geo);
+      currentPlaceRef.current = geo;
+      doAnalyze(geo, radiusIndex);
+    } catch {
+      setError("Geocoding failed. Please try again.");
+      setLoading(false);
+    }
   };
 
   // ── Debounced re-analyze on radius change ──────────────────────────────────
@@ -451,24 +475,14 @@ export default function UrbanGPTPage() {
           <label className="block text-xs font-semibold uppercase tracking-wide text-brown-light mb-1.5">
             Address
           </label>
-          {!mapsKey ? (
-            <div className="rounded-lg border border-tan/40 bg-cream-dark/20 px-3 py-2.5 text-sm text-brown-light italic">
-              Set{" "}
-              <code className="font-mono text-[11px] bg-cream-dark/40 px-1 rounded">
-                NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-              </code>{" "}
-              to enable address search.
-            </div>
-          ) : (
-            <input
-              ref={addressInputRef}
-              type="text"
-              value={address}
-              onChange={(e) => { setAddress(e.target.value); if (!e.target.value) setPlace(null); }}
-              placeholder="e.g. 123 Peachtree St NE, Atlanta, GA"
-              className="w-full rounded-lg border border-tan/40 bg-cream-dark/20 px-3 py-2.5 text-sm text-brown placeholder:text-brown-light/50 focus:outline-none focus:ring-2 focus:ring-terracotta/30 focus:border-terracotta/50 transition-colors"
-            />
-          )}
+          <input
+            ref={addressInputRef}
+            type="text"
+            value={address}
+            onChange={(e) => { setAddress(e.target.value); if (!e.target.value) setPlace(null); }}
+            placeholder="e.g. 123 Peachtree St NE, Atlanta, GA"
+            className="w-full rounded-lg border border-tan/40 bg-cream-dark/20 px-3 py-2.5 text-sm text-brown placeholder:text-brown-light/50 focus:outline-none focus:ring-2 focus:ring-terracotta/30 focus:border-terracotta/50 transition-colors"
+          />
         </div>
 
         <div className="flex flex-wrap gap-4 items-end mb-5">
@@ -497,7 +511,7 @@ export default function UrbanGPTPage() {
           </div>
         </div>
 
-        <button onClick={handleAnalyze} disabled={!place || loading}
+        <button onClick={handleAnalyze} disabled={!address.trim() || loading}
           className="w-full px-5 py-2.5 text-sm font-medium bg-terracotta text-white rounded-lg hover:bg-terracotta-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
           {loading ? "Analyzing site…" : "Analyze Site"}
         </button>
