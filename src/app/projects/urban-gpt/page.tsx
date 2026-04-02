@@ -236,6 +236,9 @@ export default function UrbanGPTPage() {
     transit: true, parks: true, restaurants: true, schools: true, hospitals: true,
   });
   const [mapsLoaded, setMapsLoaded] = useState(false);
+  const [suggestions, setSuggestions] = useState<{ display: string; lat: number; lng: number }[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const nominatimRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapRef = useRef<any>(null);
@@ -293,6 +296,26 @@ export default function UrbanGPTPage() {
       setError("");
     });
   }, [mapsLoaded]);
+
+  // ── Nominatim suggestion search (fallback when Google Maps not loaded) ─────
+
+  useEffect(() => {
+    if (mapsLoaded) { setSuggestions([]); return; } // Google handles it
+    if (nominatimRef.current) clearTimeout(nominatimRef.current);
+    if (!address.trim() || address.length < 3) { setSuggestions([]); return; }
+    nominatimRef.current = setTimeout(async () => {
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=5&countrycodes=us&addressdetails=0`;
+        const res = await fetch(url, { headers: { "Accept-Language": "en", "User-Agent": "UrbanGPT/1.0" } });
+        const data = await res.json() as { display_name: string; lat: string; lon: string }[];
+        setSuggestions(data.map(d => ({ display: d.display_name, lat: parseFloat(d.lat), lng: parseFloat(d.lon) })));
+        setShowSuggestions(true);
+      } catch {
+        setSuggestions([]);
+      }
+    }, 350);
+    return () => { if (nominatimRef.current) clearTimeout(nominatimRef.current); };
+  }, [address, mapsLoaded]);
 
   // ── Core analysis ──────────────────────────────────────────────────────────
 
@@ -475,14 +498,40 @@ export default function UrbanGPTPage() {
           <label className="block text-xs font-semibold uppercase tracking-wide text-brown-light mb-1.5">
             Address
           </label>
-          <input
-            ref={addressInputRef}
-            type="text"
-            value={address}
-            onChange={(e) => { setAddress(e.target.value); if (!e.target.value) setPlace(null); }}
-            placeholder="e.g. 123 Peachtree St NE, Atlanta, GA"
-            className="w-full rounded-lg border border-tan/40 bg-cream-dark/20 px-3 py-2.5 text-sm text-brown placeholder:text-brown-light/50 focus:outline-none focus:ring-2 focus:ring-terracotta/30 focus:border-terracotta/50 transition-colors"
-          />
+          <div className="relative">
+            <input
+              ref={addressInputRef}
+              type="text"
+              value={address}
+              onChange={(e) => { setAddress(e.target.value); if (!e.target.value) { setPlace(null); setSuggestions([]); } }}
+              onFocus={() => { if (suggestions.length) setShowSuggestions(true); }}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              placeholder="e.g. 123 Peachtree St NE, Atlanta, GA"
+              className="w-full rounded-lg border border-tan/40 bg-cream-dark/20 px-3 py-2.5 text-sm text-brown placeholder:text-brown-light/50 focus:outline-none focus:ring-2 focus:ring-terracotta/30 focus:border-terracotta/50 transition-colors"
+            />
+            {!mapsLoaded && showSuggestions && suggestions.length > 0 && (
+              <ul className="absolute z-20 top-full left-0 right-0 mt-1 rounded-xl border border-tan/30 bg-white/95 backdrop-blur-sm shadow-lg overflow-hidden">
+                {suggestions.map((s, i) => (
+                  <li key={i}>
+                    <button
+                      type="button"
+                      className={`w-full text-left px-4 py-2.5 text-sm text-brown hover:bg-tan/10 transition-colors ${i > 0 ? "border-t border-tan/20" : ""}`}
+                      onMouseDown={() => {
+                        setAddress(s.display);
+                        setPlace({ lat: s.lat, lng: s.lng, formatted: s.display });
+                        currentPlaceRef.current = { lat: s.lat, lng: s.lng, formatted: s.display };
+                        setSuggestions([]);
+                        setShowSuggestions(false);
+                        setError("");
+                      }}
+                    >
+                      {s.display}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-4 items-end mb-5">
