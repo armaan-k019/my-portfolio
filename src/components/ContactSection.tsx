@@ -26,6 +26,7 @@ export default function ContactSection() {
   const [message, setMessage] = useState("");
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -38,6 +39,7 @@ export default function ContactSection() {
       });
       const data = await res.json() as { ok?: boolean; error?: string };
       if (!res.ok || !data.ok) {
+        setErrorMsg(data.error ?? "Something went wrong. Please try again.");
         setStatus("error");
       } else {
         setStatus("sent");
@@ -46,6 +48,7 @@ export default function ContactSection() {
         setProject("");
       }
     } catch {
+      setErrorMsg("Network error. Please try again.");
       setStatus("error");
     }
   }
@@ -173,7 +176,7 @@ export default function ContactSection() {
             </div>
 
             {status === "error" && (
-              <p className="text-xs text-red-500">Something went wrong. Please try again.</p>
+              <p className="text-xs text-red-500">{errorMsg}</p>
             )}
 
             <button
