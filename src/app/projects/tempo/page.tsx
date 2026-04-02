@@ -44,6 +44,7 @@ interface SpotifyTrack {
   artists: { name: string }[];
   album: { images: { url: string; width: number; height: number }[] };
   duration_ms: number;
+  popularity?: number;
 }
 
 interface AudioFeatures {
@@ -53,12 +54,15 @@ interface AudioFeatures {
   valence: number;
 }
 
-interface SimAudio {
-  bass: number;
-  mid: number;
-  treble: number;
-  energy: number;
-  beatPulse: number;
+type Formation = "grid" | "sphere" | "spiral" | "cloud";
+
+interface SongPersonality {
+  particleCount: number;
+  formation: Formation;
+  spreadRadius: number;
+  rotationSpeed: number;
+  particleBaseSize: number;
+  chaosFactor: number;
 }
 
 // ─── PKCE helpers ─────────────────────────────────────────────────────────────
@@ -73,23 +77,20 @@ function randomVerifier(len = 96): string {
 async function makeChallenge(verifier: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
   return btoa(String.fromCharCode(...new Uint8Array(digest)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=/g, "");
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 }
 
 // ─── Spotify API helpers ──────────────────────────────────────────────────────
 
 // DEPLOYMENT CHECKLIST FOR TEMPO:
-// 1. Deploy the site to your domain
-// 2. Go to developer.spotify.com → Dashboard → Tempo app → Edit
+// 1. Deploy to your domain
+// 2. Go to developer.spotify.com → Dashboard → Tempo app → Edit settings
 // 3. Add your production URL as a redirect URI: https://yourdomain.com/projects/tempo
-// 4. Save. No code changes needed - the redirect URI is derived from window.location.origin.
+// 4. Set NEXT_PUBLIC_SPOTIFY_CLIENT_ID in your environment variables
 
 const CLIENT_ID = process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID ?? "";
 const SCOPES = "streaming user-read-email user-read-private user-modify-playback-state";
 
-// Always derived from the current URL - works in local dev and production without config.
 const getRedirectUri = () => {
   if (typeof window === "undefined") return "";
   return `${window.location.origin}/projects/tempo`;
@@ -125,9 +126,7 @@ async function exchangeToken(code: string): Promise<string> {
     body,
   });
   const data = await res.json() as { access_token?: string; error?: string; error_description?: string };
-  if (!res.ok) {
-    throw new Error(data.error_description ?? data.error ?? `Token exchange failed (${res.status})`);
-  }
+  if (!res.ok) throw new Error(data.error_description ?? data.error ?? `Token exchange failed (${res.status})`);
   localStorage.removeItem("sp_verifier");
   return data.access_token!;
 }
@@ -148,41 +147,138 @@ async function startPlayback(deviceId: string, uri: string, token: string) {
   });
 }
 
-// ─── Color helpers ────────────────────────────────────────────────────────────
+// ─── Seeded PRNG (xorshift32) ─────────────────────────────────────────────────
+// Each track gets a deterministic random sequence seeded by its Spotify ID.
+// This means the same song always produces the same formation and layout.
 
-// Extract a palette of up to 4 distinct vibrant colors from an album art URL.
-// Samples each quadrant of the image and picks the most saturated pixel in each.
-function sampleAlbumPalette(url: string): Promise<[number, number, number][]> {
+function trackSeed(id: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i);
+    h = (Math.imul(h, 0x01000193) >>> 0);
+  }
+  return h || 1;
+}
+
+function makeRng(seed: number) {
+  let x = seed >>> 0 || 1;
+  return () => {
+    x ^= x << 13; x = x >>> 0;
+    x ^= x >>> 17;
+    x ^= x << 5; x = x >>> 0;
+    return x / 0x100000000;
+  };
+}
+
+// ─── Song personality from track metadata ─────────────────────────────────────
+
+function buildPersonality(track: SpotifyTrack, features: AudioFeatures): SongPersonality {
+  const pop = (track.popularity ?? 50) / 100;
+  const rng = makeRng(trackSeed(track.id));
+  const formations: Formation[] = ["grid", "sphere", "spiral", "cloud"];
+  const formation = formations[Math.floor(rng() * formations.length)];
+
+  return {
+    particleCount: Math.round(8000 + pop * 10000),     // 8k–18k by popularity
+    formation,
+    spreadRadius: 280 + features.energy * 180,          // 280–460
+    rotationSpeed: 0.00012 + features.energy * 0.00035,
+    particleBaseSize: 1.4 + features.energy * 1.4,      // 1.4–2.8
+    chaosFactor: features.danceability * 3.0,
+  };
+}
+
+// ─── Base particle positions per formation ────────────────────────────────────
+
+function buildBasePositions(
+  n: number,
+  formation: Formation,
+  spread: number,
+  rng: () => number,
+): Float32Array {
+  const pos = new Float32Array(n * 3);
+  const GRID = Math.ceil(Math.sqrt(n));
+
+  for (let i = 0; i < n; i++) {
+    const i3 = i * 3;
+    if (formation === "grid") {
+      const xi = i % GRID;
+      const zi = Math.floor(i / GRID);
+      const x = (xi / GRID - 0.5) * spread;
+      const z = (zi / GRID - 0.5) * spread;
+      pos[i3]     = x;
+      pos[i3 + 1] = Math.sin(x * 0.042) * Math.cos(z * 0.042) * 18 + (rng() - 0.5) * 4;
+      pos[i3 + 2] = z;
+    } else if (formation === "sphere") {
+      const theta = Math.acos(2 * rng() - 1);
+      const phi = rng() * Math.PI * 2;
+      const r = spread * 0.42 * (0.65 + rng() * 0.35);
+      pos[i3]     = r * Math.sin(theta) * Math.cos(phi);
+      pos[i3 + 1] = r * Math.cos(theta);
+      pos[i3 + 2] = r * Math.sin(theta) * Math.sin(phi);
+    } else if (formation === "spiral") {
+      const t = i / n;
+      const angle = t * Math.PI * 28;
+      const r = t * spread * 0.48;
+      pos[i3]     = r * Math.cos(angle) + (rng() - 0.5) * 18;
+      pos[i3 + 1] = (t - 0.5) * spread * 0.75 + (rng() - 0.5) * 14;
+      pos[i3 + 2] = r * Math.sin(angle) + (rng() - 0.5) * 18;
+    } else {
+      // cloud
+      pos[i3]     = (rng() - 0.5) * spread;
+      pos[i3 + 1] = (rng() - 0.5) * spread * 0.38;
+      pos[i3 + 2] = (rng() - 0.5) * spread;
+    }
+  }
+  return pos;
+}
+
+// ─── Album color palette extraction ──────────────────────────────────────────
+// Samples the album art at 50×50, clusters by hue into 5 buckets,
+// and picks the most saturated pixel from each. Very dark/grey pixels skipped.
+
+function extractPalette(url: string): Promise<[number, number, number][]> {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
-      const SIZE = 40;
+      const SIZE = 50;
       const c = document.createElement("canvas");
       c.width = c.height = SIZE;
       const ctx = c.getContext("2d");
       if (!ctx) { resolve([[0.3, 0.3, 1.0]]); return; }
       ctx.drawImage(img, 0, 0, SIZE, SIZE);
+      const d = ctx.getImageData(0, 0, SIZE, SIZE).data;
 
-      // Sample one vibrant color from each quadrant
-      const half = SIZE / 2;
-      const regions = [
-        { x: 0, y: 0 }, { x: half, y: 0 },
-        { x: 0, y: half }, { x: half, y: half },
-      ];
-
-      const palette: [number, number, number][] = [];
-      for (const { x, y } of regions) {
-        const d = ctx.getImageData(x, y, half, half).data;
-        let bestR = 128, bestG = 128, bestB = 200, bestSat = -1;
-        for (let i = 0; i < d.length; i += 4) {
-          const r = d[i], g = d[i + 1], b = d[i + 2];
-          const max = Math.max(r, g, b);
-          const min = Math.min(r, g, b);
-          const sat = max > 20 ? (max - min) / max : 0;
-          if (sat > bestSat) { bestSat = sat; bestR = r; bestG = g; bestB = b; }
+      // Collect vibrant pixels (skip near-black and near-grey)
+      type Pixel = [number, number, number, number, number]; // r,g,b,sat,hue
+      const pixels: Pixel[] = [];
+      for (let i = 0; i < d.length; i += 4) {
+        const r = d[i], g = d[i + 1], b = d[i + 2];
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        if (max < 25) continue;
+        const sat = max > 0 ? (max - min) / max : 0;
+        if (sat < 0.18) continue;
+        let hue = 0;
+        if (max !== min) {
+          if (max === r) hue = ((g - b) / (max - min) + 6) % 6 / 6;
+          else if (max === g) hue = ((b - r) / (max - min) + 2) / 6;
+          else hue = ((r - g) / (max - min) + 4) / 6;
         }
-        palette.push([bestR / 255, bestG / 255, bestB / 255]);
+        pixels.push([r, g, b, sat, hue]);
+      }
+
+      if (pixels.length === 0) { resolve([[0.3, 0.3, 1.0]]); return; }
+
+      // Bucket by hue into 5 zones, pick most saturated from each
+      const BUCKETS = 5;
+      const palette: [number, number, number][] = [];
+      for (let b = 0; b < BUCKETS; b++) {
+        const hLo = b / BUCKETS, hHi = (b + 1) / BUCKETS;
+        const inBucket = pixels.filter(([,,,, h]) => h >= hLo && h < hHi);
+        const candidates = inBucket.length > 0 ? inBucket : pixels;
+        const best = candidates.reduce((a, c) => c[3] > a[3] ? c : a);
+        palette.push([best[0] / 255, best[1] / 255, best[2] / 255]);
       }
       resolve(palette);
     };
@@ -191,38 +287,63 @@ function sampleAlbumPalette(url: string): Promise<[number, number, number][]> {
   });
 }
 
-function hslToRgb01(h: number, s: number, l: number): [number, number, number] {
-  h = ((h % 360) + 360) % 360;
-  const c = (1 - Math.abs(2 * l - 1)) * s;
-  const x = c * (1 - Math.abs((h / 60) % 2 - 1));
-  const m = l - c / 2;
-  let r = 0, g = 0, bv = 0;
-  if (h < 60)       { r = c; g = x; }
-  else if (h < 120) { r = x; g = c; }
-  else if (h < 180) { g = c; bv = x; }
-  else if (h < 240) { g = x; bv = c; }
-  else if (h < 300) { r = x; bv = c; }
-  else              { r = c; bv = x; }
-  return [r + m, g + m, bv + m];
-}
-
-function energyToHue(e: number): number {
-  if (e < 0.3) return 240 + (e / 0.3) * 40;        // 240-280 blues/purples
-  if (e < 0.6) return 160 + ((e - 0.3) / 0.3) * 40; // 160-200 teals
-  if (e < 0.8) return 30  + ((e - 0.6) / 0.2) * 30; // 30-60 yellows/oranges
-  return 320 + ((e - 0.8) / 0.2) * 40;              // 320-360 reds/magentas
-}
-
 function hexToRgb01(hex: string): [number, number, number] {
   const n = parseInt(hex.slice(1), 16);
   return [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255];
 }
 
-// ─── Three.js scene builder ───────────────────────────────────────────────────
+// ─── Per-frame audio simulation ───────────────────────────────────────────────
+// The Spotify Web Playback SDK routes audio through its own internal Web Audio
+// context — there is no standard <audio> element to tap with createMediaElementSource.
+// We simulate reactive audio from the track's audio-features + a high-res beat model,
+// seeded by track ID so every song produces a distinct, consistent visual.
 
-const N = 18000;
-const GRID = Math.ceil(Math.sqrt(N));
-const SPREAD = 480;
+interface FrameAudio {
+  bass: number;
+  mids: number;
+  treble: number;
+  energy: number;
+  isBeat: boolean;
+  // 64 simulated frequency bins [0,1] — low to high
+  freqBins: Float32Array;
+}
+
+function simulateFrame(
+  nowMs: number,
+  startMs: number,
+  features: AudioFeatures,
+  prevBass: number,
+): FrameAudio {
+  const elapsed = (nowMs - startMs) / 1000;
+  const beatSec = 60 / Math.max(features.tempo, 40);
+  const phase = (elapsed % beatSec) / beatSec;
+
+  // Sharp attack, fast decay
+  const beatPulse = Math.pow(Math.max(0, Math.sin(phase * Math.PI * 2 - Math.PI * 0.5) + 0.12), 3);
+  const bass   = Math.min(1, beatPulse * 0.82 * features.danceability + Math.sin(elapsed * 0.28) * 0.18 * features.energy);
+  const mids   = (0.5 + 0.5 * Math.sin(elapsed * 0.67 + 1.1)) * features.energy * 0.85;
+  const treble = (0.4 + 0.4 * Math.sin(elapsed * 1.4 + 2.3)) * (0.3 + features.valence * 0.5);
+  const energy = bass * 0.4 + mids * 0.35 + treble * 0.25;
+  const isBeat = bass > prevBass + 0.14;
+
+  // Simulate 64 freq bins mapping low→high
+  const freqBins = new Float32Array(64);
+  for (let i = 0; i < 64; i++) {
+    const t = i / 64;
+    if (t < 0.15) {
+      freqBins[i] = bass * (1 - t / 0.15 * 0.35) + Math.sin(elapsed * 9 + i * 1.3) * 0.08;
+    } else if (t < 0.6) {
+      freqBins[i] = mids * (0.75 + Math.sin(elapsed * 3.2 + i * 0.6) * 0.25);
+    } else {
+      freqBins[i] = treble * (0.55 + Math.sin(elapsed * 5.5 + i * 0.35) * 0.45);
+    }
+    freqBins[i] = Math.max(0, Math.min(1, freqBins[i]));
+  }
+
+  return { bass, mids, treble, energy, isBeat, freqBins };
+}
+
+// ─── Three.js scene ───────────────────────────────────────────────────────────
 
 interface SceneObjects {
   renderer: THREE.WebGLRenderer;
@@ -231,44 +352,36 @@ interface SceneObjects {
   posAttr: THREE.BufferAttribute;
   colAttr: THREE.BufferAttribute;
   material: THREE.PointsMaterial;
-  baseY: Float32Array;
+  basePos: Float32Array;
+  n: number;
 }
 
-function buildScene(canvas: HTMLCanvasElement): SceneObjects {
+function buildScene(
+  canvas: HTMLCanvasElement,
+  personality: SongPersonality,
+  trackId: string,
+): SceneObjects {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setClearColor(0x000000, 1);
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x000000, 0.0025);
+  const fogDensity = 0.0018 + (1 - personality.spreadRadius / 460) * 0.0014;
+  scene.fog = new THREE.FogExp2(0x000000, fogDensity);
 
-  const camera = new THREE.PerspectiveCamera(
-    60, window.innerWidth / window.innerHeight, 0.1, 2000
-  );
-  camera.position.set(0, 70, 210);
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+  camera.position.set(0, 65, personality.spreadRadius * 0.58);
   camera.lookAt(0, 0, 0);
 
-  const positions = new Float32Array(N * 3);
-  const colors    = new Float32Array(N * 3);
-  const baseY     = new Float32Array(N);
+  const n = personality.particleCount;
+  const rng = makeRng(trackSeed(trackId));
+  const basePos = buildBasePositions(n, personality.formation, personality.spreadRadius, rng);
 
-  for (let i = 0; i < N; i++) {
-    const xi = i % GRID;
-    const zi = Math.floor(i / GRID);
-    const x  = (xi / GRID - 0.5) * SPREAD;
-    const z  = (zi / GRID - 0.5) * SPREAD;
-    const y  =
-      Math.sin(x * 0.042) * Math.cos(z * 0.042) * 18 +
-      Math.sin(x * 0.018 + z * 0.014) * 9 +
-      (Math.random() - 0.5) * 5;
-    positions[i * 3]     = x;
-    positions[i * 3 + 1] = y;
-    positions[i * 3 + 2] = z;
-    baseY[i] = y;
-    colors[i * 3]     = 0.25;
-    colors[i * 3 + 1] = 0.25;
-    colors[i * 3 + 2] = 0.9;
+  const positions = new Float32Array(basePos);
+  const colors    = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    colors[i * 3] = 0.15; colors[i * 3 + 1] = 0.15; colors[i * 3 + 2] = 0.6;
   }
 
   const geo = new THREE.BufferGeometry();
@@ -278,33 +391,16 @@ function buildScene(canvas: HTMLCanvasElement): SceneObjects {
   geo.setAttribute("color", colAttr);
 
   const material = new THREE.PointsMaterial({
-    size: 2.2,
+    size: personality.particleBaseSize,
     vertexColors: true,
     transparent: true,
-    opacity: 0.88,
+    opacity: 0.87,
     sizeAttenuation: true,
     depthWrite: false,
   });
 
   scene.add(new THREE.Points(geo, material));
-  return { renderer, scene, camera, posAttr, colAttr, material, baseY };
-}
-
-// ─── Simulated audio from Spotify audio features ──────────────────────────────
-
-function simAudio(nowMs: number, startMs: number, f: AudioFeatures): SimAudio {
-  const elapsed = (nowMs - startMs) / 1000;
-  const beatSec = 60 / f.tempo;
-  const phase   = (elapsed % beatSec) / beatSec;
-  // sharp attack, quick decay for beat pulse
-  const beatPulse = Math.pow(Math.max(0, Math.sin(phase * Math.PI * 2 - Math.PI * 0.5) + 0.15), 3);
-
-  const bass   = Math.min(1, beatPulse * 0.75 * f.danceability + Math.sin(elapsed * 0.28) * 0.25 * f.energy);
-  const mid    = (0.5 + 0.5 * Math.sin(elapsed * 0.67 + 1.1)) * f.energy * 0.85;
-  const treble = (0.4 + 0.4 * Math.sin(elapsed * 1.4 + 2.3))  * (0.3 + f.valence * 0.5);
-  const energy = bass * 0.4 + mid * 0.4 + treble * 0.2;
-
-  return { bass, mid, treble, energy, beatPulse };
+  return { renderer, scene, camera, posAttr, colAttr, material, basePos, n };
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -312,43 +408,47 @@ function simAudio(nowMs: number, startMs: number, f: AudioFeatures): SimAudio {
 type AppState = "loading" | "connect" | "exchanging" | "search" | "playing" | "error";
 
 function TempoInner() {
-  const [appState,    setAppState]    = useState<AppState>("loading");
-  const [query,       setQuery]       = useState("");
-  const [results,     setResults]     = useState<SpotifyTrack[]>([]);
-  const [searching,   setSearching]   = useState(false);
-  const [noResults,   setNoResults]   = useState(false);
-  const [track,       setTrack]       = useState<SpotifyTrack | null>(null);
-  const [token,       setToken]       = useState<string | null>(null);
-  const [isPlaying,   setIsPlaying]   = useState(false);
-  const [progress,    setProgress]    = useState(0);
-  const [hudVisible,  setHudVisible]  = useState(true);
-  const [error,       setError]       = useState("");
-  const [isPremium,   setIsPremium]   = useState(true);
-  const [loading,     setLoading]     = useState(false);
-  const [loadingMsg,  setLoadingMsg]  = useState("");
-  const [userColor,   setUserColor]   = useState("#5588ff");
-  const [useCustom,   setUseCustom]   = useState(false);
+  const [appState,   setAppState]   = useState<AppState>("loading");
+  const [query,      setQuery]      = useState("");
+  const [results,    setResults]    = useState<SpotifyTrack[]>([]);
+  const [searching,  setSearching]  = useState(false);
+  const [noResults,  setNoResults]  = useState(false);
+  const [track,      setTrack]      = useState<SpotifyTrack | null>(null);
+  const [token,      setToken]      = useState<string | null>(null);
+  const [isPlaying,  setIsPlaying]  = useState(false);
+  const [progress,   setProgress]   = useState(0);
+  const [hudVisible, setHudVisible] = useState(true);
+  const [error,      setError]      = useState("");
+  const [isPremium,  setIsPremium]  = useState(true);
+  const [loading,    setLoading]    = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState("");
+  const [userColor,  setUserColor]  = useState("#5588ff");
+  const [useCustom,  setUseCustom]  = useState(false);
+  // For displaying formation badge during visualization
+  const [formation,  setFormation]  = useState<Formation | null>(null);
 
-  // stable refs for values used inside animation loop / async closures
-  const tokenRef        = useRef<string | null>(null);
-  const featuresRef     = useRef<AudioFeatures>({ tempo: 120, energy: 0.6, danceability: 0.6, valence: 0.5 });
-  const albumPaletteRef = useRef<[number, number, number][]>([[0.3, 0.3, 1.0]]);
-  const startMsRef      = useRef(0);
-  const progressRef     = useRef(0);
-  const useCustomRef    = useRef(false);
-  const userColorRef    = useRef("#5588ff");
-  const curColorRef     = useRef<[number, number, number]>([0.25, 0.25, 0.9]);
-  const isPlayingRef    = useRef(false);
+  // Refs for animation loop (avoid stale closures)
+  const tokenRef       = useRef<string | null>(null);
+  const featuresRef    = useRef<AudioFeatures>({ tempo: 120, energy: 0.6, danceability: 0.6, valence: 0.5 });
+  const paletteRef     = useRef<[number, number, number][]>([[0.3, 0.3, 1.0]]);
+  const personalityRef = useRef<SongPersonality | null>(null);
+  const trackIdRef     = useRef<string>("");
+  const startMsRef     = useRef(0);
+  const progressRef    = useRef(0);
+  const useCustomRef   = useRef(false);
+  const userColorRef   = useRef("#5588ff");
+  const isPlayingRef   = useRef(false);
+  const curColorRef    = useRef<[number, number, number]>([0.15, 0.15, 0.6]);
 
-  // DOM / Three.js refs
-  const canvasRef     = useRef<HTMLCanvasElement>(null);
-  const playerRef     = useRef<SpotifyPlayer | null>(null);
-  const deviceIdRef   = useRef("");
-  const animIdRef     = useRef(0);
-  const hudTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const debounceRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // DOM/Three refs
+  const canvasRef   = useRef<HTMLCanvasElement>(null);
+  const playerRef   = useRef<SpotifyPlayer | null>(null);
+  const deviceIdRef = useRef("");
+  const animIdRef   = useRef(0);
+  const hudTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // keep refs in sync
+  // keep refs in sync with state
   useEffect(() => { tokenRef.current     = token; },     [token]);
   useEffect(() => { progressRef.current  = progress; },  [progress]);
   useEffect(() => { useCustomRef.current = useCustom; }, [useCustom]);
@@ -357,34 +457,27 @@ function TempoInner() {
 
   // ── OAuth callback on mount ──────────────────────────────────────────────
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const code  = params.get("code");
+    const params   = new URLSearchParams(window.location.search);
+    const code     = params.get("code");
     const oauthErr = params.get("error");
 
-    // Already have a valid token from a previous session
     const stored = sessionStorage.getItem("sp_token");
     if (stored) {
-      setToken(stored);
-      tokenRef.current = stored;
-      setAppState("search");
-      return;
+      setToken(stored); tokenRef.current = stored;
+      setAppState("search"); return;
     }
-
     if (oauthErr) {
       setError(`Spotify auth error: ${oauthErr}`);
       window.history.replaceState({}, "", "/projects/tempo");
-      setAppState("error");
-      return;
+      setAppState("error"); return;
     }
-
     if (code) {
       setAppState("exchanging");
       window.history.replaceState({}, "", "/projects/tempo");
       exchangeToken(code)
         .then((t) => {
           sessionStorage.setItem("sp_token", t);
-          setToken(t);
-          tokenRef.current = t;
+          setToken(t); tokenRef.current = t;
           setAppState("search");
         })
         .catch((e: unknown) => {
@@ -393,7 +486,6 @@ function TempoInner() {
         });
       return;
     }
-
     setAppState("connect");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -416,7 +508,7 @@ function TempoInner() {
     }, 350);
   }, [query]);
 
-  // ── Init Spotify SDK ─────────────────────────────────────────────────────
+  // ── Init Spotify SDK player ───────────────────────────────────────────────
   const initPlayer = useCallback((accessToken: string) => {
     if (playerRef.current) return;
 
@@ -443,7 +535,10 @@ function TempoInner() {
         if (!s) return;
         const state = s as SpotifyPlaybackState;
         setIsPlaying(!state.paused);
-        if (state.duration > 0) { setProgress(state.position / state.duration); progressRef.current = state.position / state.duration; }
+        if (state.duration > 0) {
+          const p = state.position / state.duration;
+          setProgress(p); progressRef.current = p;
+        }
       });
       p.connect();
       playerRef.current = p;
@@ -459,8 +554,13 @@ function TempoInner() {
 
   // ── Play a track ─────────────────────────────────────────────────────────
   const playTrack = useCallback(async (t: SpotifyTrack) => {
-    if (!tokenRef.current) { sessionStorage.setItem("sp_pending", JSON.stringify(t)); await startSpotifyAuth(); return; }
-    setLoading(true); setLoadingMsg("Loading visualization…"); setTrack(t);
+    if (!tokenRef.current) {
+      sessionStorage.setItem("sp_pending", JSON.stringify(t));
+      await startSpotifyAuth();
+      return;
+    }
+    setLoading(true); setLoadingMsg("Connecting player…"); setTrack(t);
+    trackIdRef.current = t.id;
     try {
       initPlayer(tokenRef.current);
       // wait for SDK device (up to 8s)
@@ -468,16 +568,31 @@ function TempoInner() {
       while (!deviceIdRef.current && attempts < 27) { await new Promise(r => setTimeout(r, 300)); attempts++; }
       if (!deviceIdRef.current) throw new Error("Could not connect to Spotify player. Make sure you have Spotify Premium.");
 
-      // audio features
-      try {
-        const f = await apiGet<AudioFeatures>(`/audio-features/${t.id}`, tokenRef.current!);
-        featuresRef.current = f;
-      } catch { /* keep defaults */ }
+      setLoadingMsg("Analyzing track…");
+      // Fetch audio features + full track details (for popularity) in parallel
+      const [featResult, trackResult] = await Promise.allSettled([
+        apiGet<AudioFeatures>(`/audio-features/${t.id}`, tokenRef.current!),
+        apiGet<SpotifyTrack & { popularity: number }>(`/tracks/${t.id}`, tokenRef.current!),
+      ]);
 
-      // album color palette
+      if (featResult.status === "fulfilled") featuresRef.current = featResult.value;
+
+      const fullTrack: SpotifyTrack = trackResult.status === "fulfilled"
+        ? { ...t, popularity: trackResult.value.popularity }
+        : t;
+
+      // Build song personality (deterministic from track ID + features)
+      const personality = buildPersonality(fullTrack, featuresRef.current);
+      personalityRef.current = personality;
+      setFormation(personality.formation);
+
+      setLoadingMsg("Building visualization…");
+      // Extract color palette from album art
       const imgUrl = t.album.images[0]?.url;
       if (imgUrl) {
-        albumPaletteRef.current = await sampleAlbumPalette(imgUrl);
+        const p = await extractPalette(imgUrl);
+        paletteRef.current = p;
+        curColorRef.current = [...p[0]];
       }
 
       await startPlayback(deviceIdRef.current, t.uri, tokenRef.current!);
@@ -500,95 +615,131 @@ function TempoInner() {
     try { playTrack(JSON.parse(pending) as SpotifyTrack); } catch { /* */ }
   }, [token, playTrack]);
 
-  // ── Three.js animation ───────────────────────────────────────────────────
+  // ── Three.js animation loop ───────────────────────────────────────────────
   useEffect(() => {
-    if (appState !== "playing" || !canvasRef.current) return;
+    if (appState !== "playing" || !canvasRef.current || !personalityRef.current) return;
 
-    const { renderer, scene, camera, posAttr, colAttr, material, baseY } =
-      buildScene(canvasRef.current);
+    const personality  = personalityRef.current;
+    const currentTrackId = trackIdRef.current;
 
-    let camAngle    = 0;
-    let rippleR     = 0;
-    let rippleOn    = false;
-    let lastBeat    = 0;
-    const lerp      = (a: number, b: number, t: number) => a + (b - a) * t;
+    const { renderer, scene, camera, posAttr, colAttr, material, basePos, n } =
+      buildScene(canvasRef.current, personality, currentTrackId);
 
-    let paletteT = 0;
+    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+    let camAngle  = 0;
+    let prevBass  = 0;
+    let paletteT  = 0;
+    // Camera shake
+    let shakeX = 0, shakeY = 0, shakeDecay = 0;
+    // Burst spread
+    let burstScale = 1;
 
     function frame() {
       animIdRef.current = requestAnimationFrame(frame);
-
-      // Freeze all updates while paused; keep rAF loop alive to resume smoothly
+      // Freeze all visual updates while paused — rAF loop stays alive for smooth resume
       if (!isPlayingRef.current) return;
 
-      const f    = featuresRef.current;
-      const audio = simAudio(Date.now(), startMsRef.current, f);
+      const audio = simulateFrame(Date.now(), startMsRef.current, featuresRef.current, prevBass);
+      prevBass = audio.bass;
 
-      // ── palette cycling: blend between adjacent palette colors every ~10s ──
-      paletteT += 0.0008;
-      const palette  = albumPaletteRef.current;
-      const pLen     = palette.length;
-      const pPhase   = paletteT % pLen;
-      const pIdx     = Math.floor(pPhase);
-      const pFrac    = pPhase - pIdx;
-      const pA       = palette[pIdx % pLen];
-      const pB       = palette[(pIdx + 1) % pLen];
-      const ar = lerp(pA[0], pB[0], pFrac);
-      const ag = lerp(pA[1], pB[1], pFrac);
-      const ab = lerp(pA[2], pB[2], pFrac);
+      // ── Palette cycling (cycle through album colors, energy-modulated speed) ──
+      paletteT += 0.0006 + audio.energy * 0.0012;
+      const palette = paletteRef.current;
+      const pLen    = palette.length;
+      const pPhase  = paletteT % pLen;
+      const pIdx    = Math.floor(pPhase);
+      const pFrac   = pPhase - pIdx;
+      const pA = palette[pIdx % pLen];
+      const pB = palette[(pIdx + 1) % pLen];
+      let tr = lerp(pA[0], pB[0], pFrac);
+      let tg = lerp(pA[1], pB[1], pFrac);
+      let tb = lerp(pA[2], pB[2], pFrac);
 
-      // ── target color ──────────────────────────────────────────────────
-      const hue   = energyToHue(audio.energy);
-      const [hr, hg, hb] = hslToRgb01(hue, 0.8, 0.5);
-      let tr = hr * 0.55 + ar * 0.45;
-      let tg = hg * 0.55 + ag * 0.45;
-      let tb = hb * 0.55 + ab * 0.45;
       if (useCustomRef.current) {
         const [ur, ug, ub] = hexToRgb01(userColorRef.current);
-        tr = tr * 0.62 + ur * 0.38;
-        tg = tg * 0.62 + ug * 0.38;
-        tb = tb * 0.62 + ub * 0.38;
+        tr = tr * 0.58 + ur * 0.42;
+        tg = tg * 0.58 + ug * 0.42;
+        tb = tb * 0.58 + ub * 0.42;
       }
-      curColorRef.current[0] = lerp(curColorRef.current[0], tr, 0.018);
-      curColorRef.current[1] = lerp(curColorRef.current[1], tg, 0.018);
-      curColorRef.current[2] = lerp(curColorRef.current[2], tb, 0.018);
+      // Smooth lerp toward target color
+      curColorRef.current[0] = lerp(curColorRef.current[0], tr, 0.022);
+      curColorRef.current[1] = lerp(curColorRef.current[1], tg, 0.022);
+      curColorRef.current[2] = lerp(curColorRef.current[2], tb, 0.022);
       const [cr, cg, cb] = curColorRef.current;
 
-      // ── beat detection → ripple ────────────────────────────────────────
-      if (audio.beatPulse > 0.68 && lastBeat <= 0.68) { rippleR = 0; rippleOn = true; }
-      lastBeat = audio.beatPulse;
-      if (rippleOn) { rippleR += 2.8; if (rippleR > SPREAD * 0.72) rippleOn = false; }
+      // ── Beat-reactive effects ─────────────────────────────────────────────
+      if (audio.isBeat) {
+        const intensity = audio.bass;
+        shakeX    = (Math.random() - 0.5) * 7 * intensity;
+        shakeY    = (Math.random() - 0.5) * 4.5 * intensity;
+        shakeDecay = 0.82;
+        burstScale = 1 + intensity * 0.28;
+      }
+      shakeX    *= shakeDecay;
+      shakeY    *= shakeDecay;
+      shakeDecay *= 0.88;
+      burstScale  = lerp(burstScale, 1, 0.1);
 
-      // ── update particles ──────────────────────────────────────────────
-      for (let i = 0; i < N; i++) {
-        const xi = i % GRID;
-        const zi = Math.floor(i / GRID);
-        const x  = (xi / GRID - 0.5) * SPREAD;
-        const z  = (zi / GRID - 0.5) * SPREAD;
-        const dist = Math.sqrt(x * x + z * z);
+      // ── Update particles — each mapped to a frequency bin ─────────────────
+      const now   = Date.now();
+      const BINS  = audio.freqBins.length;
+      const chaos = personality.chaosFactor;
 
-        const wave  = Math.sin(dist * 0.048 - Date.now() * 0.00095 * f.tempo / 60) * audio.bass * 28;
-        const swirl = Math.sin(Date.now() * 0.00045 + xi * 0.09) * audio.mid * 7;
-        const ripple = rippleOn && Math.abs(dist - rippleR) < 22
-          ? Math.exp(-Math.abs(dist - rippleR) * 0.12) * 28 * audio.beatPulse : 0;
+      for (let i = 0; i < n; i++) {
+        const i3 = i * 3;
+        const bx = basePos[i3], by = basePos[i3 + 1], bz = basePos[i3 + 2];
 
-        posAttr.setY(i, baseY[i] + wave + swirl + ripple);
+        // Map particle index → frequency bin
+        const binIdx  = Math.floor((i / n) * BINS);
+        const freqVal = audio.freqBins[binIdx];
 
-        const bright = 1 + audio.treble * Math.max(0, 1 - dist / (SPREAD * 0.55)) * 0.9;
-        colAttr.setXYZ(i, Math.min(1, cr * bright), Math.min(1, cg * bright), Math.min(1, cb * bright));
+        // Vertical: bass wave + freq amplitude displacement
+        const dist = Math.sqrt(bx * bx + bz * bz);
+        const wave = Math.sin(dist * 0.046 - now * 0.00092 * featuresRef.current.tempo / 60) * audio.bass * 32;
+        const freqDisp = freqVal * 9 * (1 + audio.energy * 0.8);
+
+        // Horizontal: mid-frequency drift scaled by danceability
+        const drift = Math.sin(now * 0.00042 + i * 0.088) * audio.mids * chaos * 2.8;
+
+        // Depth: treble modulation
+        const depth = Math.cos(now * 0.00031 + i * 0.052) * audio.treble * chaos * 2.2;
+
+        posAttr.setXYZ(
+          i,
+          bx * burstScale + drift,
+          by + wave + freqDisp,
+          bz * burstScale + depth,
+        );
+
+        // Color: palette color + brightness driven by freq value + beat flash
+        const beatFlash = audio.isBeat ? audio.bass * 0.75 : 0;
+        const bright    = 1 + audio.treble * freqVal * 1.6 + beatFlash;
+        const falloff   = Math.max(0.25, 1 - dist / (personality.spreadRadius * 0.68));
+        colAttr.setXYZ(
+          i,
+          Math.min(1, cr * bright * falloff),
+          Math.min(1, cg * bright * falloff),
+          Math.min(1, cb * bright * falloff),
+        );
       }
       posAttr.needsUpdate = true;
       colAttr.needsUpdate = true;
 
-      // ── material size pulse ───────────────────────────────────────────
-      material.size = 1.9 + audio.treble * 1.6 + audio.beatPulse * 1.1;
+      // ── Particle size pulse ───────────────────────────────────────────────
+      material.size = personality.particleBaseSize * (0.88 + audio.treble * 0.7 + audio.bass * 0.55);
+      if (audio.isBeat) material.size *= 1 + audio.bass * 0.45;
 
-      // ── camera orbit ──────────────────────────────────────────────────
-      camAngle += 0.00028 + audio.mid * 0.00018;
-      const camR = 200 + audio.bass * 22;
-      const camH = 65  + audio.bass * 18;
-      camera.position.set(Math.sin(camAngle) * camR, camH, Math.cos(camAngle) * camR);
-      camera.lookAt(0, audio.bass * 6, 0);
+      // ── Camera orbit + beat shake ─────────────────────────────────────────
+      camAngle += personality.rotationSpeed + audio.mids * 0.00011;
+      const camR = personality.spreadRadius * 0.56 + audio.bass * 22;
+      const camH = 62 + audio.bass * 22;
+      camera.position.set(
+        Math.sin(camAngle) * camR + shakeX,
+        camH + shakeY,
+        Math.cos(camAngle) * camR,
+      );
+      camera.lookAt(0, audio.bass * 7, 0);
 
       renderer.render(scene, camera);
     }
@@ -614,7 +765,10 @@ function TempoInner() {
     if (appState !== "playing") return;
     const id = setInterval(async () => {
       const s = await playerRef.current?.getCurrentState();
-      if (s) { setIsPlaying(!s.paused); if (s.duration > 0) setProgress(s.position / s.duration); }
+      if (s) {
+        setIsPlaying(!s.paused);
+        if (s.duration > 0) setProgress(s.position / s.duration);
+      }
     }, 800);
     return () => clearInterval(id);
   }, [appState]);
@@ -623,19 +777,27 @@ function TempoInner() {
   const resetHud = useCallback(() => {
     setHudVisible(true);
     if (hudTimerRef.current) clearTimeout(hudTimerRef.current);
-    hudTimerRef.current = setTimeout(() => setHudVisible(false), 3000);
+    hudTimerRef.current = setTimeout(() => setHudVisible(false), 4000);
   }, []);
 
   useEffect(() => {
     if (appState !== "playing") return;
     resetHud();
     window.addEventListener("mousemove", resetHud);
-    return () => { window.removeEventListener("mousemove", resetHud); if (hudTimerRef.current) clearTimeout(hudTimerRef.current); };
+    window.addEventListener("touchstart", resetHud);
+    return () => {
+      window.removeEventListener("mousemove", resetHud);
+      window.removeEventListener("touchstart", resetHud);
+      if (hudTimerRef.current) clearTimeout(hudTimerRef.current);
+    };
   }, [appState, resetHud]);
 
   // ── Cleanup on unmount ───────────────────────────────────────────────────
   useEffect(() => {
-    return () => { cancelAnimationFrame(animIdRef.current); playerRef.current?.disconnect(); };
+    return () => {
+      cancelAnimationFrame(animIdRef.current);
+      playerRef.current?.disconnect();
+    };
   }, []);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
@@ -643,12 +805,17 @@ function TempoInner() {
 
   const handleToggle = async () => {
     if (!playerRef.current) return;
-    if (isPlaying) await playerRef.current.pause(); else await playerRef.current.resume();
+    if (isPlaying) await playerRef.current.pause();
+    else await playerRef.current.resume();
   };
 
   const handleBack = () => {
     playerRef.current?.pause();
-    setAppState("search"); setTrack(null); setQuery(""); setResults([]);
+    setAppState("search");
+    setTrack(null);
+    setQuery("");
+    setResults([]);
+    setFormation(null);
   };
 
   const thumbUrl = track?.album.images.find((i) => i.width <= 300)?.url ?? track?.album.images[0]?.url;
@@ -658,13 +825,12 @@ function TempoInner() {
   return (
     <div className="min-h-screen overflow-hidden font-sans">
 
-      {/* ── Non-playing states - portfolio cream background ──────────────── */}
+      {/* ── Non-playing states ────────────────────────────────────────────── */}
       <AnimatePresence>
         {appState !== "playing" && (
           <motion.div key="search" initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.6 }}
             className="min-h-screen flex flex-col bg-cream text-brown">
 
-            {/* Nav bar - matches rest of site */}
             <div className="max-w-5xl mx-auto w-full px-6 pt-8 pb-4">
               <Link href="/#projects" className="text-sm text-terracotta hover:text-terracotta-dark transition-colors">
                 &larr; Back to projects
@@ -675,14 +841,12 @@ function TempoInner() {
               <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
                 className="w-full max-w-md">
 
-                {/* Title */}
                 <div className="mb-8">
                   <p className="text-xs font-semibold tracking-widest uppercase text-terracotta mb-3">Project</p>
                   <h1 className="text-3xl font-semibold text-darkblue tracking-tight mb-1">Tempo</h1>
                   <p className="text-brown-light text-base">A generative music visualization experience.</p>
                 </div>
 
-                {/* Premium disclaimer */}
                 <div className="mb-5 px-4 py-3 rounded-xl border border-tan/30 bg-white/40 space-y-1.5">
                   <p className="text-xs text-brown-light leading-relaxed">
                     <span className="font-semibold text-brown">Requires Spotify Premium.</span>{" "}
@@ -694,7 +858,6 @@ function TempoInner() {
                   </p>
                 </div>
 
-                {/* Loading / exchanging spinner */}
                 {(appState === "loading" || appState === "exchanging") && (
                   <div className="mb-5 flex items-center justify-center gap-3 py-2">
                     <div className="w-4 h-4 border-2 border-terracotta/30 border-t-terracotta rounded-full animate-spin" />
@@ -704,7 +867,6 @@ function TempoInner() {
                   </div>
                 )}
 
-                {/* Error state */}
                 {appState === "error" && error && (
                   <div className="mb-4 p-3 rounded-lg bg-terracotta/10 border border-terracotta/20 text-sm text-terracotta">
                     {error}
@@ -720,18 +882,18 @@ function TempoInner() {
                   </div>
                 )}
 
-                {/* Connect button */}
                 {appState === "connect" && (
                   <div className="mb-5">
                     <button onClick={() => startSpotifyAuth()}
                       className="w-full px-5 py-2.5 text-sm font-medium bg-terracotta text-white rounded-lg hover:bg-terracotta-dark transition-colors">
                       Connect with Spotify
                     </button>
-                    <p className="text-xs text-brown-light mt-2 text-center">You&apos;ll be redirected to Spotify to sign in, then brought back here.</p>
+                    <p className="text-xs text-brown-light mt-2 text-center">
+                      You&apos;ll be redirected to Spotify to sign in, then brought back here.
+                    </p>
                   </div>
                 )}
 
-                {/* Loading track */}
                 {loading && appState === "search" && (
                   <div className="mb-5 flex items-center justify-center gap-3 py-2">
                     <div className="w-4 h-4 border-2 border-terracotta/30 border-t-terracotta rounded-full animate-spin" />
@@ -739,7 +901,6 @@ function TempoInner() {
                   </div>
                 )}
 
-                {/* Search input */}
                 {appState === "search" && (
                   <div className="relative mb-4">
                     <input
@@ -755,8 +916,6 @@ function TempoInner() {
                         <div className="w-4 h-4 border-2 border-terracotta/30 border-t-terracotta rounded-full animate-spin" />
                       </div>
                     )}
-
-                    {/* Dropdown results */}
                     <AnimatePresence>
                       {results.length > 0 && (
                         <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
@@ -786,7 +945,6 @@ function TempoInner() {
                   </div>
                 )}
 
-                {/* Custom color preference */}
                 {appState === "search" && (
                   <div className="px-4 py-3.5 rounded-xl border border-tan/30 bg-white/40">
                     <div className="flex items-center gap-3">
@@ -795,7 +953,7 @@ function TempoInner() {
                         <div className={`w-8 h-4 rounded-full transition-colors relative shrink-0 ${useCustom ? "bg-terracotta" : "bg-tan/30"}`}>
                           <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all shadow-sm ${useCustom ? "left-4" : "left-0.5"}`} />
                         </div>
-                        <span className="text-xs font-semibold uppercase tracking-wide text-brown-light">Color preference</span>
+                        <span className="text-xs font-semibold uppercase tracking-wide text-brown-light">Color tint</span>
                       </div>
                       {useCustom && (
                         <input type="color" value={userColor} onChange={(e) => setUserColor(e.target.value)}
@@ -803,7 +961,7 @@ function TempoInner() {
                       )}
                     </div>
                     <p className="text-xs text-brown-light/70 mt-2 leading-relaxed">
-                      Tempo generates colors from the music&apos;s energy and album art. A color preference adds a personal tint and the system handles the rest.
+                      Colors are extracted from the album art and vary with the music&apos;s energy. A color tint shifts the palette toward your pick.
                     </p>
                   </div>
                 )}
@@ -813,21 +971,55 @@ function TempoInner() {
         )}
       </AnimatePresence>
 
-      {/* ── Visualization state ──────────────────────────────────────────── */}
+      {/* ── Visualization state ───────────────────────────────────────────── */}
       <AnimatePresence>
         {appState === "playing" && (
           <motion.div key="viz" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.9 }} className="fixed inset-0">
             <canvas ref={canvasRef} className="block w-full h-full" />
 
-            {/* HUD */}
+            {/* Back button — always visible top-left */}
+            <button
+              onClick={handleBack}
+              className="absolute top-5 left-5 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+              style={{
+                backgroundColor: "rgba(10,11,13,0.6)",
+                color: "#8B7D74",
+                border: "1px solid rgba(255,255,255,0.09)",
+                backdropFilter: "blur(10px)",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.backgroundColor = "rgba(193,81,58,0.28)"; e.currentTarget.style.color = "#F5F0E8"; }}
+              onMouseLeave={e => { e.currentTarget.style.backgroundColor = "rgba(10,11,13,0.6)"; e.currentTarget.style.color = "#8B7D74"; }}
+            >
+              ← Search
+            </button>
+
+            {/* Formation badge — top-right */}
+            {formation && (
+              <div
+                className="absolute top-5 right-5 px-2.5 py-1 rounded-lg text-[10px] font-semibold uppercase tracking-widest"
+                style={{
+                  backgroundColor: "rgba(10,11,13,0.6)",
+                  color: "#5B4F48",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  backdropFilter: "blur(10px)",
+                }}
+              >
+                {formation}
+              </div>
+            )}
+
+            {/* HUD — slides up from bottom, auto-hides */}
             <AnimatePresence>
               {hudVisible && (
-                <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }}
+                <motion.div
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 16 }}
                   transition={{ duration: 0.25 }}
                   className="absolute bottom-0 left-0 right-0 px-6 py-6 flex items-center gap-4"
-                  style={{ background: "linear-gradient(to top, rgba(10,11,13,0.85) 0%, transparent 100%)" }}>
-
+                  style={{ background: "linear-gradient(to top, rgba(6,7,9,0.92) 0%, transparent 100%)" }}
+                >
                   {thumbUrl && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={thumbUrl} alt="" className="w-12 h-12 rounded-xl object-cover shrink-0 shadow-xl" />
@@ -846,8 +1038,9 @@ function TempoInner() {
                   <button onClick={handleToggle}
                     className="w-9 h-9 rounded-lg flex items-center justify-center transition-colors shrink-0"
                     style={{ backgroundColor: "rgba(193,81,58,0.15)", border: "1px solid rgba(193,81,58,0.3)" }}
-                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = "rgba(193,81,58,0.28)")}
-                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = "rgba(193,81,58,0.15)")}>
+                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = "rgba(193,81,58,0.3)")}
+                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = "rgba(193,81,58,0.15)")}
+                  >
                     {isPlaying ? (
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" style={{ color: "#C1513A" }}>
                         <rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" />
@@ -857,15 +1050,6 @@ function TempoInner() {
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     )}
-                  </button>
-
-                  {/* Back to search */}
-                  <button onClick={handleBack}
-                    className="text-xs transition-colors shrink-0 px-2 py-1"
-                    style={{ color: "#6B5244" }}
-                    onMouseEnter={e => (e.currentTarget.style.color = "#F5F0E8")}
-                    onMouseLeave={e => (e.currentTarget.style.color = "#6B5244")}>
-                    ← Search
                   </button>
                 </motion.div>
               )}
