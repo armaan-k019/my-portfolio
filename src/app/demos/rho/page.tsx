@@ -228,6 +228,19 @@ function LineChart() {
         </text>
       ))}
 
+      {/* Payroll reference: dashed line at top of chart area */}
+      <line
+        x1={padL} y1={padT + 2}
+        x2={width - padR} y2={padT + 2}
+        stroke="#10b981"
+        strokeWidth={1}
+        strokeDasharray="4,3"
+        opacity={0.4}
+      />
+      <text x={padL + 6} y={padT + 11} fontSize={8} fill="#10b981" fontStyle="italic">
+        Payroll: stable ~$48k
+      </text>
+
       {/* Lines + dots per category */}
       {chartCategories.map((cat) => {
         const vals = monthlyTotals[cat];
@@ -250,6 +263,26 @@ function LineChart() {
           </g>
         );
       })}
+
+      {/* SaaS drift annotation: right-aligned at last (Mar) point */}
+      <text
+        x={xPos(5) - 3}
+        y={yPos(monthlyTotals["SaaS"]?.[5] ?? 0) - 7}
+        fontSize={9}
+        textAnchor="end"
+        fill={CATEGORY_COLORS["SaaS"]}
+        fontWeight="600"
+      >↑ +69% over 6 months</text>
+
+      {/* Infrastructure "growing" label at midpoint (Dec) */}
+      <text
+        x={xPos(2) + 4}
+        y={yPos(monthlyTotals["Infrastructure"]?.[2] ?? 0) - 7}
+        fontSize={8}
+        fill={CATEGORY_COLORS["Infrastructure"]}
+        fontStyle="italic"
+        opacity={0.75}
+      >growing</text>
     </svg>
   );
 }
@@ -374,6 +407,34 @@ export default function DriftDetectionPage() {
   const filtered = useMemo(
     () => filter === "All" ? TRANSACTIONS : TRANSACTIONS.filter((t) => t.category === filter),
     [filter]
+  );
+
+  const trendingSet = useMemo(() => {
+    const vendorMonths = new Map<string, Array<{ monthIdx: number; tx: Transaction }>>();
+    TRANSACTIONS.forEach((t) => {
+      if (t.category !== "SaaS") return;
+      const mIdx = MONTH_PREFIXES.findIndex((p) => t.date.startsWith(p));
+      if (mIdx < 0) return;
+      if (!vendorMonths.has(t.vendor)) vendorMonths.set(t.vendor, []);
+      vendorMonths.get(t.vendor)!.push({ monthIdx: mIdx, tx: t });
+    });
+    const trending = new Set<Transaction>();
+    for (const entries of vendorMonths.values()) {
+      entries.sort((a, b) => a.monthIdx - b.monthIdx);
+      for (let i = 1; i < entries.length; i++) {
+        const curr = entries[i];
+        const prev = entries[i - 1];
+        if (curr.monthIdx >= 3 && curr.tx.amount > prev.tx.amount) {
+          trending.add(curr.tx);
+        }
+      }
+    }
+    return trending;
+  }, []);
+
+  const allSignalVendors = useMemo(
+    () => new Set(signals.flatMap((s) => s.affectedVendors)),
+    [signals],
   );
 
   async function handleDetect() {
@@ -639,6 +700,11 @@ export default function DriftDetectionPage() {
               Six months of synthetic company transaction data. Real drift patterns baked in.
             </p>
 
+            {/* Chart intro annotation */}
+            <p style={{ fontSize: 11, fontStyle: "italic", color: "#9A8070", marginBottom: 10 }}>
+              The chart below excludes payroll — watch the SaaS line.
+            </p>
+
             {/* Chart + Payroll callout */}
             <div className="flex flex-col sm:flex-row gap-4 mb-4">
               <div className="flex-1 rounded-xl border border-[#2C1810]/[0.08] bg-white p-5 shadow-sm">
@@ -686,18 +752,34 @@ export default function DriftDetectionPage() {
                 ))}
               </div>
               <div className="divide-y divide-[#2C1810]/[0.05] max-h-72 overflow-y-auto">
-                {filtered.map((t, i) => (
-                  <div key={i} className="grid grid-cols-4 px-4 py-2.5 hover:bg-[#2C1810]/[0.02] transition-colors">
-                    <span className="text-xs text-[#9A8070]">{formatDate(t.date)}</span>
-                    <span className="text-xs text-[#2C1810] truncate pr-2">{t.vendor}</span>
-                    <span className="text-xs font-medium" style={{ color: CATEGORY_COLORS[t.category] ?? "#9A8070" }}>
-                      {t.category}
-                    </span>
-                    <span className="text-xs text-[#6B5244] font-mono">
-                      ${t.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                ))}
+                {filtered.map((t, i) => {
+                  const isSignalVendor = analyzed && allSignalVendors.has(t.vendor);
+                  const isTrending = trendingSet.has(t);
+                  return (
+                    <div
+                      key={i}
+                      className="grid grid-cols-4 px-4 py-2.5 hover:bg-[#2C1810]/[0.02] transition-colors"
+                      style={{
+                        backgroundColor: isSignalVendor ? "#FFFBEB" : i % 2 === 1 ? "#FAFAF8" : "white",
+                        borderLeft: isSignalVendor ? "2px solid #B8952A" : undefined,
+                      }}
+                    >
+                      <span className="text-xs text-[#9A8070]">{formatDate(t.date)}</span>
+                      <span className="text-xs text-[#2C1810] truncate pr-2">{t.vendor}</span>
+                      <span className="text-xs font-medium flex items-center gap-1" style={{ color: CATEGORY_COLORS[t.category] ?? "#9A8070" }}>
+                        {t.category}
+                        {isTrending && (
+                          <span style={{ fontSize: 8, backgroundColor: "#FEF3C7", color: "#B8952A", border: "1px solid #FDE68A", borderRadius: 9999, padding: "0 4px", lineHeight: "14px", whiteSpace: "nowrap" }}>
+                            ↑ trending
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-xs text-[#6B5244] font-mono">
+                        ${t.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -731,8 +813,8 @@ export default function DriftDetectionPage() {
             {/* Signal cards */}
             {!analyzing && signals.length > 0 && (
               <div className="mt-6 space-y-3">
-                <p className="text-xs text-[#9A8070] mb-2">
-                  {signals.length} drift signal{signals.length !== 1 ? "s" : ""} detected
+                <p style={{ fontSize: 11, fontStyle: "italic", color: "#9A8070", marginBottom: 4 }}>
+                  {signals.length} patterns a CFO would miss scanning line by line
                 </p>
                 {signals.map((signal, i) => (
                   <SignalCard key={signal.id ?? i} signal={signal} index={i} />

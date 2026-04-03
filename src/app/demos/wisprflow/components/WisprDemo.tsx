@@ -221,8 +221,11 @@ export default function WisprDemo() {
         try { await tf.setBackend("webgl"); await tf.ready(); }
         catch { setWebglWarning(true); await tf.setBackend("cpu"); await tf.ready(); }
 
-        const handpose = await import("@tensorflow-models/handpose");
-        modelRef.current = await handpose.load();
+        const handPoseDetection = await import("@tensorflow-models/hand-pose-detection");
+        modelRef.current = await handPoseDetection.createDetector(
+          handPoseDetection.SupportedModels.MediaPipeHands,
+          { runtime: "tfjs", maxHands: 2 },
+        );
 
         const { GestureEstimator } = await import("fingerpose");
         estimatorRef.current = new GestureEstimator(ASL_GESTURES);
@@ -483,7 +486,8 @@ export default function WisprDemo() {
     }
 
     try {
-      const hands = await model.estimateHands(video);
+      const hands = await model.estimateHands(video, { flipHorizontal: true });
+      console.log('hands detected:', hands.length, hands);
 
       if (hands.length >= 2) {
         // ── TWO-HAND MODE: only run two-handed phrase matching ──────────────
@@ -491,8 +495,10 @@ export default function WisprDemo() {
         setTwoHandsDetected(true);
 
         // Determine left vs right by wrist x-position (lower x = left in mirrored view)
-        const lm0 = hands[0].landmarks as [number, number, number][];
-        const lm1 = hands[1].landmarks as [number, number, number][];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const lm0 = (hands[0] as any).keypoints.map((k: any) => [k.x, k.y, k.z ?? 0]) as [number, number, number][];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const lm1 = (hands[1] as any).keypoints.map((k: any) => [k.x, k.y, k.z ?? 0]) as [number, number, number][];
         const wrist0x = lm0[0][0];
         const wrist1x = lm1[0][0];
         const leftLandmarks  = wrist0x < wrist1x ? lm0 : lm1;
@@ -541,7 +547,8 @@ export default function WisprDemo() {
       } else if (hands.length === 1) {
         setTwoHandsDetected(false);
         setHandDetected(true);
-        const landmarks = hands[0].landmarks as [number, number, number][];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const landmarks = (hands[0] as any).keypoints.map((k: any) => [k.x, k.y, k.z ?? 0]) as [number, number, number][];
         drawHand(landmarks, canvas, video);
 
         if (predictionsRef.current.length > 0) {
@@ -819,11 +826,18 @@ export default function WisprDemo() {
               boxShadow: modelState === "ready" && handDetected ? `0 0 6px ${ACCENT}` : "none",
             }}
           />
-          <span className="text-xs text-white/50 font-mono">
+          <span
+            className="text-xs font-mono"
+            style={{
+              color: modelState === "ready" && cameraState === "granted" && twoHandsDetected
+                ? "#6C47FF"
+                : "rgba(255,255,255,0.5)",
+            }}
+          >
             {modelState === "loading"  && "loading hand recognition model..."}
             {modelState === "error"    && "model failed to load"}
             {modelState === "ready" && cameraState === "prompt"      && "model ready - enable camera to begin"}
-            {modelState === "ready" && cameraState === "granted"     && (twoHandsDetected ? "2 hands detected" : handDetected ? "hand detected" : "no hand in frame")}
+            {modelState === "ready" && cameraState === "granted"     && (twoHandsDetected ? "✌ two hands detected" : handDetected ? "hand detected" : "no hand in frame")}
             {modelState === "ready" && cameraState === "denied"      && "camera access denied"}
             {modelState === "ready" && cameraState === "unavailable" && "no camera found"}
           </span>
