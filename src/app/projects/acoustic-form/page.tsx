@@ -228,6 +228,7 @@ export default function AcousticFormPage() {
   const [structureComponentCount, setStructureComponentCount] = useState(0);
   const [structureGenerating, setStructureGenerating]     = useState(false);
   const [structureError, setStructureError]               = useState("");
+  const [structureOpen, setStructureOpen]                 = useState(false);
 
   useEffect(() => {
     const newGroups = detectSurfaceGroups(roomShape.vertices, roomShape.faces);
@@ -363,63 +364,73 @@ export default function AcousticFormPage() {
           <HowItWorksPanel />
 
           {/* Structure Generator panel */}
-          <div className="bg-white/80 rounded-xl border border-[#E8E0D4] shadow-sm p-4 space-y-3">
-            <h3 className="font-semibold text-xs text-[#2C1810]">Generate Structure</h3>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={structureInput}
-                onChange={e => setStructureInput(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && generateStructure(structureInput)}
-                placeholder="e.g. ziggurat, Eiffel Tower, castle..."
-                className="flex-1 px-2 py-1.5 text-xs border border-[#E8E0D4] rounded-lg focus:outline-none focus:border-[#FF6B35] bg-white text-[#2C1810] placeholder:text-[#9B8E85]"
-              />
-              <button
-                onClick={() => generateStructure(structureInput)}
-                disabled={structureGenerating || !structureInput.trim()}
-                className="px-3 py-1.5 text-xs rounded-lg bg-[#FF6B35]/10 text-[#FF6B35] font-medium hover:bg-[#FF6B35]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none"
-              >
-                {structureGenerating ? "..." : "Generate"}
-              </button>
-            </div>
-            {/* Quick chips */}
-            <div className="flex flex-wrap gap-1">
-              {["Ziggurat","Eiffel Tower","Castle","Cathedral","Pyramid","Pagoda","Colosseum","Lighthouse"].map(s => (
-                <button
-                  key={s}
-                  onClick={() => { setStructureInput(s); generateStructure(s); }}
-                  disabled={structureGenerating}
-                  className="text-[10px] px-2 py-0.5 rounded-full border border-[#E8E0D4] text-[#6B6054] hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors disabled:opacity-40 focus:outline-none"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-            {structureGenerating && (
-              <p className="text-[11px] text-[#9B8E85] italic">Interpreting structure...</p>
-            )}
-            {structureError && (
-              <p className="text-[11px] text-red-500">{structureError}</p>
-            )}
-            {structureData && !structureGenerating && (
-              <div className="space-y-1 pt-1 border-t border-[#E8E0D4]">
-                <p className="text-xs font-semibold text-[#2C1810]">{structureName}</p>
-                <p className="text-[11px] text-[#6B6054]">{structureDescription}</p>
-                <p className="text-[10px] text-[#9B8E85]">Built from {structureComponentCount} primitives</p>
-                <div className="flex gap-2 pt-1">
+          <div className="bg-white/80 rounded-xl border border-[#E8E0D4] shadow-sm">
+            <button
+              onClick={() => setStructureOpen(o => !o)}
+              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#F5F0E8]/60 transition-colors focus:outline-none"
+            >
+              <span className="font-semibold text-xs text-[#2C1810]">Generate Preformed Structure</span>
+              <span className="text-[#9B8E85] text-xs">{structureOpen ? '−' : '+'}</span>
+            </button>
+
+            {structureOpen && (
+              <div className="px-4 pb-4 space-y-3 border-t border-[#E8E0D4] pt-3">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={structureInput}
+                    onChange={e => setStructureInput(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && generateStructure(structureInput)}
+                    placeholder="e.g. ziggurat, Eiffel Tower, castle..."
+                    className="flex-1 px-2 py-1.5 text-xs border border-[#E8E0D4] rounded-lg focus:outline-none focus:border-[#FF6B35] bg-white text-[#2C1810] placeholder:text-[#9B8E85]"
+                  />
                   <button
-                    onClick={() => generateStructure(structureName)}
-                    className="text-[10px] px-2 py-1 rounded bg-[#FF6B35]/10 text-[#FF6B35] font-medium hover:bg-[#FF6B35]/20 transition-colors focus:outline-none"
+                    onClick={() => generateStructure(structureInput)}
+                    disabled={structureGenerating || !structureInput.trim()}
+                    className="px-3 py-1.5 text-xs rounded-lg bg-[#FF6B35]/10 text-[#FF6B35] font-medium hover:bg-[#FF6B35]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none"
                   >
-                    Regenerate
-                  </button>
-                  <button
-                    onClick={() => { setStructureData(null); setStructureName(""); setStructureDescription(""); setStructureError(""); }}
-                    className="text-[10px] px-2 py-1 rounded bg-[#F5F0E8] text-[#6B6054] hover:bg-[#EDE8DE] transition-colors focus:outline-none"
-                  >
-                    Reset to default room
+                    {structureGenerating ? "..." : "Generate"}
                   </button>
                 </div>
+                <div className="flex flex-wrap gap-1">
+                  {["Ziggurat","Eiffel Tower","Castle","Cathedral","Pyramid","Pagoda","Colosseum","Lighthouse"].map(s => (
+                    <button
+                      key={s}
+                      onClick={() => { setStructureInput(s); generateStructure(s); }}
+                      disabled={structureGenerating}
+                      className="text-[10px] px-2 py-0.5 rounded-full border border-[#E8E0D4] text-[#6B6054] hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors disabled:opacity-40 focus:outline-none"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+                {structureGenerating && (
+                  <p className="text-[11px] text-[#9B8E85] italic">Interpreting structure...</p>
+                )}
+                {structureError && (
+                  <p className="text-[11px] text-red-500">{structureError}</p>
+                )}
+                {structureData && !structureGenerating && (
+                  <div className="space-y-1 pt-1 border-t border-[#E8E0D4]">
+                    <p className="text-xs font-semibold text-[#2C1810]">{structureName}</p>
+                    <p className="text-[11px] text-[#6B6054]">{structureDescription}</p>
+                    <p className="text-[10px] text-[#9B8E85]">Built from {structureComponentCount} primitives</p>
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => generateStructure(structureName)}
+                        className="text-[10px] px-2 py-1 rounded bg-[#FF6B35]/10 text-[#FF6B35] font-medium hover:bg-[#FF6B35]/20 transition-colors focus:outline-none"
+                      >
+                        Regenerate
+                      </button>
+                      <button
+                        onClick={() => { setStructureData(null); setStructureName(""); setStructureDescription(""); setStructureError(""); }}
+                        className="text-[10px] px-2 py-1 rounded bg-[#F5F0E8] text-[#6B6054] hover:bg-[#EDE8DE] transition-colors focus:outline-none"
+                      >
+                        Reset to default room
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

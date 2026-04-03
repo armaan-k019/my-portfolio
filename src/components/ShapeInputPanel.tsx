@@ -527,8 +527,9 @@ export default function ShapeInputPanel({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="e.g. A concert hall 30m long, 20m wide, 15m tall with a curved ceiling"
-                rows={4}
+                rows={5}
                 className="w-full px-3 py-2 text-xs border border-[#E8E0D4] rounded-lg resize-none focus:outline-none focus:border-[#FF6B35] bg-white text-[#2C1810] placeholder-[#C8BFA8]"
+                style={{ minHeight: 100 }}
               />
               {descError && (
                 <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{descError}</p>
