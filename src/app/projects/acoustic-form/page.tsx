@@ -12,6 +12,7 @@ import {
 import ShapeInputPanel from '@/components/ShapeInputPanel';
 import MetricsPanel from '@/components/MetricsPanel';
 import MaterialPanel from '@/components/MaterialPanel';
+import type { StructureData } from '@/components/ThreeCanvas';
 
 const ThreeCanvas = dynamic(() => import('@/components/ThreeCanvas'), { ssr: false });
 
@@ -220,6 +221,14 @@ export default function AcousticFormPage() {
   const [editingReceiverId, setEditingReceiverId] = useState<string | null>(null);
   const [editPos, setEditPos]               = useState<Vector3D>({ x: 0, y: 0, z: 0 });
 
+  const [structureInput, setStructureInput]               = useState("");
+  const [structureData, setStructureData]                 = useState<StructureData | null>(null);
+  const [structureName, setStructureName]                 = useState("");
+  const [structureDescription, setStructureDescription]   = useState("");
+  const [structureComponentCount, setStructureComponentCount] = useState(0);
+  const [structureGenerating, setStructureGenerating]     = useState(false);
+  const [structureError, setStructureError]               = useState("");
+
   useEffect(() => {
     const newGroups = detectSurfaceGroups(roomShape.vertices, roomShape.faces);
     setSurfaceGroups(prev => newGroups.map(g => {
@@ -278,6 +287,30 @@ export default function AcousticFormPage() {
     setEditingReceiverId(null);
   }
 
+  const generateStructure = async (name: string) => {
+    if (!name.trim()) return;
+    setStructureGenerating(true);
+    setStructureError("");
+    try {
+      const res = await fetch("/api/generate-structure", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || "Failed");
+      if (!data.components || !Array.isArray(data.components)) throw new Error("Could not interpret that structure - try a different name");
+      setStructureData(data);
+      setStructureName(data.name || name);
+      setStructureDescription(data.description || "");
+      setStructureComponentCount(data.components.length);
+    } catch (err) {
+      setStructureError(err instanceof Error ? err.message : "Could not interpret that structure - try a different name");
+    } finally {
+      setStructureGenerating(false);
+    }
+  };
+
   const shapeDescription =
     `Room with ${roomShape.vertices.length} vertices and ${roomShape.faces.length} triangular faces. ` +
     `Volume: ${metrics.volume.toFixed(1)} m³. ` +
@@ -328,6 +361,68 @@ export default function AcousticFormPage() {
 
           <HowItWorksPanel />
 
+          {/* Structure Generator panel */}
+          <div className="bg-white/80 rounded-xl border border-[#E8E0D4] shadow-sm p-4">
+            <h3 className="font-semibold text-xs text-[#2C1810] mb-3">Generate Structure</h3>
+            <div className="flex gap-2 mb-2">
+              <input
+                type="text"
+                value={structureInput}
+                onChange={e => setStructureInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && generateStructure(structureInput)}
+                placeholder="e.g. ziggurat, Eiffel Tower, castle..."
+                className="flex-1 px-2 py-1.5 text-xs border border-[#E8E0D4] rounded-lg focus:outline-none focus:border-[#FF6B35] bg-white text-[#2C1810] placeholder:text-[#9B8E85]"
+              />
+              <button
+                onClick={() => generateStructure(structureInput)}
+                disabled={structureGenerating || !structureInput.trim()}
+                className="px-3 py-1.5 text-xs rounded-lg bg-[#FF6B35]/10 text-[#FF6B35] font-medium hover:bg-[#FF6B35]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                {structureGenerating ? "..." : "Generate"}
+              </button>
+            </div>
+            {/* Quick chips */}
+            <div className="flex flex-wrap gap-1 mb-2">
+              {["Ziggurat","Eiffel Tower","Castle","Cathedral","Pyramid","Pagoda","Colosseum","Lighthouse"].map(s => (
+                <button
+                  key={s}
+                  onClick={() => { setStructureInput(s); generateStructure(s); }}
+                  disabled={structureGenerating}
+                  className="text-[10px] px-2 py-0.5 rounded-full border border-[#E8E0D4] text-[#6B6054] hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors disabled:opacity-40"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+            {structureGenerating && (
+              <p className="text-[11px] text-[#9B8E85] italic">Interpreting structure...</p>
+            )}
+            {structureError && (
+              <p className="text-[11px] text-red-500">{structureError}</p>
+            )}
+            {structureData && !structureGenerating && (
+              <div className="mt-2 space-y-1">
+                <p className="text-xs font-semibold text-[#2C1810]">{structureName}</p>
+                <p className="text-[11px] text-[#6B6054]">{structureDescription}</p>
+                <p className="text-[10px] text-[#9B8E85]">Built from {structureComponentCount} primitives</p>
+                <div className="flex gap-2 mt-1">
+                  <button
+                    onClick={() => generateStructure(structureName)}
+                    className="text-[10px] px-2 py-1 rounded bg-[#FF6B35]/10 text-[#FF6B35] font-medium hover:bg-[#FF6B35]/20 transition-colors"
+                  >
+                    Regenerate
+                  </button>
+                  <button
+                    onClick={() => { setStructureData(null); setStructureName(""); setStructureDescription(""); setStructureError(""); }}
+                    className="text-[10px] px-2 py-1 rounded bg-gray-100 text-[#6B6054] hover:bg-gray-200 transition-colors"
+                  >
+                    Reset to default
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <ShapeInputPanel
             roomShape={roomShape}
             sourcePosition={sourcePositions[0]}
@@ -351,6 +446,7 @@ export default function AcousticFormPage() {
             onReceiverDrag={handleReceiverDrag}
             surfaceGroups={surfaceGroups}
             vizMode={vizMode}
+            structureData={structureData}
           />
         </main>
 

@@ -1,5 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 
+export const maxDuration = 30;
+
 interface EventItem {
   title: string;
   location: string;

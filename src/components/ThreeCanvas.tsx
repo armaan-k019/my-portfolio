@@ -4,6 +4,23 @@ import { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import type { RoomShape, Vector3D, SoundRay, ReceiverPoint, SurfaceGroup, MaterialType } from '@/types';
 
+export interface StructureComponent {
+  type: 'box' | 'cylinder' | 'cone' | 'sphere' | 'tapered_box' | 'arch';
+  position: { x: number; y: number; z: number };
+  scale: { x: number; y: number; z: number };
+  rotation: { x: number; y: number; z: number };
+  color: string;
+  opacity: number;
+  wireframe: boolean;
+}
+
+export interface StructureData {
+  name: string;
+  description: string;
+  cameraPosition: { x: number; y: number; z: number };
+  components: StructureComponent[];
+}
+
 export interface ThreeCanvasProps {
   roomShape: RoomShape;
   sourcePositions: Vector3D[];
@@ -13,6 +30,7 @@ export interface ThreeCanvasProps {
   onReceiverDrag?: (id: string, newPos: Vector3D) => void;
   surfaceGroups?: SurfaceGroup[];
   vizMode?: 'particles' | 'static';
+  structureData?: StructureData | null;
 }
 
 // ─── Ray / receiver colours ───────────────────────────────────────────────────
@@ -103,6 +121,7 @@ export default function ThreeCanvas({
   roomShape, sourcePositions, soundRays, receiverPoints,
   onSourceDrag, onReceiverDrag, surfaceGroups,
   vizMode: vizModeProp = 'static',
+  structureData,
 }: ThreeCanvasProps) {
   const containerRef       = useRef<HTMLDivElement>(null);
   const sceneRef           = useRef<THREE.Scene | null>(null);
@@ -114,6 +133,7 @@ export default function ThreeCanvas({
   const roomMeshRef        = useRef<THREE.Mesh | null>(null);
   const wireframeRef       = useRef<THREE.LineSegments | null>(null);
   const surfaceMeshGroupRef = useRef<THREE.Group | null>(null);
+  const structureGroupRef  = useRef<THREE.Group | null>(null);
 
   // Object groups
   const sourceGroupRef     = useRef<THREE.Group | null>(null);
@@ -213,6 +233,10 @@ export default function ThreeCanvas({
     const surfaceMeshGroup = new THREE.Group();
     scene.add(surfaceMeshGroup);
     surfaceMeshGroupRef.current = surfaceMeshGroup;
+
+    const structureGroup = new THREE.Group();
+    scene.add(structureGroup);
+    structureGroupRef.current = structureGroup;
 
     const resizeObserver = new ResizeObserver(() => {
       const w2 = container.clientWidth, h2 = container.clientHeight;
@@ -611,6 +635,117 @@ export default function ThreeCanvas({
 
     waveParticlesRef.current = newParticles;
   }, [soundRays]);
+
+  // ─── Structure generator ───────────────────────────────────────────────────
+  useEffect(() => {
+    const structureGroup = structureGroupRef.current;
+    if (!structureGroup) return;
+
+    // Clear existing structure
+    while (structureGroup.children.length > 0) {
+      const child = structureGroup.children[0];
+      if (child instanceof THREE.Mesh) {
+        child.geometry.dispose();
+        (child.material as THREE.Material).dispose();
+      } else if (child instanceof THREE.Group) {
+        child.traverse((obj) => {
+          if (obj instanceof THREE.Mesh) {
+            obj.geometry.dispose();
+            (obj.material as THREE.Material).dispose();
+          }
+        });
+      }
+      structureGroup.remove(child);
+    }
+
+    // Show/hide room elements based on whether structureData is present
+    const hasStructure = !!structureData;
+    if (roomMeshRef.current) roomMeshRef.current.visible = !hasStructure;
+    if (wireframeRef.current) wireframeRef.current.visible = !hasStructure;
+    if (surfaceMeshGroupRef.current) surfaceMeshGroupRef.current.visible = !hasStructure;
+    if (sourceGroupRef.current) sourceGroupRef.current.visible = !hasStructure;
+    if (receiverGroupRef.current) receiverGroupRef.current.visible = !hasStructure;
+    if (rayLinesGroupRef.current) rayLinesGroupRef.current.visible = !hasStructure;
+    if (waveGroupRef.current) waveGroupRef.current.visible = !hasStructure;
+
+    if (!structureData) {
+      structureGroup.visible = false;
+      return;
+    }
+
+    structureGroup.visible = true;
+
+    function buildComponent(comp: StructureComponent): THREE.Object3D {
+      const color = new THREE.Color(comp.color);
+      const { x: sx, y: sy, z: sz } = comp.scale;
+
+      if (comp.type === 'arch') {
+        const group = new THREE.Group();
+        const archGeo = new THREE.TorusGeometry(sx / 2, sz / 4, 8, 16, Math.PI);
+        const archMat = comp.wireframe
+          ? new THREE.MeshBasicMaterial({ color, wireframe: true })
+          : new THREE.MeshStandardMaterial({ color, opacity: comp.opacity, transparent: comp.opacity < 1, roughness: 0.8, metalness: 0.1 });
+        const arch = new THREE.Mesh(archGeo, archMat);
+        arch.rotation.z = Math.PI;
+        arch.position.y = sy / 2;
+        group.add(arch);
+        const pillarGeo = new THREE.CylinderGeometry(sz / 4, sz / 4, sy / 2, 8);
+        for (const dx of [-sx / 2, sx / 2]) {
+          const pillar = new THREE.Mesh(pillarGeo, archMat.clone());
+          pillar.position.set(dx, sy / 4, 0);
+          group.add(pillar);
+        }
+        group.position.set(comp.position.x, comp.position.y, comp.position.z);
+        group.rotation.set(comp.rotation.x, comp.rotation.y, comp.rotation.z);
+        return group;
+      }
+
+      let geo: THREE.BufferGeometry;
+      switch (comp.type) {
+        case 'box':
+          geo = new THREE.BoxGeometry(sx, sy, sz);
+          break;
+        case 'cylinder':
+          geo = new THREE.CylinderGeometry(sx / 2, sx / 2, sy, 16);
+          break;
+        case 'cone':
+          geo = new THREE.ConeGeometry(sx / 2, sy, 12);
+          break;
+        case 'sphere':
+          geo = new THREE.SphereGeometry(sx / 2, 16, 16);
+          break;
+        case 'tapered_box':
+          geo = new THREE.CylinderGeometry(sx * 0.4, sx * 0.6, sy, 4);
+          break;
+        default:
+          geo = new THREE.BoxGeometry(sx, sy, sz);
+      }
+
+      const mat = comp.wireframe
+        ? new THREE.MeshBasicMaterial({ color, wireframe: true })
+        : new THREE.MeshStandardMaterial({ color, opacity: comp.opacity, transparent: comp.opacity < 1, roughness: 0.8, metalness: 0.1 });
+
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(comp.position.x, comp.position.y, comp.position.z);
+      mesh.rotation.set(comp.rotation.x, comp.rotation.y, comp.rotation.z);
+      return mesh;
+    }
+
+    for (const comp of structureData.components) {
+      structureGroup.add(buildComponent(comp));
+    }
+
+    // Move camera to the cameraPosition from structureData
+    const cp = structureData.cameraPosition;
+    const dist = Math.sqrt(cp.x * cp.x + cp.y * cp.y + cp.z * cp.z);
+    orbitRef.current.radius = dist > 0 ? dist : 32;
+    orbitRef.current.theta = Math.atan2(cp.x, cp.z);
+    const horizontalDist = Math.sqrt(cp.x * cp.x + cp.z * cp.z);
+    orbitRef.current.phi = Math.atan2(horizontalDist, cp.y);
+    orbitRef.current.panTarget.set(0, 0, 0);
+    if (cameraRef.current) updateCamera(cameraRef.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [structureData]);
 
   return (
     <div className="relative w-full h-full bg-[#1a1a1a]">
