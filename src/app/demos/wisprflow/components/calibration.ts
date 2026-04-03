@@ -8,8 +8,8 @@ export const SEP_VECS_KEY        = "asl_flow_sep_vecs";
 export const CUSTOM_GESTURES_KEY = "asl_flow_custom_gestures";
 export const PHRASE_LIBRARY_KEY  = "asl_flow_phrase_library";
 
-/** Distance cutoff for phrase library matches - slightly lower than CALIB_THRESHOLD for eagerness. */
-export const PHRASE_THRESHOLD = 0.12;
+/** Distance cutoff for phrase library matches - more eager than letter calibration. */
+export const PHRASE_THRESHOLD = 0.18;
 export const CALIB_THRESHOLD     = 0.15; // Euclidean distance cutoff for personal match
 
 // kept for backwards compat; prefer samplesNeeded(letter)

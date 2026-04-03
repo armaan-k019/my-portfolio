@@ -200,6 +200,7 @@ export default function WisprDemo() {
   const [calibTab,             setCalibTab]             = useState<"personal" | "custom">("personal");
   const [phraseLibrary,        setPhraseLibrary]        = useState<PhraseEntry[]>([]);
   const [phraseFlash,          setPhraseFlash]          = useState<{ name: string } | null>(null);
+  const [isPhraseDetection,    setIsPhraseDetection]    = useState(false);
 
   // Keep shortcutsRef current
   useEffect(() => { shortcutsRef.current = shortcuts; }, [shortcuts]);
@@ -493,14 +494,21 @@ export default function WisprDemo() {
 
           const normVec = normalizeLandmarks(landmarks);
 
-          // Phrase library is checked first (highest priority - outputs full phrase)
+          // Step 1: Phrase library (highest priority)
           const phraseMatch = matchPhrase(normVec, phraseLibraryRef.current);
+          // Debug: log top phrase match distance on every frame
+          if (phraseLibraryRef.current.length > 0) {
+            const bestPhraseName = phraseMatch?.entry.name ?? "none";
+            const bestPhraseDistance = phraseMatch?.distance ?? 999;
+            console.log("Phrase check:", bestPhraseName, bestPhraseDistance.toFixed(3));
+          }
           if (phraseMatch) {
             holdRef.current = null;
             setIsPersonalSign(false);
             setIsDisambiguated(false);
             setDisambigCandidates(null);
-            setDetectedLetter(phraseMatch.entry.name);
+            setIsPhraseDetection(true);
+            setDetectedLetter(`${phraseMatch.entry.name} \u2192`);
             setConfidence(Math.round((1 - phraseMatch.distance / PHRASE_THRESHOLD) * 100));
 
             const now = Date.now();
@@ -514,6 +522,7 @@ export default function WisprDemo() {
               setHoldProgress(0);
             }
           } else {
+          setIsPhraseDetection(false);
           phraseHoldRef.current = null;
 
           // Detection priority: Custom gestures → Personal calibration (w/ disambiguation) → Fingerpose
@@ -600,6 +609,7 @@ export default function WisprDemo() {
         setConfidence(0);
         setHoldProgress(0);
         setIsPersonalSign(false);
+        setIsPhraseDetection(false);
         holdRef.current = null;
         fingerHoldRef.current = null;
         fistHoldRef.current = null;
@@ -836,7 +846,12 @@ export default function WisprDemo() {
                       <div>
                         <div className="flex items-center gap-1.5 mb-0.5">
                           <span className="text-[10px] text-white/30">Detected sign</span>
-                          {isPersonalSign && (
+                          {isPhraseDetection && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold" style={{ backgroundColor: "#6C47FF25", color: "#6C47FF" }}>
+                              phrase
+                            </span>
+                          )}
+                          {!isPhraseDetection && isPersonalSign && (
                             <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold" style={{ backgroundColor: `${ACCENT}25`, color: "#a78bfa" }}>
                               ★ personal
                             </span>
@@ -847,7 +862,7 @@ export default function WisprDemo() {
                             </span>
                           )}
                         </div>
-                        <div className="text-4xl font-bold font-mono" style={{ color: isPersonalSign ? "#a78bfa" : ACCENT }}>{detectedLetter}</div>
+                        <div className="text-4xl font-bold font-mono" style={{ color: isPhraseDetection ? "#6C47FF" : isPersonalSign ? "#a78bfa" : ACCENT }}>{detectedLetter}</div>
                         <div className="text-[10px] text-white/30 mt-0.5">Confidence: {confidence}%</div>
                       </div>
                     ) : cameraState === "granted" ? (
