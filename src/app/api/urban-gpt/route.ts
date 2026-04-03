@@ -495,10 +495,11 @@ out center;`;
     body: `data=${encodeURIComponent(query)}`,
   };
 
-  for (const endpoint of OVERPASS_ENDPOINTS) {
+  for (const [i, endpoint] of OVERPASS_ENDPOINTS.entries()) {
     console.log(`[urban-gpt] Trying Overpass: ${endpoint} radius=${R}m`);
+    const timeoutMs = i === 0 ? 20000 : 12000; // first endpoint gets 20s, fallback gets 12s
     try {
-      const res = await fetchWithTimeout(endpoint, fetchOptions, 70000);
+      const res = await fetchWithTimeout(endpoint, fetchOptions, timeoutMs);
       if (!res.ok) {
         console.warn(`[urban-gpt] Overpass ${endpoint} → HTTP ${res.status}`);
         continue;
@@ -681,7 +682,7 @@ async function fetchAIInsights(
   try {
     const message = await client.messages.create({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 3000,
+      max_tokens: 1200,
       system: AI_SYSTEM_PROMPT,
       messages: [{ role: "user", content: `Analyze this site:\n\n${JSON.stringify(siteData, null, 2)}` }],
     });

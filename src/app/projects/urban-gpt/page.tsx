@@ -239,6 +239,7 @@ export default function UrbanGPTPage() {
   const [suggestions, setSuggestions] = useState<{ display: string; lat: number; lng: number }[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const nominatimRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nominatimAbortRef = useRef<AbortController | null>(null);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapRef = useRef<any>(null);
@@ -300,21 +301,30 @@ export default function UrbanGPTPage() {
   // ── Nominatim suggestion search (fallback when Google Maps not loaded) ─────
 
   useEffect(() => {
-    if (mapsLoaded) { setSuggestions([]); return; } // Google handles it
+    if (mapsLoaded) { setSuggestions([]); return; } // Google Places handles it
     if (nominatimRef.current) clearTimeout(nominatimRef.current);
-    if (!address.trim() || address.length < 3) { setSuggestions([]); return; }
+    nominatimAbortRef.current?.abort();
+    if (!address.trim() || address.length < 2) { setSuggestions([]); return; }
     nominatimRef.current = setTimeout(async () => {
+      const controller = new AbortController();
+      nominatimAbortRef.current = controller;
       try {
-        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=5&countrycodes=us&addressdetails=0`;
-        const res = await fetch(url, { headers: { "Accept-Language": "en", "User-Agent": "UrbanGPT/1.0" } });
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=6&countrycodes=us&addressdetails=0`;
+        const res = await fetch(url, {
+          signal: controller.signal,
+          headers: { "Accept-Language": "en", "User-Agent": "UrbanGPT/1.0" },
+        });
         const data = await res.json() as { display_name: string; lat: string; lon: string }[];
         setSuggestions(data.map(d => ({ display: d.display_name, lat: parseFloat(d.lat), lng: parseFloat(d.lon) })));
         setShowSuggestions(true);
-      } catch {
-        setSuggestions([]);
+      } catch (e) {
+        if ((e as Error).name !== "AbortError") setSuggestions([]);
       }
-    }, 350);
-    return () => { if (nominatimRef.current) clearTimeout(nominatimRef.current); };
+    }, 150);
+    return () => {
+      if (nominatimRef.current) clearTimeout(nominatimRef.current);
+      nominatimAbortRef.current?.abort();
+    };
   }, [address, mapsLoaded]);
 
   // ── Core analysis ──────────────────────────────────────────────────────────
@@ -618,9 +628,24 @@ export default function UrbanGPTPage() {
                       </p>
                     </div>
                   </div>
+                ) : result ? (
+                  // OSM iframe fallback when Google Maps key unavailable
+                  <div className="relative rounded-xl overflow-hidden border border-tan/30 shadow-sm h-[480px]">
+                    <iframe
+                      title="Site location"
+                      width="100%"
+                      height="100%"
+                      loading="lazy"
+                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${result.lng - 0.04},${result.lat - 0.03},${result.lng + 0.04},${result.lat + 0.03}&layer=mapnik&marker=${result.lat},${result.lng}`}
+                      className="w-full h-full border-0"
+                    />
+                    <div className="absolute bottom-2 right-2 bg-white/80 rounded px-2 py-0.5 text-[10px] text-brown-light">
+                      © OpenStreetMap contributors
+                    </div>
+                  </div>
                 ) : (
                   <div className="rounded-xl border border-tan/30 bg-white/40 h-[480px] flex items-center justify-center">
-                    <p className="text-sm text-brown-light italic">Map unavailable. API key not configured.</p>
+                    <p className="text-sm text-brown-light/40 italic">Map will appear after analysis</p>
                   </div>
                 )}
               </div>

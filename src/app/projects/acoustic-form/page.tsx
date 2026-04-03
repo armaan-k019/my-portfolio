@@ -284,10 +284,10 @@ export default function AcousticFormPage() {
     `Sources: ${sourcePositions.length}. Receivers: ${receiverPoints.length}.`;
 
   return (
-    <div className="h-[100dvh] bg-[#F5F0E8] flex flex-col overflow-hidden">
+    <div className="h-screen bg-[#F5F0E8] flex flex-col overflow-hidden">
 
       {/* ─── Mobile message ──────────────────────────────────────────────────── */}
-      <div className="lg:hidden flex flex-col items-center justify-center min-h-0 flex-1 overflow-y-auto px-8 py-12 text-center gap-4">
+      <div className="lg:hidden flex flex-col items-center justify-center h-full px-8 text-center gap-4">
         <div className="w-12 h-12 rounded-full bg-[#FF6B35]/10 flex items-center justify-center">
           <svg className="w-6 h-6 text-[#FF6B35]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25A2.25 2.25 0 015.25 3h13.5A2.25 2.25 0 0121 5.25z" />

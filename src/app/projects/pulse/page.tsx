@@ -259,10 +259,10 @@ export default function PulsePage() {
 
   // ── Load Google Maps ─────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!mapsKey) return;
     if (window.google?.maps) { setMapsLoaded(true); return; }
     window.__pulseMapReady = () => setMapsLoaded(true);
     if (document.getElementById("pulse-maps-script")) return;
+    if (!mapsKey) return; // no key — stay in loading state, show spinner
     const s = document.createElement("script");
     s.id    = "pulse-maps-script";
     s.src   = `https://maps.googleapis.com/maps/api/js?key=${mapsKey}&libraries=visualization&callback=__pulseMapReady`;
@@ -294,13 +294,6 @@ export default function PulsePage() {
       streetViewControl: false,
       fullscreenControl: false,
       gestureHandling: 'greedy',
-      scrollwheel: true,
-      minZoom: 14,
-      maxZoom: 19,
-      restriction: {
-        latLngBounds: { north: 33.786, south: 33.767, west: -84.412, east: -84.384 },
-        strictBounds: false,
-      },
     });
     mapRef.current = map;
 
@@ -587,7 +580,7 @@ export default function PulsePage() {
       window.removeEventListener('resize', resize);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showParticles, mapsLoaded]);
+  }, [showParticles]);
 
   // ── Cleanup ───────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -636,7 +629,7 @@ export default function PulsePage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-[100dvh] bg-[#0a0c10] text-white flex flex-col font-sans">
+    <div className="min-h-screen bg-[#0a0c10] text-white flex flex-col font-sans">
 
       {/* ── Top status bar ──────────────────────────────────────────────────── */}
       <header className="flex items-center gap-4 px-5 py-2.5 bg-[#111318] border-b border-white/[0.06] text-xs select-none shrink-0 flex-wrap">
@@ -673,18 +666,17 @@ export default function PulsePage() {
       </header>
 
       {/* ── Main layout ─────────────────────────────────────────────────────── */}
-      <div className="flex flex-1 min-h-0 flex-col lg:flex-row lg:overflow-hidden">
+      <div className="flex flex-1 min-h-0 flex-col lg:flex-row overflow-hidden">
 
         {/* ── Map column ─────────────────────────────────────────────────── */}
         <div className="relative flex-1 min-h-[50vh] lg:min-h-0">
 
-          {/* Map */}
-          {mapsKey ? (
-            <div ref={mapContainerRef} className="absolute inset-0" />
-          ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#111318] gap-3">
-              <p className="text-white/30 text-sm">Map unavailable — Google Maps key not configured.</p>
-              <p className="text-white/20 text-xs">Set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in your environment.</p>
+          {/* Map — always rendered; shown once Maps initialises */}
+          <div ref={mapContainerRef} className="absolute inset-0 bg-[#111318]" />
+          {!mapsLoaded && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-2">
+              <div className="w-5 h-5 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+              <p className="text-white/25 text-xs">Loading map…</p>
             </div>
           )}
 
@@ -757,7 +749,7 @@ export default function PulsePage() {
         </div>
 
         {/* ── Location cards panel ───────────────────────────────────────── */}
-        <aside className="w-full lg:w-80 xl:w-96 flex-shrink-0 bg-[#0d0f14] border-t lg:border-t-0 lg:border-l border-white/[0.06] lg:overflow-y-auto flex flex-col">
+        <aside className="w-full lg:w-80 xl:w-96 flex-shrink-0 bg-[#0d0f14] border-t lg:border-t-0 lg:border-l border-white/[0.06] overflow-y-auto flex flex-col">
 
           {/* Section: Dining */}
           <CardSection title="Dining" icon="🍽">
