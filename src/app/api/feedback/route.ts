@@ -23,7 +23,7 @@ export async function POST(request: Request): Promise<Response> {
     // Send email via Resend
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) {
-      console.error('[feedback] RESEND_API_KEY is not set — email not sent');
+      console.error('[feedback] RESEND_API_KEY is not set - email not sent');
       return Response.json({ error: 'Email service not configured.' }, { status: 500 });
     }
 

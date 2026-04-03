@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { demos, type DemoConfig } from "@/lib/demos";
 
@@ -13,10 +14,40 @@ function PasswordScreen({ onUnlock }: { onUnlock: (config: DemoConfig, password:
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const config = demos[code.trim()];
+    const trimmed = code.trim();
+    const normalized = trimmed.toLowerCase();
+    // rho demo
+    if (trimmed === "rho") {
+      sessionStorage.setItem("demo_access", "rho");
+      setError(false);
+      onUnlock(demos["rho"]!, trimmed);
+      return;
+    }
+    // mayo dental demo (case-insensitive)
+    if (normalized === "mayodental") {
+      sessionStorage.setItem("demo_access", "mayo dental keer");
+      setError(false);
+      onUnlock(demos["mayodentalkeer"]!, trimmed);
+      return;
+    }
+    // jeeves demo
+    if (trimmed === "jeeves") {
+      sessionStorage.setItem("demo_access", "jeeves#$");
+      setError(false);
+      onUnlock(demos["jeeves#$"]!, trimmed);
+      return;
+    }
+    // wisprflow demo
+    if (trimmed === "wisprflow") {
+      sessionStorage.setItem("demo_access", "wisprflow");
+      setError(false);
+      onUnlock(demos["wisprflow"]!, trimmed);
+      return;
+    }
+    const config = demos[trimmed];
     if (config) {
       setError(false);
-      onUnlock(config, code.trim());
+      onUnlock(config, trimmed);
     } else {
       setError(true);
       setShake(true);
@@ -61,7 +92,7 @@ function PasswordScreen({ onUnlock }: { onUnlock: (config: DemoConfig, password:
             />
             {error && (
               <p className="mt-1.5 text-xs text-red-500">
-                Invalid access code. Please check with Armaan.
+                Invalid access code.
               </p>
             )}
           </div>
@@ -240,25 +271,22 @@ function DemoView({ config, onExit }: { config: DemoConfig; onExit: () => void }
 const SESSION_KEY = "demo_auth";
 
 export default function DemosPage() {
+  const router = useRouter();
   const [config, setConfig] = useState<DemoConfig | null>(null);
   const [ready, setReady]   = useState(false);
 
-  // Restore session on mount
+  // Show password screen - never auto-redirect on mount
   useEffect(() => {
-    try {
-      const stored = sessionStorage.getItem(SESSION_KEY);
-      if (stored) {
-        const password = JSON.parse(stored) as string;
-        const saved = demos[password];
-        if (saved) setConfig(saved);
-      }
-    } catch { /* ignore */ }
     setReady(true);
   }, []);
 
   function handleUnlock(cfg: DemoConfig, password: string) {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(password));
-    setConfig(cfg);
+    if (cfg.url) {
+      router.push(cfg.url);
+    } else {
+      setConfig(cfg);
+    }
   }
 
   function handleExit() {

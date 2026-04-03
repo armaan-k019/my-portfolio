@@ -159,7 +159,7 @@ function HowItWorksPanel() {
             <p className="text-xs font-semibold text-[#2C1810] mb-1">Absorption Coefficient (α)</p>
             <p className="text-[11px] text-[#6B6054] leading-relaxed">
               α ranges from 0 (perfect reflector, e.g. bare concrete α ≈ 0.02) to 1 (perfect absorber, e.g.
-              acoustic foam α ≈ 0.95). Each material has a different α at each octave band — carpet absorbs
+              acoustic foam α ≈ 0.95). Each material has a different α at each octave band - carpet absorbs
               more at high frequencies, while concrete absorbs almost nothing across the spectrum.
             </p>
           </div>
@@ -191,7 +191,7 @@ function HowItWorksPanel() {
             <p className="text-[11px] text-[#6B6054] leading-relaxed">
               Early reflections are sound paths that reach the listener within ~50ms of the direct sound.
               They reinforce spatial impression and perceived room size. A high early reflection count
-              with a long RT60 can indicate a reverberant, diffuse space — common in concert halls and
+              with a long RT60 can indicate a reverberant, diffuse space - common in concert halls and
               cathedrals. A low count with short RT60 indicates a dry, absorptive space suited for speech.
             </p>
           </div>

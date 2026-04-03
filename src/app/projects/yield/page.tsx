@@ -159,14 +159,21 @@ export default function YieldPage() {
     const qty = parseFloat(shares);
     if (!raw || isNaN(qty) || qty <= 0) return;
 
-    // If the input doesn't look like a ticker pattern, the user must have
-    // explicitly selected a result from the search dropdown.
-    if (!looksLikeTicker(raw.toUpperCase()) && !tickerConfirmedRef.current) {
-      setError(`"${raw}" doesn't look like a ticker symbol. Select a company from the dropdown.`);
-      return;
+    // Resolve company name → ticker symbol (Yahoo Finance style: default to top result)
+    let sym = raw.toUpperCase();
+    if (!looksLikeTicker(sym) && !tickerConfirmedRef.current) {
+      if (searchResults.length > 0) {
+        // Auto-select the top search result, same as pressing Enter in Yahoo Finance
+        sym = searchResults[0].ticker;
+      } else if (searching) {
+        setError("Still searching for that company. Try again in a moment.");
+        return;
+      } else {
+        setError(`"${raw}" doesn't look like a ticker. Type a company name and select from the dropdown, or enter the ticker directly.`);
+        return;
+      }
     }
 
-    const sym = raw.toUpperCase();
     if (holdings.some((h) => h.ticker === sym)) {
       setError(`${sym} is already in your holdings.`);
       return;

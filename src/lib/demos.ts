@@ -17,9 +17,54 @@ export interface DemoConfig {
   headline: string;
   pitch: string;
   sections: DemoSection[];
+  url?: string; // if set, redirect here after auth instead of rendering DemoView
 }
 
 export const demos: Record<string, DemoConfig> = {
+  // ── Rho Technologies - parametric architecture PoC ──────────────────────────
+  "rho": {
+    company: "Rho Technologies",
+    role: "Software Engineer",
+    accentColor: "#CC4729",
+    headline: "Parametric structural optimization, built from scratch",
+    pitch: "Rho Parametric Architect is a real-time topology optimization dashboard with AI-assisted structural feedback. It demonstrates deep systems thinking, 3D rendering, and applied ML - the kind of full-stack technical depth I'd bring to Rho.",
+    sections: [],
+    url: "/demos/rho",
+  },
+
+  // ── Mayo Dental Family Dentistry - website redesign client deliverable ──────
+  "mayodentalkeer": {
+    company: "Mayo Dental Family Dentistry",
+    role: "Web Design Client",
+    accentColor: "#2B7A78",
+    headline: "Website redesign for a real dental practice",
+    pitch: "A full website redesign for Mayo Dental Family Dentistry - a real client deliverable, not a concept.",
+    sections: [],
+    url: "/demos/mayo-dental",
+  },
+
+  // ── Jeeves Competitive Intelligence Agent - AI-powered competitor research ──
+  "jeeves#$": {
+    company: "Jeeves",
+    role: "Competitive Intelligence Agent",
+    accentColor: "#C9A84C",
+    headline: "AI-powered competitive intelligence for fintech sales teams",
+    pitch: "Jeeves Intel is a full competitive intelligence agent - live web scraping via Apify, Claude-powered analysis, persona-aware reporting (Sales / Product / Executive), and objection handling. Built on the original open-source Jeeves agent, migrated from OpenAI to Anthropic.",
+    sections: [],
+    url: "/demos/jeeves",
+  },
+
+  // ── Wispr Flow - ASL pipeline concept demo ──────────────────────────────────
+  "wisprflow": {
+    company: "Wispr Flow",
+    role: "Concept Integration Demo",
+    accentColor: "#6C47FF",
+    headline: "Making voice dictation accessible to deaf & hard-of-hearing users",
+    pitch: "A concept bridge: TensorFlow.js hand-pose CV recognizes ASL signs from a webcam, converts them to words, and feeds that text stream into Wispr Flow - no microphone, no cloud ASR, no specialized hardware.",
+    sections: [],
+    url: "/demos/wisprflow",
+  },
+
   // ── Example entry - test the full flow at /demos with password "demo123" ──
   "demo123": {
     company: "Acme Corp",

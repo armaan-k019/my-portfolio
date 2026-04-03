@@ -283,7 +283,7 @@ function FileImportTab({ onRoomChange }: { onRoomChange: (s: RoomShape) => void 
       const MAX_FACES = 100_000;
       if (shape.faces.length > MAX_FACES) {
         setStatus('error');
-        setMsg(`Model has ${shape.faces.length.toLocaleString()} polygons — maximum is ${MAX_FACES.toLocaleString()}. Please simplify the mesh before importing.`);
+        setMsg(`Model has ${shape.faces.length.toLocaleString()} polygons - maximum is ${MAX_FACES.toLocaleString()}. Please simplify the mesh before importing.`);
         return;
       }
       setRawShape(shape);
@@ -652,7 +652,7 @@ export default function ShapeInputPanel({
                     : 'bg-white text-[#6B6054] hover:text-[#2C1810]'
                 }`}
               >
-                {m === 'static' ? '— static' : '◉ particles'}
+                {m === 'static' ? '- static' : '◉ particles'}
               </button>
             ))}
           </div>

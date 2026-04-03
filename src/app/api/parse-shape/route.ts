@@ -65,7 +65,7 @@ Archetypes:
 - "pyramid": square/rectangular base converging to a single apex (pyramidal room, atrium)
 - "wedge": triangular cross-section with a sloped ceiling from low front to high rear (recording booth, home theater, ramp)
 
-Output format — respond with ONLY this JSON, no other text or markdown:
+Output format - respond with ONLY this JSON, no other text or markdown:
 {
   "archetype": "<orthogonal|pitched|cylinder|barrel_vault|dome|sloped_auditorium|pyramid|wedge>",
   "dimensions": {

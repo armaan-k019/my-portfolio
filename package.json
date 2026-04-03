@@ -10,8 +10,12 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
+    "@tensorflow-models/handpose": "^0.1.0",
+    "@tensorflow/tfjs": "^4.22.0",
     "@types/three": "^0.183.1",
+    "apify-client": "^2.22.3",
     "dxf-parser": "^1.1.2",
+    "fingerpose": "^0.1.0",
     "framer-motion": "^12.38.0",
     "gray-matter": "^4.0.3",
     "jspdf": "^4.2.1",

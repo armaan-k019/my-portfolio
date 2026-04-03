@@ -23,8 +23,10 @@ export interface LocationData {
   lat: number;
   lng: number;
   type: 'dining' | 'academic' | 'recreation' | 'outdoor';
-  busyness: number;       // 0–100
+  busyness: number;       // 0–100; 0 when closed
   status: 'quiet' | 'moderate' | 'busy' | 'very busy';
+  isOpen: boolean;
+  hoursToday: string;     // human-readable hours for today
   waitTime: string | null;
   peakHours: string;
   subScores?: { label: string; score: number }[];
@@ -57,17 +59,145 @@ const MWF = [8.083, 9.083, 10.083, 11.083, 12.083, 13.083, 14.083, 15.083];
 const TR  = [8.0, 9.5, 11.0, 12.5, 14.0, 15.5, 17.0];
 
 const BUILDINGS: Building[] = [
-  { id: 'klaus',     name: 'Klaus (CS)',          lat: 33.7773, lng: -84.3966, type: 'academic',    capacity: 600,  mwfSlots: MWF, trSlots: TR,           peakHours: '9 AM–3 PM' },
-  { id: 'van_leer',  name: 'Van Leer',             lat: 33.7763, lng: -84.3960, type: 'academic',    capacity: 400,  mwfSlots: MWF, trSlots: TR,           peakHours: '8 AM–2 PM' },
-  { id: 'skiles',    name: 'Skiles',               lat: 33.7755, lng: -84.3975, type: 'academic',    capacity: 500,  mwfSlots: MWF, trSlots: [],           peakHours: '9 AM–2 PM' },
-  { id: 'clough',    name: 'Clough / CULC',        lat: 33.7748, lng: -84.3961, type: 'academic',    capacity: 700,  mwfSlots: MWF, trSlots: TR,           peakHours: '10 AM–4 PM' },
-  { id: 'design',    name: 'College of Design',    lat: 33.7755, lng: -84.3938, type: 'academic',    capacity: 300,  mwfSlots: MWF.slice(1, 6), trSlots: TR.slice(1, 5), peakHours: '9 AM–1 PM' },
-  { id: 'boggs',     name: 'Boggs Chemistry',      lat: 33.7760, lng: -84.3985, type: 'academic',    capacity: 350,  mwfSlots: MWF, trSlots: TR,           peakHours: '8 AM–3 PM' },
-  { id: 'mason',     name: 'Mason',                lat: 33.7769, lng: -84.3963, type: 'academic',    capacity: 350,  mwfSlots: MWF, trSlots: TR,           peakHours: '8 AM–2 PM' },
-  { id: 'tech_tower',name: 'Tech Tower',           lat: 33.7773, lng: -84.3948, type: 'academic',    capacity: 200,  mwfSlots: [],  trSlots: [],           peakHours: '9 AM–5 PM' },
-  { id: 'tech_green',name: 'Tech Green',           lat: 33.7760, lng: -84.3956, type: 'outdoor',     capacity: 1000, mwfSlots: [],  trSlots: [],           peakHours: '11 AM–2 PM' },
-  { id: 'student_center', name: 'Student Center',  lat: 33.7734, lng: -84.3962, type: 'academic',    capacity: 800,  mwfSlots: [],  trSlots: [],           peakHours: '11 AM–2 PM, 5–8 PM' },
+  { id: 'klaus',        name: 'Klaus (CS)',          lat: 33.7775, lng: -84.3958, type: 'academic',  capacity: 600,  mwfSlots: MWF,            trSlots: TR,            peakHours: '9 AM–3 PM' },
+  { id: 'van_leer',     name: 'Van Leer',             lat: 33.7764, lng: -84.4006, type: 'academic',  capacity: 400,  mwfSlots: MWF,            trSlots: TR,            peakHours: '8 AM–2 PM' },
+  { id: 'skiles',       name: 'Skiles',               lat: 33.7742, lng: -84.3964, type: 'academic',  capacity: 500,  mwfSlots: MWF,            trSlots: [],            peakHours: '9 AM–2 PM' },
+  { id: 'clough',       name: 'Clough / CULC',        lat: 33.7757, lng: -84.3963, type: 'academic',  capacity: 700,  mwfSlots: MWF,            trSlots: TR,            peakHours: '10 AM–4 PM' },
+  { id: 'design',       name: 'College of Design',    lat: 33.7763, lng: -84.3939, type: 'academic',  capacity: 300,  mwfSlots: MWF.slice(1, 6),trSlots: TR.slice(1, 5),peakHours: '9 AM–1 PM' },
+  { id: 'boggs',        name: 'Boggs Chemistry',      lat: 33.7771, lng: -84.3998, type: 'academic',  capacity: 350,  mwfSlots: MWF,            trSlots: TR,            peakHours: '8 AM–3 PM' },
+  { id: 'mason',        name: 'Mason',                lat: 33.7756, lng: -84.3940, type: 'academic',  capacity: 350,  mwfSlots: MWF,            trSlots: TR,            peakHours: '8 AM–2 PM' },
+  { id: 'tech_tower',   name: 'Tech Tower',           lat: 33.7756, lng: -84.3963, type: 'academic',  capacity: 200,  mwfSlots: [],             trSlots: [],            peakHours: '9 AM–5 PM' },
+  { id: 'tech_green',   name: 'Tech Green',           lat: 33.7751, lng: -84.3963, type: 'outdoor',   capacity: 1000, mwfSlots: [],             trSlots: [],            peakHours: '11 AM–2 PM' },
+  { id: 'student_center',name:'Student Center',       lat: 33.7748, lng: -84.3965, type: 'academic',  capacity: 800,  mwfSlots: [],             trSlots: [],            peakHours: '11 AM–2 PM, 5–8 PM' },
 ];
+
+// ─── Operating hours ──────────────────────────────────────────────────────────
+// Array of 7 entries indexed by getDay() (0=Sun … 6=Sat).
+// Each entry is a list of open windows in decimal 24h (e.g. 10.5 = 10:30 AM).
+// Empty array = closed all day.
+
+type DayWindows = { open: number; close: number }[];
+
+// ACADEMIC_HOURS used for all academic buildings (Mon–Fri 7 AM–10 PM, Sat limited)
+const ACADEMIC_HOURS: DayWindows[] = [
+  [],                                               // 0 Sun
+  [{ open: 7, close: 22 }],                        // 1 Mon
+  [{ open: 7, close: 22 }],                        // 2 Tue
+  [{ open: 7, close: 22 }],                        // 3 Wed
+  [{ open: 7, close: 22 }],                        // 4 Thu
+  [{ open: 7, close: 20 }],                        // 5 Fri
+  [{ open: 9, close: 17 }],                        // 6 Sat
+];
+
+const OPEN_HOURS: Record<string, DayWindows[]> = {
+  chick_fil_a: [
+    [],                                             // Sun – closed
+    [{ open: 10, close: 20 }],                     // Mon
+    [{ open: 10, close: 20 }],                     // Tue
+    [{ open: 10, close: 20 }],                     // Wed
+    [{ open: 10, close: 20 }],                     // Thu
+    [{ open: 10, close: 15 }],                     // Fri – early close
+    [],                                             // Sat – closed
+  ],
+  panda: [
+    [],
+    [{ open: 10.5, close: 20 }],
+    [{ open: 10.5, close: 20 }],
+    [{ open: 10.5, close: 20 }],
+    [{ open: 10.5, close: 20 }],
+    [{ open: 10.5, close: 15 }],
+    [],
+  ],
+  north_ave: [
+    [{ open: 9, close: 14 }, { open: 16, close: 20 }],               // Sun
+    [{ open: 7, close: 9 }, { open: 11, close: 14 }, { open: 17, close: 20 }], // Mon
+    [{ open: 7, close: 9 }, { open: 11, close: 14 }, { open: 17, close: 20 }],
+    [{ open: 7, close: 9 }, { open: 11, close: 14 }, { open: 17, close: 20 }],
+    [{ open: 7, close: 9 }, { open: 11, close: 14 }, { open: 17, close: 20 }],
+    [{ open: 7, close: 9 }, { open: 11, close: 14 }, { open: 17, close: 20 }], // Fri
+    [{ open: 9, close: 14 }, { open: 17, close: 20 }],               // Sat
+  ],
+  west_village: [
+    [{ open: 10, close: 14 }, { open: 16, close: 20 }],              // Sun
+    [{ open: 7, close: 9 }, { open: 11, close: 14 }, { open: 17, close: 21 }],
+    [{ open: 7, close: 9 }, { open: 11, close: 14 }, { open: 17, close: 21 }],
+    [{ open: 7, close: 9 }, { open: 11, close: 14 }, { open: 17, close: 21 }],
+    [{ open: 7, close: 9 }, { open: 11, close: 14 }, { open: 17, close: 21 }],
+    [{ open: 7, close: 9 }, { open: 11, close: 14 }, { open: 17, close: 21 }],
+    [{ open: 10, close: 14 }, { open: 17, close: 20 }],              // Sat
+  ],
+  crc: [
+    [{ open: 12, close: 21 }],                     // Sun
+    [{ open: 6,  close: 23 }],                     // Mon
+    [{ open: 6,  close: 23 }],
+    [{ open: 6,  close: 23 }],
+    [{ open: 6,  close: 23 }],
+    [{ open: 6,  close: 21 }],                     // Fri
+    [{ open: 9,  close: 19 }],                     // Sat
+  ],
+  student_center: [
+    [{ open: 12, close: 20 }],
+    [{ open: 7,  close: 23 }],
+    [{ open: 7,  close: 23 }],
+    [{ open: 7,  close: 23 }],
+    [{ open: 7,  close: 23 }],
+    [{ open: 7,  close: 21 }],
+    [{ open: 10, close: 20 }],
+  ],
+  tech_tower: [
+    [],
+    [{ open: 8, close: 17 }],
+    [{ open: 8, close: 17 }],
+    [{ open: 8, close: 17 }],
+    [{ open: 8, close: 17 }],
+    [{ open: 8, close: 17 }],
+    [],
+  ],
+  // Clough is a 24/7 study space during the semester
+  clough: [
+    [{ open: 0, close: 24 }],
+    [{ open: 0, close: 24 }],
+    [{ open: 0, close: 24 }],
+    [{ open: 0, close: 24 }],
+    [{ open: 0, close: 24 }],
+    [{ open: 0, close: 24 }],
+    [{ open: 0, close: 24 }],
+  ],
+  // Tech Green is outdoor - always accessible
+  tech_green: [
+    [{ open: 0, close: 24 }],
+    [{ open: 0, close: 24 }],
+    [{ open: 0, close: 24 }],
+    [{ open: 0, close: 24 }],
+    [{ open: 0, close: 24 }],
+    [{ open: 0, close: 24 }],
+    [{ open: 0, close: 24 }],
+  ],
+};
+
+function getHours(id: string, day: number): DayWindows {
+  return (OPEN_HOURS[id] ?? ACADEMIC_HOURS)[day] ?? [];
+}
+
+function isOpenNow(id: string, now: Date): boolean {
+  const decimal = now.getHours() + now.getMinutes() / 60;
+  return getHours(id, now.getDay()).some(w => decimal >= w.open && decimal < w.close);
+}
+
+function formatHoursToday(id: string, day: number): string {
+  const windows = getHours(id, day);
+  if (windows.length === 0) return 'Closed today';
+  return windows.map(w => `${fmtHour(w.open)}–${fmtHour(w.close)}`).join(', ');
+}
+
+function fmtHour(h: number): string {
+  if (h === 0 || h === 24) return '12 AM';
+  const hh = Math.floor(h);
+  const mm = Math.round((h - hh) * 60);
+  const ampm = hh < 12 ? 'AM' : 'PM';
+  const hour12 = hh % 12 === 0 ? 12 : hh % 12;
+  return mm === 0 ? `${hour12} ${ampm}` : `${hour12}:${String(mm).padStart(2, '0')} ${ampm}`;
+}
 
 // ─── Popular times: dining + CRC ─────────────────────────────────────────────
 // { [day 0=Sun..6=Sat]: { [hour 0–23]: score 0–100 } }
@@ -210,12 +340,12 @@ export async function GET(): Promise<Response> {
   // Build location list
   const locations: LocationData[] = [
     // Dining
-    makeLocation('chick_fil_a',  'Chick-fil-A',          33.7734, -84.3964, 'dining',     now, 'Open 10 AM–8 PM',          getPopularBusyness('chick_fil_a',  now)),
-    makeLocation('panda',        'Panda Express',         33.7735, -84.3960, 'dining',     now, 'Open 10:30 AM–8 PM',       getPopularBusyness('panda',        now)),
-    makeLocation('north_ave',    'North Ave Dining',      33.7748, -84.3940, 'dining',     now, 'Peak 7–9 AM, 12–1 PM',     getPopularBusyness('north_ave',    now)),
-    makeLocation('west_village', 'West Village Dining',  33.7723, -84.3949, 'dining',     now, 'Peak 12–1 PM, 6–7 PM',     getPopularBusyness('west_village', now)),
+    makeLocation('chick_fil_a',  'Chick-fil-A',          33.7748, -84.3963, 'dining',     now, '10 AM–8 PM',          getPopularBusyness('chick_fil_a',  now)),
+    makeLocation('panda',        'Panda Express',         33.7748, -84.3961, 'dining',     now, '10:30 AM–8 PM',       getPopularBusyness('panda',        now)),
+    makeLocation('north_ave',    'North Ave Dining',      33.7721, -84.3902, 'dining',     now, '7–9 AM, 12–1 PM',     getPopularBusyness('north_ave',    now)),
+    makeLocation('west_village', 'West Village Dining',  33.7694, -84.3956, 'dining',     now, '12–1 PM, 6–7 PM',     getPopularBusyness('west_village', now)),
     // Recreation
-    makeLocation('crc',          'Campus Rec Center',    33.7766, -84.3951, 'recreation', now, 'Peak 4–8 PM weekdays',      getPopularBusyness('crc',          now),
+    makeLocation('crc',          'Campus Rec Center',    33.7769, -84.4039, 'recreation', now, '4–8 PM weekdays',      getPopularBusyness('crc',          now),
       [
         { label: 'Gym floor', score: Math.round(getPopularBusyness('crc', now) * 0.95) },
         { label: 'Pool',      score: Math.round(getPopularBusyness('crc', now) * 0.60) },
@@ -227,7 +357,7 @@ export async function GET(): Promise<Response> {
       makeLocation(b.id, b.name, b.lat, b.lng, 'academic', now, b.peakHours, getBuildingBusyness(b, now))
     ),
     // Outdoor
-    makeLocation('tech_green', 'Tech Green', 33.7760, -84.3956, 'outdoor', now, 'Peak 11 AM–2 PM', getTechGreenBusyness(now)),
+    makeLocation('tech_green', 'Tech Green', 33.7751, -84.3963, 'outdoor', now, '11 AM–2 PM', getTechGreenBusyness(now)),
   ];
 
   return Response.json({ buses, weather, locations, timestamp: now.toISOString() } satisfies PulseData);
@@ -236,15 +366,26 @@ export async function GET(): Promise<Response> {
 function makeLocation(
   id: string, name: string, lat: number, lng: number,
   type: LocationData['type'], now: Date, peakHours: string,
-  busyness: number, subScores?: LocationData['subScores'],
+  rawBusyness: number, subScores?: LocationData['subScores'],
 ): LocationData {
-  return { id, name, lat, lng, type, busyness, status: busynessStatus(busyness), waitTime: waitTime(busyness, type), peakHours, subScores };
+  const open     = isOpenNow(id, now);
+  const busyness = open ? rawBusyness : 0;
+  return {
+    id, name, lat, lng, type,
+    busyness,
+    status:     busynessStatus(busyness),
+    isOpen:     open,
+    hoursToday: formatHoursToday(id, now.getDay()),
+    waitTime:   open ? waitTime(busyness, type) : null,
+    peakHours,
+    subScores,
+  };
 }
 
 // ─── External fetches ─────────────────────────────────────────────────────────
 
 async function fetchBuses(): Promise<Bus[]> {
-  // Passio GO API — GT system ID 109
+  // Passio GO API - GT system ID 109
   // Falls back to empty array on any error so the rest of the page still loads.
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), 8000);

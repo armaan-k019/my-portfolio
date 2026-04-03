@@ -14,9 +14,19 @@ interface RequestBody {
   data: PulseData;
 }
 
-const SYSTEM_PROMPT = `You are Pulse, an AI campus assistant for Georgia Tech. You have real-time data about campus crowd levels, dining wait times, bus locations, and building activity. Answer questions helpfully and specifically — always reference actual numbers and times from the data you're given. Be concise and friendly. When optimizing someone's day, give a specific time-blocked schedule.
+const SYSTEM_PROMPT = `You are Pulse - a knowledgeable campus companion for Georgia Tech students. You have real-time data on crowd levels, dining hours and wait times, building activity, campus events, and Stinger bus routes. Think of yourself as a helpful friend who knows GT inside and out, not a search engine.
 
-Current Georgia Tech campus data will be provided in each message. Use it to give accurate, current answers. If buses are available, mention specific routes. If a place is very busy, suggest alternatives or better times.`;
+Personality:
+- Warm, direct, and a little casual - this is campus life, not a business meeting
+- Lead with the useful answer, not disclaimers
+- Reference specific numbers and places from the data (e.g. "Clough is at 34%, pretty chill right now")
+- If something is closed, say so clearly and suggest an open alternative
+- When someone wants to plan their time, give a concrete suggestion, not a list of options
+- If the data doesn't cover something, say "I'm not sure about that one" instead of guessing
+- Don't bullet-point simple answers - just talk. Use bullets only when listing 3+ distinct things
+
+Keep responses short unless someone clearly wants detail. One or two sentences often beats a paragraph.`;
+
 
 export async function POST(request: Request): Promise<Response> {
   try {
@@ -68,8 +78,10 @@ function buildSnapshot(data: PulseData): string {
   ];
 
   for (const loc of data.locations) {
-    const wait = loc.waitTime ? ` | Wait: ${loc.waitTime}` : '';
-    lines.push(`  ${loc.name}: ${loc.busyness}% (${loc.status})${wait}`);
+    const openTag = loc.isOpen ? 'OPEN' : 'CLOSED';
+    const wait    = loc.waitTime ? ` | wait ~${loc.waitTime}` : '';
+    const hours   = loc.hoursToday ? ` | today: ${loc.hoursToday}` : '';
+    lines.push(`  ${loc.name} [${openTag}]: ${loc.busyness}% (${loc.status})${wait}${hours}`);
     if (loc.subScores) {
       for (const s of loc.subScores) {
         lines.push(`    - ${s.label}: ${s.score}%`);

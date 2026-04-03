@@ -3,11 +3,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
-const placeholders = [
-  { bg: "#C1513A" },
-  { bg: "#1E3A5F" },
-  { bg: "#6B8F6E" },
-  { bg: "#D4A96A" },
+const images = [
+  "/images/hero01.png",
+  "/images/hero02.png",
+  "/images/hero03.png",
+  "/images/hero04.png",
 ];
 
 export default function Carousel() {
@@ -17,12 +17,12 @@ export default function Carousel() {
 
   const next = useCallback(() => {
     setDirection(1);
-    setCurrent((c) => (c + 1) % placeholders.length);
+    setCurrent((c) => (c + 1) % images.length);
   }, []);
 
   const prev = useCallback(() => {
     setDirection(-1);
-    setCurrent((c) => (c - 1 + placeholders.length) % placeholders.length);
+    setCurrent((c) => (c - 1 + images.length) % images.length);
   }, []);
 
   useEffect(() => {
@@ -32,9 +32,9 @@ export default function Carousel() {
   }, [paused, next]);
 
   const variants = {
-    enter: (dir: number) => ({ x: dir > 0 ? "100%" : "-100%", opacity: 0 }),
-    center: { x: 0, opacity: 1 },
-    exit: (dir: number) => ({ x: dir > 0 ? "-100%" : "100%", opacity: 0 }),
+    enter: (_dir: number) => ({ opacity: 0 }),
+    center: { opacity: 1 },
+    exit: (_dir: number) => ({ opacity: 0 }),
   };
 
   return (
@@ -54,8 +54,14 @@ export default function Carousel() {
             exit="exit"
             transition={{ duration: 0.4, ease: "easeInOut" }}
             className="absolute inset-0"
-            style={{ backgroundColor: placeholders[current].bg }}
-          />
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={images[current]}
+              alt={`Hero image ${current + 1}`}
+              className="w-full h-full object-cover"
+            />
+          </motion.div>
         </AnimatePresence>
 
         {/* Arrows */}
@@ -81,7 +87,7 @@ export default function Carousel() {
 
       {/* Dots */}
       <div className="flex justify-center gap-2 mt-3">
-        {placeholders.map((_, i) => (
+        {images.map((_, i) => (
           <button
             key={i}
             onClick={() => { setDirection(i > current ? 1 : -1); setCurrent(i); }}
