@@ -221,11 +221,8 @@ export default function WisprDemo() {
         try { await tf.setBackend("webgl"); await tf.ready(); }
         catch { setWebglWarning(true); await tf.setBackend("cpu"); await tf.ready(); }
 
-        const handPoseDetection = await import("@tensorflow-models/hand-pose-detection");
-        modelRef.current = await handPoseDetection.createDetector(
-          handPoseDetection.SupportedModels.MediaPipeHands,
-          { runtime: "tfjs", maxHands: 2 },
-        );
+        const handpose = await import("@tensorflow-models/handpose");
+        modelRef.current = await handpose.load();
 
         const { GestureEstimator } = await import("fingerpose");
         estimatorRef.current = new GestureEstimator(ASL_GESTURES);
@@ -486,7 +483,7 @@ export default function WisprDemo() {
     }
 
     try {
-      const hands = await model.estimateHands(video, { flipHorizontal: true });
+      const hands = await model.estimateHands(video, true);
       console.log('hands detected:', hands.length, hands);
 
       if (hands.length >= 2) {
@@ -495,10 +492,8 @@ export default function WisprDemo() {
         setTwoHandsDetected(true);
 
         // Determine left vs right by wrist x-position (lower x = left in mirrored view)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const lm0 = (hands[0] as any).keypoints.map((k: any) => [k.x, k.y, k.z ?? 0]) as [number, number, number][];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const lm1 = (hands[1] as any).keypoints.map((k: any) => [k.x, k.y, k.z ?? 0]) as [number, number, number][];
+        const lm0 = hands[0].landmarks as [number, number, number][];
+        const lm1 = hands[1].landmarks as [number, number, number][];
         const wrist0x = lm0[0][0];
         const wrist1x = lm1[0][0];
         const leftLandmarks  = wrist0x < wrist1x ? lm0 : lm1;
@@ -547,8 +542,7 @@ export default function WisprDemo() {
       } else if (hands.length === 1) {
         setTwoHandsDetected(false);
         setHandDetected(true);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const landmarks = (hands[0] as any).keypoints.map((k: any) => [k.x, k.y, k.z ?? 0]) as [number, number, number][];
+        const landmarks = hands[0].landmarks as [number, number, number][];
         drawHand(landmarks, canvas, video);
 
         if (predictionsRef.current.length > 0) {
