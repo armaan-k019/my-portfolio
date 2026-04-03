@@ -38,6 +38,39 @@ Guidelines:
 - Set wireframe: true for structural/lattice elements (like Eiffel Tower's frame)
 - Respond ONLY with valid JSON`;
 
+const FALLBACK_STRUCTURE = {
+  name: "Simple Structure",
+  description: "A basic geometric form.",
+  cameraPosition: { x: 5, y: 5, z: 5 },
+  components: [
+    { type: "box",  position: { x: 0, y: 0.5,  z: 0 }, scale: { x: 4,   y: 1,   z: 4   }, rotation: { x: 0, y: 0, z: 0 }, color: "#8B7355", opacity: 1, wireframe: false },
+    { type: "box",  position: { x: 0, y: 1.75, z: 0 }, scale: { x: 3,   y: 1.5, z: 3   }, rotation: { x: 0, y: 0, z: 0 }, color: "#9B8365", opacity: 1, wireframe: false },
+    { type: "box",  position: { x: 0, y: 3.25, z: 0 }, scale: { x: 2,   y: 1.5, z: 2   }, rotation: { x: 0, y: 0, z: 0 }, color: "#AB9375", opacity: 1, wireframe: false },
+    { type: "cone", position: { x: 0, y: 5,    z: 0 }, scale: { x: 1.5, y: 2,   z: 1.5 }, rotation: { x: 0, y: 0, z: 0 }, color: "#BB9355", opacity: 1, wireframe: false },
+  ],
+};
+
+function repairJSON(raw: string): string {
+  let openBraces = 0;
+  let openBrackets = 0;
+  let lastValidPos = 0;
+
+  for (let i = 0; i < raw.length; i++) {
+    if (raw[i] === "{") openBraces++;
+    if (raw[i] === "}") {
+      openBraces--;
+      if (openBraces === 0) lastValidPos = i;
+    }
+    if (raw[i] === "[") openBrackets++;
+    if (raw[i] === "]") openBrackets--;
+  }
+
+  let repaired = raw.slice(0, lastValidPos + 1);
+  if (openBrackets > 0) repaired += "]";
+  if (openBraces > 0) repaired += "}";
+  return repaired;
+}
+
 export async function POST(request: Request) {
   const body = await request.json() as { name: string };
   const { name } = body;
@@ -53,7 +86,7 @@ export async function POST(request: Request) {
     try {
       message = await client.messages.create({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 1500,
+        max_tokens: 2500,
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: `Generate a 3D model for: ${name}` }],
       }, { signal: controller.signal });
@@ -68,8 +101,22 @@ export async function POST(request: Request) {
     const start = raw.indexOf("{"); const end = raw.lastIndexOf("}");
     if (start !== -1 && end !== -1) raw = raw.slice(start, end + 1);
 
-    const data = JSON.parse(raw);
-    return Response.json(data);
+    try {
+      const data = JSON.parse(raw);
+      return Response.json(data);
+    } catch {
+      // Attempt repair on truncated JSON
+      try {
+        const data = JSON.parse(repairJSON(raw));
+        return Response.json(data);
+      } catch {
+        // Return fallback with a soft warning
+        return Response.json({
+          ...FALLBACK_STRUCTURE,
+          _warning: `Could not fully generate ${name} — showing simplified form. Try again for a different result.`,
+        });
+      }
+    }
   } catch (err) {
     const isTimeout = err instanceof Error && (err.name === "AbortError" || err.message.includes("aborted") || err.message.includes("timeout"));
     const msg = isTimeout

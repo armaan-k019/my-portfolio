@@ -304,6 +304,7 @@ export default function AcousticFormPage() {
       setStructureName(data.name || name);
       setStructureDescription(data.description || "");
       setStructureComponentCount(data.components.length);
+      if (data._warning) setStructureError(data._warning);
     } catch (err) {
       setStructureError(err instanceof Error ? err.message : "Could not interpret that structure - try a different name");
     } finally {
