@@ -100,6 +100,8 @@ export default function YieldPage() {
 
   const [searchResults, setSearchResults] = useState<{ ticker: string; name: string }[]>([]);
   const [searching, setSearching] = useState(false);
+  // tracks whether the current ticker value was explicitly resolved via search
+  const tickerConfirmedRef = useRef(false);
 
   const csvInputRef = useRef<HTMLInputElement>(null);
   const screenshotInputRef = useRef<HTMLInputElement>(null);
@@ -113,9 +115,11 @@ export default function YieldPage() {
   const handleTickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setTicker(val);
+    tickerConfirmedRef.current = false; // reset confirmation on any edit
 
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
 
+    // If it already looks like a ticker symbol, no need to search
     if (!val.trim() || looksLikeTicker(val.trim().toUpperCase())) {
       setSearchResults([]);
       return;
@@ -133,11 +137,12 @@ export default function YieldPage() {
       } finally {
         setSearching(false);
       }
-    }, 350);
+    }, 250);
   };
 
   const selectSearchResult = (result: { ticker: string; name: string }) => {
     setTicker(result.ticker);
+    tickerConfirmedRef.current = true;
     setSearchResults([]);
   };
 
@@ -150,9 +155,18 @@ export default function YieldPage() {
 
   // ── manual add ──
   const addManual = () => {
-    const sym = ticker.trim().toUpperCase();
+    const raw = ticker.trim();
     const qty = parseFloat(shares);
-    if (!sym || isNaN(qty) || qty <= 0) return;
+    if (!raw || isNaN(qty) || qty <= 0) return;
+
+    // If the input doesn't look like a ticker pattern, the user must have
+    // explicitly selected a result from the search dropdown.
+    if (!looksLikeTicker(raw.toUpperCase()) && !tickerConfirmedRef.current) {
+      setError(`"${raw}" doesn't look like a ticker symbol. Select a company from the dropdown.`);
+      return;
+    }
+
+    const sym = raw.toUpperCase();
     if (holdings.some((h) => h.ticker === sym)) {
       setError(`${sym} is already in your holdings.`);
       return;
@@ -161,6 +175,7 @@ export default function YieldPage() {
     setTicker("");
     setShares("");
     setSearchResults([]);
+    tickerConfirmedRef.current = false;
     setError("");
   };
 
@@ -484,10 +499,15 @@ export default function YieldPage() {
             transition={{ duration: 0.4 }}
             className="mt-12"
           >
-            {/* Collapsed failure banner (>2 failures) */}
-            {failedTickers.length > 2 && !failureBannerDismissed && (
-              <div className="mb-4 flex items-center justify-between gap-3 p-3 rounded-lg bg-tan/10 border border-tan/30 text-xs text-brown-light">
-                <span>⚠ {failedTickers.length} tickers could not be fetched and were excluded from analysis.</span>
+            {/* Failure banner */}
+            {failedTickers.length > 0 && !failureBannerDismissed && (
+              <div className="mb-4 flex items-start justify-between gap-3 p-3 rounded-lg bg-tan/10 border border-tan/30 text-xs text-brown-light">
+                <span>
+                  ⚠ {failedTickers.length === 1
+                    ? `${failedTickers[0].ticker} could not be fetched and was excluded.`
+                    : `${failedTickers.map(t => t.ticker).join(", ")} could not be fetched and were excluded from analysis.`}
+                  {" "}These may be private companies or invalid symbols.
+                </span>
                 <button
                   onClick={() => setFailureBannerDismissed(true)}
                   className="shrink-0 text-brown-light/60 hover:text-brown transition-colors"

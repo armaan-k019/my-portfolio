@@ -244,25 +244,45 @@ function makeLocation(
 // ─── External fetches ─────────────────────────────────────────────────────────
 
 async function fetchBuses(): Promise<Bus[]> {
-  const res = await fetch('https://feeds.transloc.com/3/vehicle_statuses?agencies=1413', {
-    headers: { 'Accept': 'application/json' },
-    next: { revalidate: 0 },
-  });
-  if (!res.ok) return [];
+  // Passio GO API — GT system ID 109
+  // Falls back to empty array on any error so the rest of the page still loads.
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(
+      'https://passiogo.com/mapGetData.php?getVehicles=1&systemId=109',
+      { signal: controller.signal, next: { revalidate: 0 } }
+    );
+    clearTimeout(id);
+    if (!res.ok) return [];
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data = await res.json() as any;
-  const vehicles = data?.vehicles ?? data?.vehicle_statuses ?? [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = await res.json() as any;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return vehicles.map((v: any): Bus => ({
-    id:        String(v.vehicle_id ?? v.id ?? Math.random()),
-    lat:       Number(v.position?.lat ?? v.lat ?? 0),
-    lng:       Number(v.position?.lng ?? v.lng ?? 0),
-    routeId:   String(v.route_id ?? ''),
-    routeName: String(v.call_name ?? v.route_name ?? 'Stinger'),
-    heading:   Number(v.heading ?? 0),
-  })).filter((b: Bus) => b.lat !== 0 && b.lng !== 0);
+    // Passio GO returns vehicles as an object keyed by vehicle ID, or as an array
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let vehicleList: any[] = [];
+    if (Array.isArray(data?.vehicles)) {
+      vehicleList = data.vehicles;
+    } else if (data?.vehicles && typeof data.vehicles === 'object') {
+      vehicleList = Object.values(data.vehicles);
+    } else if (Array.isArray(data)) {
+      vehicleList = data;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return vehicleList.map((v: any): Bus => ({
+      id:        String(v.id ?? v.vehicleId ?? Math.random()),
+      lat:       Number(v.latitude  ?? v.lat ?? 0),
+      lng:       Number(v.longitude ?? v.lng ?? 0),
+      routeId:   String(v.routeId ?? v.route_id ?? ''),
+      routeName: String(v.routeName ?? v.route_name ?? v.name ?? 'Stinger'),
+      heading:   Number(v.heading ?? v.course ?? 0),
+    })).filter((b: Bus) => b.lat !== 0 && b.lng !== 0);
+  } catch {
+    clearTimeout(id);
+    return [];
+  }
 }
 
 async function fetchWeather(): Promise<Weather> {

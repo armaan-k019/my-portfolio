@@ -17,7 +17,7 @@ declare global {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const GT_CENTER = { lat: 33.7756, lng: -84.3963 };
-const GT_ZOOM   = 15;
+const GT_ZOOM   = 16;
 const POLL_MS   = 10_000;
 
 const ROUTE_COLORS: Record<string, string> = {
@@ -241,6 +241,8 @@ export default function PulsePage() {
   const circlesRef      = useRef<any[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const busMarkersRef   = useRef<Map<string, any>>(new Map());
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const locationMarkersRef = useRef<any[]>([]);
   const circleAnimRef   = useRef<number>(0);
   const particleAnimRef = useRef<number>(0);
   const pollRef         = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -365,6 +367,38 @@ export default function PulsePage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, showHeatmap, mapsLoaded]);
+
+  // ── Location pin markers ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!mapRef.current || !data || !window.google?.maps) return;
+
+    // Remove old markers
+    locationMarkersRef.current.forEach(m => m.setMap(null));
+    locationMarkersRef.current = [];
+
+    locationMarkersRef.current = data.locations.map(loc => {
+      const color = busynessHex(loc.busyness);
+      const svgPin = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="30" viewBox="0 0 24 30">
+        <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 18 12 18s12-9 12-18C24 5.373 18.627 0 12 0z" fill="${color}" stroke="white" stroke-width="1.5"/>
+        <circle cx="12" cy="12" r="4.5" fill="white" opacity="0.9"/>
+      </svg>`;
+      const iconUrl = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgPin)}`;
+      const marker = new window.google.maps.Marker({
+        position: { lat: loc.lat, lng: loc.lng },
+        map: mapRef.current,
+        icon: {
+          url: iconUrl,
+          scaledSize: new window.google.maps.Size(24, 30),
+          anchor: new window.google.maps.Point(12, 30),
+        },
+        title: loc.name,
+        zIndex: 5,
+      });
+      marker.addListener('click', () => setSelectedLoc(loc));
+      return marker;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, mapsLoaded]);
 
   // ── Pulsing circles layer ─────────────────────────────────────────────────
   useEffect(() => {
@@ -589,6 +623,7 @@ export default function PulsePage() {
       if (tickRef.current) clearInterval(tickRef.current);
       cancelAnimationFrame(circleAnimRef.current);
       cancelAnimationFrame(particleAnimRef.current);
+      locationMarkersRef.current.forEach(m => m.setMap(null));
     };
   }, []);
 
@@ -629,7 +664,7 @@ export default function PulsePage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#0a0c10] text-white flex flex-col font-sans">
+    <div className="h-screen bg-[#0a0c10] text-white flex flex-col font-sans overflow-hidden">
 
       {/* ── Top status bar ──────────────────────────────────────────────────── */}
       <header className="flex items-center gap-4 px-5 py-2.5 bg-[#111318] border-b border-white/[0.06] text-xs select-none shrink-0 flex-wrap">

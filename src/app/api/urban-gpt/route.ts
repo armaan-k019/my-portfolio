@@ -717,6 +717,10 @@ async function fetchAIInsights(
 
 export async function POST(request: Request) {
   try {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      console.error('[urban-gpt] Missing ANTHROPIC_API_KEY env var');
+      return Response.json({ error: 'Server misconfiguration: ANTHROPIC_API_KEY is not set. Add it to Vercel → Settings → Environment Variables.' }, { status: 500 });
+    }
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const body = (await request.json()) as {
       lat: number;

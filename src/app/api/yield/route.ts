@@ -45,7 +45,12 @@ export interface Suggestion {
 async function fetchTickerData(ticker: string, shares: number): Promise<TickerData> {
   const sym = ticker.toUpperCase();
   try {
-    const quote = await yf.quote(sym);
+    const quote = await Promise.race([
+      yf.quote(sym),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 8000)
+      ),
+    ]);
     const price = quote.regularMarketPrice ?? 0;
     const dayChangePercent = quote.regularMarketChangePercent ?? 0;
     const name = quote.longName ?? quote.shortName ?? sym;
