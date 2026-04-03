@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -300,6 +300,256 @@ function ChartLegend() {
   );
 }
 
+// ─── Projection Chart data ───────────────────────────────────────────────────────
+
+const PROJ_MONTHS = ["Oct","Nov","Dec","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep"];
+const ACTUAL_COUNT = 6;
+
+const ACTUAL_SAAS  = [1803, 1943, 2176, 2335, 2611, 2811];
+const ACTUAL_INFRA = [7410, 8110, 7680, 8630, 8500, 8900];
+const ACTUAL_MISC  = [3032, 2994, 3103, 3029, 3059, 3030];
+const PROJ_SAAS    = [3120, 3463, 3844, 4267, 4736, 5257];
+const PROJ_INFRA   = [9327, 9775, 10244, 10736, 11251, 11791];
+const PROJ_MISC    = [3030, 3030, 3030, 3030, 3030, 3030];
+
+// ─── Projection Chart ────────────────────────────────────────────────────────────
+
+function ProjectionChart() {
+  const width  = 700;
+  const height = 220;
+  const padL   = 52;
+  const padR   = 20;
+  const padT   = 20;
+  const padB   = 36;
+  const plotW  = width  - padL - padR;
+  const plotH  = height - padT - padB;
+  const n      = 12;
+
+  const allVals = [...ACTUAL_SAAS, ...ACTUAL_INFRA, ...ACTUAL_MISC,
+                   ...PROJ_SAAS,   ...PROJ_INFRA,   ...PROJ_MISC];
+  const maxVal  = Math.max(...allVals) * 1.1;
+
+  const xp = (i: number) => padL + (i / (n - 1)) * plotW;
+  const yp = (v: number) => padT + plotH - (v / maxVal) * plotH;
+  const todayX = (xp(ACTUAL_COUNT - 1) + xp(ACTUAL_COUNT)) / 2;
+
+  const yTicks = [0, 3000, 6000, 9000, 12000].filter((v) => v <= maxVal * 1.05);
+
+  const linePts = (vals: number[], offset = 0) =>
+    vals.map((v, i) => `${xp(i + offset)},${yp(v)}`).join(" ");
+
+  const cats = ["SaaS", "Infrastructure", "Misc"] as const;
+  const actualData: Record<string, number[]> = { SaaS: ACTUAL_SAAS, Infrastructure: ACTUAL_INFRA, Misc: ACTUAL_MISC };
+  const projData:   Record<string, number[]> = { SaaS: PROJ_SAAS,   Infrastructure: PROJ_INFRA,   Misc: PROJ_MISC   };
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="w-full" style={{ maxHeight: 220 }}
+      aria-label="Projected monthly spend by category">
+      {/* Y grid */}
+      {yTicks.map((v) => (
+        <g key={v}>
+          <line x1={padL} y1={yp(v)} x2={width - padR} y2={yp(v)}
+            stroke="rgba(44,24,16,0.06)" strokeWidth={1} />
+          <text x={padL - 6} y={yp(v) + 4} textAnchor="end" fontSize={9} fill="rgba(108,82,68,0.55)">
+            {v >= 1000 ? `${v / 1000}k` : v}
+          </text>
+        </g>
+      ))}
+
+      {/* Projected area shading */}
+      <rect x={todayX} y={padT} width={width - padR - todayX} height={plotH}
+        fill="rgba(44,24,16,0.025)" />
+
+      {/* Today divider */}
+      <line x1={todayX} y1={padT} x2={todayX} y2={padT + plotH}
+        stroke="rgba(44,24,16,0.25)" strokeWidth={1} strokeDasharray="3,2" />
+      <text x={todayX + 4} y={padT + 11} fontSize={8} fill="rgba(44,24,16,0.5)" fontStyle="italic">
+        Today →
+      </text>
+
+      {/* Actual lines (solid) */}
+      {cats.map((cat) => (
+        <polyline key={`act-${cat}`} points={linePts(actualData[cat])}
+          fill="none" stroke={CATEGORY_COLORS[cat]} strokeWidth={2}
+          strokeLinejoin="round" strokeLinecap="round" opacity={0.9} />
+      ))}
+
+      {/* Projected lines (dashed) — start from last actual point for continuity */}
+      {cats.map((cat) => {
+        const pts = [actualData[cat][ACTUAL_COUNT - 1], ...projData[cat]]
+          .map((v, i) => `${xp(ACTUAL_COUNT - 1 + i)},${yp(v)}`).join(" ");
+        return (
+          <polyline key={`proj-${cat}`} points={pts}
+            fill="none" stroke={CATEGORY_COLORS[cat]} strokeWidth={2}
+            strokeLinejoin="round" strokeLinecap="round"
+            strokeDasharray="5,3" opacity={0.65} />
+        );
+      })}
+
+      {/* Actual dots (solid) */}
+      {cats.map((cat) =>
+        actualData[cat].map((v, i) => (
+          <circle key={`act-dot-${cat}-${i}`} cx={xp(i)} cy={yp(v)} r={3}
+            fill={CATEGORY_COLORS[cat]} opacity={0.95} />
+        ))
+      )}
+
+      {/* Projected dots (hollow) */}
+      {cats.map((cat) =>
+        projData[cat].map((v, i) => (
+          <circle key={`proj-dot-${cat}-${i}`} cx={xp(ACTUAL_COUNT + i)} cy={yp(v)} r={2.5}
+            fill="white" stroke={CATEGORY_COLORS[cat]} strokeWidth={1.5} opacity={0.8} />
+        ))
+      )}
+
+      {/* Month labels */}
+      {PROJ_MONTHS.map((m, i) => (
+        <text key={m} x={xp(i)} y={height - 6} textAnchor="middle" fontSize={8}
+          fill={i >= ACTUAL_COUNT ? "rgba(108,82,68,0.4)" : "rgba(108,82,68,0.65)"}>
+          {m}
+        </text>
+      ))}
+
+      {/* Sep SaaS endpoint annotation */}
+      <text x={xp(11) - 3} y={yp(PROJ_SAAS[5]) - 7}
+        fontSize={9} textAnchor="end" fill={CATEGORY_COLORS["SaaS"]} fontWeight="600">
+        $5,257 / mo
+      </text>
+    </svg>
+  );
+}
+
+// ─── Health Scorecard ─────────────────────────────────────────────────────────────
+
+function HealthScorecard() {
+  const score = 67;
+  const grade = score >= 80 ? "B" : score >= 60 ? "C" : "D";
+  const accentColor = score >= 80 ? "#10b981" : score >= 60 ? "#B8952A" : "#ef4444";
+  const borderBg = score >= 80
+    ? "border-emerald-200 bg-emerald-50"
+    : score >= 60
+    ? "border-amber-200 bg-amber-50"
+    : "border-red-200 bg-red-50";
+
+  const bars = [
+    { label: "SaaS Efficiency",      fill: 0.18, status: "HIGH RISK",    color: "#ef4444" },
+    { label: "Vendor Reliability",   fill: 0.45, status: "MEDIUM RISK",  color: "#B8952A" },
+    { label: "Subscription Hygiene", fill: 0.40, status: "MEDIUM RISK",  color: "#B8952A" },
+    { label: "Payroll Stability",    fill: 1.00, status: "HEALTHY",      color: "#10b981" },
+  ];
+
+  return (
+    <div className={`rounded-xl border p-5 shadow-sm mb-4 ${borderBg}`}>
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-[#9A8070] mb-1">
+            Spend Health Score
+          </h3>
+          <p className="text-[10px] text-[#9A8070]">Calculated from 6 months of transaction data</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-4xl font-bold leading-none" style={{ color: accentColor }}>
+            {score}
+          </span>
+          <span
+            className="text-base font-bold px-2.5 py-1 rounded-lg text-white leading-none"
+            style={{ backgroundColor: accentColor }}
+          >
+            {grade}
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-2.5">
+        {bars.map((bar) => (
+          <div key={bar.label} className="flex items-center gap-3">
+            <span className="text-[11px] text-[#6B5244] w-40 shrink-0">{bar.label}</span>
+            <div className="flex-1 h-1.5 rounded-full bg-[#2C1810]/[0.08] overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{ width: `${bar.fill * 100}%`, backgroundColor: bar.color }}
+              />
+            </div>
+            <span
+              className="text-[9px] font-semibold uppercase tracking-wide w-24 text-right shrink-0"
+              style={{ color: bar.color }}
+            >
+              {bar.status}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <p className="text-[10px] text-[#9A8070] mt-3 italic">
+        Score updates automatically when new transactions are analyzed.
+      </p>
+    </div>
+  );
+}
+
+// ─── Benchmark Table ──────────────────────────────────────────────────────────────
+
+function BenchmarkTable() {
+  const rows = [
+    { metric: "SaaS % of burn",      company: "18%", seriesA: "12%", seriesB: "15%", cmp: "worse"   },
+    { metric: "MoM SaaS growth",     company: "11%", seriesA: "4%",  seriesB: "6%",  cmp: "worse"   },
+    { metric: "Infra % of burn",     company: "9%",  seriesA: "8%",  seriesB: "10%", cmp: "between" },
+    { metric: "Payroll % of burn",   company: "60%", seriesA: "65%", seriesB: "58%", cmp: "between" },
+  ];
+
+  function cellStyle(cmp: string): React.CSSProperties {
+    if (cmp === "worse")  return { backgroundColor: "#FEF2F2", color: "#991B1B" };
+    if (cmp === "better") return { backgroundColor: "#ECFDF5", color: "#065F46" };
+    return { backgroundColor: "#FFFBEB", color: "#92400E" };
+  }
+
+  const saasMultiple = (11 / 4).toFixed(2);
+
+  return (
+    <div className="mt-6">
+      <h3 className="text-xs font-semibold uppercase tracking-widest text-[#9A8070] mb-3">
+        How does this compare?
+      </h3>
+      <div className="rounded-xl border border-[#2C1810]/[0.08] overflow-hidden shadow-sm">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-[#2C1810]/[0.03] border-b border-[#2C1810]/[0.08]">
+              <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-[#9A8070] w-[32%]">
+                Metric
+              </th>
+              <th className="text-center px-3 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-[#9A8070]">
+                This Company
+              </th>
+              <th className="text-center px-3 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-[#9A8070]">
+                Series A Avg
+              </th>
+              <th className="text-center px-3 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-[#9A8070]">
+                Series B Avg
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#2C1810]/[0.05]">
+            {rows.map((row) => (
+              <tr key={row.metric} className="bg-white">
+                <td className="px-4 py-2.5 text-xs text-[#2C1810] font-medium">{row.metric}</td>
+                <td className="px-3 py-2.5 text-center text-xs font-semibold" style={cellStyle(row.cmp)}>
+                  {row.company}
+                </td>
+                <td className="px-3 py-2.5 text-center text-xs text-[#6B5244]">{row.seriesA}</td>
+                <td className="px-3 py-2.5 text-center text-xs text-[#6B5244]">{row.seriesB}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-[10px] text-[#9A8070] mt-3 leading-relaxed">
+        Benchmarks based on Rho platform aggregates across 500+ startups.
+        This company&apos;s SaaS growth rate is {saasMultiple}x the Series A average.
+      </p>
+    </div>
+  );
+}
+
 // ─── Severity badge ─────────────────────────────────────────────────────────────
 
 function SeverityBadge({ severity }: { severity: DriftSignal["severity"] }) {
@@ -437,11 +687,37 @@ export default function DriftDetectionPage() {
     [signals],
   );
 
+  const [execSummary,    setExecSummary]    = useState<string | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError,   setSummaryError]   = useState<string | null>(null);
+
+  // Fetch executive summary automatically when signals are detected
+  useEffect(() => {
+    if (signals.length === 0) return;
+    setSummaryLoading(true);
+    setExecSummary(null);
+    setSummaryError(null);
+    fetch("/api/drift-summary", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ signals }),
+    })
+      .then((r) => r.json() as Promise<{ summary?: string; error?: string }>)
+      .then((data) => {
+        if (data.summary) setExecSummary(data.summary);
+        else setSummaryError(data.error ?? "Summary unavailable.");
+      })
+      .catch(() => setSummaryError("Network error."))
+      .finally(() => setSummaryLoading(false));
+  }, [signals]);
+
   async function handleDetect() {
     setAnalyzing(true);
     setError(null);
     setSignals([]);
     setAnalyzed(false);
+    setExecSummary(null);
+    setSummaryError(null);
     try {
       const res = await fetch("/api/drift-detect", {
         method: "POST",
@@ -725,6 +1001,44 @@ export default function DriftDetectionPage() {
               </div>
             </div>
 
+            {/* Spend Projection Chart */}
+            <div className="rounded-xl border border-[#2C1810]/[0.08] bg-white p-5 shadow-sm mb-4">
+              <p className="text-xs font-medium text-[#2C1810] mb-1">
+                At current drift rates, here is where spend is heading
+              </p>
+              <p style={{ fontSize: 11, fontStyle: "italic", color: "#9A8070", marginBottom: 10 }}>
+                Solid lines = actual · Dashed lines = projected
+              </p>
+              <ProjectionChart />
+              <ChartLegend />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-[#2C1810]/[0.06]">
+                <div className="text-center">
+                  <p className="text-[10px] text-[#9A8070] uppercase tracking-wide mb-1.5">
+                    Projected SaaS spend by Sep 2025
+                  </p>
+                  <p className="text-2xl font-bold" style={{ color: "#B8952A" }}>
+                    $5,257<span className="text-sm font-normal"> / mo</span>
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] text-[#9A8070] uppercase tracking-wide mb-1.5">
+                    vs. today
+                  </p>
+                  <p className="text-2xl font-bold text-[#2C1810]">
+                    +$2,446<span className="text-sm font-normal"> / month</span>
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] text-[#9A8070] uppercase tracking-wide mb-1.5">
+                    Annualized overspend if unaddressed
+                  </p>
+                  <p className="text-2xl font-bold text-red-600">
+                    $13,869<span className="text-sm font-normal"> cumulative</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Filter pills */}
             <div className="flex flex-wrap gap-2 mb-3">
               {CATEGORIES.map((cat) => (
@@ -783,6 +1097,8 @@ export default function DriftDetectionPage() {
               </div>
             </div>
 
+            <HealthScorecard />
+
             {/* Detect button */}
             <button
               onClick={handleDetect}
@@ -821,6 +1137,43 @@ export default function DriftDetectionPage() {
                 ))}
               </div>
             )}
+
+            {/* Executive Summary */}
+            {!analyzing && signals.length > 0 && (
+              <div className="mt-4 rounded-xl border border-[#2C1810]/[0.08] bg-white p-5 shadow-sm"
+                style={{ animation: "fadeSlideIn 0.4s ease forwards 400ms", opacity: 0 }}>
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-[#2C1810]">Executive Summary</h3>
+                    <p className="text-[10px] text-[#9A8070] mt-0.5">
+                      Generated from 6 months of transaction data
+                    </p>
+                  </div>
+                  <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#6C47FF]/10 text-[#6C47FF] border border-[#6C47FF]/20 font-semibold uppercase tracking-wide whitespace-nowrap ml-3">
+                    AI generated
+                  </span>
+                </div>
+                {summaryLoading ? (
+                  <div className="space-y-2 animate-pulse">
+                    {[1, 0.9, 1, 0.8, 1, 0.7].map((w, i) => (
+                      <div key={i} className={`h-3 bg-[#2C1810]/[0.05] rounded ${i === 2 || i === 4 ? "mt-3" : ""}`}
+                        style={{ width: `${w * 100}%` }} />
+                    ))}
+                  </div>
+                ) : execSummary ? (
+                  <div className="space-y-3">
+                    {execSummary.split("\n\n").filter((p) => p.trim()).map((para, i) => (
+                      <p key={i} className="text-sm text-[#6B5244] leading-relaxed">{para.trim()}</p>
+                    ))}
+                  </div>
+                ) : summaryError ? (
+                  <p className="text-sm text-[#9A8070] italic">Summary unavailable.</p>
+                ) : null}
+              </div>
+            )}
+
+            {/* Benchmark comparison */}
+            {!analyzing && signals.length > 0 && <BenchmarkTable />}
           </section>
 
         </div>
