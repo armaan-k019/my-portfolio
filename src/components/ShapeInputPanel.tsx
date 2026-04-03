@@ -509,7 +509,7 @@ export default function ShapeInputPanel({
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`flex-1 py-2 text-xs font-medium transition-colors ${
+              className={`flex-1 py-2 text-xs font-medium transition-colors focus:outline-none ${
                 tab === t
                   ? 'bg-white text-[#FF6B35] border-b-2 border-[#FF6B35]'
                   : 'text-[#6B6054] hover:text-[#2C1810]'
@@ -576,7 +576,7 @@ export default function ShapeInputPanel({
                     onRoomChange(shape);
                     setLocalVertices(shape.vertices);
                   }}
-                  className="flex-1 py-1.5 rounded-lg border border-[#E8E0D4] text-xs text-[#6B6054] hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors"
+                  className="flex-1 py-1.5 rounded-lg border border-[#E8E0D4] text-xs text-[#6B6054] hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors focus:outline-none"
                 >
                   Reset
                 </button>
@@ -597,7 +597,7 @@ export default function ShapeInputPanel({
             onRoomChange(shape);
             setLocalVertices(shape.vertices);
           }}
-          className="w-full py-1.5 rounded-lg border border-[#E8E0D4] text-xs text-[#6B6054] hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors bg-white/80"
+          className="w-full py-1.5 rounded-lg border border-[#E8E0D4] text-xs text-[#6B6054] hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors bg-white/80 focus:outline-none"
         >
           Reset to Default Room
         </button>
