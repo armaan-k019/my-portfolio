@@ -99,6 +99,11 @@ export interface UrbanAnalysisResult {
   overpassError?: boolean;
 }
 
+// ─── Server-side cache ────────────────────────────────────────────────────────
+
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const cache = new Map<string, { result: UrbanAnalysisResult; expiresAt: number }>();
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function fetchWithTimeout(
@@ -304,7 +309,7 @@ async function fetchCensusData(lat: number, lng: number): Promise<CensusData> {
   let tractName = "";
 
   try {
-    const geoRes = await fetchWithTimeout(geocoderUrl, {}, 20000);
+    const geoRes = await fetchWithTimeout(geocoderUrl, {}, 8000);
     const geoText = await geoRes.text();
     console.log(`[urban-gpt] Geocoder response: ${geoText}`);
 
@@ -348,7 +353,7 @@ async function fetchCensusData(lat: number, lng: number): Promise<CensusData> {
   console.log(`[urban-gpt] ACS URL: ${acsUrl}`);
 
   try {
-    const acsRes = await fetchWithTimeout(acsUrl, {}, 20000);
+    const acsRes = await fetchWithTimeout(acsUrl, {}, 8000);
     const acsText = await acsRes.text();
     console.log(`[urban-gpt] ACS raw (first 600): ${acsText.slice(0, 600)}`);
 
@@ -393,7 +398,7 @@ async function fetchCensusCountyFallback(
   console.log(`[urban-gpt] County fallback ACS URL: ${url}`);
 
   try {
-    const res = await fetchWithTimeout(url, {}, 20000);
+    const res = await fetchWithTimeout(url, {}, 8000);
     const text = await res.text();
     console.log(`[urban-gpt] County ACS raw (first 400): ${text.slice(0, 400)}`);
 
@@ -497,7 +502,7 @@ out center;`;
 
   for (const [i, endpoint] of OVERPASS_ENDPOINTS.entries()) {
     console.log(`[urban-gpt] Trying Overpass: ${endpoint} radius=${R}m`);
-    const timeoutMs = i === 0 ? 20000 : 12000; // first endpoint gets 20s, fallback gets 12s
+    const timeoutMs = i === 0 ? 8000 : 6000; // first endpoint gets 8s, fallback gets 6s
     try {
       const res = await fetchWithTimeout(endpoint, fetchOptions, timeoutMs);
       if (!res.ok) {
@@ -736,6 +741,14 @@ export async function POST(request: Request) {
       return Response.json({ error: "Missing required parameters." }, { status: 400 });
     }
 
+    // Cache lookup
+    const cacheKey = `${address}:${radiusM}`;
+    const cached = cache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      console.log(`[urban-gpt] Cache HIT for "${cacheKey}"`);
+      return Response.json(cached.result);
+    }
+
     console.log(`[urban-gpt] POST → address="${address}" lat=${lat} lng=${lng} radius=${radiusM}m unit=${unit}`);
 
     const [census, overpassResult, temp] = await Promise.all([
@@ -756,6 +769,8 @@ export async function POST(request: Request) {
       census, computed, overpass: overpassResult.data,
       scores, ai, overpassError: overpassResult.error,
     };
+
+    cache.set(cacheKey, { result, expiresAt: Date.now() + CACHE_TTL_MS });
 
     return Response.json(result);
   } catch (err) {

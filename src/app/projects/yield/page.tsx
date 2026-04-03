@@ -96,7 +96,6 @@ export default function YieldPage() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [tickerData, setTickerData] = useState<TickerData[]>([]);
   const [totalValue, setTotalValue] = useState(0);
-  const [failureBannerDismissed, setFailureBannerDismissed] = useState(false);
 
   const [searchResults, setSearchResults] = useState<{ ticker: string; name: string }[]>([]);
   const [searching, setSearching] = useState(false);
@@ -129,7 +128,7 @@ export default function YieldPage() {
       if (val.trim().length < 2) { setSearchResults([]); return; }
       setSearching(true);
       try {
-        const res = await fetch(`/api/yield?search=${encodeURIComponent(val.trim())}`);
+        const res = await fetch(`/api/search-ticker?q=${encodeURIComponent(val.trim())}`);
         const data = await res.json();
         setSearchResults(data.results || []);
       } catch {
@@ -159,17 +158,17 @@ export default function YieldPage() {
     const qty = parseFloat(shares);
     if (!raw || isNaN(qty) || qty <= 0) return;
 
-    // Resolve company name → ticker symbol (Yahoo Finance style: default to top result)
+    // Resolve company name → ticker symbol
     let sym = raw.toUpperCase();
     if (!looksLikeTicker(sym) && !tickerConfirmedRef.current) {
-      if (searchResults.length > 0) {
-        // Auto-select the top search result, same as pressing Enter in Yahoo Finance
-        sym = searchResults[0].ticker;
-      } else if (searching) {
+      if (searching) {
         setError("Still searching for that company. Try again in a moment.");
         return;
+      } else if (searchResults.length > 0) {
+        // Auto-select top result if user hasn't picked one
+        sym = searchResults[0].ticker;
       } else {
-        setError(`"${raw}" doesn't look like a ticker. Type a company name and select from the dropdown, or enter the ticker directly.`);
+        setError(`"${raw}" could not be found as a public stock.`);
         return;
       }
     }
@@ -254,7 +253,6 @@ export default function YieldPage() {
     setGrades(null);
     setSuggestions([]);
     setTickerData([]);
-    setFailureBannerDismissed(false);
 
     try {
       const res = await fetch("/api/yield", {
@@ -506,24 +504,6 @@ export default function YieldPage() {
             transition={{ duration: 0.4 }}
             className="mt-12"
           >
-            {/* Failure banner */}
-            {failedTickers.length > 0 && !failureBannerDismissed && (
-              <div className="mb-4 flex items-start justify-between gap-3 p-3 rounded-lg bg-tan/10 border border-tan/30 text-xs text-brown-light">
-                <span>
-                  ⚠ {failedTickers.length === 1
-                    ? `${failedTickers[0].ticker} could not be fetched and was excluded.`
-                    : `${failedTickers.map(t => t.ticker).join(", ")} could not be fetched and were excluded from analysis.`}
-                  {" "}These may be private companies or invalid symbols.
-                </span>
-                <button
-                  onClick={() => setFailureBannerDismissed(true)}
-                  className="shrink-0 text-brown-light/60 hover:text-brown transition-colors"
-                >
-                  ✕
-                </button>
-              </div>
-            )}
-
             {/* Report card header */}
             <div className="rounded-xl border border-tan/40 bg-cream-dark/30 overflow-hidden">
               <div className="bg-darkblue px-6 py-5 flex items-center justify-between">

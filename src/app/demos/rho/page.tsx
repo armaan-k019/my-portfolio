@@ -516,6 +516,120 @@ export default function DriftDetectionPage() {
             </div>
           </section>
 
+          {/* ── Section 2.5: What changes ────────────────────────────────── */}
+          <section className="mb-10">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-[#9A8070] mb-3">
+              What changes
+            </h2>
+
+            {/* Desktop table */}
+            <div className="hidden sm:block rounded-xl border border-[#2C1810]/[0.08] overflow-hidden shadow-sm text-sm">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-[#2C1810]/[0.04] border-b border-[#2C1810]/[0.08]">
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-[#9A8070] w-[28%]">Feature</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-[#9A8070] w-[36%]">Without Drift Detection</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-[#9A8070] w-[36%]">With Drift Detection</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#2C1810]/[0.06]">
+                  {[
+                    {
+                      feature: "Spend visibility",
+                      without: "Transaction list - amounts and dates only",
+                      with: "Trend analysis across 6 months per vendor",
+                    },
+                    {
+                      feature: "SaaS creep",
+                      without: "Invisible - looks normal month to month",
+                      with: "Flagged when category grows >8% MoM",
+                    },
+                    {
+                      feature: "Vendor anomalies",
+                      without: "No way to spot inconsistent billing",
+                      with: "Variance detected and surfaced automatically",
+                    },
+                    {
+                      feature: "Forgotten subscriptions",
+                      without: "Recurring charges go unnoticed indefinitely",
+                      with: "Flat recurring charges with no usage correlation flagged at low severity",
+                    },
+                    {
+                      feature: "CFO time",
+                      without: "Manual review of every line item",
+                      with: "AI surfaces only what needs attention",
+                    },
+                    {
+                      feature: "Data required",
+                      without: "Works with any bank",
+                      with: "Uniquely possible with Rho's unified cards + AP + banking data in one place",
+                    },
+                  ].map((row) => (
+                    <tr key={row.feature} className="bg-white">
+                      <td className="px-4 py-3 text-xs font-semibold text-[#2C1810]">{row.feature}</td>
+                      <td className="px-4 py-3 text-xs text-[#9A8070] bg-red-50/50">{row.without}</td>
+                      <td className="px-4 py-3 text-xs text-[#2C1810] bg-emerald-50/50">
+                        <span className="text-emerald-600 mr-1.5">&#10003;</span>{row.with}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile stacked cards */}
+            <div className="sm:hidden flex flex-col gap-3">
+              {[
+                {
+                  feature: "Spend visibility",
+                  without: "Transaction list - amounts and dates only",
+                  with: "Trend analysis across 6 months per vendor",
+                },
+                {
+                  feature: "SaaS creep",
+                  without: "Invisible - looks normal month to month",
+                  with: "Flagged when category grows >8% MoM",
+                },
+                {
+                  feature: "Vendor anomalies",
+                  without: "No way to spot inconsistent billing",
+                  with: "Variance detected and surfaced automatically",
+                },
+                {
+                  feature: "Forgotten subscriptions",
+                  without: "Recurring charges go unnoticed indefinitely",
+                  with: "Flat recurring charges with no usage correlation flagged at low severity",
+                },
+                {
+                  feature: "CFO time",
+                  without: "Manual review of every line item",
+                  with: "AI surfaces only what needs attention",
+                },
+                {
+                  feature: "Data required",
+                  without: "Works with any bank",
+                  with: "Uniquely possible with Rho's unified cards + AP + banking data in one place",
+                },
+              ].map((row) => (
+                <div key={row.feature} className="rounded-xl border border-[#2C1810]/[0.08] bg-white overflow-hidden shadow-sm">
+                  <div className="px-4 py-2.5 border-b border-[#2C1810]/[0.06]">
+                    <span className="text-xs font-semibold text-[#2C1810]">{row.feature}</span>
+                  </div>
+                  <div className="grid grid-cols-2 divide-x divide-[#2C1810]/[0.06]">
+                    <div className="px-3 py-2.5 bg-red-50/50">
+                      <p className="text-[9px] font-semibold uppercase tracking-widest text-[#9A8070] mb-1">Without</p>
+                      <p className="text-xs text-[#9A8070]">{row.without}</p>
+                    </div>
+                    <div className="px-3 py-2.5 bg-emerald-50/50">
+                      <p className="text-[9px] font-semibold uppercase tracking-widest text-emerald-600 mb-1">With</p>
+                      <p className="text-xs text-[#2C1810]"><span className="text-emerald-600 mr-1">&#10003;</span>{row.with}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
           {/* ── Section 3: Try it ─────────────────────────────────────────── */}
           <section>
             <h2 className="text-xs font-semibold uppercase tracking-widest text-[#9A8070] mb-1">

@@ -7,6 +7,32 @@ import { marked } from "marked";
 
 type Persona = "sales" | "product" | "executive" | null;
 type QueryType = "TARGETED_QUERY" | "TEMPORAL_SUMMARY" | "MARKET_DISCOVERY" | "GENERAL_CHAT" | "OBJECTION_HANDLING";
+type AppTab = "chat" | "battlecards";
+
+interface BattlecardFeatureComparison { feature: string; jeeves: string; competitor: string; }
+interface BattlecardObjectionScript { objection: string; response: string; }
+interface RecentIntelligenceItem { date: string; summary: string; sourceUrl: string; sourceType: string; isEstimated: boolean; }
+interface BattlecardSections {
+  companyOverview: string;
+  whyWeWin: string[];
+  whyWeLose: string[];
+  keyFeaturesComparison: BattlecardFeatureComparison[];
+  pricing: string;
+  landmines: string[];
+  objectionHandling: BattlecardObjectionScript[];
+  thirdPartyValidation: string[];
+  relevantCustomers: string[];
+  sources: string[];
+  recentIntelligence?: RecentIntelligenceItem[];
+  hiringSignals?: string[];
+}
+interface Battlecard {
+  competitor: string;
+  type: string;
+  lastSynced: string;
+  sections: BattlecardSections;
+  dataFreshness?: { liveDataUsed: boolean; scrapeDate: string };
+}
 
 interface ChatResponse {
   reply: string;
@@ -65,6 +91,7 @@ function renderMarkdown(text: string): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function JeevesPage() {
+  const [appTab, setAppTab] = useState<AppTab>("chat");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -73,6 +100,14 @@ export default function JeevesPage() {
   const [statusText, setStatusText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Battlecard state
+  const [competitors, setCompetitors] = useState<string[]>([]);
+  const [selectedCompetitor, setSelectedCompetitor] = useState<string | null>(null);
+  const [battlecard, setBattlecard] = useState<Battlecard | null>(null);
+  const [battlecardLoading, setBattlecardLoading] = useState(false);
+  const [battlecardError, setBattlecardError] = useState("");
+  const [bcSection, setBcSection] = useState<string>("overview");
 
   // Initialize session
   useEffect(() => {
@@ -97,6 +132,12 @@ export default function JeevesPage() {
           sessionStorage.setItem("jeeves_session_id", id);
         });
     }
+
+    // Load competitor list
+    fetch("/api/jeeves/competitors").then((r) => r.json()).then((d: string[]) => {
+      setCompetitors(d);
+      if (d.length > 0) setSelectedCompetitor(d[0]);
+    }).catch(() => {});
 
     // Welcome message
     setMessages([{
@@ -265,6 +306,23 @@ export default function JeevesPage() {
     setPersona(null);
   }, [sessionId]);
 
+  const fetchBattlecard = useCallback(async (competitor: string) => {
+    setBattlecardLoading(true);
+    setBattlecardError("");
+    setBattlecard(null);
+    try {
+      const res = await fetch(`/api/jeeves/battlecard/${encodeURIComponent(competitor)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json() as Battlecard;
+      setBattlecard(data);
+      setBcSection("overview");
+    } catch (err) {
+      setBattlecardError(err instanceof Error ? err.message : "Failed to generate battlecard");
+    } finally {
+      setBattlecardLoading(false);
+    }
+  }, []);
+
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -301,41 +359,245 @@ export default function JeevesPage() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          {personaLabel && (
+          {/* Tab switcher */}
+          <div style={{ display: "flex", background: "#1a1a1a", border: "1px solid #2a2520", borderRadius: "8px", padding: "3px", gap: "3px" }}>
+            {(["chat", "battlecards"] as AppTab[]).map((t) => (
+              <button key={t} onClick={() => setAppTab(t)} style={{
+                padding: "5px 12px", borderRadius: "5px", border: "none",
+                background: appTab === t ? "#C9A84C" : "transparent",
+                color: appTab === t ? "#0a0a0a" : "#7a7060",
+                fontSize: "11px", fontWeight: 600, cursor: "pointer", textTransform: "capitalize",
+                transition: "all 0.15s",
+              }}>{t}</button>
+            ))}
+          </div>
+          {appTab === "chat" && personaLabel && (
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{
-                padding: "4px 10px", background: "#C9A84C22", border: "1px solid #C9A84C55",
-                borderRadius: "6px", fontSize: "11px", color: "#C9A84C", fontWeight: 600,
-              }}>
+              <span style={{ padding: "4px 10px", background: "#C9A84C22", border: "1px solid #C9A84C55", borderRadius: "6px", fontSize: "11px", color: "#C9A84C", fontWeight: 600 }}>
                 {personaLabel}
               </span>
-              <button
-                onClick={handleResetPersona}
-                style={{
-                  background: "none", border: "1px solid #2a2520", borderRadius: "6px",
-                  color: "#7a7060", fontSize: "11px", padding: "4px 8px", cursor: "pointer",
-                }}
-                title="Switch persona"
-              >
+              <button onClick={handleResetPersona} style={{ background: "none", border: "1px solid #2a2520", borderRadius: "6px", color: "#7a7060", fontSize: "11px", padding: "4px 8px", cursor: "pointer" }}>
                 Switch
               </button>
             </div>
           )}
-          <div style={{
-            padding: "5px 12px", background: "#1a1a1a", border: "1px solid #2a2520",
-            borderRadius: "6px", fontSize: "11px", color: "#7a7060",
-          }}>
-            {isLoading ? (
-              <span style={{ color: "#C9A84C" }}>Processing...</span>
-            ) : (
-              <span>Ready</span>
-            )}
-          </div>
+          {appTab === "chat" && (
+            <div style={{ padding: "5px 12px", background: "#1a1a1a", border: "1px solid #2a2520", borderRadius: "6px", fontSize: "11px", color: "#7a7060" }}>
+              {isLoading ? <span style={{ color: "#C9A84C" }}>Processing...</span> : <span>Ready</span>}
+            </div>
+          )}
         </div>
       </header>
 
+      {/* ── Battlecards panel ──────────────────────────────────────────── */}
+      {appTab === "battlecards" && (
+        <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
+          {/* Competitor selector */}
+          <div style={{ padding: "16px 20px", borderBottom: "1px solid #2a2520", background: "#0d0d0d", display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "12px", color: "#7a7060", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Competitor</span>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              {competitors.map((c) => (
+                <button key={c} onClick={() => setSelectedCompetitor(c)} style={{
+                  padding: "6px 14px", borderRadius: "6px", border: "1px solid",
+                  borderColor: selectedCompetitor === c ? "#C9A84C" : "#2a2520",
+                  background: selectedCompetitor === c ? "#C9A84C22" : "#1a1a1a",
+                  color: selectedCompetitor === c ? "#C9A84C" : "#b5a98a",
+                  fontSize: "12px", fontWeight: 600, cursor: "pointer",
+                }}>{c}</button>
+              ))}
+            </div>
+            <button
+              onClick={() => selectedCompetitor && fetchBattlecard(selectedCompetitor)}
+              disabled={!selectedCompetitor || battlecardLoading}
+              style={{
+                marginLeft: "auto", padding: "7px 18px", borderRadius: "7px", border: "none",
+                background: !selectedCompetitor || battlecardLoading ? "#2a2520" : "#C9A84C",
+                color: !selectedCompetitor || battlecardLoading ? "#7a7060" : "#0a0a0a",
+                fontSize: "12px", fontWeight: 700, cursor: !selectedCompetitor || battlecardLoading ? "not-allowed" : "pointer",
+              }}
+            >{battlecardLoading ? "Generating..." : "Generate Battlecard"}</button>
+          </div>
+
+          {/* Loading state */}
+          {battlecardLoading && (
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px", color: "#7a7060" }}>
+              <div style={{ width: "36px", height: "36px", border: "3px solid #2a2520", borderTopColor: "#C9A84C", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+              <p style={{ fontSize: "13px", fontStyle: "italic" }}>Scraping live data and generating battlecard... (30-90s)</p>
+            </div>
+          )}
+
+          {/* Error state */}
+          {battlecardError && !battlecardLoading && (
+            <div style={{ padding: "20px", color: "#e05555", fontSize: "13px" }}>{battlecardError}</div>
+          )}
+
+          {/* Battlecard display */}
+          {battlecard && !battlecardLoading && (() => {
+            const s = battlecard.sections;
+            const SECTIONS = [
+              { id: "overview", label: "Overview" },
+              { id: "win-lose", label: "Win / Lose" },
+              { id: "features", label: "Features" },
+              { id: "pricing", label: "Pricing" },
+              { id: "objections", label: "Objections" },
+              { id: "landmines", label: "Landmines" },
+              { id: "intelligence", label: "Intelligence" },
+            ];
+            return (
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+                {/* Section nav */}
+                <div style={{ display: "flex", gap: "4px", padding: "12px 20px", background: "#0d0d0d", borderBottom: "1px solid #2a2520", overflowX: "auto", flexShrink: 0 }}>
+                  {SECTIONS.map((sec) => (
+                    <button key={sec.id} onClick={() => setBcSection(sec.id)} style={{
+                      padding: "5px 12px", borderRadius: "6px", border: "1px solid",
+                      borderColor: bcSection === sec.id ? "#C9A84C" : "#2a2520",
+                      background: bcSection === sec.id ? "#C9A84C22" : "transparent",
+                      color: bcSection === sec.id ? "#C9A84C" : "#7a7060",
+                      fontSize: "11px", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
+                    }}>{sec.label}</button>
+                  ))}
+                  <div style={{ marginLeft: "auto", fontSize: "10px", color: "#4a4035", display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+                    {battlecard.dataFreshness?.liveDataUsed && <span style={{ color: "#4a9" }}>Live data</span>}
+                    <span>Synced {new Date(battlecard.lastSynced).toLocaleTimeString()}</span>
+                  </div>
+                </div>
+
+                {/* Section content */}
+                <div style={{ flex: 1, overflowY: "auto", padding: "20px" }}>
+                  {bcSection === "overview" && (
+                    <div>
+                      <h2 style={{ color: "#C9A84C", fontSize: "16px", fontWeight: 700, marginBottom: "12px" }}>{battlecard.competitor}</h2>
+                      <p style={{ color: "#d4cfc5", lineHeight: "1.7", fontSize: "14px" }}>{s.companyOverview}</p>
+                    </div>
+                  )}
+
+                  {bcSection === "win-lose" && (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                      <div>
+                        <h3 style={{ color: "#4CAF50", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>Why We Win</h3>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                          {s.whyWeWin.map((item, i) => (
+                            <div key={i} style={{ background: "#1a2a1a", border: "1px solid #2a3a2a", borderRadius: "8px", padding: "10px 12px", fontSize: "13px", color: "#c5d4c5", lineHeight: "1.55" }}>{item}</div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <h3 style={{ color: "#e05555", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>Why We Lose</h3>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                          {s.whyWeLose.map((item, i) => (
+                            <div key={i} style={{ background: "#2a1a1a", border: "1px solid #3a2a2a", borderRadius: "8px", padding: "10px 12px", fontSize: "13px", color: "#d4c5c5", lineHeight: "1.55" }}>{item}</div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {bcSection === "features" && (
+                    <div>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                        <thead>
+                          <tr style={{ background: "#0a0a0a" }}>
+                            <th style={{ padding: "10px 12px", textAlign: "left", color: "#7a7060", fontSize: "11px", fontWeight: 600, textTransform: "uppercase", borderBottom: "1px solid #2a2520" }}>Feature</th>
+                            <th style={{ padding: "10px 12px", textAlign: "left", color: "#C9A84C", fontSize: "11px", fontWeight: 600, textTransform: "uppercase", borderBottom: "1px solid #2a2520" }}>Jeeves</th>
+                            <th style={{ padding: "10px 12px", textAlign: "left", color: "#7a7060", fontSize: "11px", fontWeight: 600, textTransform: "uppercase", borderBottom: "1px solid #2a2520" }}>{battlecard.competitor}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {s.keyFeaturesComparison.map((row, i) => (
+                            <tr key={i} style={{ borderBottom: "1px solid #1a1a1a" }}>
+                              <td style={{ padding: "10px 12px", color: "#b5a98a", fontWeight: 600 }}>{row.feature}</td>
+                              <td style={{ padding: "10px 12px", color: "#c5d4c5", background: "#0e1a0e" }}>{row.jeeves}</td>
+                              <td style={{ padding: "10px 12px", color: "#d4cfc5" }}>{row.competitor}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {bcSection === "pricing" && (
+                    <div>
+                      <h3 style={{ color: "#C9A84C", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>Pricing</h3>
+                      <p style={{ color: "#d4cfc5", fontSize: "14px", lineHeight: "1.7" }}>{s.pricing}</p>
+                    </div>
+                  )}
+
+                  {bcSection === "objections" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                      {s.objectionHandling.map((item, i) => (
+                        <div key={i} style={{ background: "#1c1c1c", border: "1px solid #2a2520", borderRadius: "10px", padding: "14px 16px" }}>
+                          <p style={{ color: "#C9A84C", fontWeight: 600, fontSize: "13px", marginBottom: "6px" }}>"{item.objection}"</p>
+                          <p style={{ color: "#d4cfc5", fontSize: "13px", lineHeight: "1.6" }}>{item.response}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {bcSection === "landmines" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <p style={{ color: "#7a7060", fontSize: "12px", marginBottom: "8px" }}>Discovery questions to expose competitor weaknesses:</p>
+                      {s.landmines.map((item, i) => (
+                        <div key={i} style={{ background: "#1a1a0e", border: "1px solid #3a3a1a", borderRadius: "8px", padding: "10px 14px", fontSize: "13px", color: "#d4d4b5", display: "flex", gap: "10px" }}>
+                          <span style={{ color: "#C9A84C", fontWeight: 700, flexShrink: 0 }}>{i + 1}.</span>
+                          {item}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {bcSection === "intelligence" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                      {(s.recentIntelligence?.length ?? 0) > 0 && (
+                        <div>
+                          <h3 style={{ color: "#C9A84C", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>Recent Intelligence</h3>
+                          {(s.recentIntelligence ?? []).map((item, i) => (
+                            <div key={i} style={{ background: "#1c1c1c", border: "1px solid #2a2520", borderRadius: "8px", padding: "10px 14px", marginBottom: "8px" }}>
+                              <div style={{ display: "flex", gap: "8px", marginBottom: "4px" }}>
+                                <span style={{ color: "#7a7060", fontSize: "11px" }}>{item.date}</span>
+                                <span style={{ color: "#4a4035", fontSize: "11px" }}>{item.sourceType}</span>
+                              </div>
+                              <p style={{ color: "#d4cfc5", fontSize: "13px", lineHeight: "1.55" }}>{item.summary}</p>
+                              {item.sourceUrl && <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#C9A84C66", fontSize: "11px", marginTop: "4px", display: "block" }}>{item.sourceUrl.slice(0, 60)}...</a>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {(s.hiringSignals?.length ?? 0) > 0 && (
+                        <div>
+                          <h3 style={{ color: "#b5a98a", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>Hiring Signals</h3>
+                          {(s.hiringSignals ?? []).map((item, i) => (
+                            <div key={i} style={{ background: "#1c1c1c", border: "1px solid #2a2520", borderRadius: "8px", padding: "10px 14px", marginBottom: "6px", fontSize: "13px", color: "#d4cfc5" }}>{item}</div>
+                          ))}
+                        </div>
+                      )}
+                      {(s.thirdPartyValidation?.length ?? 0) > 0 && (
+                        <div>
+                          <h3 style={{ color: "#b5a98a", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>Third-Party Validation</h3>
+                          {(s.thirdPartyValidation ?? []).map((item, i) => (
+                            <div key={i} style={{ background: "#1c1c1c", border: "1px solid #2a2520", borderRadius: "8px", padding: "10px 14px", marginBottom: "6px", fontSize: "13px", color: "#d4cfc5", fontStyle: "italic" }}>{item}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Empty state */}
+          {!battlecard && !battlecardLoading && !battlecardError && (
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px", color: "#4a4035" }}>
+              <div style={{ fontSize: "32px" }}>📋</div>
+              <p style={{ fontSize: "14px" }}>Select a competitor and click Generate Battlecard</p>
+              <p style={{ fontSize: "12px", color: "#3a3028" }}>Uses live web scraping - takes 30-90 seconds</p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Messages */}
-      <div style={{
+      {appTab === "chat" && <div style={{
         flex: 1, overflowY: "auto", padding: "24px 20px",
         display: "flex", flexDirection: "column", gap: "16px",
         scrollBehavior: "smooth",
@@ -438,10 +700,10 @@ export default function JeevesPage() {
           );
         })}
         <div ref={messagesEndRef} />
-      </div>
+      </div>}
 
       {/* Suggestions (only when not loading and no conversation yet) */}
-      {messages.length <= 1 && !isLoading && (
+      {appTab === "chat" && messages.length <= 1 && !isLoading && (
         <div style={{
           display: "flex", gap: "8px", padding: "0 20px 8px",
           overflowX: "auto", flexShrink: 0,
@@ -466,7 +728,7 @@ export default function JeevesPage() {
       )}
 
       {/* Input area */}
-      <div style={{
+      {appTab === "chat" && <div style={{
         padding: "14px 20px", background: "#0a0a0a", borderTop: "1px solid #2a2520",
         flexShrink: 0,
       }}>
@@ -515,14 +777,18 @@ export default function JeevesPage() {
           </button>
         </div>
         <div style={{ marginTop: "8px", textAlign: "center", fontSize: "11px", color: "#7a7060" }}>
-          Powered by Claude + Apify. Responses may take 30–90s for live data scraping.
+          Powered by Claude + Apify. Responses may take 30-90s for live data scraping.
         </div>
-      </div>
+      </div>}
 
       <style>{`
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(6px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
         * { box-sizing: border-box; }
         ::-webkit-scrollbar { width: 4px; height: 4px; }

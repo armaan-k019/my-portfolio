@@ -111,7 +111,7 @@ export const workEntries: WorkEntry[] = [
       "Coordinate logistics and community outreach efforts that connect the Georgia Tech community with the greater Atlanta area",
     ],
     link: "",
-    cardBg: "#B3A369",
+    cardBg: "#ffffff",
     type: "studentOrg",
   },
 ];
