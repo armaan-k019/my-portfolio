@@ -91,6 +91,87 @@ export const COMPETITORS: Competitor[] = [
     notes: 'Mexico corporate card and expense management for mid-market.',
     linkedinUrl: 'https://www.linkedin.com/company/mendel-ai/',
   },
+  {
+    name: 'Rho',
+    region: 'Global',
+    scrapeUrls: [
+      'https://www.rho.co/pricing',
+      'https://www.rho.co/corporate-cards',
+      'https://www.rho.co/business-banking',
+      'https://www.rho.co/accounts-payable',
+    ],
+    notes: 'US business banking + corporate cards + AP in one platform. Targets mid-market. Strong on unified data across banking, cards, and AP.',
+    linkedinUrl: 'https://www.linkedin.com/company/rho-business-banking/',
+    customerUrl: 'https://www.rho.co/customers',
+  },
+  {
+    name: 'Howden',
+    region: 'Global',
+    scrapeUrls: [
+      'https://howden.com',
+      'https://howden.com/en-gb/products-and-services',
+    ],
+    notes: 'Global insurance broker and risk management firm. Relevant where Jeeves competes for international treasury and risk management mandates.',
+    linkedinUrl: 'https://www.linkedin.com/company/howden-group-holdings/',
+  },
+  {
+    name: 'Mercury',
+    region: 'Global',
+    scrapeUrls: [
+      'https://mercury.com/pricing',
+      'https://mercury.com/corporate-card',
+      'https://mercury.com/features',
+    ],
+    notes: 'US-focused startup bank targeting tech companies and startups. Debit-based, no credit float. Known for fast onboarding.',
+    linkedinUrl: 'https://www.linkedin.com/company/mercury-technologies/',
+    customerUrl: 'https://mercury.com/customers',
+  },
+  {
+    name: 'Airwallex',
+    region: 'Global',
+    scrapeUrls: [
+      'https://www.airwallex.com/us/pricing',
+      'https://www.airwallex.com/us/corporate-card',
+      'https://www.airwallex.com/us',
+    ],
+    notes: 'Global business account and corporate card with strong multi-currency and FX capabilities. Competes with Jeeves on international expansion use cases.',
+    linkedinUrl: 'https://www.linkedin.com/company/airwallex/',
+    customerUrl: 'https://www.airwallex.com/us/case-studies',
+  },
+  {
+    name: 'Nium',
+    region: 'Global',
+    scrapeUrls: [
+      'https://www.nium.com',
+      'https://www.nium.com/solutions',
+      'https://www.nium.com/pricing',
+    ],
+    notes: 'Global payments infrastructure and embedded finance. Issues cards and enables cross-border payouts in 190+ countries. Often a behind-the-scenes rails provider.',
+    linkedinUrl: 'https://www.linkedin.com/company/nium/',
+  },
+  {
+    name: 'Melio',
+    region: 'Global',
+    scrapeUrls: [
+      'https://meliopayments.com/pricing',
+      'https://meliopayments.com',
+      'https://meliopayments.com/features',
+    ],
+    notes: 'US SMB-focused AP automation and bill pay. Allows paying vendors by card even when they only accept ACH. Competes on AP workflow.',
+    linkedinUrl: 'https://www.linkedin.com/company/melio-payments/',
+  },
+  {
+    name: 'Payhawk',
+    region: 'Global',
+    scrapeUrls: [
+      'https://payhawk.com/en/pricing',
+      'https://payhawk.com/en/corporate-cards',
+      'https://payhawk.com',
+    ],
+    notes: 'European spend management and corporate cards. Strong in UK and EU. ERP integrations with NetSuite, SAP, Xero.',
+    linkedinUrl: 'https://www.linkedin.com/company/payhawk/',
+    customerUrl: 'https://payhawk.com/en/customers',
+  },
 ];
 
 export function findCompetitor(name: string): Competitor | undefined {
