@@ -162,6 +162,8 @@ export default function WisprDemo() {
   const customGesturesRef   = useRef<CustomGesture[]>([]);
   const phraseLibraryRef    = useRef<PhraseEntry[]>([]);
   const phraseHoldRef       = useRef<{ id: string; start: number } | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const captureCallbackRef  = useRef<((hands: any[]) => void) | null>(null);
 
   // ── State ─────────────────────────────────────────────────────────────────
   const [modelState,       setModelState]       = useState<ModelState>("loading");
@@ -485,6 +487,9 @@ export default function WisprDemo() {
     try {
       const hands = await model.estimateHands(video, true);
       console.log('hands detected:', hands.length, hands);
+
+      // Feed live predictions to training capture if active
+      captureCallbackRef.current?.(hands);
 
       if (hands.length >= 2) {
         // ── TWO-HAND MODE: only run two-handed phrase matching ──────────────
@@ -1217,6 +1222,7 @@ export default function WisprDemo() {
             <PhraseLibrary
               videoRef={videoRef}
               modelRef={modelRef}
+              captureCallbackRef={captureCallbackRef}
               phraseLibrary={phraseLibrary}
               onUpdate={(updated) => {
                 setPhraseLibrary(updated);

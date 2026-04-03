@@ -50,13 +50,15 @@ interface Props {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   modelRef: React.MutableRefObject<any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  captureCallbackRef: React.MutableRefObject<((hands: any[]) => void) | null>;
   phraseLibrary: PhraseEntry[];
   onUpdate: (library: PhraseEntry[]) => void;
 }
 
 type TrainStep = "name" | "output" | "handcount" | "capture" | "review" | "confirm";
 
-export default function PhraseLibrary({ videoRef, modelRef, phraseLibrary, onUpdate }: Props) {
+export default function PhraseLibrary({ videoRef, modelRef, captureCallbackRef, phraseLibrary, onUpdate }: Props) {
   const [open,            setOpen]           = useState(false);
 
   // Training flow
@@ -103,9 +105,13 @@ export default function PhraseLibrary({ videoRef, modelRef, phraseLibrary, onUpd
 
   useEffect(() => { snapshotsRef.current = snapshots; }, [snapshots]);
 
-  // Training capture loop
+  // Training capture — subscribes to the main detection loop via captureCallbackRef
   useEffect(() => {
-    if (!training || trainStep !== "capture") return;
+    if (!training || trainStep !== "capture") {
+      captureCallbackRef.current = null;
+      return;
+    }
+
     stoppedRef.current = false;
     snapshotsRef.current = [];
     setSnapshots([]);
@@ -114,7 +120,6 @@ export default function PhraseLibrary({ videoRef, modelRef, phraseLibrary, onUpd
     setHandSeen(false);
     setStability(100);
 
-    // Two-handed capture state reset
     snapshotsPairsRef.current = [];
     prevVecLeftRef.current = null;
     prevVecRightRef.current = null;
@@ -122,109 +127,105 @@ export default function PhraseLibrary({ videoRef, modelRef, phraseLibrary, onUpd
     setStabilityLeft(100);
     setStabilityRight(100);
 
-    async function loop() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    captureCallbackRef.current = (hands: any[]) => {
       if (stoppedRef.current) return;
-      const now   = Date.now();
-      const video = videoRef.current;
-      const model = modelRef.current;
-      if (video && model && video.readyState >= 2) {
-        try {
-          const hands = await model.estimateHands(video);
-          if (!stoppedRef.current) {
-            if (trainTwoHanded) {
-              // ── TWO-HANDED CAPTURE ──────────────────────────────────────
-              const twoHandsPresent = hands.length >= 2;
-              setTwoHandSeen(twoHandsPresent);
+      const now = Date.now();
 
-              if (twoHandsPresent) {
-                const lm0 = hands[0].landmarks as [number, number, number][];
-                const lm1 = hands[1].landmarks as [number, number, number][];
-                const wrist0x = lm0[0][0];
-                const wrist1x = lm1[0][0];
-                const leftLm  = wrist0x < wrist1x ? lm0 : lm1;
-                const rightLm = wrist0x < wrist1x ? lm1 : lm0;
-                const leftVec  = normalizeLandmarks(leftLm);
-                const rightVec = normalizeLandmarks(rightLm);
+      if (trainTwoHanded) {
+        // ── TWO-HANDED CAPTURE ──────────────────────────────────────────────
+        const twoHandsPresent = hands.length >= 2;
+        setTwoHandSeen(twoHandsPresent);
+        console.log('capture check:', hands.length, 'hands, isCapturing: true, two-hand mode');
 
-                let stabL = 100, stabR = 100;
-                if (prevVecLeftRef.current) {
-                  const moveL = euclidean(leftVec, prevVecLeftRef.current);
-                  stabL = Math.max(0, (1 - moveL / 0.3)) * 100;
-                }
-                if (prevVecRightRef.current) {
-                  const moveR = euclidean(rightVec, prevVecRightRef.current);
-                  stabR = Math.max(0, (1 - moveR / 0.3)) * 100;
-                }
-                prevVecLeftRef.current  = leftVec;
-                prevVecRightRef.current = rightVec;
-                setStabilityLeft(Math.round(stabL));
-                setStabilityRight(Math.round(stabR));
+        if (twoHandsPresent) {
+          const lm0 = hands[0].landmarks as [number, number, number][];
+          const lm1 = hands[1].landmarks as [number, number, number][];
+          const wrist0x = lm0[0][0];
+          const wrist1x = lm1[0][0];
+          const leftLm  = wrist0x < wrist1x ? lm0 : lm1;
+          const rightLm = wrist0x < wrist1x ? lm1 : lm0;
+          const leftVec  = normalizeLandmarks(leftLm);
+          const rightVec = normalizeLandmarks(rightLm);
 
-                const bothStable = stabL >= STABILITY_THRESHOLD && stabR >= STABILITY_THRESHOLD;
-                if (bothStable && now - lastCaptureRef.current >= CAPTURE_INTERVAL_MS) {
-                  const cur: [number[], number[]][] = [...snapshotsPairsRef.current, [leftVec, rightVec]];
-                  snapshotsPairsRef.current = cur;
-                  setSnapshots(cur.map(p => p[0])); // reuse snapshots count
-                  lastCaptureRef.current = now;
-                  if (cur.length >= SAMPLES_DEFAULT) {
-                    stoppedRef.current = true;
-                    const avgLeft  = weightedAverageVectors(cur.map(p => p[0]));
-                    const avgRight = weightedAverageVectors(cur.map(p => p[1]));
-                    setReviewVecLeft(avgLeft);
-                    setReviewVecRight(avgRight);
-                    setReviewVec(avgLeft); // set reviewVec for display compatibility
-                    setTrainStep("review");
-                    return;
-                  }
-                }
-              } else {
-                prevVecLeftRef.current  = null;
-                prevVecRightRef.current = null;
-                setStabilityLeft(100);
-                setStabilityRight(100);
-              }
-            } else {
-              // ── SINGLE-HAND CAPTURE ─────────────────────────────────────
-              setHandSeen(hands.length > 0);
-              if (hands.length > 0) {
-                const lm  = hands[0].landmarks as [number, number, number][];
-                const vec = normalizeLandmarks(lm);
-                let stab = 100;
-                if (prevVecRef.current) {
-                  const move = euclidean(vec, prevVecRef.current);
-                  stab = Math.max(0, (1 - move / 0.3)) * 100;
-                }
-                prevVecRef.current = vec;
-                setStability(Math.round(stab));
-                if (stab >= STABILITY_THRESHOLD && now - lastCaptureRef.current >= CAPTURE_INTERVAL_MS) {
-                  const cur = [...snapshotsRef.current, vec];
-                  snapshotsRef.current = cur;
-                  setSnapshots(cur);
-                  lastCaptureRef.current = now;
-                  if (cur.length >= SAMPLES_DEFAULT) {
-                    stoppedRef.current = true;
-                    setReviewVec(weightedAverageVectors(cur));
-                    setTrainStep("review");
-                    return;
-                  }
-                }
-              } else {
-                prevVecRef.current = null;
-                setStability(100);
-              }
+          let stabL = 100, stabR = 100;
+          if (prevVecLeftRef.current) {
+            const moveL = euclidean(leftVec, prevVecLeftRef.current);
+            stabL = Math.max(0, (1 - moveL / 0.3)) * 100;
+          }
+          if (prevVecRightRef.current) {
+            const moveR = euclidean(rightVec, prevVecRightRef.current);
+            stabR = Math.max(0, (1 - moveR / 0.3)) * 100;
+          }
+          prevVecLeftRef.current  = leftVec;
+          prevVecRightRef.current = rightVec;
+          setStabilityLeft(Math.round(stabL));
+          setStabilityRight(Math.round(stabR));
+
+          const bothStable = stabL >= STABILITY_THRESHOLD && stabR >= STABILITY_THRESHOLD;
+          if (bothStable && now - lastCaptureRef.current >= CAPTURE_INTERVAL_MS) {
+            const cur: [number[], number[]][] = [...snapshotsPairsRef.current, [leftVec, rightVec]];
+            snapshotsPairsRef.current = cur;
+            setSnapshots(cur.map(p => p[0]));
+            lastCaptureRef.current = now;
+            if (cur.length >= SAMPLES_DEFAULT) {
+              stoppedRef.current = true;
+              captureCallbackRef.current = null;
+              const avgLeft  = weightedAverageVectors(cur.map(p => p[0]));
+              const avgRight = weightedAverageVectors(cur.map(p => p[1]));
+              setReviewVecLeft(avgLeft);
+              setReviewVecRight(avgRight);
+              setReviewVec(avgLeft);
+              setTrainStep("review");
             }
           }
-        } catch { /* ignore per-frame errors */ }
-      }
-      captureRafRef.current = requestAnimationFrame(loop);
-    }
+        } else {
+          prevVecLeftRef.current  = null;
+          prevVecRightRef.current = null;
+          setStabilityLeft(100);
+          setStabilityRight(100);
+        }
+      } else {
+        // ── SINGLE-HAND CAPTURE ─────────────────────────────────────────────
+        const handPresent = hands.length > 0;
+        setHandSeen(handPresent);
+        console.log('capture check:', hands.length, 'hands, isCapturing: true, single-hand mode, stability:', prevVecRef.current ? 'tracked' : 'new');
 
-    captureRafRef.current = requestAnimationFrame(loop);
+        if (handPresent) {
+          const lm  = hands[0].landmarks as [number, number, number][];
+          const vec = normalizeLandmarks(lm);
+          let stab = 100;
+          if (prevVecRef.current) {
+            const move = euclidean(vec, prevVecRef.current);
+            stab = Math.max(0, (1 - move / 0.3)) * 100;
+          }
+          prevVecRef.current = vec;
+          setStability(Math.round(stab));
+
+          if (stab >= STABILITY_THRESHOLD && now - lastCaptureRef.current >= CAPTURE_INTERVAL_MS) {
+            const cur = [...snapshotsRef.current, vec];
+            snapshotsRef.current = cur;
+            setSnapshots(cur);
+            lastCaptureRef.current = now;
+            if (cur.length >= SAMPLES_DEFAULT) {
+              stoppedRef.current = true;
+              captureCallbackRef.current = null;
+              setReviewVec(weightedAverageVectors(cur));
+              setTrainStep("review");
+            }
+          }
+        } else {
+          prevVecRef.current = null;
+          setStability(100);
+        }
+      }
+    };
+
     return () => {
       stoppedRef.current = true;
-      cancelAnimationFrame(captureRafRef.current);
+      captureCallbackRef.current = null;
     };
-  }, [training, trainStep, trainTwoHanded, videoRef, modelRef]);
+  }, [training, trainStep, trainTwoHanded, captureCallbackRef]);
 
   // Test loop
   useEffect(() => {
