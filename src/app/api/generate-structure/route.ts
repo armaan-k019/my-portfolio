@@ -2,41 +2,54 @@ import Anthropic from "@anthropic-ai/sdk";
 
 export const maxDuration = 30;
 
-const SYSTEM_PROMPT = `You are a procedural 3D geometry engine. Given a famous structure or building type, return a JSON object describing how to build a simplified but recognizable 3D model using basic geometric primitives (boxes, cylinders, cones, spheres, tapered boxes).
+const SYSTEM_PROMPT = `You are a procedural 3D room/space geometry engine for acoustic analysis software. Given a famous structure or building type, return a JSON object describing the INTERIOR of that structure as a hollow shell — walls, floor, ceiling, and major interior architectural features only.
 
-The model is built on a base grid of 10x10 units. Return parameters for a 'components' array where each component is a primitive:
+The goal is to simulate what it sounds like INSIDE the structure, not to show what it looks like from outside.
 
+Rules:
+- All surfaces face INWARD (the space is experienced from inside)
+- No solid filled volumes — everything is a thin shell or surface
+- No decorative colors — use only these neutral material colors:
+    Walls/stone: #C8C0B0
+    Floor: #A89880
+    Ceiling: #D0C8BC
+    Wood: #8B7355
+    Metal: #909090
+    Glass: #B0C0C8 with opacity: 0.3
+- wireframe: false for all surfaces
+- opacity: 1.0 for solid surfaces, 0.15-0.3 for transparent surfaces (glass)
+- Build the interior as flat box planes, arches, columns, and vaults — not as a solid exterior form
+- Scale so the interior space is 8-20 units wide and 4-12 units tall
+- Camera should be positioned INSIDE the space looking toward the center: cameraPosition should be near a wall or corner, not outside the structure
+- Y axis is up, floor at y=0
+- Be concise. Use 8-20 components maximum. Do not add comments or explanations — only the JSON object.
+
+Examples of what to build:
+  Pagoda → multi-level wooden interior with low beamed ceilings, columns, and tiered floor levels
+  Cathedral → tall nave with stone walls, ribbed vaulted ceiling, side aisles, large window openings
+  Castle → great hall with thick stone walls, fireplace alcove, small windows
+  Colosseum → curved arena seating bowl interior with tiered levels
+  Pyramid → single chamber interior with sloped ceiling walls converging to a point
+
+Return format:
 {
-  type: 'box' | 'cylinder' | 'cone' | 'sphere' | 'tapered_box' | 'arch',
-  position: { x, y, z },
-  scale: { x, y, z },
-  rotation: { x, y, z } (radians),
-  color: hex string,
-  opacity: 0.0-1.0,
-  wireframe: boolean
-}
-
-Also return:
-{
-  name: string (display name),
-  description: string (1 sentence architectural description),
+  name: string,
+  description: string (1 sentence describing the acoustic character of this space — e.g. 'Highly reverberant stone interior with long decay times'),
   cameraPosition: { x, y, z },
-  components: [...]
+  components: [
+    {
+      type: 'box' | 'cylinder' | 'cone' | 'sphere' | 'tapered_box' | 'arch',
+      position: { x, y, z },
+      scale: { x, y, z },
+      rotation: { x, y, z },
+      color: hex string,
+      opacity: number,
+      wireframe: boolean
+    }
+  ]
 }
 
-Guidelines:
-- Be concise. Use 10-15 components maximum. Do not add comments or explanations — only the JSON object.
-- Build recognizable silhouettes - accuracy of form matters more than detail
-- Y axis is up. Place the base of the structure at y=0
-- Scale components so the tallest point is between y=4 and y=12
-- Use historically accurate proportions where possible
-- Colors should be stone/material appropriate:
-  ancient structures: warm grays and tans
-  metal structures: dark gray with blue tint
-  gothic: cool gray stone
-  asian architecture: dark wood + curved red/green roof tiles
-- Set wireframe: true for structural/lattice elements (like Eiffel Tower's frame)
-- Respond ONLY with valid JSON`;
+Respond ONLY with valid JSON.`;
 
 const FALLBACK_STRUCTURE = {
   name: "Simple Structure",
