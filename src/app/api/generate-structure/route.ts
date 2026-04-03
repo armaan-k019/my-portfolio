@@ -25,7 +25,7 @@ Also return:
 }
 
 Guidelines:
-- Use 8-25 components for complexity
+- Be concise. Use 10-15 components maximum. Do not add comments or explanations — only the JSON object.
 - Build recognizable silhouettes - accuracy of form matters more than detail
 - Y axis is up. Place the base of the structure at y=0
 - Scale components so the tallest point is between y=4 and y=12
@@ -46,12 +46,20 @@ export async function POST(request: Request) {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   try {
-    const message = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 2048,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: `Generate a 3D model for: ${name}` }],
-    }, { signal: AbortSignal.timeout(15000) });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+    let message: Awaited<ReturnType<typeof client.messages.create>>;
+    try {
+      message = await client.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1500,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: `Generate a 3D model for: ${name}` }],
+      }, { signal: controller.signal });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     const textBlock = message.content.find((b) => b.type === "text");
     if (!textBlock || textBlock.type !== "text") return Response.json({ error: "No response from Claude" }, { status: 500 });
@@ -63,7 +71,10 @@ export async function POST(request: Request) {
     const data = JSON.parse(raw);
     return Response.json(data);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return Response.json({ error: `Failed: ${msg}` }, { status: 500 });
+    const isTimeout = err instanceof Error && (err.name === "AbortError" || err.message.includes("aborted") || err.message.includes("timeout"));
+    const msg = isTimeout
+      ? "Generation timed out — try a simpler structure name"
+      : err instanceof Error ? err.message : String(err);
+    return Response.json({ error: msg }, { status: 500 });
   }
 }
