@@ -329,9 +329,9 @@ export default function YieldPage() {
 
         {/* Manual tab */}
         {tab === "manual" && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {/* Ticker input with search dropdown */}
-            <div className="flex-1 relative" onClick={(e) => e.stopPropagation()}>
+            <div className="flex-1 min-w-[160px] relative" onClick={(e) => e.stopPropagation()}>
               <input
                 type="text"
                 value={ticker}

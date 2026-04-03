@@ -137,14 +137,14 @@ function DemoView({ config, onExit }: { config: DemoConfig; onExit: () => void }
         className="border-b px-6 py-4"
         style={{ borderBottomColor: config.accentColor + "40", backgroundColor: config.accentColor + "08" }}
       >
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-4">
             {config.logo && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={config.logo} alt={config.company} className="h-8 w-auto object-contain" />
             )}
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="font-bold text-lg text-[#2C1810] leading-tight">{config.company}</h1>
                 <span
                   className="text-[10px] font-semibold px-2 py-0.5 rounded-full border"

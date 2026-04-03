@@ -81,6 +81,20 @@ const STATS = [
 export default function WisprFlowPage() {
   return (
     <div className="min-h-screen bg-[#F5F0E8]">
+      {/* Mobile overlay */}
+      <div className="sm:hidden fixed inset-0 z-50 bg-[#F5F0E8] flex items-center justify-center p-8">
+        <div className="text-center max-w-xs">
+          <div className="text-3xl mb-4">🖥️</div>
+          <h2 className="text-lg font-semibold text-[#2C1810] mb-2">Desktop recommended</h2>
+          <p className="text-sm text-[#9A8070] leading-relaxed">
+            ASL Flow uses your webcam and a computer vision model that works best on a desktop or laptop with a larger screen.
+          </p>
+          <Link href="/demos" className="mt-6 inline-block text-xs text-[#6C47FF] hover:underline">
+            ← Back to demos
+          </Link>
+        </div>
+      </div>
+
       <div className="max-w-3xl mx-auto px-6 py-12">
 
         {/* Back */}
