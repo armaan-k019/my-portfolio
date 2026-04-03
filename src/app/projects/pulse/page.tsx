@@ -79,6 +79,127 @@ function typeIcon(type: LocationData['type']): string {
   }
 }
 
+// ─── Schedule-aware particle / pedestrian system ─────────────────────────────
+
+const MWF_SLOTS_H = [8.083, 9.083, 10.083, 11.083, 12.083, 13.083, 14.083, 15.083];
+const TR_SLOTS_H  = [8.0, 9.5, 11.0, 12.5, 14.0, 15.5, 17.0];
+
+type LocType = 'academic' | 'dining' | 'residential' | 'recreation' | 'outdoor' | 'offcampus';
+type FlowMode = 'pre_class' | 'post_class' | 'lunch' | 'morning' | 'evening' | 'idle';
+
+const PARTICLE_LOCS: { lat: number; lng: number; type: LocType }[] = [
+  // Academic buildings
+  { lat: 33.7773, lng: -84.3966, type: 'academic' },   // Klaus
+  { lat: 33.7763, lng: -84.3960, type: 'academic' },   // Van Leer
+  { lat: 33.7755, lng: -84.3975, type: 'academic' },   // Skiles
+  { lat: 33.7748, lng: -84.3961, type: 'academic' },   // Clough / CULC
+  { lat: 33.7760, lng: -84.3985, type: 'academic' },   // Boggs Chemistry
+  { lat: 33.7769, lng: -84.3963, type: 'academic' },   // Mason
+  { lat: 33.7755, lng: -84.3938, type: 'academic' },   // College of Design
+  // Dining
+  { lat: 33.7734, lng: -84.3964, type: 'dining' },     // Student Center / Chick-fil-A
+  { lat: 33.7748, lng: -84.3940, type: 'dining' },     // North Ave Dining
+  { lat: 33.7723, lng: -84.3949, type: 'dining' },     // West Village Dining
+  // Residential
+  { lat: 33.7792, lng: -84.3920, type: 'residential' }, // Woodruff / East campus dorms
+  { lat: 33.7742, lng: -84.4005, type: 'residential' }, // Hefner / West dorms
+  { lat: 33.7812, lng: -84.3960, type: 'residential' }, // North Ave dorms
+  { lat: 33.7768, lng: -84.3930, type: 'residential' }, // Glenn / Field / Harris
+  // Recreation
+  { lat: 33.7766, lng: -84.3951, type: 'recreation' },  // CRC
+  // Outdoor
+  { lat: 33.7760, lng: -84.3956, type: 'outdoor' },     // Tech Green
+  // Off-campus (Midtown)
+  { lat: 33.7712, lng: -84.3868, type: 'offcampus' },   // Midtown MARTA station
+  { lat: 33.7698, lng: -84.3900, type: 'offcampus' },   // 5th St restaurants / Midtown
+];
+
+function getCampusFlow(now: Date): FlowMode {
+  const day = now.getDay();
+  const h   = now.getHours() + now.getMinutes() / 60;
+  if (day === 0 || day === 6) return 'idle';
+  const isMWF = day === 1 || day === 3 || day === 5;
+  const isTR  = day === 2 || day === 4;
+  const slots = isMWF ? MWF_SLOTS_H : isTR ? TR_SLOTS_H : [];
+  const durH  = isMWF ? 50 / 60 : 75 / 60;
+  if (h >= 11.5 && h <= 13.5) return 'lunch';
+  for (const s of slots) {
+    if (h >= s - 0.2 && h < s)                return 'pre_class';
+    if (h >= s + durH && h < s + durH + 0.25) return 'post_class';
+  }
+  if (h >= 6.5 && h < 9)  return 'morning';
+  if (h >= 17  && h < 21) return 'evening';
+  return 'idle';
+}
+
+function walkerColor(type: LocType): string {
+  switch (type) {
+    case 'academic':    return '#B3A369';  // GT gold
+    case 'dining':      return '#f97316';  // orange
+    case 'residential': return '#60a5fa';  // blue
+    case 'recreation':  return '#4ade80';  // green
+    case 'outdoor':     return '#86efac';  // light green
+    case 'offcampus':   return '#c084fc';  // purple
+  }
+}
+
+interface Walker {
+  lat: number; lng: number;
+  dlat: number; dlng: number;
+  life: number; maxLife: number;
+  color: string; size: number; alpha: number;
+}
+
+function spawnWalker(flow: FlowMode): Walker {
+  let fromPool: typeof PARTICLE_LOCS;
+  let toPool:   typeof PARTICLE_LOCS;
+  switch (flow) {
+    case 'pre_class':
+      fromPool = PARTICLE_LOCS.filter(l => l.type === 'residential' || l.type === 'dining' || l.type === 'outdoor');
+      toPool   = PARTICLE_LOCS.filter(l => l.type === 'academic');
+      break;
+    case 'post_class':
+      fromPool = PARTICLE_LOCS.filter(l => l.type === 'academic');
+      toPool   = PARTICLE_LOCS.filter(l => l.type !== 'academic');
+      break;
+    case 'lunch':
+      fromPool = PARTICLE_LOCS.filter(l => l.type === 'academic' || l.type === 'residential');
+      toPool   = PARTICLE_LOCS.filter(l => l.type === 'dining' || l.type === 'outdoor');
+      break;
+    case 'morning':
+      fromPool = PARTICLE_LOCS.filter(l => l.type === 'residential');
+      toPool   = PARTICLE_LOCS.filter(l => l.type === 'academic' || l.type === 'dining');
+      break;
+    case 'evening':
+      fromPool = PARTICLE_LOCS.filter(l => l.type === 'academic' || l.type === 'recreation');
+      toPool   = PARTICLE_LOCS.filter(l => l.type === 'residential' || l.type === 'offcampus');
+      break;
+    default: // idle / weekend
+      fromPool = PARTICLE_LOCS.filter(l => l.type !== 'offcampus');
+      toPool   = PARTICLE_LOCS.filter(l => l.type !== 'offcampus');
+  }
+  const from = fromPool[Math.floor(Math.random() * fromPool.length)];
+  let to     = toPool[Math.floor(Math.random() * toPool.length)];
+  if (to === from) to = toPool[(toPool.indexOf(to) + 1) % toPool.length] ?? to;
+
+  const j = 0.00022;
+  const sLat = from.lat + (Math.random() - 0.5) * j;
+  const sLng = from.lng + (Math.random() - 0.5) * j;
+  const eLat = to.lat   + (Math.random() - 0.5) * j;
+  const eLng = to.lng   + (Math.random() - 0.5) * j;
+  const frames = 90 + Math.floor(Math.random() * 150); // 1.5–4 s @ 60 fps
+
+  return {
+    lat: sLat, lng: sLng,
+    dlat: (eLat - sLat) / frames,
+    dlng: (eLng - sLng) / frames,
+    life: 0, maxLife: frames,
+    color: walkerColor(from.type),
+    size:  1.4 + Math.random() * 1.2,
+    alpha: 0.55 + Math.random() * 0.35,
+  };
+}
+
 // ─── Chat message type ────────────────────────────────────────────────────────
 
 interface ChatMessage {
@@ -127,6 +248,8 @@ export default function PulsePage() {
   const dataRef         = useRef<PulseData | null>(null);
   const layersRef       = useRef({ heatmap: true, circles: false, particles: false });
   const chatEndRef      = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const overlayRef      = useRef<any>(null);
 
   // Keep layersRef in sync
   useEffect(() => { layersRef.current = { heatmap: showHeatmap, circles: showCircles, particles: showParticles }; },
@@ -170,8 +293,24 @@ export default function PulsePage() {
       mapTypeControl: false,
       streetViewControl: false,
       fullscreenControl: false,
+      gestureHandling: 'greedy',
+      scrollwheel: true,
+      minZoom: 14,
+      maxZoom: 19,
+      restriction: {
+        latLngBounds: { north: 33.786, south: 33.767, west: -84.412, east: -84.384 },
+        strictBounds: false,
+      },
     });
     mapRef.current = map;
+
+    // OverlayView for lat/lng → pixel projection in the particle system
+    const overlay = new window.google.maps.OverlayView();
+    overlay.draw = () => {};
+    overlay.onAdd = () => {};
+    overlay.onRemove = () => {};
+    overlay.setMap(map);
+    overlayRef.current = overlay;
   }, [mapsLoaded]);
 
   // ── Fetch data ────────────────────────────────────────────────────────────────
@@ -299,53 +438,65 @@ export default function PulsePage() {
 
     // Remove stale markers
     busMarkersRef.current.forEach((marker, id) => {
-      if (!activeBusIds.has(id)) {
-        marker.setMap(null);
-        busMarkersRef.current.delete(id);
-      }
+      if (!activeBusIds.has(id)) { marker.setMap(null); busMarkersRef.current.delete(id); }
     });
 
     data.buses.forEach((bus: Bus) => {
       const color = routeColor(bus.routeName);
-      const svgIcon = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28">
-          <circle cx="14" cy="14" r="12" fill="${color}" stroke="white" stroke-width="2"/>
-          <text x="14" y="18" text-anchor="middle" font-size="13" fill="white">🚌</text>
-        </svg>`;
+
+      // Arrow-shaped bus icon that rotates with heading
+      const heading = bus.heading ?? 0;
+      const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+        <g transform="rotate(${heading},16,16)">
+          <circle cx="16" cy="16" r="13" fill="${color}" stroke="white" stroke-width="2.5"/>
+          <polygon points="16,5 21,22 16,18 11,22" fill="white" opacity="0.9"/>
+        </g>
+      </svg>`;
       const iconUrl = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgIcon)}`;
+      const iconSpec = {
+        url:        iconUrl,
+        scaledSize: new window.google.maps.Size(32, 32),
+        anchor:     new window.google.maps.Point(16, 16),
+      };
 
       if (busMarkersRef.current.has(bus.id)) {
         const m = busMarkersRef.current.get(bus.id);
-        // Smooth move via animating position
         const prev = m.getPosition();
         if (prev) {
-          const steps = 20;
+          // Smooth interpolation over 30 steps across the poll interval
+          const steps  = 30;
+          const stepMs = POLL_MS / steps;
           let step = 0;
-          const dLat = (bus.lat - prev.lat()) / steps;
-          const dLng = (bus.lng - prev.lng()) / steps;
+          const fromLat = prev.lat();
+          const fromLng = prev.lng();
+          const dLat    = (bus.lat - fromLat) / steps;
+          const dLng    = (bus.lng - fromLng) / steps;
           function moveStep() {
-            if (step++ >= steps) return;
-            m.setPosition({ lat: prev.lat() + dLat * step, lng: prev.lng() + dLng * step });
-            setTimeout(moveStep, POLL_MS / steps);
+            if (step >= steps) return;
+            step++;
+            m.setPosition({ lat: fromLat + dLat * step, lng: fromLng + dLng * step });
+            setTimeout(moveStep, stepMs);
           }
           moveStep();
         }
+        // Update icon in case heading changed
+        m.setIcon(iconSpec);
       } else {
         const marker = new window.google.maps.Marker({
           position: { lat: bus.lat, lng: bus.lng },
           map:      mapRef.current,
-          icon:     { url: iconUrl, scaledSize: new window.google.maps.Size(28, 28), anchor: new window.google.maps.Point(14, 14) },
+          icon:     iconSpec,
           title:    bus.routeName,
           zIndex:   10,
         });
         marker.addListener('click', () => {
-          const infoWindow = new window.google.maps.InfoWindow({
+          const iw = new window.google.maps.InfoWindow({
             content: `<div style="font-family:sans-serif;padding:4px 8px;min-width:120px">
               <p style="font-weight:600;margin:0;color:${color}">${bus.routeName}</p>
               <p style="margin:4px 0 0;font-size:12px;color:#6B5244">Stinger Bus · Live</p>
             </div>`,
           });
-          infoWindow.open(mapRef.current, marker);
+          iw.open(mapRef.current, marker);
         });
         busMarkersRef.current.set(bus.id, marker);
       }
@@ -353,102 +504,90 @@ export default function PulsePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, mapsLoaded]);
 
-  // ── Particle canvas ────────────────────────────────────────────────────────
+  // ── Particle / pedestrian canvas ──────────────────────────────────────────
   useEffect(() => {
     const canvas = particleCanvasRef.current;
-    if (!canvas || !data || !showParticles) {
+    if (!canvas || !showParticles) {
       if (particleAnimRef.current) cancelAnimationFrame(particleAnimRef.current);
       const c = particleCanvasRef.current;
-      if (c) {
-        const ctx = c.getContext('2d');
-        if (ctx) ctx.clearRect(0, 0, c.width, c.height);
-      }
+      if (c) { const ctx = c.getContext('2d'); if (ctx) ctx.clearRect(0, 0, c.width, c.height); }
       return;
     }
-
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Resize canvas to match container
     const resize = () => {
       const parent = canvas.parentElement;
       if (parent) { canvas.width = parent.clientWidth; canvas.height = parent.clientHeight; }
     };
     resize();
+    window.addEventListener('resize', resize);
 
-    // Build particle sources from busyness data (without Google Maps projection)
-    // Use normalized positions based on GT campus bounding box
-    const LAT_MIN = 33.770, LAT_MAX = 33.782;
-    const LNG_MIN = -84.402, LNG_MAX = -84.390;
+    const walkers: Walker[] = [];
+    const MAX_WALKERS = 120;
+    const SPAWN_PER_FRAME = 2;
 
     const cvs = canvas;
-    function toCanvas(lat: number, lng: number) {
-      const x = ((lng - LNG_MIN) / (LNG_MAX - LNG_MIN)) * cvs.width;
-      const y = ((LAT_MAX - lat) / (LAT_MAX - LAT_MIN)) * cvs.height;
-      return { x, y };
-    }
-
-    interface Particle { x: number; y: number; vx: number; vy: number; seed: number; size: number; color: string; alpha: number }
-
-    // Spawn particles proportional to busyness
-    const particles: Particle[] = [];
-    for (const loc of data.locations) {
-      const count = Math.round(loc.busyness / 10);
-      const base  = toCanvas(loc.lat, loc.lng);
-      for (let i = 0; i < count; i++) {
-        particles.push({
-          x:     base.x + (Math.random() - 0.5) * 60,
-          y:     base.y + (Math.random() - 0.5) * 60,
-          vx:    (Math.random() - 0.5) * 0.4,
-          vy:    (Math.random() - 0.5) * 0.4,
-          seed:  Math.random() * Math.PI * 2,
-          size:  1.2 + Math.random() * 1.4,
-          color: busynessHex(loc.busyness),
-          alpha: 0.5 + Math.random() * 0.35,
-        });
-      }
-    }
-
     const ctx2 = ctx;
-    let t = 0;
+
     function draw() {
       particleAnimRef.current = requestAnimationFrame(draw);
       if (document.hidden) return;
-      t += 1;
+
       ctx2.clearRect(0, 0, cvs.width, cvs.height);
 
-      for (const p of particles) {
-        // Organic drift using sin/cos noise
-        const nx = Math.sin(t * 0.008 + p.seed)         * 0.35;
-        const ny = Math.cos(t * 0.007 + p.seed * 1.3)   * 0.35;
-        p.vx = p.vx * 0.96 + nx * 0.04;
-        p.vy = p.vy * 0.96 + ny * 0.04;
-        p.x += p.vx;
-        p.y += p.vy;
+      // Get Maps projection if available (precise pixel placement on the map)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const proj: any = overlayRef.current?.getProjection?.();
 
-        // Soft boundary wrap
-        if (p.x < -10)            p.x += cvs.width  + 20;
-        if (p.x > cvs.width  + 10) p.x -= cvs.width  + 20;
-        if (p.y < -10)            p.y += cvs.height + 20;
-        if (p.y > cvs.height + 10) p.y -= cvs.height + 20;
+      // Spawn new walkers up to cap
+      const flow = getCampusFlow(new Date());
+      for (let i = 0; i < SPAWN_PER_FRAME && walkers.length < MAX_WALKERS; i++) {
+        walkers.push(spawnWalker(flow));
+      }
+
+      for (let i = walkers.length - 1; i >= 0; i--) {
+        const w = walkers[i];
+        w.lat  += w.dlat;
+        w.lng  += w.dlng;
+        w.life += 1;
+        if (w.life >= w.maxLife) { walkers.splice(i, 1); continue; }
+
+        // Fade in first 10% of life, fade out last 10%
+        const progress = w.life / w.maxLife;
+        const fade = progress < 0.1 ? progress * 10 : progress > 0.9 ? (1 - progress) * 10 : 1;
+
+        let px: number, py: number;
+        if (proj) {
+          const pt = proj.fromLatLngToContainerPixel(
+            new window.google.maps.LatLng(w.lat, w.lng)
+          );
+          if (!pt) continue;
+          px = pt.x; py = pt.y;
+        } else {
+          // Fallback: manual linear projection using GT campus bounding box
+          const LAT_MIN = 33.770, LAT_MAX = 33.782;
+          const LNG_MIN = -84.406, LNG_MAX = -84.386;
+          px = ((w.lng - LNG_MIN) / (LNG_MAX - LNG_MIN)) * cvs.width;
+          py = ((LAT_MAX - w.lat) / (LAT_MAX - LAT_MIN)) * cvs.height;
+        }
 
         ctx2.beginPath();
-        ctx2.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx2.fillStyle = p.color;
-        ctx2.globalAlpha = p.alpha;
+        ctx2.arc(px, py, w.size, 0, Math.PI * 2);
+        ctx2.fillStyle = w.color;
+        ctx2.globalAlpha = w.alpha * fade;
         ctx2.fill();
       }
       ctx2.globalAlpha = 1;
     }
     draw();
 
-    window.addEventListener('resize', resize);
     return () => {
       cancelAnimationFrame(particleAnimRef.current);
       window.removeEventListener('resize', resize);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, showParticles]);
+  }, [showParticles, mapsLoaded]);
 
   // ── Cleanup ───────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -497,7 +636,7 @@ export default function PulsePage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#0a0c10] text-white flex flex-col font-sans">
+    <div className="min-h-[100dvh] bg-[#0a0c10] text-white flex flex-col font-sans">
 
       {/* ── Top status bar ──────────────────────────────────────────────────── */}
       <header className="flex items-center gap-4 px-5 py-2.5 bg-[#111318] border-b border-white/[0.06] text-xs select-none shrink-0 flex-wrap">
@@ -534,7 +673,7 @@ export default function PulsePage() {
       </header>
 
       {/* ── Main layout ─────────────────────────────────────────────────────── */}
-      <div className="flex flex-1 min-h-0 flex-col lg:flex-row overflow-hidden">
+      <div className="flex flex-1 min-h-0 flex-col lg:flex-row lg:overflow-hidden">
 
         {/* ── Map column ─────────────────────────────────────────────────── */}
         <div className="relative flex-1 min-h-[50vh] lg:min-h-0">
@@ -618,7 +757,7 @@ export default function PulsePage() {
         </div>
 
         {/* ── Location cards panel ───────────────────────────────────────── */}
-        <aside className="w-full lg:w-80 xl:w-96 flex-shrink-0 bg-[#0d0f14] border-t lg:border-t-0 lg:border-l border-white/[0.06] overflow-y-auto flex flex-col">
+        <aside className="w-full lg:w-80 xl:w-96 flex-shrink-0 bg-[#0d0f14] border-t lg:border-t-0 lg:border-l border-white/[0.06] lg:overflow-y-auto flex flex-col">
 
           {/* Section: Dining */}
           <CardSection title="Dining" icon="🍽">
