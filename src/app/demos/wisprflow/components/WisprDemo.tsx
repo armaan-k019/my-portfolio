@@ -9,6 +9,7 @@ import {
   type CalibrationMap, type SeparationVector, type CustomGesture, type PhraseEntry,
   CALIB_LETTERS, CALIB_THRESHOLD, PHRASE_THRESHOLD,
   normalizeLandmarks, matchPersonalWithDisambiguation, matchCustom, matchPhrase,
+  matchTwoHandedPhrase,
   loadCalibration, saveCalibration, clearCalibration, clearSeparationVectors,
   loadSeparationVectors,
   loadCustomGestures, saveCustomGestures, clearCustomGestures,
@@ -201,6 +202,7 @@ export default function WisprDemo() {
   const [phraseLibrary,        setPhraseLibrary]        = useState<PhraseEntry[]>([]);
   const [phraseFlash,          setPhraseFlash]          = useState<{ name: string } | null>(null);
   const [isPhraseDetection,    setIsPhraseDetection]    = useState(false);
+  const [twoHandsDetected,     setTwoHandsDetected]     = useState(false);
 
   // Keep shortcutsRef current
   useEffect(() => { shortcutsRef.current = shortcuts; }, [shortcuts]);
@@ -416,6 +418,30 @@ export default function WisprDemo() {
   }, []);
 
   // ── Draw hand landmarks ───────────────────────────────────────────────────
+  const drawHandOnCtx = useCallback((
+    landmarks: [number, number, number][],
+    ctx: CanvasRenderingContext2D,
+    canvasWidth: number,
+    color: string,
+  ) => {
+    ctx.strokeStyle = color + "73"; // ~45% opacity
+    ctx.lineWidth = 2;
+    for (const [a, b] of HAND_CONNECTIONS) {
+      const mx1 = canvasWidth - landmarks[a][0];
+      const mx2 = canvasWidth - landmarks[b][0];
+      ctx.beginPath();
+      ctx.moveTo(mx1, landmarks[a][1]);
+      ctx.lineTo(mx2, landmarks[b][1]);
+      ctx.stroke();
+    }
+    for (const [x, y] of landmarks) {
+      ctx.beginPath();
+      ctx.arc(canvasWidth - x, y, 4, 0, 2 * Math.PI);
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+  }, []);
+
   const drawHand = useCallback((
     landmarks: [number, number, number][],
     canvas: HTMLCanvasElement,
@@ -426,24 +452,23 @@ export default function WisprDemo() {
     canvas.width  = video.videoWidth  || canvas.offsetWidth;
     canvas.height = video.videoHeight || canvas.offsetHeight;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawHandOnCtx(landmarks, ctx, canvas.width, ACCENT);
+  }, [drawHandOnCtx]);
 
-    ctx.strokeStyle = "rgba(108,71,255,0.45)";
-    ctx.lineWidth = 2;
-    for (const [a, b] of HAND_CONNECTIONS) {
-      const mx1 = canvas.width - landmarks[a][0];
-      const mx2 = canvas.width - landmarks[b][0];
-      ctx.beginPath();
-      ctx.moveTo(mx1, landmarks[a][1]);
-      ctx.lineTo(mx2, landmarks[b][1]);
-      ctx.stroke();
-    }
-    for (const [x, y] of landmarks) {
-      ctx.beginPath();
-      ctx.arc(canvas.width - x, y, 4, 0, 2 * Math.PI);
-      ctx.fillStyle = ACCENT;
-      ctx.fill();
-    }
-  }, []);
+  const drawTwoHands = useCallback((
+    leftLandmarks: [number, number, number][],
+    rightLandmarks: [number, number, number][],
+    canvas: HTMLCanvasElement,
+    video: HTMLVideoElement,
+  ) => {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    canvas.width  = video.videoWidth  || canvas.offsetWidth;
+    canvas.height = video.videoHeight || canvas.offsetHeight;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawHandOnCtx(leftLandmarks, ctx, canvas.width, "#378ADD");
+    drawHandOnCtx(rightLandmarks, ctx, canvas.width, "#6C47FF");
+  }, [drawHandOnCtx]);
 
   // ── Detection loop ────────────────────────────────────────────────────────
   const detect = useCallback(async () => {
@@ -460,7 +485,61 @@ export default function WisprDemo() {
     try {
       const hands = await model.estimateHands(video);
 
-      if (hands.length > 0) {
+      if (hands.length >= 2) {
+        // ── TWO-HAND MODE: only run two-handed phrase matching ──────────────
+        setHandDetected(true);
+        setTwoHandsDetected(true);
+
+        // Determine left vs right by wrist x-position (lower x = left in mirrored view)
+        const lm0 = hands[0].landmarks as [number, number, number][];
+        const lm1 = hands[1].landmarks as [number, number, number][];
+        const wrist0x = lm0[0][0];
+        const wrist1x = lm1[0][0];
+        const leftLandmarks  = wrist0x < wrist1x ? lm0 : lm1;
+        const rightLandmarks = wrist0x < wrist1x ? lm1 : lm0;
+
+        drawTwoHands(leftLandmarks, rightLandmarks, canvas, video);
+
+        const leftVec  = normalizeLandmarks(leftLandmarks);
+        const rightVec = normalizeLandmarks(rightLandmarks);
+
+        // Suppress all letter detection
+        holdRef.current = null;
+        fingerHoldRef.current = null;
+        fistHoldRef.current = null;
+        setFistHoldProgress(0);
+        setIsPersonalSign(false);
+        setIsDisambiguated(false);
+        setDisambigCandidates(null);
+        setActiveFingerCount(null);
+
+        const twoHandMatch = matchTwoHandedPhrase(leftVec, rightVec, phraseLibraryRef.current);
+        console.log("Two-hand check:", twoHandMatch?.entry.name ?? "none", twoHandMatch?.distance.toFixed(3) ?? "999");
+
+        if (twoHandMatch) {
+          setIsPhraseDetection(true);
+          setDetectedLetter(`\u270C ${twoHandMatch.entry.name}`);
+          setConfidence(Math.round((1 - twoHandMatch.distance / 0.20) * 100));
+
+          const now = Date.now();
+          const pid = twoHandMatch.entry.id;
+          if (phraseHoldRef.current?.id === pid) {
+            const elapsed = now - phraseHoldRef.current.start;
+            setHoldProgress(Math.min(elapsed / HOLD_MS, 1));
+            if (elapsed >= HOLD_MS) triggerPhrase(twoHandMatch.entry);
+          } else {
+            phraseHoldRef.current = { id: pid, start: now };
+            setHoldProgress(0);
+          }
+        } else {
+          setIsPhraseDetection(false);
+          phraseHoldRef.current = null;
+          setDetectedLetter("\u270C Two-hand gesture");
+          setConfidence(0);
+          setHoldProgress(0);
+        }
+      } else if (hands.length === 1) {
+        setTwoHandsDetected(false);
         setHandDetected(true);
         const landmarks = hands[0].landmarks as [number, number, number][];
         drawHand(landmarks, canvas, video);
@@ -605,6 +684,7 @@ export default function WisprDemo() {
         }
       } else {
         setHandDetected(false);
+        setTwoHandsDetected(false);
         setDetectedLetter(null);
         setConfidence(0);
         setHoldProgress(0);
@@ -622,7 +702,7 @@ export default function WisprDemo() {
     } catch { /* ignore per-frame errors */ }
 
     rafRef.current = requestAnimationFrame(detect);
-  }, [drawHand, confirmLetter, selectPrediction, readSentence]);
+  }, [drawHand, drawTwoHands, confirmLetter, selectPrediction, readSentence, triggerPhrase]);
 
   // ── Request camera ────────────────────────────────────────────────────────
   const requestCamera = useCallback(async () => {
@@ -743,7 +823,7 @@ export default function WisprDemo() {
             {modelState === "loading"  && "loading hand recognition model..."}
             {modelState === "error"    && "model failed to load"}
             {modelState === "ready" && cameraState === "prompt"      && "model ready - enable camera to begin"}
-            {modelState === "ready" && cameraState === "granted"     && (handDetected ? "hand detected" : "no hand in frame")}
+            {modelState === "ready" && cameraState === "granted"     && (twoHandsDetected ? "2 hands detected" : handDetected ? "hand detected" : "no hand in frame")}
             {modelState === "ready" && cameraState === "denied"      && "camera access denied"}
             {modelState === "ready" && cameraState === "unavailable" && "no camera found"}
           </span>

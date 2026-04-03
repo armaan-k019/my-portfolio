@@ -10,6 +10,7 @@ export const PHRASE_LIBRARY_KEY  = "asl_flow_phrase_library";
 
 /** Distance cutoff for phrase library matches - more eager than letter calibration. */
 export const PHRASE_THRESHOLD = 0.18;
+export const TWO_HAND_THRESHOLD = 0.20;
 export const CALIB_THRESHOLD     = 0.15; // Euclidean distance cutoff for personal match
 
 // kept for backwards compat; prefer samplesNeeded(letter)
@@ -59,7 +60,10 @@ export interface PhraseEntry {
   id: string;
   name: string;          // user-facing label, e.g. "Thumbs up"
   phrase: string;        // text to output, e.g. "Sounds good!"
-  landmarks: number[];   // 42-dim normalized flat vector (same layout as CalibrationEntry)
+  landmarks: number[];   // single-hand normalized flat vector (existing)
+  twoHanded?: boolean;   // new
+  landmarksLeft?: number[];  // normalized flat vector for left hand (new)
+  landmarksRight?: number[]; // normalized flat vector for right hand (new)
   createdAt: string;     // ISO date string
   timesTriggered: number;
 }
@@ -213,6 +217,24 @@ export function matchPhrase(
     if (d < bestDist) { bestDist = d; best = entry; }
   }
   if (best && bestDist < PHRASE_THRESHOLD) return { entry: best, distance: bestDist };
+  return null;
+}
+
+export function matchTwoHandedPhrase(
+  leftVec: number[],
+  rightVec: number[],
+  library: PhraseEntry[],
+): { entry: PhraseEntry; distance: number } | null {
+  let best: PhraseEntry | null = null;
+  let bestDist = Infinity;
+  for (const entry of library) {
+    if (!entry.twoHanded || !entry.landmarksLeft || !entry.landmarksRight) continue;
+    const dLeft = euclidean(leftVec, entry.landmarksLeft);
+    const dRight = euclidean(rightVec, entry.landmarksRight);
+    const combined = (dLeft + dRight) / 2;
+    if (combined < bestDist) { bestDist = combined; best = entry; }
+  }
+  if (best && bestDist < TWO_HAND_THRESHOLD) return { entry: best, distance: bestDist };
   return null;
 }
 

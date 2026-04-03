@@ -54,7 +54,7 @@ interface Props {
   onUpdate: (library: PhraseEntry[]) => void;
 }
 
-type TrainStep = "name" | "output" | "capture" | "review" | "confirm";
+type TrainStep = "name" | "output" | "handcount" | "capture" | "review" | "confirm";
 
 export default function PhraseLibrary({ videoRef, modelRef, phraseLibrary, onUpdate }: Props) {
   const [open,            setOpen]           = useState(false);
@@ -64,10 +64,17 @@ export default function PhraseLibrary({ videoRef, modelRef, phraseLibrary, onUpd
   const [trainStep,       setTrainStep]      = useState<TrainStep>("name");
   const [trainName,       setTrainName]      = useState("");
   const [trainPhrase,     setTrainPhrase]    = useState("");
+  const [trainTwoHanded,  setTrainTwoHanded] = useState(false);
   const [snapshots,       setSnapshots]      = useState<number[][]>([]);
   const [handSeen,        setHandSeen]       = useState(false);
   const [stability,       setStability]      = useState(100);
   const [reviewVec,       setReviewVec]      = useState<number[] | null>(null);
+  // Two-handed capture state
+  const [twoHandSeen,     setTwoHandSeen]    = useState(false);
+  const [stabilityLeft,   setStabilityLeft]  = useState(100);
+  const [stabilityRight,  setStabilityRight] = useState(100);
+  const [reviewVecLeft,   setReviewVecLeft]  = useState<number[] | null>(null);
+  const [reviewVecRight,  setReviewVecRight] = useState<number[] | null>(null);
 
   // Import / Export
   const [importExportOpen, setImportExportOpen] = useState(false);
@@ -89,6 +96,10 @@ export default function PhraseLibrary({ videoRef, modelRef, phraseLibrary, onUpd
   const prevVecRef     = useRef<number[] | null>(null);
   const lastCaptureRef = useRef(0);
   const captureRafRef  = useRef(0);
+  // Two-handed capture refs
+  const snapshotsPairsRef = useRef<[number[], number[]][]>([]); // [leftVec, rightVec] pairs
+  const prevVecLeftRef    = useRef<number[] | null>(null);
+  const prevVecRightRef   = useRef<number[] | null>(null);
 
   useEffect(() => { snapshotsRef.current = snapshots; }, [snapshots]);
 
@@ -103,6 +114,14 @@ export default function PhraseLibrary({ videoRef, modelRef, phraseLibrary, onUpd
     setHandSeen(false);
     setStability(100);
 
+    // Two-handed capture state reset
+    snapshotsPairsRef.current = [];
+    prevVecLeftRef.current = null;
+    prevVecRightRef.current = null;
+    setTwoHandSeen(false);
+    setStabilityLeft(100);
+    setStabilityRight(100);
+
     async function loop() {
       if (stoppedRef.current) return;
       const now   = Date.now();
@@ -112,32 +131,87 @@ export default function PhraseLibrary({ videoRef, modelRef, phraseLibrary, onUpd
         try {
           const hands = await model.estimateHands(video);
           if (!stoppedRef.current) {
-            setHandSeen(hands.length > 0);
-            if (hands.length > 0) {
-              const lm  = hands[0].landmarks as [number, number, number][];
-              const vec = normalizeLandmarks(lm);
-              let stab = 100;
-              if (prevVecRef.current) {
-                const move = euclidean(vec, prevVecRef.current);
-                stab = Math.max(0, (1 - move / 0.3)) * 100;
-              }
-              prevVecRef.current = vec;
-              setStability(Math.round(stab));
-              if (stab >= STABILITY_THRESHOLD && now - lastCaptureRef.current >= CAPTURE_INTERVAL_MS) {
-                const cur = [...snapshotsRef.current, vec];
-                snapshotsRef.current = cur;
-                setSnapshots(cur);
-                lastCaptureRef.current = now;
-                if (cur.length >= SAMPLES_DEFAULT) {
-                  stoppedRef.current = true;
-                  setReviewVec(weightedAverageVectors(cur));
-                  setTrainStep("review");
-                  return;
+            if (trainTwoHanded) {
+              // ── TWO-HANDED CAPTURE ──────────────────────────────────────
+              const twoHandsPresent = hands.length >= 2;
+              setTwoHandSeen(twoHandsPresent);
+
+              if (twoHandsPresent) {
+                const lm0 = hands[0].landmarks as [number, number, number][];
+                const lm1 = hands[1].landmarks as [number, number, number][];
+                const wrist0x = lm0[0][0];
+                const wrist1x = lm1[0][0];
+                const leftLm  = wrist0x < wrist1x ? lm0 : lm1;
+                const rightLm = wrist0x < wrist1x ? lm1 : lm0;
+                const leftVec  = normalizeLandmarks(leftLm);
+                const rightVec = normalizeLandmarks(rightLm);
+
+                let stabL = 100, stabR = 100;
+                if (prevVecLeftRef.current) {
+                  const moveL = euclidean(leftVec, prevVecLeftRef.current);
+                  stabL = Math.max(0, (1 - moveL / 0.3)) * 100;
                 }
+                if (prevVecRightRef.current) {
+                  const moveR = euclidean(rightVec, prevVecRightRef.current);
+                  stabR = Math.max(0, (1 - moveR / 0.3)) * 100;
+                }
+                prevVecLeftRef.current  = leftVec;
+                prevVecRightRef.current = rightVec;
+                setStabilityLeft(Math.round(stabL));
+                setStabilityRight(Math.round(stabR));
+
+                const bothStable = stabL >= STABILITY_THRESHOLD && stabR >= STABILITY_THRESHOLD;
+                if (bothStable && now - lastCaptureRef.current >= CAPTURE_INTERVAL_MS) {
+                  const cur: [number[], number[]][] = [...snapshotsPairsRef.current, [leftVec, rightVec]];
+                  snapshotsPairsRef.current = cur;
+                  setSnapshots(cur.map(p => p[0])); // reuse snapshots count
+                  lastCaptureRef.current = now;
+                  if (cur.length >= SAMPLES_DEFAULT) {
+                    stoppedRef.current = true;
+                    const avgLeft  = weightedAverageVectors(cur.map(p => p[0]));
+                    const avgRight = weightedAverageVectors(cur.map(p => p[1]));
+                    setReviewVecLeft(avgLeft);
+                    setReviewVecRight(avgRight);
+                    setReviewVec(avgLeft); // set reviewVec for display compatibility
+                    setTrainStep("review");
+                    return;
+                  }
+                }
+              } else {
+                prevVecLeftRef.current  = null;
+                prevVecRightRef.current = null;
+                setStabilityLeft(100);
+                setStabilityRight(100);
               }
             } else {
-              prevVecRef.current = null;
-              setStability(100);
+              // ── SINGLE-HAND CAPTURE ─────────────────────────────────────
+              setHandSeen(hands.length > 0);
+              if (hands.length > 0) {
+                const lm  = hands[0].landmarks as [number, number, number][];
+                const vec = normalizeLandmarks(lm);
+                let stab = 100;
+                if (prevVecRef.current) {
+                  const move = euclidean(vec, prevVecRef.current);
+                  stab = Math.max(0, (1 - move / 0.3)) * 100;
+                }
+                prevVecRef.current = vec;
+                setStability(Math.round(stab));
+                if (stab >= STABILITY_THRESHOLD && now - lastCaptureRef.current >= CAPTURE_INTERVAL_MS) {
+                  const cur = [...snapshotsRef.current, vec];
+                  snapshotsRef.current = cur;
+                  setSnapshots(cur);
+                  lastCaptureRef.current = now;
+                  if (cur.length >= SAMPLES_DEFAULT) {
+                    stoppedRef.current = true;
+                    setReviewVec(weightedAverageVectors(cur));
+                    setTrainStep("review");
+                    return;
+                  }
+                }
+              } else {
+                prevVecRef.current = null;
+                setStability(100);
+              }
             }
           }
         } catch { /* ignore per-frame errors */ }
@@ -150,7 +224,7 @@ export default function PhraseLibrary({ videoRef, modelRef, phraseLibrary, onUpd
       stoppedRef.current = true;
       cancelAnimationFrame(captureRafRef.current);
     };
-  }, [training, trainStep, videoRef, modelRef]);
+  }, [training, trainStep, trainTwoHanded, videoRef, modelRef]);
 
   // Test loop
   useEffect(() => {
@@ -207,9 +281,13 @@ export default function PhraseLibrary({ videoRef, modelRef, phraseLibrary, onUpd
     setTraining(false);
     setTrainStep("name");
     setTrainName(""); setTrainPhrase("");
+    setTrainTwoHanded(false);
     setSnapshots([]); snapshotsRef.current = [];
+    snapshotsPairsRef.current = [];
     setReviewVec(null);
+    setReviewVecLeft(null); setReviewVecRight(null);
     setHandSeen(false); setStability(100);
+    setTwoHandSeen(false); setStabilityLeft(100); setStabilityRight(100);
   }, []);
 
   function startTraining() {
@@ -220,14 +298,29 @@ export default function PhraseLibrary({ videoRef, modelRef, phraseLibrary, onUpd
 
   function savePhrase() {
     if (!reviewVec) return;
-    const entry: PhraseEntry = {
-      id: `phrase_${Date.now()}`,
-      name: trainName.trim(),
-      phrase: trainPhrase.trim(),
-      landmarks: reviewVec,
-      createdAt: new Date().toISOString(),
-      timesTriggered: 0,
-    };
+    let entry: PhraseEntry;
+    if (trainTwoHanded && reviewVecLeft && reviewVecRight) {
+      entry = {
+        id: `phrase_${Date.now()}`,
+        name: trainName.trim(),
+        phrase: trainPhrase.trim(),
+        landmarks: reviewVecLeft, // fallback: use left hand as primary
+        twoHanded: true,
+        landmarksLeft: reviewVecLeft,
+        landmarksRight: reviewVecRight,
+        createdAt: new Date().toISOString(),
+        timesTriggered: 0,
+      };
+    } else {
+      entry = {
+        id: `phrase_${Date.now()}`,
+        name: trainName.trim(),
+        phrase: trainPhrase.trim(),
+        landmarks: reviewVec,
+        createdAt: new Date().toISOString(),
+        timesTriggered: 0,
+      };
+    }
     const updated = [...phraseLibrary, entry];
     savePhraseLibrary(updated);
     onUpdate(updated);
@@ -293,7 +386,11 @@ export default function PhraseLibrary({ videoRef, modelRef, phraseLibrary, onUpd
   }
 
   const stabColor   = stability >= 80 ? "#22c55e" : stability >= 50 ? "#f59e0b" : "#ef4444";
-  const isPaused    = stability < STABILITY_THRESHOLD && handSeen;
+  const stabColorL  = stabilityLeft  >= 80 ? "#22c55e" : stabilityLeft  >= 50 ? "#f59e0b" : "#ef4444";
+  const stabColorR  = stabilityRight >= 80 ? "#22c55e" : stabilityRight >= 50 ? "#f59e0b" : "#ef4444";
+  const isPaused    = trainTwoHanded
+    ? twoHandSeen && (stabilityLeft < STABILITY_THRESHOLD || stabilityRight < STABILITY_THRESHOLD)
+    : stability < STABILITY_THRESHOLD && handSeen;
   const captureProgress = snapshots.length / SAMPLES_DEFAULT;
   const r = 30, circ = 2 * Math.PI * r;
 
@@ -380,14 +477,14 @@ export default function PhraseLibrary({ videoRef, modelRef, phraseLibrary, onUpd
 
               {/* Step indicators */}
               <div className="flex items-center gap-1.5">
-                {(["name", "output", "capture", "review", "confirm"] as TrainStep[]).map((s, i) => (
+                {(["name", "output", "handcount", "capture", "review", "confirm"] as TrainStep[]).map((s, i) => (
                   <div
                     key={s}
                     className="h-1 flex-1 rounded-full transition-all"
                     style={{
                       backgroundColor:
                         s === trainStep ? ACCENT :
-                        (["name","output","capture","review","confirm"].indexOf(trainStep) > i) ? "#a78bfa60" : "#ffffff15",
+                        (["name","output","handcount","capture","review","confirm"].indexOf(trainStep) > i) ? "#a78bfa60" : "#ffffff15",
                     }}
                   />
                 ))}
@@ -449,14 +546,47 @@ export default function PhraseLibrary({ videoRef, modelRef, phraseLibrary, onUpd
                       Back
                     </button>
                     <button
-                      onClick={() => setTrainStep("capture")}
+                      onClick={() => setTrainStep("handcount")}
                       disabled={trainPhrase.trim().length === 0}
                       className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-30 transition-all"
                       style={{ backgroundColor: ACCENT }}
                     >
-                      Record gesture
+                      Next
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* Step 2b: Hand count selection */}
+              {trainStep === "handcount" && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-white/40 uppercase tracking-widest mb-3">
+                      One-handed or two-handed?
+                    </label>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setTrainTwoHanded(false); setTrainStep("capture"); }}
+                        className="flex-1 py-3 rounded-lg text-sm font-semibold border transition-all hover:border-white/30"
+                        style={{ backgroundColor: "#ffffff08", borderColor: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.7)" }}
+                      >
+                        One hand
+                      </button>
+                      <button
+                        onClick={() => { setTrainTwoHanded(true); setTrainStep("capture"); }}
+                        className="flex-1 py-3 rounded-lg text-sm font-semibold border transition-all"
+                        style={{ backgroundColor: `${ACCENT}20`, borderColor: `${ACCENT}60`, color: "#a78bfa" }}
+                      >
+                        Two hands ✌
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setTrainStep("output")}
+                    className="w-full py-2 rounded-lg text-sm text-white/40 border border-white/15 hover:text-white/60 transition-colors"
+                  >
+                    Back
+                  </button>
                 </div>
               )}
 
@@ -464,7 +594,9 @@ export default function PhraseLibrary({ videoRef, modelRef, phraseLibrary, onUpd
               {trainStep === "capture" && (
                 <div className="flex flex-col items-center gap-4">
                   <p className="text-xs text-white/50 text-center">
-                    Now show the gesture and hold it steady.
+                    {trainTwoHanded
+                      ? "Show both hands in frame and hold them steady."
+                      : "Now show the gesture and hold it steady."}
                   </p>
 
                   {/* Progress ring */}
@@ -490,21 +622,48 @@ export default function PhraseLibrary({ videoRef, modelRef, phraseLibrary, onUpd
                     </div>
                   </div>
 
-                  {/* Stability bar */}
-                  {handSeen && (
-                    <div className="w-full">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] text-white/30">Stability</span>
-                        <span className="text-[10px] font-mono font-bold" style={{ color: stabColor }}>{stability}%</span>
+                  {/* Stability bars */}
+                  {trainTwoHanded ? (
+                    twoHandSeen && (
+                      <div className="w-full space-y-2">
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] text-white/30">Left hand stability</span>
+                            <span className="text-[10px] font-mono font-bold" style={{ color: stabColorL }}>{stabilityLeft}%</span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                            <div className="h-full rounded-full transition-all duration-150" style={{ width: `${stabilityLeft}%`, backgroundColor: stabColorL }} />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] text-white/30">Right hand stability</span>
+                            <span className="text-[10px] font-mono font-bold" style={{ color: stabColorR }}>{stabilityRight}%</span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                            <div className="h-full rounded-full transition-all duration-150" style={{ width: `${stabilityRight}%`, backgroundColor: stabColorR }} />
+                          </div>
+                        </div>
                       </div>
-                      <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-                        <div className="h-full rounded-full transition-all duration-150" style={{ width: `${stability}%`, backgroundColor: stabColor }} />
+                    )
+                  ) : (
+                    handSeen && (
+                      <div className="w-full">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] text-white/30">Stability</span>
+                          <span className="text-[10px] font-mono font-bold" style={{ color: stabColor }}>{stability}%</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                          <div className="h-full rounded-full transition-all duration-150" style={{ width: `${stability}%`, backgroundColor: stabColor }} />
+                        </div>
                       </div>
-                    </div>
+                    )
                   )}
 
                   <p className="text-xs text-white/40 text-center">
-                    {!handSeen ? "Show your hand in the camera" : isPaused ? "Hold still..." : `Capturing... ${snapshots.length}/${SAMPLES_DEFAULT}`}
+                    {trainTwoHanded
+                      ? (!twoHandSeen ? "Show both hands in the camera" : isPaused ? "Hold both hands still..." : `Capturing... ${snapshots.length}/${SAMPLES_DEFAULT}`)
+                      : (!handSeen ? "Show your hand in the camera" : isPaused ? "Hold still..." : `Capturing... ${snapshots.length}/${SAMPLES_DEFAULT}`)}
                   </p>
                 </div>
               )}
@@ -515,15 +674,40 @@ export default function PhraseLibrary({ videoRef, modelRef, phraseLibrary, onUpd
                   <p className="text-xs text-white/60 text-center">
                     Does this look like <span className="font-bold text-white">&ldquo;{trainName}&rdquo;</span>?
                   </p>
-                  <div className="rounded-xl bg-white/5 border border-white/10 p-3">
-                    <HandSkeleton vec={reviewVec} w={110} h={120} />
-                  </div>
+                  {trainTwoHanded && reviewVecLeft && reviewVecRight ? (
+                    <div className="flex gap-3">
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="text-[9px] text-white/30 uppercase tracking-widest">Left</span>
+                        <div className="rounded-xl bg-white/5 border border-[#378ADD30] p-2">
+                          <HandSkeleton vec={reviewVecLeft} w={80} h={90} />
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="text-[9px] text-white/30 uppercase tracking-widest">Right</span>
+                        <div className="rounded-xl bg-white/5 border border-[#6C47FF30] p-2">
+                          <HandSkeleton vec={reviewVecRight} w={80} h={90} />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl bg-white/5 border border-white/10 p-3">
+                      <HandSkeleton vec={reviewVec} w={110} h={120} />
+                    </div>
+                  )}
                   <p className="text-xs text-white/40 text-center">
                     When triggered, it will type: <span className="font-semibold text-white/70">&ldquo;{trainPhrase}&rdquo;</span>
                   </p>
                   <div className="flex gap-2 w-full">
                     <button
-                      onClick={() => { setReviewVec(null); setSnapshots([]); snapshotsRef.current = []; setTrainStep("capture"); }}
+                      onClick={() => {
+                        setReviewVec(null);
+                        setReviewVecLeft(null);
+                        setReviewVecRight(null);
+                        setSnapshots([]);
+                        snapshotsRef.current = [];
+                        snapshotsPairsRef.current = [];
+                        setTrainStep("capture");
+                      }}
                       className="flex-1 py-2.5 rounded-lg text-sm text-white/50 border border-white/15 hover:text-white/70 transition-colors"
                     >
                       Try again
@@ -569,9 +753,36 @@ export default function PhraseLibrary({ videoRef, modelRef, phraseLibrary, onUpd
           {/* Phrase list */}
           <div className="px-4 py-3">
             {phraseLibrary.length === 0 ? (
-              <p className="text-[10px] text-white/25 text-center py-4 leading-relaxed">
-                No phrases yet. Train your first gesture to get started - any hand position can map to any word or phrase.
-              </p>
+              <div className="py-4 space-y-4">
+                <p className="text-[10px] text-white/25 text-center leading-relaxed">
+                  No phrases yet. Train your first gesture to get started - any hand position can map to any word or phrase.
+                </p>
+                <div className="space-y-2">
+                  <p className="text-[9px] text-white/25 uppercase tracking-widest text-center">Suggested two-handed presets</p>
+                  <div className="flex flex-wrap gap-1.5 justify-center">
+                    {[
+                      { name: "Hello", phrase: "Hello", hint: "Both hands open, palms out" },
+                      { name: "I need help", phrase: "I need help", hint: "Both fists" },
+                      { name: "One moment please", phrase: "One moment please", hint: "One open + one fist" },
+                    ].map(preset => (
+                      <button
+                        key={preset.name}
+                        onClick={() => {
+                          setTrainName(preset.name);
+                          setTrainPhrase(preset.phrase);
+                          setTraining(true);
+                          setTrainStep("handcount");
+                        }}
+                        title={preset.hint}
+                        className="px-2.5 py-1.5 rounded-full text-[10px] border transition-all hover:border-white/25 hover:text-white/60"
+                        style={{ backgroundColor: `${ACCENT}10`, borderColor: `${ACCENT}30`, color: "#a78bfa" }}
+                      >
+                        ✌ {preset.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             ) : (
               <div className="space-y-2">
                 {phraseLibrary.map(entry => {
@@ -613,7 +824,17 @@ export default function PhraseLibrary({ videoRef, modelRef, phraseLibrary, onUpd
                             </div>
                           ) : (
                             <>
-                              <p className="text-xs font-semibold text-white/80 truncate">{entry.name}</p>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p className="text-xs font-semibold text-white/80 truncate">{entry.name}</p>
+                                {entry.twoHanded && (
+                                  <span
+                                    className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold shrink-0"
+                                    style={{ backgroundColor: "#6C47FF25", color: "#6C47FF" }}
+                                  >
+                                    ✌ 2-hand
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-[10px] text-white/40 truncate mt-0.5">
                                 &ldquo;{entry.phrase}&rdquo;
                               </p>
