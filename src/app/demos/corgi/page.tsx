@@ -88,10 +88,18 @@ function percentile(sorted: number[], p: number): number {
 }
 
 function computeOverlap(t0: number[], t1: number[]): number {
+  if (!t1.length) return 0;
   const sorted = [...t0].sort((a, b) => a - b);
-  const q1 = percentile(sorted, 25);
-  const q3 = percentile(sorted, 75);
-  const inRange = t1.filter(v => v >= q1 && v <= q3).length;
+  // For small samples use full min-max range to avoid false zero from tight IQR
+  let lo: number, hi: number;
+  if (t0.length < 20) {
+    lo = sorted[0];
+    hi = sorted[sorted.length - 1];
+  } else {
+    lo = percentile(sorted, 25);
+    hi = percentile(sorted, 75);
+  }
+  const inRange = t1.filter(v => v >= lo && v <= hi).length;
   return (inRange / t1.length) * 100;
 }
 
@@ -170,11 +178,37 @@ function buildHistogram(t0: number[], t1: number[]): { bin: string; t0: number; 
   return bins;
 }
 
+// Piecewise linear interpolation helper
+function piecewise(x: number, stops: [number, number][]): number {
+  if (x <= stops[0][0]) return stops[0][1];
+  if (x >= stops[stops.length - 1][0]) return stops[stops.length - 1][1];
+  for (let i = 0; i < stops.length - 1; i++) {
+    const [x0, y0] = stops[i];
+    const [x1, y1] = stops[i + 1];
+    if (x >= x0 && x <= x1) {
+      return y0 + ((x - x0) / (x1 - x0)) * (y1 - y0);
+    }
+  }
+  return stops[stops.length - 1][1];
+}
+
 function computeRiskScore(meanShift: number, varianceChangePct: number, overlapPct: number): number {
-  const meanComponent     = Math.min(meanShift / 0.4, 1) * 40;
-  const varianceComponent = Math.min(Math.abs(varianceChangePct) / 100, 1) * 30;
-  const overlapComponent  = (1 - Math.min(overlapPct / 100, 1)) * 30;
-  return Math.round(meanComponent + varianceComponent + overlapComponent);
+  // Mean Shift component (0–100 sub-score, weight 40%)
+  const meanSub = piecewise(meanShift, [
+    [0.00,   0], [0.05,  10], [0.10,  25], [0.20,  50], [0.35,  75], [0.50, 100],
+  ]);
+
+  // Variance Change component (0–100 sub-score, weight 30%) — uses absolute %
+  const varianceSub = piecewise(Math.abs(varianceChangePct), [
+    [0,    0], [25,  10], [75,  30], [150,  60], [250, 100],
+  ]);
+
+  // Overlap component (0–100 sub-score, weight 30%) — inverted: less overlap = higher risk
+  const overlapSub = piecewise(overlapPct, [
+    [0,   100], [10,   60], [30,  30], [60,  10], [100,   0],
+  ]);
+
+  return Math.round(meanSub * 0.40 + varianceSub * 0.30 + overlapSub * 0.30);
 }
 
 function riskBand(score: number): { level: "Low" | "Moderate" | "Significant" | "Critical"; color: string; bg: string; label: string } {
@@ -467,7 +501,7 @@ export default function CorgiPage() {
                   value={t0Raw}
                   onChange={e => { setT0Raw(e.target.value); setFormError(""); }}
                   rows={5}
-                  placeholder="Paste comma-separated output scores (0–1). Example: 0.82, 0.76, 0.91, 0.88, 0.45, 0.67..."
+                  placeholder="For best results, paste 25–50 comma-separated values (0–1 range). Example: 0.82, 0.76, 0.91, 0.88, 0.45..."
                   className="w-full px-3 py-2.5 text-sm rounded-lg border border-[#e5e7eb] text-[#111827] placeholder:text-[#9ca3af] focus:outline-none focus:border-[#d97706] transition-colors resize-none font-mono"
                 />
               </div>
@@ -480,7 +514,7 @@ export default function CorgiPage() {
                   value={t1Raw}
                   onChange={e => { setT1Raw(e.target.value); setFormError(""); }}
                   rows={5}
-                  placeholder="Paste comma-separated output scores (0–1) from your most recent period."
+                  placeholder="For best results, paste 25–50 comma-separated values (0–1 range) from your most recent period."
                   className="w-full px-3 py-2.5 text-sm rounded-lg border border-[#e5e7eb] text-[#111827] placeholder:text-[#9ca3af] focus:outline-none focus:border-[#d97706] transition-colors resize-none font-mono"
                 />
               </div>
@@ -559,8 +593,8 @@ export default function CorgiPage() {
                       formatter={(val, name) => [val, name === "t0" ? "Baseline (T0)" : "Recent (T1)"]}
                     />
                     <Legend formatter={(v: string) => v === "t0" ? "Baseline (T0)" : "Recent (T1)"} wrapperStyle={{ fontSize: 11 }} />
-                    <Bar dataKey="t0" fill="#60a5fa" opacity={0.75} radius={[3, 3, 0, 0]} />
-                    <Bar dataKey="t1" fill="#f59e0b" opacity={0.85} radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="t0" fill="#60a5fa" opacity={0.75} radius={[3, 3, 0, 0]} minPointSize={2} barSize={30} />
+                    <Bar dataKey="t1" fill="#f59e0b" opacity={0.85} radius={[3, 3, 0, 0]} minPointSize={2} barSize={30} />
                     <ReferenceLine x={metrics.histogramData.reduce((best, b) => Math.abs(b.binMid - metrics.t0Mean) < Math.abs(best.binMid - metrics.t0Mean) ? b : best, metrics.histogramData[0]).bin} stroke="#60a5fa" strokeDasharray="4 2" strokeWidth={1.5} label={{ value: `T0 μ=${metrics.t0Mean}`, fontSize: 9, fill: "#60a5fa", position: "top" }} />
                     <ReferenceLine x={metrics.histogramData.reduce((best, b) => Math.abs(b.binMid - metrics.t1Mean) < Math.abs(best.binMid - metrics.t1Mean) ? b : best, metrics.histogramData[0]).bin} stroke="#f59e0b" strokeDasharray="4 2" strokeWidth={1.5} label={{ value: `T1 μ=${metrics.t1Mean}`, fontSize: 9, fill: "#f59e0b", position: "top" }} />
                   </BarChart>
