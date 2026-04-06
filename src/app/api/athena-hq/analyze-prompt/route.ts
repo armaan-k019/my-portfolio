@@ -30,22 +30,18 @@ export async function POST(request: Request) {
       messages: [
         {
           role: "user",
-          content: `You are simulating how an AI assistant like ChatGPT or Perplexity would respond to a user query. Respond naturally to the query below, then score each brand.
+          content: `You are a knowledgeable AI assistant like ChatGPT or Perplexity. Answer the query below honestly, based solely on your training knowledge. Do not favor any particular brand — mention brands only if they are genuinely relevant and well-known in this context. Your answer should reflect how a real AI search engine would respond.
 
 USER QUERY: "${prompt}"
 
-Context about the brands:
-- ${brand}: ${description || "a company in this space"}
-${competitors.filter(Boolean).map(c => `- ${c}: a competitor brand`).join("\n")}
+After writing your response, score how prominently each of the following brands appeared. Base scores only on what you actually wrote — do not adjust scores based on which brand "should" win.
 
-Instructions:
-1. Write a realistic AI search response (150-250 words) that a helpful AI assistant might give. Mention brands organically where relevant — don't force mentions.
-2. Then score how prominently each brand appeared in your response.
+Brands to score: ${allBrands.map(b => JSON.stringify(b)).join(", ")}
 
 Scoring tiers:
-- "primary" (3pts): Mentioned first, recommended most strongly, or the clear leader in the response
-- "secondary" (2pts): Mentioned and discussed, but not the lead recommendation
-- "brief" (1pt): Brief or passing mention, listed among many options
+- "primary" (3pts): Mentioned first, recommended most strongly, or the clear standout in the response
+- "secondary" (2pts): Mentioned and discussed meaningfully, but not the leading recommendation
+- "brief" (1pt): Brief or passing mention — listed among several options without emphasis
 - "none" (0pts): Not mentioned at all
 
 Return ONLY this JSON (no other text):
@@ -56,7 +52,7 @@ ${allBrands.map(b => `    {"brand": ${JSON.stringify(b)}, "tier": "none", "score
   ]
 }
 
-Replace each tier ("primary"|"secondary"|"brief"|"none") and score (3|2|1|0) based on how each brand actually appeared in your response. Return valid JSON only.`,
+Replace each tier and score based on your actual response. Return valid JSON only.`,
         },
       ],
     });

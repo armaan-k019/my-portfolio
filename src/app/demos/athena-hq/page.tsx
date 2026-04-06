@@ -155,6 +155,14 @@ function SOVChart({
           );
         })}
       </div>
+
+      {/* Bias disclaimer */}
+      <div className="mt-5 flex items-start gap-2 rounded-lg bg-[#f3f4f6] border border-[#e5e7eb] px-3 py-2.5">
+        <span className="text-sm shrink-0 mt-px">ℹ️</span>
+        <p className="text-[11px] text-[#6b7280] leading-relaxed">
+          <span className="font-semibold text-[#374151]">Note:</span> Scoring is based on Claude&apos;s training data, which may favor brands with stronger documentation and online presence. Newer or niche brands may be underrepresented independent of their actual product quality.
+        </p>
+      </div>
     </div>
   );
 }
@@ -261,33 +269,39 @@ function BrandScorecard({
   const mentionRate = Math.round((scores.mentionCount[brand] / totalPrompts) * 100);
   const total = scores.totalScore[brand];
 
+  // Strongest: highest score for user's brand
   const strongestIdx = results.reduce((best, r, i) => {
-    const s = r.brandScores.find(b => b.brand === brand)?.score ?? 0;
+    const s     = r.brandScores.find(b => b.brand === brand)?.score ?? 0;
     const bests = results[best]?.brandScores.find(b => b.brand === brand)?.score ?? -1;
     return s > bests ? i : best;
   }, 0);
 
+  // Weakest: lowest score; tiebreak by largest competitor advantage
   const weakestIdx = results.reduce((worst, r, i) => {
-    const s = r.brandScores.find(b => b.brand === brand)?.score ?? 99;
+    const s     = r.brandScores.find(b => b.brand === brand)?.score ?? 0;
     const worsts = results[worst]?.brandScores.find(b => b.brand === brand)?.score ?? 99;
-    return s < worsts ? i : worst;
+    if (s < worsts) return i;
+    if (s === worsts) {
+      // tiebreak: pick the one where competitors scored higher relative to user
+      const compGap = (res: PromptResult) => {
+        const userScore = res.brandScores.find(b => b.brand === brand)?.score ?? 0;
+        const topComp   = Math.max(...res.brandScores.filter(b => b.brand !== brand).map(b => b.score), 0);
+        return topComp - userScore;
+      };
+      return compGap(r) > compGap(results[worst]!) ? i : worst;
+    }
+    return worst;
   }, 0);
 
-  const stats = [
-    { label: "Total Score", value: `${total} / ${totalPrompts * 3}`, sub: "max 3pts per prompt" },
-    { label: "Share of Voice", value: `${scores.shareOfVoice[brand]}%`, sub: "vs all brands analyzed" },
-    { label: "Mention Rate", value: `${mentionRate}%`, sub: `${scores.mentionCount[brand]} of ${totalPrompts} prompts` },
-    { label: "Primary Mentions", value: `${scores.primaryCount[brand]}`, sub: "led the AI response" },
-    {
-      label: "Strongest Prompt",
-      value: TIER_CONFIG[results[strongestIdx]?.brandScores.find(b => b.brand === brand)?.tier ?? "none"].label,
-      sub: `"${results[strongestIdx]?.prompt.slice(0, 45)}…"`,
-    },
-    {
-      label: "Weakest Prompt",
-      value: TIER_CONFIG[results[weakestIdx]?.brandScores.find(b => b.brand === brand)?.tier ?? "none"].label,
-      sub: `"${results[weakestIdx]?.prompt.slice(0, 45)}…"`,
-    },
+  const strongestPrompt = results[strongestIdx]?.prompt ?? "";
+  const weakestPrompt   = results[weakestIdx]?.prompt   ?? "";
+  const truncate = (s: string, n = 42) => s.length > n ? s.slice(0, n) + "…" : s;
+
+  const simpleStats = [
+    { label: "Total Score",      value: `${total} / ${totalPrompts * 3}`, sub: "max 3pts per prompt" },
+    { label: "Share of Voice",   value: `${scores.shareOfVoice[brand]}%`, sub: "vs all brands analyzed" },
+    { label: "Mention Rate",     value: `${mentionRate}%`,                sub: `${scores.mentionCount[brand]} of ${totalPrompts} prompts` },
+    { label: "Primary Mentions", value: `${scores.primaryCount[brand]}`,  sub: "led the AI response" },
   ];
 
   return (
@@ -296,13 +310,51 @@ function BrandScorecard({
         {brand} Scorecard
       </h3>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {stats.map((s) => (
+        {simpleStats.map((s) => (
           <div key={s.label} className="rounded-xl border border-[#e5e7eb] bg-white p-4">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-[#9ca3af] mb-1">{s.label}</p>
             <p className="text-xl font-bold text-[#1a2744] mb-0.5 leading-tight">{s.value}</p>
             <p className="text-[10px] text-[#9ca3af] leading-snug">{s.sub}</p>
           </div>
         ))}
+
+        {/* Strongest Prompt — shows truncated prompt text, full on hover */}
+        <div
+          className="rounded-xl border border-[#e5e7eb] bg-white p-4 group relative cursor-default"
+          title={strongestPrompt}
+        >
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-[#9ca3af] mb-1">Strongest Prompt</p>
+          <p className="text-sm font-semibold text-[#1a2744] mb-0.5 leading-snug">
+            &ldquo;{truncate(strongestPrompt)}&rdquo;
+          </p>
+          <p className="text-[10px] text-[#9ca3af]">
+            {TIER_CONFIG[results[strongestIdx]?.brandScores.find(b => b.brand === brand)?.tier ?? "none"].label} mention
+          </p>
+          {strongestPrompt.length > 42 && (
+            <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-10 w-64 rounded-lg bg-[#1a2744] text-white text-xs p-3 shadow-lg leading-relaxed pointer-events-none">
+              &ldquo;{strongestPrompt}&rdquo;
+            </div>
+          )}
+        </div>
+
+        {/* Weakest Prompt — shows truncated prompt text, full on hover */}
+        <div
+          className="rounded-xl border border-[#e5e7eb] bg-white p-4 group relative cursor-default"
+          title={weakestPrompt}
+        >
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-[#9ca3af] mb-1">Weakest Prompt</p>
+          <p className="text-sm font-semibold text-[#1a2744] mb-0.5 leading-snug">
+            &ldquo;{truncate(weakestPrompt)}&rdquo;
+          </p>
+          <p className="text-[10px] text-[#9ca3af]">
+            {TIER_CONFIG[results[weakestIdx]?.brandScores.find(b => b.brand === brand)?.tier ?? "none"].label} mention
+          </p>
+          {weakestPrompt.length > 42 && (
+            <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-10 w-64 rounded-lg bg-[#1a2744] text-white text-xs p-3 shadow-lg leading-relaxed pointer-events-none">
+              &ldquo;{weakestPrompt}&rdquo;
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
