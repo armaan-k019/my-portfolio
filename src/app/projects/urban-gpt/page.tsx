@@ -97,6 +97,14 @@ function fmtNum(n: number | null, suffix = ""): string {
   return `${n.toLocaleString()}${suffix}`;
 }
 
+function getZoomForRadius(radiusM: number): number {
+  const miles = radiusM / 1609.344;
+  if (miles < 1)  return 15;
+  if (miles < 2)  return 14;
+  if (miles < 5)  return 13;
+  return 12;
+}
+
 function gentrificationColor(level: string | null): string {
   if (!level) return "text-brown-light";
   if (level === "Low") return "text-sage";
@@ -255,6 +263,9 @@ export default function UrbanGPTPage() {
   const hasResultRef = useRef(false);
   const currentPlaceRef = useRef<{ lat: number; lng: number; formatted: string } | null>(null);
   const currentRadiusIndexRef = useRef(DEFAULT_RADIUS_INDEX);
+  // Always-current ref so autocomplete listener never captures a stale doAnalyze
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const doAnalyzeRef = useRef<any>(null);
 
   const radiusInMiles = RADIUS_VALUES[radiusIndex];
   const radiusInMeters = radiusInMiles * 1609.344;
@@ -292,9 +303,12 @@ export default function UrbanGPTPage() {
       const lng = p.geometry.location.lng() as number;
       const formatted = (p.formatted_address as string) ?? "";
       setAddress(formatted);
-      setPlace({ lat, lng, formatted });
-      currentPlaceRef.current = { lat, lng, formatted };
+      const pl = { lat, lng, formatted };
+      setPlace(pl);
+      currentPlaceRef.current = pl;
       setError("");
+      // Immediately trigger analysis on selection
+      doAnalyzeRef.current?.(pl, currentRadiusIndexRef.current);
     });
   }, [mapsLoaded]);
 
@@ -353,6 +367,9 @@ export default function UrbanGPTPage() {
     [unit]
   );
 
+  // Keep doAnalyzeRef current so autocomplete listeners never capture a stale version
+  useEffect(() => { doAnalyzeRef.current = doAnalyze; }, [doAnalyze]);
+
   async function geocodeAddress(addr: string): Promise<{ lat: number; lng: number; formatted: string } | null> {
     try {
       const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1&countrycodes=us`;
@@ -397,9 +414,9 @@ export default function UrbanGPTPage() {
   // ── Update circle radius ───────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!circleRef.current) return;
+    if (!circleRef.current || !mapRef.current) return;
     circleRef.current.setRadius(radiusInMeters);
-    if (mapRef.current) mapRef.current.fitBounds(circleRef.current.getBounds());
+    mapRef.current.setZoom(getZoomForRadius(radiusInMeters));
   }, [radiusInMeters]);
 
   // ── Init / update map on result ────────────────────────────────────────────
@@ -408,9 +425,10 @@ export default function UrbanGPTPage() {
     if (!result || !mapsLoaded || !mapContainerRef.current) return;
     const { lat, lng } = result;
 
+    const zoom = getZoomForRadius(result.radiusM);
     if (!mapRef.current) {
       const map = new window.google.maps.Map(mapContainerRef.current, {
-        center: { lat, lng }, zoom: 13,
+        center: { lat, lng }, zoom,
         mapTypeControl: false, streetViewControl: false, fullscreenControl: false,
         zoomControlOptions: { position: window.google.maps.ControlPosition.RIGHT_CENTER },
         styles: MAP_STYLES,
@@ -426,12 +444,12 @@ export default function UrbanGPTPage() {
       mapRef.current = map;
       circleRef.current = circle;
       centerMarkerRef.current = centerMarker;
-      map.fitBounds(circle.getBounds());
     } else {
       circleRef.current?.setCenter({ lat, lng });
       circleRef.current?.setRadius(result.radiusM);
       centerMarkerRef.current?.setPosition({ lat, lng });
-      mapRef.current?.fitBounds(circleRef.current?.getBounds());
+      mapRef.current.setCenter({ lat, lng });
+      mapRef.current.setZoom(zoom);
     }
 
     renderOverlays(result.overpass, layers);
@@ -592,10 +610,22 @@ export default function UrbanGPTPage() {
       <AnimatePresence>
         {result && !loading && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
-            {result.overpassError && (
-              <div className="mb-4 flex items-center justify-between gap-3 p-3 rounded-lg bg-tan/10 border border-tan/30 text-xs text-brown-light">
-                <span>⚠ OpenStreetMap data timed out. Amenity counts may be incomplete.</span>
-                <button onClick={handleAnalyze} className="shrink-0 text-xs font-medium text-darkblue underline hover:no-underline">Retry</button>
+            {(result.overpassError || (result.overpass.timedOutCategories?.length ?? 0) > 0 || result.overpass.radiusCapped) && (
+              <div className="mb-4 p-3 rounded-lg bg-tan/10 border border-tan/30 text-xs text-brown-light space-y-1.5">
+                {(result.overpassError || (result.overpass.timedOutCategories?.length ?? 0) > 0) && (
+                  <div className="flex items-start justify-between gap-3">
+                    <span>
+                      ⚠{" "}
+                      {result.overpass.timedOutCategories && result.overpass.timedOutCategories.length > 0
+                        ? `${result.overpass.timedOutCategories.join(', ')} data timed out — showing available results for other categories.`
+                        : 'OpenStreetMap data timed out. Amenity counts may be incomplete.'}
+                    </span>
+                    <button onClick={handleAnalyze} className="shrink-0 text-xs font-medium text-darkblue underline hover:no-underline">Retry</button>
+                  </div>
+                )}
+                {result.overpass.radiusCapped && (
+                  <p>ℹ Amenity data shown for 5 mi radius — demographic data covers the full selected radius.</p>
+                )}
               </div>
             )}
 
@@ -610,21 +640,43 @@ export default function UrbanGPTPage() {
                     <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm rounded-xl border border-tan/20 shadow-sm p-3">
                       <p className="text-[9px] font-semibold uppercase tracking-widest text-brown-light mb-2">Layers</p>
                       <div className="flex flex-col gap-1.5">
-                        {LAYER_CONFIG.map(({ key, label, color }) => (
-                          <label key={key} className="flex items-center gap-2 cursor-pointer">
-                            <div className={`w-3 h-3 rounded-full ${layers[key] ? color : "bg-brown-light/20"} transition-colors`} />
-                            <span className={`text-xs transition-colors ${layers[key] ? "text-brown" : "text-brown-light/50"}`}>{label}</span>
-                            <input type="checkbox" checked={layers[key]}
-                              onChange={() => setLayers((prev) => ({ ...prev, [key]: !prev[key] }))}
-                              className="sr-only" />
-                          </label>
-                        ))}
+                        {LAYER_CONFIG.map(({ key, label, color }) => {
+                          // Map layer key → overpass category name used in timedOutCategories
+                          const categoryName = key === 'restaurants' ? 'dining' : key === 'hospitals' ? 'health' : key;
+                          const count = result?.overpass[key as keyof typeof result.overpass] as OverpassPoint[] | undefined;
+                          const countNum = Array.isArray(count) ? count.length : 0;
+                          const timedOut = result?.overpass.timedOutCategories?.includes(categoryName);
+                          return (
+                            <label key={key} className="flex items-center gap-2 cursor-pointer">
+                              <div className={`w-3 h-3 rounded-full shrink-0 ${layers[key] ? color : "bg-brown-light/20"} transition-colors`} />
+                              <span className={`text-xs transition-colors flex-1 ${layers[key] ? "text-brown" : "text-brown-light/50"}`}>{label}</span>
+                              {loading ? (
+                                <span className="text-[9px] text-brown-light/40 animate-pulse">…</span>
+                              ) : result ? (
+                                timedOut ? (
+                                  <span className="text-[9px] text-tan/70 italic">timeout</span>
+                                ) : countNum === 0 ? (
+                                  <span className="text-[9px] text-brown-light/40 italic">none</span>
+                                ) : (
+                                  <span className="text-[9px] font-semibold text-darkblue">{countNum}</span>
+                                )
+                              ) : null}
+                              <input type="checkbox" checked={layers[key]}
+                                onChange={() => setLayers((prev) => ({ ...prev, [key]: !prev[key] }))}
+                                className="sr-only" />
+                            </label>
+                          );
+                        })}
                       </div>
                     </div>
                     {/* Amenity badge */}
                     <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-xl border border-tan/20 shadow-sm px-3 py-1.5">
                       <p className="text-[10px] text-brown-light">
-                        <span className="font-semibold text-darkblue">{totalAmenities}</span> points
+                        {loading ? (
+                          <span className="text-darkblue animate-pulse">Loading…</span>
+                        ) : (
+                          <><span className="font-semibold text-darkblue">{totalAmenities}</span> points</>
+                        )}
                       </p>
                     </div>
                   </div>

@@ -675,74 +675,106 @@ export default function ThreeCanvas({
 
     structureGroup.visible = true;
 
+    // Shared interior materials — match the default room style exactly
+    const fillMat = new THREE.MeshLambertMaterial({
+      color: 0x2d4a6e,
+      transparent: true,
+      opacity: 0.18,
+      side: THREE.BackSide,
+    });
+    const edgeMat = new THREE.LineBasicMaterial({ color: 0x5b8fd4, linewidth: 1 });
+
     function buildComponent(comp: StructureComponent): THREE.Object3D {
-      const color = new THREE.Color(comp.color);
       const { x: sx, y: sy, z: sz } = comp.scale;
 
+      // Scale components to stay within a ~10×10×10 bounding box
+      const maxDim = Math.max(sx, sy, sz, 1);
+      const scaleFactor = maxDim > 15 ? 12 / maxDim : 1;
+      const w = sx * scaleFactor;
+      const h = sy * scaleFactor;
+      const d = sz * scaleFactor;
+
+      let geo: THREE.BufferGeometry;
       if (comp.type === 'arch') {
+        // Arch: torus half + two cylinders
         const group = new THREE.Group();
-        const archGeo = new THREE.TorusGeometry(sx / 2, sz / 4, 8, 16, Math.PI);
-        const archMat = comp.wireframe
-          ? new THREE.MeshBasicMaterial({ color, wireframe: true })
-          : new THREE.MeshStandardMaterial({ color, opacity: comp.opacity, transparent: comp.opacity < 1, roughness: 0.8, metalness: 0.1 });
-        const arch = new THREE.Mesh(archGeo, archMat);
-        arch.rotation.z = Math.PI;
-        arch.position.y = sy / 2;
-        group.add(arch);
-        const pillarGeo = new THREE.CylinderGeometry(sz / 4, sz / 4, sy / 2, 8);
-        for (const dx of [-sx / 2, sx / 2]) {
-          const pillar = new THREE.Mesh(pillarGeo, archMat.clone());
-          pillar.position.set(dx, sy / 4, 0);
-          group.add(pillar);
+        const archGeo = new THREE.TorusGeometry(w / 2, d / 4, 8, 16, Math.PI);
+        const archFill = new THREE.Mesh(archGeo, fillMat.clone());
+        archFill.rotation.z = Math.PI;
+        archFill.position.y = h / 2;
+        const archEdgeGeo = new THREE.EdgesGeometry(archGeo);
+        group.add(archFill);
+        group.add(new THREE.LineSegments(archEdgeGeo, edgeMat.clone()));
+
+        const pillarGeo = new THREE.CylinderGeometry(d / 4, d / 4, h / 2, 8);
+        for (const dx of [-w / 2, w / 2]) {
+          const pFill = new THREE.Mesh(pillarGeo, fillMat.clone());
+          pFill.position.set(dx, h / 4, 0);
+          group.add(pFill);
+          const pEdgeGeo = new THREE.EdgesGeometry(pillarGeo);
+          const pEdge = new THREE.LineSegments(pEdgeGeo, edgeMat.clone());
+          pEdge.position.set(dx, h / 4, 0);
+          group.add(pEdge);
         }
         group.position.set(comp.position.x, comp.position.y, comp.position.z);
         group.rotation.set(comp.rotation.x, comp.rotation.y, comp.rotation.z);
         return group;
       }
 
-      let geo: THREE.BufferGeometry;
       switch (comp.type) {
-        case 'box':
-          geo = new THREE.BoxGeometry(sx, sy, sz);
-          break;
         case 'cylinder':
-          geo = new THREE.CylinderGeometry(sx / 2, sx / 2, sy, 16);
+          geo = new THREE.CylinderGeometry(w / 2, w / 2, h, 16);
           break;
         case 'cone':
-          geo = new THREE.ConeGeometry(sx / 2, sy, 12);
+          geo = new THREE.ConeGeometry(w / 2, h, 12);
           break;
         case 'sphere':
-          geo = new THREE.SphereGeometry(sx / 2, 16, 16);
+          geo = new THREE.SphereGeometry(w / 2, 16, 16);
           break;
         case 'tapered_box':
-          geo = new THREE.CylinderGeometry(sx * 0.4, sx * 0.6, sy, 4);
+          geo = new THREE.CylinderGeometry(w * 0.4, w * 0.6, h, 4);
           break;
-        default:
-          geo = new THREE.BoxGeometry(sx, sy, sz);
+        default: // 'box' and anything else
+          geo = new THREE.BoxGeometry(w, h, d);
       }
 
-      const mat = comp.wireframe
-        ? new THREE.MeshBasicMaterial({ color, wireframe: true })
-        : new THREE.MeshStandardMaterial({ color, opacity: comp.opacity, transparent: comp.opacity < 1, roughness: 0.8, metalness: 0.1 });
-
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(comp.position.x, comp.position.y, comp.position.z);
-      mesh.rotation.set(comp.rotation.x, comp.rotation.y, comp.rotation.z);
-      return mesh;
+      const group = new THREE.Group();
+      group.add(new THREE.Mesh(geo, fillMat.clone()));
+      const edgesGeo = new THREE.EdgesGeometry(geo);
+      group.add(new THREE.LineSegments(edgesGeo, edgeMat.clone()));
+      group.position.set(comp.position.x, comp.position.y, comp.position.z);
+      group.rotation.set(comp.rotation.x, comp.rotation.y, comp.rotation.z);
+      return group;
     }
 
     for (const comp of structureData.components) {
       structureGroup.add(buildComponent(comp));
     }
 
-    // Move camera to the cameraPosition from structureData
-    const cp = structureData.cameraPosition;
-    const dist = Math.sqrt(cp.x * cp.x + cp.y * cp.y + cp.z * cp.z);
+    // Position camera inside the structure looking toward its center.
+    // Compute bounding box of all components to find center + size.
+    const bbox = new THREE.Box3();
+    structureGroup.traverse(obj => {
+      if (obj instanceof THREE.Mesh) bbox.expandByObject(obj);
+    });
+    const center = new THREE.Vector3();
+    const size   = new THREE.Vector3();
+    bbox.getCenter(center);
+    bbox.getSize(size);
+
+    // Place camera roughly 30–40% inside from one corner, at 40% height
+    const camX = center.x + size.x * 0.3;
+    const camY = center.y + size.y * 0.4;
+    const camZ = center.z + size.z * 0.3;
+
+    const dx = camX - center.x;
+    const dz = camZ - center.z;
+    const dist = Math.sqrt(dx * dx + camY * camY + dz * dz);
     orbitRef.current.radius = dist > 0 ? dist : 32;
-    orbitRef.current.theta = Math.atan2(cp.x, cp.z);
-    const horizontalDist = Math.sqrt(cp.x * cp.x + cp.z * cp.z);
-    orbitRef.current.phi = Math.atan2(horizontalDist, cp.y);
-    orbitRef.current.panTarget.set(0, 0, 0);
+    orbitRef.current.theta  = Math.atan2(dx, dz);
+    const horizontalDist = Math.sqrt(dx * dx + dz * dz);
+    orbitRef.current.phi = Math.atan2(horizontalDist, camY);
+    orbitRef.current.panTarget.copy(center);
     if (cameraRef.current) updateCamera(cameraRef.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [structureData]);

@@ -326,6 +326,8 @@ function mpsToMph(v: number): number   { return Math.round(v * 2.237); }
 
 // ─── Route handler ────────────────────────────────────────────────────────────
 
+export const maxDuration = 30;
+
 export async function GET(): Promise<Response> {
   const now = new Date();
 
@@ -427,7 +429,7 @@ async function fetchBuses(): Promise<Bus[]> {
 }
 
 async function fetchWeather(): Promise<Weather> {
-  const url = 'https://api.open-meteo.com/v1/forecast?latitude=33.7756&longitude=-84.3963&current=temperature_2m,weathercode,windspeed_10m';
+  const url = 'https://api.open-meteo.com/v1/forecast?latitude=33.7756&longitude=-84.3963&current=temperature_2m,weathercode,windspeed_10m&wind_speed_unit=mph';
   const res  = await fetch(url, { next: { revalidate: 600 } });
   if (!res.ok) throw new Error('Weather fetch failed');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -438,7 +440,7 @@ async function fetchWeather(): Promise<Weather> {
   return {
     temp:        celsiusToF(Number(c.temperature_2m)),
     weathercode: code,
-    windspeed:   mpsToMph(Number(c.windspeed_10m)),
+    windspeed:   Math.round(Number(c.windspeed_10m)),
     description: wmo.description,
     icon:        wmo.icon,
   };

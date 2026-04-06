@@ -501,7 +501,7 @@ export default function ShapeInputPanel({
   const TAB_LABELS = { describe: 'Describe', manual: 'Manual', import: 'Import 3D' };
 
   return (
-    <div className="flex flex-col gap-4 h-full overflow-y-auto">
+    <div className="flex flex-col gap-4">
       {/* Tab switcher */}
       <div className="bg-white/80 rounded-xl border border-[#E8E0D4] shadow-sm overflow-hidden">
         <div className="flex border-b border-[#E8E0D4]">

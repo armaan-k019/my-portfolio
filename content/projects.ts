@@ -9,6 +9,7 @@ export interface Project {
   category: Category;
   status?: "In Progress" | "Coming Soon";
   link?: string;
+  github?: string;
 }
 
 export const projects: Project[] = [
@@ -54,6 +55,7 @@ export const projects: Project[] = [
     blurb: "Site intelligence for architects: demographic and urban data at your fingertips.",
     description: "UrbanGPT pulls demographic, economic, and spatial data for any architecture site and surfaces design-relevant insights automatically. Enter an address and receive median income, household composition, density, transit access, and AI-generated design implications to guide early-stage decisions.",
     stack: ["Next.js", "Census API", "OpenStreetMap", "Claude API"],
+    github: "https://github.com/armaan-k019/urban-gpt",
   },
   {
     slug: "acoustic-form",
@@ -62,6 +64,7 @@ export const projects: Project[] = [
     blurb: "A 3D acoustic simulation tool for architectural shapes.",
     description: "A browser-based tool that lets architects define a closed 3D shape by inputting vertices or describing it in natural language, then visualizes how sound waves propagate within that volume. Designed to give architects an intuitive, early-stage read on the acoustic behavior of a space before detailed modeling.",
     stack: ["Three.js", "Next.js", "Claude API"],
+    github: "https://github.com/armaan-k019/acoustic-form",
   },
   {
     slug: "yield",
@@ -70,6 +73,7 @@ export const projects: Project[] = [
     blurb: "A live report card on your stock portfolio.",
     description: "Input your stock holdings and get a real-time portfolio report card powered by live NYSE data and AI analysis. Grades your diversification, volatility profile, cap size mix, and day performance.",
     stack: ["Next.js", "Polygon.io", "Claude API", "Recharts"],
+    github: "https://github.com/armaan-k019/yield",
   },
   {
     slug: "pulse",
@@ -78,6 +82,15 @@ export const projects: Project[] = [
     blurb: "A live data portrait of Georgia Tech's campus.",
     description: "A live data portrait of Georgia Tech's campus — bus locations, crowd density, dining wait times, and an AI assistant that helps you navigate your day.",
     stack: ["Next.js", "Google Maps", "TransLoc API", "Claude API"],
+    github: "https://github.com/armaan-k019/pulse-gt",
+  },
+  {
+    slug: "carbon-lens",
+    title: "Carbon Lens",
+    category: "intersection",
+    blurb: "Embodied carbon estimator for early-stage architectural design decisions.",
+    description: "A material embodied carbon calculator for architects. Input material quantities and receive an embodied carbon estimate benchmarked against industry standards, a visual breakdown by material category, and AI-generated substitution recommendations to reduce the building's climate impact.",
+    stack: ["Next.js", "Claude API", "ICE Database v3.0"],
   },
   {
     slug: "fine-print",
@@ -86,5 +99,6 @@ export const projects: Project[] = [
     blurb: "Paste any rule set or document and find every loophole in it.",
     description: "An AI-powered tool that analyzes any rule-based text (game rules, contracts, legal documents, terms of service) and systematically identifies ambiguities, edge cases, and exploitable gaps. Part practical tool, part creative exercise in adversarial thinking.",
     stack: ["Next.js", "Claude API"],
+    github: "https://github.com/armaan-k019/fine-print",
   },
 ];

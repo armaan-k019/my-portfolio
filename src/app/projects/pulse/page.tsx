@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import type { PulseData, LocationData } from "../../api/pulse/route";
+import type { UnifiedEvent, EventsResponse, SourceStatus } from "../../api/events/route";
 
 // ─── Global window augmentation ───────────────────────────────────────────────
 
@@ -17,29 +18,6 @@ declare global {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface EventItem {
-  title: string;
-  location: string;
-  date: string;
-  time: string;
-  description: string;
-  url: string;
-  onCampus: boolean;
-}
-
-interface SocialEvent {
-  hasEvent: boolean;
-  title: string;
-  date: string | null;
-  time: string | null;
-  location: string | null;
-  theme: string | null;
-  type: 'party' | 'social' | 'official' | 'popup' | 'sports' | 'other';
-  description: string;
-  sourceAccount: string;
-  postUrl: string;
-}
-
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
@@ -48,62 +26,58 @@ interface ChatMessage {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const GT_CENTER = { lat: 33.7756, lng: -84.3963 };
-const GT_ZOOM   = 16;
+const GT_ZOOM   = 15;
 const POLL_MS   = 10_000;
 
-// ─── Bus Route definitions ────────────────────────────────────────────────────
+// ─── Bus Route definitions (stop coordinates for Directions API) ──────────────
 
-const BUS_ROUTES = [
+const BUS_ROUTE_DEFS = [
   {
-    id: 'red',
+    id: 'red' as const,
     name: 'Red',
     color: '#E8392A',
-    coords: [
-      { lat: 33.7756, lng: -84.3963 },
-      { lat: 33.7748, lng: -84.3972 },
-      { lat: 33.7771, lng: -84.3978 },
-      { lat: 33.7780, lng: -84.3960 },
-      { lat: 33.7773, lng: -84.3942 },
-      { lat: 33.7760, lng: -84.3948 },
-      { lat: 33.7756, lng: -84.3963 },
+    stops: [
+      { lat: 33.7748, lng: -84.3963, name: 'Student Center' },
+      { lat: 33.7769, lng: -84.4039, name: 'CRC' },
+      { lat: 33.7721, lng: -84.3902, name: 'North Ave Dining' },
+      { lat: 33.7756, lng: -84.3963, name: 'Tech Tower' },
+      { lat: 33.7775, lng: -84.3958, name: 'Klaus' },
+      { lat: 33.7757, lng: -84.3963, name: 'CULC' },
     ],
   },
   {
-    id: 'blue',
+    id: 'blue' as const,
     name: 'Blue',
     color: '#1A6FBF',
-    coords: [
-      { lat: 33.7752, lng: -84.4002 },
-      { lat: 33.7756, lng: -84.3985 },
-      { lat: 33.7763, lng: -84.3945 },
-      { lat: 33.7750, lng: -84.3930 },
-      { lat: 33.7739, lng: -84.3885 },
+    stops: [
+      { lat: 33.7694, lng: -84.3956, name: 'West Village' },
+      { lat: 33.7763, lng: -84.3939, name: 'College of Design' },
+      { lat: 33.7742, lng: -84.3964, name: 'Skiles' },
+      { lat: 33.7748, lng: -84.3963, name: 'Student Center' },
     ],
   },
   {
-    id: 'green',
+    id: 'green' as const,
     name: 'Green',
     color: '#2E8B57',
-    coords: [
-      { lat: 33.7790, lng: -84.3970 },
-      { lat: 33.7800, lng: -84.3952 },
-      { lat: 33.7795, lng: -84.3935 },
-      { lat: 33.7780, lng: -84.3960 },
-      { lat: 33.7752, lng: -84.4002 },
+    stops: [
+      { lat: 33.7756, lng: -84.3963, name: 'Ferst Dr & Cherry' },
+      { lat: 33.7780, lng: -84.4012, name: 'Stamps Health' },
+      { lat: 33.7769, lng: -84.4039, name: 'CRC' },
+      { lat: 33.7694, lng: -84.3956, name: 'West Village' },
     ],
   },
   {
-    id: 'gold',
+    id: 'gold' as const,
     name: 'Gold',
     color: '#B8952A',
-    coords: [
-      { lat: 33.7756, lng: -84.3963 },
-      { lat: 33.7758, lng: -84.3910 },
-      { lat: 33.7739, lng: -84.3885 },
-      { lat: 33.7745, lng: -84.3940 },
+    stops: [
+      { lat: 33.7748, lng: -84.3963, name: 'Student Center' },
+      { lat: 33.7771, lng: -84.3998, name: 'Boggs' },
+      { lat: 33.7721, lng: -84.3902, name: 'North Ave Dining' },
     ],
   },
-] as const;
+];
 
 type RouteId = 'red' | 'blue' | 'green' | 'gold';
 
@@ -202,6 +176,12 @@ const CAMPUS_COORDS: { name: string; lat: number; lng: number }[] = [
   { name: 'Exhibition Hall',     lat: 33.7731, lng: -84.3960 },
   { name: 'Tech Tower',          lat: 33.7756, lng: -84.3963 },
   { name: 'College of Design',   lat: 33.7763, lng: -84.3939 },
+  { name: 'College of Architecture', lat: 33.7756, lng: -84.3985 },
+  { name: 'Hinman',              lat: 33.7694, lng: -84.3896 },
+  { name: 'Paper Tricentennial', lat: 33.7751, lng: -84.3963 },
+  { name: 'Howey Physics',       lat: 33.7764, lng: -84.3945 },
+  { name: 'Cherry Emerson',      lat: 33.7771, lng: -84.3940 },
+  { name: 'Bunger Henry',        lat: 33.7756, lng: -84.3952 },
 ];
 
 function matchEventCoords(location: string): { lat: number; lng: number } | null {
@@ -243,25 +223,35 @@ function heatWeight(busyness: number): number {
 
 // ─── Event type color/badge helpers ──────────────────────────────────────────
 
-function eventTypeBadgeClass(type: SocialEvent['type']): string {
+function eventTypeBadgeClass(type: UnifiedEvent['type']): string {
   switch (type) {
     case 'party':
     case 'social':   return 'bg-purple-100 text-purple-700';
     case 'official': return 'bg-teal-100 text-teal-700';
     case 'popup':    return 'bg-amber-100 text-amber-700';
     case 'sports':   return 'bg-blue-100 text-blue-700';
+    case 'lecture':  return 'bg-indigo-100 text-indigo-700';
     default:         return 'bg-gray-100 text-gray-600';
   }
 }
 
-function eventTypePinColor(type: SocialEvent['type']): string {
+function eventTypePinColor(type: UnifiedEvent['type']): string {
   switch (type) {
     case 'party':
     case 'social':   return '#a855f7';
     case 'official': return '#0d9488';
     case 'popup':    return '#d97706';
     case 'sports':   return '#2563eb';
+    case 'lecture':  return '#4f46e5';
     default:         return '#6b7280';
+  }
+}
+
+function sourceBadge(source: UnifiedEvent['source']): string {
+  switch (source) {
+    case 'involvement': return 'GT Involvement';
+    case 'eventbrite':  return 'Eventbrite';
+    case 'registrar':   return 'GT Registrar';
   }
 }
 
@@ -282,14 +272,18 @@ function CardSection({ title, icon, children }: { title: string; icon: string; c
   );
 }
 
-function LocationCard({ loc, onSelect }: { loc: LocationData; onSelect: (l: LocationData) => void }) {
+function LocationCard({ loc, onSelect, selected }: { loc: LocationData; onSelect: (l: LocationData) => void; selected?: boolean }) {
   const color = busynessHex(loc.busyness);
   const wait  = waitLabel(loc);
 
   return (
     <button
       onClick={() => onSelect(loc)}
-      className="w-full text-left px-3 py-2.5 rounded-xl bg-[#F5F0E8]/60 hover:bg-[#F5F0E8] border border-[#2C1810]/[0.06] transition-colors group"
+      className={`w-full text-left px-3 py-2.5 rounded-xl border transition-colors group ${
+        selected
+          ? 'bg-[#F5F0E8] border-[#2C1810]/20 ring-1 ring-[#2C1810]/10'
+          : 'bg-[#F5F0E8]/60 hover:bg-[#F5F0E8] border-[#2C1810]/[0.06]'
+      }`}
     >
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <span className="text-sm font-medium text-[#2C1810] flex items-center gap-1.5">
@@ -340,20 +334,21 @@ function SkeletonCard() {
   );
 }
 
-function CalendarEventCard({ event }: { event: EventItem }) {
+function UnifiedEventCard({ event }: { event: UnifiedEvent }) {
   const [expanded, setExpanded] = useState(false);
   return (
     <div className="w-full px-3 py-2.5 rounded-xl bg-[#F5F0E8]/60 border border-[#2C1810]/[0.06]">
       <div className="flex items-start justify-between gap-2 mb-1">
         <span className="text-sm font-medium text-[#2C1810] leading-snug">{event.title}</span>
-        <span className="text-[9px] shrink-0 mt-0.5 px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700">
-          {event.onCampus ? 'On Campus' : 'Off Campus'}
+        <span className={`text-[9px] shrink-0 mt-0.5 px-1.5 py-0.5 rounded-full capitalize ${eventTypeBadgeClass(event.type)}`}>
+          {event.type}
         </span>
       </div>
+      <div className="text-[9px] text-[#9B8E85] mb-1">{event.organization} · {sourceBadge(event.source)}</div>
       <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-[#9B8E85] mb-1.5">
         <span>📅 {event.date}</span>
-        <span>🕐 {event.time}</span>
-        <span>📍 {event.location}</span>
+        {event.time && <span>🕐 {event.time}</span>}
+        {event.location && <span>📍 {event.location}</span>}
       </div>
       {expanded && (
         <p className="text-[11px] text-[#6B5244] leading-relaxed mb-1.5">{event.description}</p>
@@ -380,72 +375,35 @@ function CalendarEventCard({ event }: { event: EventItem }) {
   );
 }
 
-function SocialEventCard({ event }: { event: SocialEvent }) {
-  const [expanded, setExpanded] = useState(false);
-  return (
-    <div className="w-full px-3 py-2.5 rounded-xl bg-[#F5F0E8]/60 border border-[#2C1810]/[0.06]">
-      <div className="flex items-start justify-between gap-2 mb-1">
-        <span className="text-sm font-medium text-[#2C1810] leading-snug">{event.title}</span>
-        <span className={`text-[9px] shrink-0 mt-0.5 px-1.5 py-0.5 rounded-full capitalize ${eventTypeBadgeClass(event.type)}`}>
-          {event.type}
-        </span>
-      </div>
-      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-[#9B8E85] mb-1">
-        {event.date && <span>📅 {event.date}</span>}
-        {event.time && <span>🕐 {event.time}</span>}
-        {event.location && <span>📍 {event.location}</span>}
-        {event.theme && <span>🎨 {event.theme}</span>}
-      </div>
-      <div className="text-[9px] text-[#9B8E85] mb-1">@{event.sourceAccount}</div>
-      {expanded && (
-        <p className="text-[11px] text-[#6B5244] leading-relaxed mb-1.5">{event.description}</p>
-      )}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => setExpanded(e => !e)}
-          className="text-[10px] text-[#9B8E85] hover:text-[#6B5244] transition-colors"
-        >
-          {expanded ? 'Less ▲' : 'More ▼'}
-        </button>
-        {event.postUrl && (
-          <a
-            href={event.postUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[10px] text-purple-400/70 hover:text-purple-400 transition-colors"
-          >
-            View post →
-          </a>
-        )}
-      </div>
-    </div>
-  );
-}
+type EventFilter = 'all' | 'party' | 'official' | 'lecture' | 'sports';
 
-type EventFilter = 'all' | 'party' | 'official' | 'popup' | 'sports';
+interface SourceDebug {
+  involvement: { status: SourceStatus; count: number };
+  eventbrite:  { status: SourceStatus; count: number };
+  registrar:   { status: SourceStatus; count: number };
+}
 
 interface EventsTabProps {
-  calendarEvents: EventItem[];
-  socialEvents: SocialEvent[];
-  calendarLoading: boolean;
-  socialLoading: boolean;
+  events: UnifiedEvent[];
+  eventsLoading: boolean;
+  eventsError: boolean;
+  failedSources: string[];
+  skippedSources: string[];
+  sourceDebug: SourceDebug | null;
   eventsUpdatedAt: number;
+  onRetryEvents: () => void;
 }
 
-function EventsTab({ calendarEvents, socialEvents, calendarLoading, socialLoading, eventsUpdatedAt }: EventsTabProps) {
+function EventsTab({ events, eventsLoading, eventsError, failedSources, skippedSources, sourceDebug, eventsUpdatedAt, onRetryEvents }: EventsTabProps) {
   const [filter, setFilter] = useState<EventFilter>('all');
 
   const minutesAgo = eventsUpdatedAt ? Math.floor((Date.now() - eventsUpdatedAt) / 60000) : null;
 
-  const filteredCalendar = filter === 'all' || filter === 'official'
-    ? calendarEvents
-    : [];
-
-  const filteredSocial = socialEvents.filter(e => {
+  const filtered = events.filter(e => {
     if (filter === 'all') return true;
-    if (filter === 'party') return e.type === 'party' || e.type === 'social';
+    if (filter === 'party') return e.type === 'party' || e.type === 'social' || e.type === 'popup';
     if (filter === 'official') return e.type === 'official';
-    if (filter === 'popup') return e.type === 'popup';
+    if (filter === 'lecture') return e.type === 'lecture';
     if (filter === 'sports') return e.type === 'sports';
     return true;
   });
@@ -454,7 +412,7 @@ function EventsTab({ calendarEvents, socialEvents, calendarLoading, socialLoadin
     { key: 'all',      label: 'All' },
     { key: 'party',    label: 'Parties' },
     { key: 'official', label: 'Official' },
-    { key: 'popup',    label: 'Pop-ups' },
+    { key: 'lecture',  label: 'Lectures' },
     { key: 'sports',   label: 'Sports' },
   ];
 
@@ -470,6 +428,29 @@ function EventsTab({ calendarEvents, socialEvents, calendarLoading, socialLoadin
               Updated {minutesAgo === 0 ? 'just now' : `${minutesAgo}m ago`}
             </span>
           )}
+        </div>
+        {/* Source status badges */}
+        <div className="flex gap-1.5 flex-wrap mb-2">
+          {([
+            { label: 'GT Involvement', key: 'involvement' },
+            { label: 'Eventbrite',     key: 'eventbrite'  },
+            { label: 'GT Registrar',   key: 'registrar'   },
+          ] as const).map(({ label, key }) => {
+            const skipped = skippedSources.includes(key);
+            const failed  = failedSources.includes(key);
+            return (
+              <span
+                key={key}
+                className={`text-[8px] px-1.5 py-0.5 rounded-full border ${
+                  skipped ? 'border-gray-200 bg-gray-50 text-gray-400'
+                  : failed ? 'border-red-200 bg-red-50 text-red-500'
+                  : 'border-emerald-200 bg-emerald-50 text-emerald-600'
+                }`}
+              >
+                {skipped ? '–' : failed ? '✗' : '✓'} {label}
+              </span>
+            );
+          })}
         </div>
         {/* Filter pills */}
         <div className="flex gap-1 flex-wrap">
@@ -489,27 +470,48 @@ function EventsTab({ calendarEvents, socialEvents, calendarLoading, socialLoadin
         </div>
       </div>
       <div className="px-3 pb-3 space-y-2">
-        {/* Calendar events */}
-        {calendarLoading ? (
+        {/* Partial failure warning */}
+        {failedSources.length > 0 && failedSources.length < 3 && (
+          <p className="text-[9px] text-amber-600/80 italic px-1">Some sources unavailable — showing partial results.</p>
+        )}
+        {eventsLoading ? (
           <>
             <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
           </>
-        ) : filteredCalendar.length === 0 && filter === 'all' ? (
-          <p className="text-[11px] text-[#9B8E85] italic px-1 py-1">No upcoming calendar events.</p>
+        ) : eventsError ? (
+          <div className="px-1 py-2 space-y-2">
+            <p className="text-[11px] text-[#9B8E85] italic">Could not load events — tap to retry</p>
+            <button
+              onClick={onRetryEvents}
+              className="text-[10px] px-3 py-1.5 rounded-lg bg-[#2C1810]/[0.06] hover:bg-[#2C1810]/[0.12] text-[#6B5244] transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        ) : filtered.length === 0 ? (
+          <p className="text-[11px] text-[#9B8E85] italic px-1 py-1">No events found.</p>
         ) : (
-          filteredCalendar.map((e, i) => <CalendarEventCard key={`cal-${i}`} event={e} />)
+          filtered.map((e, i) => <UnifiedEventCard key={i} event={e} />)
         )}
-
-        {/* Social events */}
-        {filteredSocial.map((e, i) => <SocialEventCard key={`soc-${i}`} event={e} />)}
-
-        {/* Social loading indicator */}
-        {socialLoading && (
-          <div className="flex items-center gap-2 px-1 py-2">
-            <div className="w-3 h-3 border border-[#9B8E85]/30 border-t-[#9B8E85]/70 rounded-full animate-spin shrink-0" />
-            <span className="text-[10px] text-[#9B8E85]/70 italic">Loading social events…</span>
+        <p className="text-[8px] text-[#9B8E85]/50 px-1 pt-1">GT Involvement · Eventbrite · GT Registrar</p>
+        {/* Debug panel — remove once events are confirmed working */}
+        {sourceDebug && (
+          <div className="mt-2 px-1 py-1.5 rounded-lg bg-[#2C1810]/[0.03] border border-[#2C1810]/[0.06]">
+            <p className="text-[8px] font-semibold text-[#9B8E85]/60 mb-1">Debug</p>
+            {([
+              { label: 'GT Involvement', key: 'involvement' },
+              { label: 'Eventbrite',     key: 'eventbrite'  },
+              { label: 'GT Registrar',   key: 'registrar'   },
+            ] as const).map(({ label, key }) => {
+              const d = sourceDebug[key];
+              return (
+                <p key={key} className="text-[8px] text-[#9B8E85]/50 leading-relaxed">
+                  {label}: {d.status === 'skipped' ? 'skipped — no key' : d.status === 'error' ? 'error' : `${d.count} event${d.count !== 1 ? 's' : ''}`}
+                </p>
+              );
+            })}
           </div>
         )}
       </div>
@@ -519,26 +521,34 @@ function EventsTab({ calendarEvents, socialEvents, calendarLoading, socialLoadin
 
 interface SidebarContentProps {
   data: PulseData | null;
-  calendarEvents: EventItem[];
-  socialEvents: SocialEvent[];
-  calendarLoading: boolean;
-  socialLoading: boolean;
+  events: UnifiedEvent[];
+  eventsLoading: boolean;
+  eventsError: boolean;
+  failedSources: string[];
+  skippedSources: string[];
+  sourceDebug: SourceDebug | null;
   eventsUpdatedAt: number;
   activeTab: 'campus' | 'events';
   onTabChange: (tab: 'campus' | 'events') => void;
   onSelectLoc: (l: LocationData) => void;
+  onRetryEvents: () => void;
+  selectedLocId?: string;
 }
 
 function SidebarContent({
   data,
-  calendarEvents,
-  socialEvents,
-  calendarLoading,
-  socialLoading,
+  events,
+  eventsLoading,
+  eventsError,
+  failedSources,
+  skippedSources,
+  sourceDebug,
   eventsUpdatedAt,
   activeTab,
   onTabChange,
   onSelectLoc,
+  onRetryEvents,
+  selectedLocId,
 }: SidebarContentProps) {
   const dining     = data?.locations.filter(l => l.type === 'dining')                          ?? [];
   const recreation = data?.locations.filter(l => l.type === 'recreation')                      ?? [];
@@ -567,9 +577,9 @@ function SidebarContent({
           }`}
         >
           Events
-          {(calendarEvents.length > 0 || socialEvents.length > 0) && (
+          {events.length > 0 && (
             <span className="ml-1 px-1 py-0.5 text-[8px] rounded-full bg-purple-100 text-purple-600">
-              {calendarEvents.length + socialEvents.length}
+              {events.length}
             </span>
           )}
         </button>
@@ -578,13 +588,13 @@ function SidebarContent({
       {activeTab === 'campus' ? (
         <>
           <CardSection title="Dining" icon="🍽">
-            {dining.map(loc => <LocationCard key={loc.id} loc={loc} onSelect={onSelectLoc} />)}
+            {dining.map(loc => <LocationCard key={loc.id} loc={loc} onSelect={onSelectLoc} selected={loc.id === selectedLocId} />)}
           </CardSection>
           <CardSection title="Recreation" icon="💪">
-            {recreation.map(loc => <LocationCard key={loc.id} loc={loc} onSelect={onSelectLoc} />)}
+            {recreation.map(loc => <LocationCard key={loc.id} loc={loc} onSelect={onSelectLoc} selected={loc.id === selectedLocId} />)}
           </CardSection>
           <CardSection title="Buildings & Study Spots" icon="📚">
-            {academic.map(loc => <LocationCard key={loc.id} loc={loc} onSelect={onSelectLoc} />)}
+            {academic.map(loc => <LocationCard key={loc.id} loc={loc} onSelect={onSelectLoc} selected={loc.id === selectedLocId} />)}
           </CardSection>
           <div className="px-4 pb-6 pt-2">
             <p className="text-[10px] text-[#9B8E85]/70 leading-relaxed italic">
@@ -595,11 +605,14 @@ function SidebarContent({
         </>
       ) : (
         <EventsTab
-          calendarEvents={calendarEvents}
-          socialEvents={socialEvents}
-          calendarLoading={calendarLoading}
-          socialLoading={socialLoading}
+          events={events}
+          eventsLoading={eventsLoading}
+          eventsError={eventsError}
+          failedSources={failedSources}
+          skippedSources={skippedSources}
+          sourceDebug={sourceDebug}
           eventsUpdatedAt={eventsUpdatedAt}
+          onRetryEvents={onRetryEvents}
         />
       )}
     </>
@@ -611,10 +624,12 @@ function SidebarContent({
 export default function PulsePage() {
   // ── Data state
   const [data,              setData]              = useState<PulseData | null>(null);
-  const [calendarEvents,    setCalendarEvents]    = useState<EventItem[]>([]);
-  const [socialEvents,      setSocialEvents]      = useState<SocialEvent[]>([]);
-  const [calendarLoading,   setCalendarLoading]   = useState(true);
-  const [socialLoading,     setSocialLoading]     = useState(true);
+  const [events,            setEvents]            = useState<UnifiedEvent[]>([]);
+  const [eventsLoading,     setEventsLoading]     = useState(true);
+  const [eventsError,       setEventsError]       = useState(false);
+  const [failedSources,     setFailedSources]     = useState<string[]>([]);
+  const [skippedSources,    setSkippedSources]    = useState<string[]>([]);
+  const [sourceDebug,       setSourceDebug]       = useState<SourceDebug | null>(null);
   const [eventsUpdatedAt,   setEventsUpdatedAt]   = useState(0);
   const [mapsLoaded,        setMapsLoaded]        = useState(false);
   const [mapError,          setMapError]          = useState<string | null>(null);
@@ -641,6 +656,8 @@ export default function PulsePage() {
   const [chatError,       setChatError]      = useState("");
   const [drawerOpen,      setDrawerOpen]     = useState(false);
   const [layersPanelOpen, setLayersPanelOpen] = useState(false);
+  const [activeBusCount,  setActiveBusCount] = useState(0);
+  const [busesSimulated,  setBusesSimulated]  = useState(false);
 
   // ── Map / overlay refs
   const mapContainerRef      = useRef<HTMLDivElement>(null);
@@ -662,6 +679,31 @@ export default function PulsePage() {
   // Route stop markers: one array per route id
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const routeStopMarkersRef  = useRef<Record<string, any[]>>({});
+  // Cached Directions API results (fetched once per route)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const routeShapesRef       = useRef<Record<string, any>>({});
+  // Decoded LatLng arrays per route (populated when route polylines are fetched)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const routePathsRef        = useRef<Record<string, any[]>>({});
+  // Simulation state per animated bus
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const simBusesRef          = useRef<{
+    routeId: RouteId;
+    routeName: string;
+    routeColor: string;
+    stops: { lat: number; lng: number; name: string }[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    path: any[];
+    waypointIdx: number;   // integer index into path
+    progress: number;      // 0..1 — how far along the current segment
+    stopTimer: number;     // ms remaining at a stop (0 = moving)
+    nextStopName: string;  // label shown in info window
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    marker: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    iw: any;
+  }[]>([]);
+  const simAnimFrameRef      = useRef<number>(0);
   const circleAnimRef        = useRef<number>(0);
   const pollRef              = useRef<ReturnType<typeof setInterval> | null>(null);
   const busPollRef           = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -678,12 +720,13 @@ export default function PulsePage() {
     window.gm_authFailure  = () => setMapError('Google Maps API key is invalid or this domain is not allowlisted. Check Google Cloud Console → Credentials.');
     if (document.getElementById("pulse-maps-script")) return;
     if (!mapsKey) {
+      console.error('NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is not set');
       setMapError('Google Maps API key is not configured.');
       return;
     }
     const s = document.createElement("script");
     s.id    = "pulse-maps-script";
-    s.src   = `https://maps.googleapis.com/maps/api/js?key=${mapsKey}&libraries=visualization&callback=__pulseMapReady`;
+    s.src   = `https://maps.googleapis.com/maps/api/js?key=${mapsKey}&libraries=visualization,geometry&callback=__pulseMapReady`;
     s.async = true; s.defer = true;
     s.onerror = () => setMapError('Failed to load Google Maps script. Check network connectivity.');
     document.head.appendChild(s);
@@ -723,59 +766,72 @@ export default function PulsePage() {
       scrollwheel: false,
       disableDoubleClickZoom: true,
       draggable: false,
+      keyboardShortcuts: false,
+      restriction: {
+        latLngBounds: {
+          north: 33.790,
+          south: 33.760,
+          east:  -84.375,
+          west:  -84.420,
+        },
+        strictBounds: true,
+      },
     });
     mapRef.current = map;
   }, [mapsLoaded]);
 
-  // ── Draw bus route polylines + stop markers ───────────────────────────────────
+  // ── Fetch real bus route shapes from GT RideSystems (once on map load) ──────────
   useEffect(() => {
     if (!mapsLoaded || !mapRef.current || !window.google?.maps) return;
 
-    BUS_ROUTES.forEach(route => {
-      // Polyline
-      if (!routePolylinesRef.current[route.id]) {
-        const poly = new window.google.maps.Polyline({
-          path: route.coords,
-          geodesic: true,
-          strokeColor: route.color,
-          strokeOpacity: 0.85,
-          strokeWeight: 3,
-          map: routeToggles[route.id] ? mapRef.current : null,
-          zIndex: 2,
-        });
-        routePolylinesRef.current[route.id] = poly;
-      } else {
-        routePolylinesRef.current[route.id].setMap(
-          routeToggles[route.id] ? mapRef.current : null
-        );
-      }
+    fetch('/api/bus-routes', { cache: 'no-store' })
+      .then(r => r.json())
+      .then((data: { routes: { id: string; name: string; color: string; encodedPolyline: string }[] }) => {
+        const routes = data.routes ?? [];
+        routes.forEach(route => {
+          // Map numeric route ID to the client-side RouteId key
+          const key = route.name.toLowerCase() as RouteId;
+          if (routeShapesRef.current[key]) return;
+          routeShapesRef.current[key] = 'loaded';
 
-      // Stop dot markers
-      if (!routeStopMarkersRef.current[route.id]) {
-        routeStopMarkersRef.current[route.id] = route.coords.map(coord => {
-          const svgDot = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10">
-            <circle cx="5" cy="5" r="4" fill="${route.color}" stroke="white" stroke-width="1.5"/>
-          </svg>`;
-          return new window.google.maps.Marker({
-            position: coord,
-            map: routeToggles[route.id] ? mapRef.current : null,
-            icon: {
-              url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgDot)}`,
-              scaledSize: new window.google.maps.Size(10, 10),
-              anchor: new window.google.maps.Point(5, 5),
-            },
-            zIndex: 3,
+          const visible = routeToggles[key];
+          // Decode the encoded polyline using the Google Maps geometry library
+          const path = window.google.maps.geometry
+            ? window.google.maps.geometry.encoding.decodePath(route.encodedPolyline)
+            : [];
+
+          // Store path for simulation
+          routePathsRef.current[key] = path as unknown as any[];
+
+          const poly = new window.google.maps.Polyline({
+            path,
+            geodesic: true,
+            strokeColor: route.color,
+            strokeOpacity: 0.85,
+            strokeWeight: 3,
+            map: visible ? mapRef.current : null,
+            zIndex: 2,
           });
+          routePolylinesRef.current[key] = poly;
         });
-      } else {
-        routeStopMarkersRef.current[route.id].forEach((m: unknown) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (m as any).setMap(routeToggles[route.id] ? mapRef.current : null);
-        });
-      }
-    });
+
+        // Kick off simulation now that paths are available
+        startSimulation();
+      })
+      .catch(err => console.error('[routes] Failed to fetch bus routes:', err));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapsLoaded, routeToggles]);
+  }, [mapsLoaded]);
+
+  // ── Sync route polyline/stop visibility with toggle state ──────────────────────
+  useEffect(() => {
+    if (!mapRef.current) return;
+    BUS_ROUTE_DEFS.forEach(route => {
+      const visible = routeToggles[route.id];
+      routePolylinesRef.current[route.id]?.setMap(visible ? mapRef.current : null);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      routeStopMarkersRef.current[route.id]?.forEach((m: any) => m.setMap(visible ? mapRef.current : null));
+    });
+  }, [routeToggles]);
 
   // ── Fetch pulse data ──────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -793,111 +849,220 @@ export default function PulsePage() {
     }
   }, []);
 
-  // ── Fetch bus positions ───────────────────────────────────────────────────────
-  const fetchBuses = useCallback(async () => {
+  // ── Bus simulation helpers ────────────────────────────────────────────────────
+
+  function createBusIcon(color: string): string {
+    const canvas = document.createElement('canvas');
+    canvas.width = 36;
+    canvas.height = 36;
+    const ctx = canvas.getContext('2d')!;
+    ctx.beginPath();
+    ctx.arc(18, 18, 16, 0, Math.PI * 2);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.fill();
+    ctx.font = '18px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🚌', 18, 18);
+    return canvas.toDataURL();
+  }
+
+  function busInfoContent(color: string, routeName: string, nextStop: string, atStop: boolean) {
+    return `<div style="font-family:sans-serif;padding:6px 10px;max-width:210px;line-height:1.4">
+      <p style="font-weight:700;margin:0 0 2px;color:${color};font-size:13px">Route: ${routeName}</p>
+      <p style="margin:0 0 2px;font-size:11px;color:#555">Status: <span style="color:#888;font-style:italic">Simulated position</span></p>
+      <p style="margin:0;font-size:11px;color:#555">${atStop ? 'At stop:' : 'Next stop:'} <strong>${nextStop}</strong></p>
+    </div>`;
+  }
+
+  function findNextStop(
+    stops: { lat: number; lng: number; name: string }[],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    path: any[],
+    waypointIdx: number,
+  ): string {
+    // Walk forward through remaining waypoints, find which stop comes soonest
+    const SEARCH = Math.min(path.length, 80);
+    for (let i = 0; i < SEARCH; i++) {
+      const pt = path[(waypointIdx + i) % path.length];
+      if (!pt) continue;
+      const lat = pt.lat(); const lng = pt.lng();
+      for (const stop of stops) {
+        if (Math.abs(lat - stop.lat) < 0.001 && Math.abs(lng - stop.lng) < 0.001) {
+          return stop.name;
+        }
+      }
+    }
+    return stops[0]?.name ?? '';
+  }
+
+  // ── Start the rAF simulation loop ─────────────────────────────────────────────
+  const startSimulation = useCallback(() => {
     if (!mapRef.current || !window.google?.maps) return;
-    try {
-      const res = await fetch('/api/buses', { cache: 'no-store' });
-      if (!res.ok) return;
-      const json = await res.json() as { buses: { id: string; lat: number; lng: number; routeId: string; routeName: string; heading: number }[] };
-      const buses = json.buses ?? [];
 
-      // Clear old bus markers
-      busMarkersRef.current.forEach(m => m.setMap(null));
-      busMarkersRef.current = [];
+    // Cancel any existing loop
+    cancelAnimationFrame(simAnimFrameRef.current);
 
-      buses.forEach(bus => {
-        // Find route color
-        const route = BUS_ROUTES.find(r =>
-          bus.routeName?.toLowerCase().includes(r.name.toLowerCase()) ||
-          bus.routeId === r.id
-        );
-        const color = route?.color ?? '#888888';
-        const routeId = route?.id as RouteId | undefined;
+    // Clear existing bus markers
+    busMarkersRef.current.forEach(m => m.setMap(null));
+    busMarkersRef.current = [];
+    simBusesRef.current = [];
 
-        // Hide bus if its route is toggled off
-        if (routeId && !routeToggles[routeId]) return;
+    const pathsReady = BUS_ROUTE_DEFS.some(r => routePathsRef.current[r.id]?.length > 1);
+    if (!pathsReady) return; // routes not loaded yet — will retry when routes arrive
 
-        const heading = bus.heading ?? 0;
-        const svgBus = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
-          <circle cx="10" cy="10" r="9" fill="${color}" stroke="white" stroke-width="1.5"/>
-          <path d="M10 3 L13 9 L10 7 L7 9 Z" fill="white" transform="rotate(${heading}, 10, 10)"/>
-        </svg>`;
+    // Spawn 2 buses per active route, staggered 50% apart
+    BUS_ROUTE_DEFS.forEach(route => {
+      if (!routeToggles[route.id]) return;
+      const path = routePathsRef.current[route.id];
+      if (!path || path.length < 4) return;
 
+      ([0, Math.floor(path.length / 2)] as const).forEach(startIdx => {
+        const initialNextStop = findNextStop(route.stops, path, startIdx);
         const marker = new window.google.maps.Marker({
-          position: { lat: bus.lat, lng: bus.lng },
+          position: path[startIdx],
           map: mapRef.current,
           icon: {
-            url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgBus)}`,
-            scaledSize: new window.google.maps.Size(20, 20),
-            anchor: new window.google.maps.Point(10, 10),
+            url: createBusIcon(route.color),
+            scaledSize: new window.google.maps.Size(36, 36),
+            anchor: new window.google.maps.Point(18, 18),
           },
-          title: `${bus.routeName} · Bus ${bus.id}`,
+          title: `Route: ${route.name}`,
           zIndex: 10,
         });
-
-        const infoWindow = new window.google.maps.InfoWindow({
-          content: `<div style="font-family:sans-serif;padding:4px 8px;max-width:180px">
-            <p style="font-weight:600;margin:0;color:${color};font-size:12px">${bus.routeName}</p>
-            <p style="margin:2px 0 0;font-size:11px;color:#555">Vehicle ID: ${bus.id}</p>
-          </div>`,
+        const iw = new window.google.maps.InfoWindow({
+          content: busInfoContent(route.color, route.name, initialNextStop, false),
         });
-        marker.addListener('click', () => infoWindow.open(mapRef.current, marker));
-
+        marker.addListener('click', () => iw.open(mapRef.current, marker));
         busMarkersRef.current.push(marker);
+        simBusesRef.current.push({
+          routeId:      route.id,
+          routeName:    route.name,
+          routeColor:   route.color,
+          stops:        route.stops,
+          path,
+          waypointIdx:  startIdx,
+          progress:     0,
+          stopTimer:    0,
+          nextStopName: initialNextStop,
+          marker,
+          iw,
+        });
       });
-    } catch {
-      // silently fail
+    });
+
+    setBusesSimulated(true);
+    setActiveBusCount(simBusesRef.current.length);
+
+    // ── rAF animation loop ────────────────────────────────────────────────────
+    // Buses travel at ~15 mph campus speed: each encoded-polyline segment is
+    // roughly 15–25 m, taking ~4 s to cross. Speed ≈ 0.25 progress-units / sec.
+    const SPEED = 0.25; // segments per second
+    let lastTs: number | null = null;
+
+    function tick(ts: number) {
+      if (lastTs === null) lastTs = ts;
+      const dt = Math.min(ts - lastTs, 100); // cap delta at 100 ms (handles tab-hidden)
+      lastTs = ts;
+
+      simBusesRef.current.forEach(bus => {
+        if (!routeToggles[bus.routeId]) return; // skip if route toggled off
+
+        if (bus.stopTimer > 0) {
+          bus.stopTimer -= dt;
+          return; // paused at a stop
+        }
+
+        bus.progress += SPEED * (dt / 1000);
+
+        if (bus.progress >= 1) {
+          // Advance to next waypoint
+          bus.progress -= 1;
+          bus.waypointIdx = (bus.waypointIdx + 1) % bus.path.length;
+
+          // Stop detection: within 0.001° of any stop on this route
+          const pt = bus.path[bus.waypointIdx];
+          if (pt) {
+            const lat = pt.lat(); const lng = pt.lng();
+            let atStop = false;
+            for (const stop of bus.stops) {
+              if (Math.abs(lat - stop.lat) < 0.001 && Math.abs(lng - stop.lng) < 0.001) {
+                bus.stopTimer = 4000;
+                bus.nextStopName = stop.name;
+                bus.iw.setContent(busInfoContent(bus.routeColor, bus.routeName, stop.name, true));
+                atStop = true;
+                break;
+              }
+            }
+            if (!atStop) {
+              const next = findNextStop(bus.stops, bus.path, bus.waypointIdx);
+              if (next !== bus.nextStopName) {
+                bus.nextStopName = next;
+                bus.iw.setContent(busInfoContent(bus.routeColor, bus.routeName, next, false));
+              }
+            }
+          }
+        }
+
+        // Interpolate position between current and next waypoint
+        const cur  = bus.path[bus.waypointIdx];
+        const next = bus.path[(bus.waypointIdx + 1) % bus.path.length];
+        if (cur && next) {
+          const lat = cur.lat() + (next.lat() - cur.lat()) * bus.progress;
+          const lng = cur.lng() + (next.lng() - cur.lng()) * bus.progress;
+          bus.marker.setPosition({ lat, lng });
+        }
+      });
+
+      simAnimFrameRef.current = requestAnimationFrame(tick);
     }
+
+    simAnimFrameRef.current = requestAnimationFrame(tick);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeToggles]);
 
-  // ── Fetch calendar events ─────────────────────────────────────────────────────
-  const fetchCalendarEvents = useCallback(async () => {
+  // ── Fetch bus positions (no-op API, triggers simulation) ─────────────────────
+  const fetchBuses = useCallback(async () => {
+    if (!mapRef.current || !window.google?.maps) return;
+    // The API always returns [] — simulation is fully client-side
+    startSimulation();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startSimulation]);
+
+  // ── Fetch unified events ──────────────────────────────────────────────────────
+  const fetchEvents = useCallback(async () => {
+    setEventsLoading(true);
+    setEventsError(false);
     try {
       const res = await fetch('/api/events', { cache: 'no-store' });
-      if (!res.ok) { setCalendarLoading(false); return; }
-      const json = await res.json() as { events: EventItem[] };
-      setCalendarEvents(json.events ?? []);
+      if (!res.ok) { setEventsError(true); setEventsLoading(false); return; }
+      const json = await res.json() as EventsResponse;
+      setEvents(json.events ?? []);
+      setFailedSources(json.failedSources ?? []);
+      setSkippedSources(json.skippedSources ?? []);
+      setSourceDebug(json.sourceDebug ?? null);
       setEventsUpdatedAt(Date.now());
     } catch {
-      // silently fail
+      setEventsError(true);
     } finally {
-      setCalendarLoading(false);
-    }
-  }, []);
-
-  // ── Fetch social events (Apify, runs in background) ───────────────────────────
-  const fetchSocialEvents = useCallback(async () => {
-    try {
-      const res = await fetch('/api/social-events', { cache: 'no-store' });
-      if (!res.ok) { setSocialLoading(false); return; }
-      const json = await res.json() as { events: SocialEvent[] };
-      setSocialEvents(prev => {
-        const newEvents = (json.events ?? []).filter(
-          ne => !prev.some(pe => pe.title === ne.title && pe.sourceAccount === ne.sourceAccount)
-        );
-        return [...prev, ...newEvents];
-      });
-    } catch {
-      // silently fail
-    } finally {
-      setSocialLoading(false);
+      setEventsLoading(false);
     }
   }, []);
 
   // ── Boot effect ───────────────────────────────────────────────────────────────
   useEffect(() => {
     fetchData();
-    fetchCalendarEvents();
-    fetchSocialEvents(); // runs async in background
+    fetchEvents();
     pollRef.current    = setInterval(fetchData, POLL_MS);
     busPollRef.current = setInterval(fetchBuses, 15_000);
     return () => {
       if (pollRef.current)    clearInterval(pollRef.current);
       if (busPollRef.current) clearInterval(busPollRef.current);
     };
-  }, [fetchData, fetchCalendarEvents, fetchSocialEvents, fetchBuses]);
+  }, [fetchData, fetchEvents, fetchBuses]);
 
   // Live "last updated X seconds ago" counter
   useEffect(() => {
@@ -1026,7 +1191,7 @@ export default function PulsePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, showCircles, mapsLoaded]);
 
-  // ── Event markers (calendar + social) ─────────────────────────────────────
+  // ── Event markers ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!mapRef.current || !window.google?.maps) return;
 
@@ -1035,14 +1200,13 @@ export default function PulsePage() {
 
     if (!showEvents) return;
 
-    // Calendar event markers
-    const calendarOnCampus = calendarEvents.filter(e => e.onCampus);
-    calendarOnCampus.forEach(event => {
-      const coords = matchEventCoords(event.location);
+    events.filter(e => e.onCampus && e.location).forEach(event => {
+      const coords = matchEventCoords(event.location!) ?? matchLocationCoords(event.location!);
       if (!coords) return;
 
+      const pinColor = eventTypePinColor(event.type);
       const svgPin = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="28" viewBox="0 0 24 30">
-        <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 18 12 18s12-9 12-18C24 5.373 18.627 0 12 0z" fill="#0d9488" stroke="white" stroke-width="1.5"/>
+        <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 18 12 18s12-9 12-18C24 5.373 18.627 0 12 0z" fill="${pinColor}" stroke="white" stroke-width="1.5"/>
         <text x="12" y="16" text-anchor="middle" fill="white" font-size="10" font-family="sans-serif">📅</text>
       </svg>`;
       const iconUrl = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgPin)}`;
@@ -1060,46 +1224,10 @@ export default function PulsePage() {
       marker.addListener('click', () => {
         const iw = new window.google.maps.InfoWindow({
           content: `<div style="font-family:sans-serif;padding:4px 8px;max-width:200px">
-            <p style="font-weight:600;margin:0;color:#0d9488;font-size:13px">${event.title}</p>
-            <p style="margin:4px 0 0;font-size:11px;color:#555">${event.date} · ${event.time}</p>
-            <p style="margin:2px 0 0;font-size:11px;color:#555">${event.location}</p>
-          </div>`,
-        });
-        iw.open(mapRef.current, marker);
-      });
-      eventMarkersRef.current.push(marker);
-    });
-
-    // Social event markers
-    socialEvents.forEach(event => {
-      if (!event.location) return;
-      const coords = matchLocationCoords(event.location);
-      if (!coords) return;
-
-      const pinColor = eventTypePinColor(event.type);
-      const svgPin = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="28" viewBox="0 0 24 30">
-        <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 18 12 18s12-9 12-18C24 5.373 18.627 0 12 0z" fill="${pinColor}" stroke="white" stroke-width="1.5"/>
-        <text x="12" y="16" text-anchor="middle" fill="white" font-size="10" font-family="sans-serif">★</text>
-      </svg>`;
-      const iconUrl = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgPin)}`;
-      const marker = new window.google.maps.Marker({
-        position: coords,
-        map: mapRef.current,
-        icon: {
-          url: iconUrl,
-          scaledSize: new window.google.maps.Size(22, 28),
-          anchor: new window.google.maps.Point(11, 28),
-        },
-        title: event.title,
-        zIndex: 7,
-      });
-      marker.addListener('click', () => {
-        const iw = new window.google.maps.InfoWindow({
-          content: `<div style="font-family:sans-serif;padding:4px 8px;max-width:200px">
             <p style="font-weight:600;margin:0;color:${pinColor};font-size:13px">${event.title}</p>
-            <p style="margin:4px 0 0;font-size:11px;color:#555">${event.date ?? ''} ${event.time ?? ''}</p>
+            <p style="margin:4px 0 0;font-size:11px;color:#555">${event.date}${event.time ? ' · ' + event.time : ''}</p>
             <p style="margin:2px 0 0;font-size:11px;color:#555">${event.location}</p>
-            <p style="margin:2px 0 0;font-size:10px;color:#888">@${event.sourceAccount}</p>
+            <p style="margin:2px 0 0;font-size:10px;color:#888">${event.organization}</p>
           </div>`,
         });
         iw.open(mapRef.current, marker);
@@ -1107,7 +1235,7 @@ export default function PulsePage() {
       eventMarkersRef.current.push(marker);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [calendarEvents, socialEvents, showEvents, mapsLoaded]);
+  }, [events, showEvents, mapsLoaded]);
 
   // ── Cleanup ───────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1115,6 +1243,7 @@ export default function PulsePage() {
       if (pollRef.current)    clearInterval(pollRef.current);
       if (busPollRef.current) clearInterval(busPollRef.current);
       if (tickRef.current)    clearInterval(tickRef.current);
+      cancelAnimationFrame(simAnimFrameRef.current);
       cancelAnimationFrame(circleAnimRef.current);
       locationMarkersRef.current.forEach(m => m.setMap(null));
       eventMarkersRef.current.forEach(m => m.setMap(null));
@@ -1156,6 +1285,14 @@ export default function PulsePage() {
     setRouteToggles(prev => ({ ...prev, [routeId]: !prev[routeId] }));
   }, []);
 
+  // ── Select location (pan map + show popup) ─────────────────────────────────
+  const selectLocation = useCallback((loc: LocationData) => {
+    setSelectedLoc(loc);
+    if (mapRef.current) {
+      mapRef.current.panTo({ lat: loc.lat, lng: loc.lng });
+    }
+  }, []);
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -1183,6 +1320,12 @@ export default function PulsePage() {
         <span className="flex items-center gap-1.5 text-[#9B8E85]">
           <span className={`w-1.5 h-1.5 rounded-full ${fetchError ? 'bg-red-500' : 'bg-emerald-400 animate-pulse'}`} />
           {fetchError ? 'Connection error' : lastUpdated ? `Updated ${secAgo}s ago` : 'Loading…'}
+        </span>
+
+        <span className="hidden sm:inline text-[#9B8E85]">·</span>
+        <span className="hidden sm:inline text-[#6B5244]">
+          🚌 {activeBusCount} {activeBusCount === 1 ? 'bus' : 'buses'} active
+          {busesSimulated && <span className="text-[#9B8E85] ml-1">(simulated)</span>}
         </span>
 
         {/* Mobile weather on second row */}
@@ -1225,7 +1368,7 @@ export default function PulsePage() {
                   window.gm_authFailure  = () => setMapError('Google Maps API key is invalid or this domain is not allowlisted.');
                   const s = document.createElement('script');
                   s.id    = 'pulse-maps-script';
-                  s.src   = `https://maps.googleapis.com/maps/api/js?key=${mapsKey}&libraries=visualization&callback=__pulseMapReady`;
+                  s.src   = `https://maps.googleapis.com/maps/api/js?key=${mapsKey}&libraries=visualization,geometry&callback=__pulseMapReady`;
                   s.async = true; s.defer = true;
                   s.onerror = () => setMapError('Failed to load Google Maps script.');
                   document.head.appendChild(s);
@@ -1272,7 +1415,7 @@ export default function PulsePage() {
             <div className="px-3 pt-3 pb-1">
               <p className="text-[9px] font-semibold uppercase tracking-widest text-white/30 mb-2">Stinger Routes</p>
               <div className="space-y-1.5">
-                {BUS_ROUTES.map(route => (
+                {BUS_ROUTE_DEFS.map(route => (
                   <label key={route.id} className="flex items-center gap-2 cursor-pointer select-none">
                     <div
                       onClick={() => toggleRoute(route.id)}
@@ -1294,8 +1437,10 @@ export default function PulsePage() {
                 ))}
               </div>
             </div>
-            <div className="px-3 pb-2 pt-1">
-              <p className="text-[8px] text-white/20">Live · Stinger Bus</p>
+            <div className="px-3 pb-2 pt-1 border-t border-white/[0.06] mt-1">
+              <p className="text-[8px] text-white/20 leading-tight">
+                Simulated — live tracking<br/>requires GT PTS credentials
+              </p>
             </div>
           </div>
 
@@ -1345,14 +1490,18 @@ export default function PulsePage() {
         <aside className="hidden lg:flex lg:flex-col w-72 xl:w-80 flex-shrink-0 bg-white border-r border-[#2C1810]/[0.08] overflow-y-auto order-first">
           <SidebarContent
             data={data}
-            calendarEvents={calendarEvents}
-            socialEvents={socialEvents}
-            calendarLoading={calendarLoading}
-            socialLoading={socialLoading}
+            events={events}
+            eventsLoading={eventsLoading}
+            eventsError={eventsError}
+            failedSources={failedSources}
+            skippedSources={skippedSources}
+            sourceDebug={sourceDebug}
             eventsUpdatedAt={eventsUpdatedAt}
             activeTab={activeTab}
             onTabChange={setActiveTab}
-            onSelectLoc={setSelectedLoc}
+            onSelectLoc={selectLocation}
+            onRetryEvents={fetchEvents}
+            selectedLocId={selectedLoc?.id}
           />
         </aside>
 
@@ -1470,14 +1619,18 @@ export default function PulsePage() {
           </div>
           <SidebarContent
             data={data}
-            calendarEvents={calendarEvents}
-            socialEvents={socialEvents}
-            calendarLoading={calendarLoading}
-            socialLoading={socialLoading}
+            events={events}
+            eventsLoading={eventsLoading}
+            eventsError={eventsError}
+            failedSources={failedSources}
+            skippedSources={skippedSources}
+            sourceDebug={sourceDebug}
             eventsUpdatedAt={eventsUpdatedAt}
             activeTab={activeTab}
             onTabChange={setActiveTab}
-            onSelectLoc={(l) => { setSelectedLoc(l); setDrawerOpen(false); }}
+            onSelectLoc={(l) => { selectLocation(l); setDrawerOpen(false); }}
+            onRetryEvents={fetchEvents}
+            selectedLocId={selectedLoc?.id}
           />
         </div>
       )}

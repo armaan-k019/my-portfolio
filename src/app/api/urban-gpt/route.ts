@@ -16,6 +16,8 @@ export interface OverpassData {
   schools: OverpassPoint[];
   hospitals: OverpassPoint[];
   bikeWayCount: number;
+  timedOutCategories?: string[];
+  radiusCapped?: boolean;
 }
 
 export interface IncomeBracket {
@@ -98,6 +100,8 @@ export interface UrbanAnalysisResult {
   ai: AIInsights;
   overpassError?: boolean;
 }
+
+export const maxDuration = 30;
 
 // ─── Server-side cache ────────────────────────────────────────────────────────
 
@@ -470,98 +474,126 @@ const OVERPASS_ENDPOINTS = [
   "https://overpass.kumi.systems/api/interpreter",
 ];
 
+const OVERPASS_CAP = 50;         // max points per category
+const OVERPASS_MAX_RADIUS = 8045; // cap at 5 miles for Overpass queries
+
 async function fetchOverpassData(
   lat: number,
   lng: number,
   radiusM: number
 ): Promise<{ data: OverpassData; error: boolean }> {
-  const R = Math.round(radiusM);
-  const query = `[out:json][timeout:60];
-(
-  node["highway"="bus_stop"](around:${R},${lat},${lng});
-  node["public_transport"="stop_position"](around:${R},${lat},${lng});
-  node["railway"~"station|halt|tram_stop|subway_entrance"](around:${R},${lat},${lng});
-  way["leisure"="park"](around:${R},${lat},${lng});
-  relation["leisure"="park"](around:${R},${lat},${lng});
-  node["amenity"~"restaurant|cafe|fast_food|bar"](around:${R},${lat},${lng});
-  node["amenity"~"school|university|college"](around:${R},${lat},${lng});
-  node["amenity"~"hospital|clinic"](around:${R},${lat},${lng});
-  way["cycleway"~"lane|track|path"](around:${R},${lat},${lng});
-  way["highway"="cycleway"](around:${R},${lat},${lng});
-);
-out center;`;
+  const R = Math.min(Math.round(radiusM), OVERPASS_MAX_RADIUS);
+  const radiusCapped = R < Math.round(radiusM);
 
-  const empty: OverpassData = {
-    transit: [], parks: [], restaurants: [], schools: [], hospitals: [], bikeWayCount: 0,
-  };
-  const fetchOptions: RequestInit = {
+  const fetchOptions = (query: string): RequestInit => ({
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: `data=${encodeURIComponent(query)}`,
+  });
+
+  const makeQuery = (body: string) =>
+    `[out:json][timeout:25];\n(\n${body}\n);\nout center;`;
+
+  const queries: Record<string, string> = {
+    transit: makeQuery(`
+  node["highway"="bus_stop"](around:${R},${lat},${lng});
+  node["railway"="station"](around:${R},${lat},${lng});
+  node["amenity"="subway_entrance"](around:${R},${lat},${lng});`),
+    parks: makeQuery(`
+  node["leisure"="park"](around:${R},${lat},${lng});
+  way["leisure"="park"](around:${R},${lat},${lng});
+  node["leisure"="playground"](around:${R},${lat},${lng});`),
+    dining: makeQuery(`
+  node["amenity"="restaurant"](around:${R},${lat},${lng});
+  node["amenity"="cafe"](around:${R},${lat},${lng});
+  node["amenity"="fast_food"](around:${R},${lat},${lng});
+  node["amenity"="bar"](around:${R},${lat},${lng});`),
+    schools: makeQuery(`
+  node["amenity"="school"](around:${R},${lat},${lng});
+  node["amenity"="university"](around:${R},${lat},${lng});
+  node["amenity"="college"](around:${R},${lat},${lng});`),
+    health: makeQuery(`
+  node["amenity"="hospital"](around:${R},${lat},${lng});
+  node["amenity"="pharmacy"](around:${R},${lat},${lng});
+  node["amenity"="clinic"](around:${R},${lat},${lng});
+  node["amenity"="doctors"](around:${R},${lat},${lng});`),
   };
 
-  for (const [i, endpoint] of OVERPASS_ENDPOINTS.entries()) {
-    console.log(`[urban-gpt] Trying Overpass: ${endpoint} radius=${R}m`);
-    const timeoutMs = i === 0 ? 8000 : 6000; // first endpoint gets 8s, fallback gets 6s
-    try {
-      const res = await fetchWithTimeout(endpoint, fetchOptions, timeoutMs);
-      if (!res.ok) {
-        console.warn(`[urban-gpt] Overpass ${endpoint} → HTTP ${res.status}`);
-        continue;
-      }
-      const json = (await res.json()) as {
-        elements: Array<{
-          type: "node" | "way" | "relation"; id: number;
-          lat?: number; lon?: number;
-          center?: { lat: number; lon: number };
-          tags?: Record<string, string>;
-        }>;
-      };
-
-      const transit: OverpassPoint[] = [];
-      const parks: OverpassPoint[] = [];
-      const restaurants: OverpassPoint[] = [];
-      const schools: OverpassPoint[] = [];
-      const hospitals: OverpassPoint[] = [];
-      let bikeWayCount = 0;
-      const seen = new Set<number>();
-
-      for (const el of json.elements ?? []) {
-        if (seen.has(el.id)) continue;
-        seen.add(el.id);
-        const tags = el.tags ?? {};
-        const elLat = el.lat ?? el.center?.lat;
-        const elLon = el.lon ?? el.center?.lon;
-        if (elLat === undefined || elLon === undefined) {
-          if (tags.cycleway || tags.highway === "cycleway") bikeWayCount++;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function runQuery(category: string, query: string): Promise<OverpassPoint[]> {
+    for (const endpoint of OVERPASS_ENDPOINTS) {
+      try {
+        console.log(`[urban-gpt] Overpass ${category} → ${endpoint.includes('kumi') ? 'kumi' : 'main'}`);
+        const res = await fetchWithTimeout(endpoint, fetchOptions(query), 27000);
+        if (!res.ok) {
+          console.warn(`[urban-gpt] Overpass ${category}: HTTP ${res.status}`);
           continue;
         }
-        const name = tags.name ?? "";
-        if (tags.highway === "bus_stop" || tags.public_transport === "stop_position" ||
-            /station|halt|tram_stop|subway_entrance/.test(tags.railway ?? "")) {
-          transit.push({ id: el.id, lat: elLat, lon: elLon, name });
-        } else if (tags.leisure === "park") {
-          parks.push({ id: el.id, lat: elLat, lon: elLon, name });
-        } else if (/restaurant|cafe|fast_food|bar/.test(tags.amenity ?? "")) {
-          restaurants.push({ id: el.id, lat: elLat, lon: elLon, name });
-        } else if (/school|university|college/.test(tags.amenity ?? "")) {
-          schools.push({ id: el.id, lat: elLat, lon: elLon, name });
-        } else if (/hospital|clinic/.test(tags.amenity ?? "")) {
-          hospitals.push({ id: el.id, lat: elLat, lon: elLon, name });
-        } else if (tags.cycleway || tags.highway === "cycleway") {
-          bikeWayCount++;
+        const json = await res.json() as {
+          elements?: Array<{
+            id: number; lat?: number; lon?: number;
+            center?: { lat: number; lon: number };
+            tags?: Record<string, string>;
+          }>;
+        };
+        const points: OverpassPoint[] = [];
+        const seen = new Set<number>();
+        for (const el of json.elements ?? []) {
+          if (seen.has(el.id)) continue;
+          seen.add(el.id);
+          const elLat = el.lat ?? el.center?.lat;
+          const elLon = el.lon ?? el.center?.lon;
+          if (elLat === undefined || elLon === undefined) continue;
+          points.push({ id: el.id, lat: elLat, lon: elLon, name: el.tags?.name ?? "" });
+          if (points.length >= OVERPASS_CAP) break;
         }
+        console.log(`[urban-gpt] Overpass ${category}: ${points.length} points`);
+        return points;
+      } catch (err) {
+        console.error(`[urban-gpt] Overpass ${category} @ ${endpoint}: ${(err as Error).message}`);
       }
-
-      console.log(`[urban-gpt] Overpass OK: transit=${transit.length} parks=${parks.length} restaurants=${restaurants.length} schools=${schools.length} hospitals=${hospitals.length} bike=${bikeWayCount}`);
-      return { data: { transit, parks, restaurants, schools, hospitals, bikeWayCount }, error: false };
-    } catch (err) {
-      console.error(`[urban-gpt] Overpass ${endpoint} error:`, err);
     }
+    throw new Error(`All Overpass endpoints failed for ${category}`);
   }
 
-  console.error(`[urban-gpt] All Overpass endpoints failed`);
-  return { data: empty, error: true };
+  console.log(`[urban-gpt] Overpass parallel queries radius=${R}m (capped=${radiusCapped})`);
+
+  const [transitRes, parksRes, diningRes, schoolsRes, healthRes] = await Promise.allSettled([
+    runQuery('transit', queries.transit),
+    runQuery('parks',   queries.parks),
+    runQuery('dining',  queries.dining),
+    runQuery('schools', queries.schools),
+    runQuery('health',  queries.health),
+  ]);
+
+  const timedOutCategories: string[] = [];
+  function getOrEmpty(
+    res: PromiseSettledResult<OverpassPoint[]>,
+    label: string
+  ): OverpassPoint[] {
+    if (res.status === 'rejected') { timedOutCategories.push(label); return []; }
+    return res.value;
+  }
+
+  const transit     = getOrEmpty(transitRes, 'transit');
+  const parks       = getOrEmpty(parksRes,   'parks');
+  const restaurants = getOrEmpty(diningRes,  'dining');
+  const schools     = getOrEmpty(schoolsRes, 'schools');
+  const hospitals   = getOrEmpty(healthRes,  'health');
+
+  console.log(
+    `[urban-gpt] Overpass done: t=${transit.length} p=${parks.length} r=${restaurants.length}` +
+    ` s=${schools.length} h=${hospitals.length} timedOut=[${timedOutCategories.join(',')}]`
+  );
+
+  return {
+    data: {
+      transit, parks, restaurants, schools, hospitals, bikeWayCount: 0,
+      ...(timedOutCategories.length > 0 && { timedOutCategories }),
+      ...(radiusCapped && { radiusCapped }),
+    },
+    error: timedOutCategories.length === 5,
+  };
 }
 
 // ─── Scores ───────────────────────────────────────────────────────────────────
@@ -686,7 +718,7 @@ async function fetchAIInsights(
 
   try {
     const message = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 1200,
       system: AI_SYSTEM_PROMPT,
       messages: [{ role: "user", content: `Analyze this site:\n\n${JSON.stringify(siteData, null, 2)}` }],

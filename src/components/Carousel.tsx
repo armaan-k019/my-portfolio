@@ -6,7 +6,6 @@ import { AnimatePresence, motion } from "framer-motion";
 const images = [
   "/images/hero01.png",
   "/images/hero02.png",
-  "/images/hero03.png",
   "/images/hero04.png",
 ];
 

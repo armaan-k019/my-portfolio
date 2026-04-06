@@ -87,7 +87,7 @@ export async function GET(): Promise<Response> {
 
       try {
         const msg = await client.messages.create({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-6",
           max_tokens: 256,
           system: `You are scanning Georgia Tech social media posts for upcoming events. Extract any events, parties, social gatherings, or pop-ups mentioned in the post caption or visible in the image.
 
