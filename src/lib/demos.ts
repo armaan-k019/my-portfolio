@@ -65,6 +65,17 @@ export const demos: Record<string, DemoConfig> = {
     url: "/demos/wisprflow",
   },
 
+  // ── Corgi Insurance - AI Model Risk Monitor ────────────────────────────────
+  "corgi": {
+    company: "Corgi Insurance",
+    role: "Insurtech · AI Liability · Model Risk",
+    accentColor: "#d97706",
+    headline: "AI Model Risk Monitor",
+    pitch: "Detect model drift in your AI systems and automatically assess how it impacts your liability risk exposure — powered by clustering and Claude.",
+    sections: [],
+    url: "/demos/corgi",
+  },
+
   // ── AthenaHQ - GEO Visibility Checker ──────────────────────────────────────
   "athena-hq": {
     company: "AthenaHQ",
