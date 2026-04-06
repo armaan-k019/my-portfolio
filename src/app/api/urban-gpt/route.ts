@@ -719,7 +719,7 @@ async function fetchAIInsights(
   try {
     const message = await client.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 1200,
+      max_tokens: 2048,
       system: AI_SYSTEM_PROMPT,
       messages: [{ role: "user", content: `Analyze this site:\n\n${JSON.stringify(siteData, null, 2)}` }],
     });
