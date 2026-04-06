@@ -617,10 +617,16 @@ export default function UrbanGPTPage() {
       setHeatData(null);  setHeatLoading(true);  setHeatError(null);
       setZoningData(null); setZoningLoading(true); setZoningError(null);
 
+      const safeJson = async (label: string, r: Response) => {
+        const text = await r.text();
+        console.log(`[urban-gpt] ${label} raw (${r.status}):`, text.slice(0, 200));
+        return JSON.parse(text);
+      };
+
       Promise.allSettled([
-        fetch(`/api/flood-risk?lat=${lat}&lng=${lng}`).then(r => r.json()),
-        fetch(`/api/heat-island?lat=${lat}&lng=${lng}&parksCount=${parksCount}`).then(r => r.json()),
-        fetch(`/api/zoning?lat=${lat}&lng=${lng}`).then(r => r.json()),
+        fetch(`/api/flood-risk?lat=${lat}&lng=${lng}`).then(r => safeJson("flood-risk", r)),
+        fetch(`/api/heat-island?lat=${lat}&lng=${lng}&parksCount=${parksCount}`).then(r => safeJson("heat-island", r)),
+        fetch(`/api/zoning?lat=${lat}&lng=${lng}`).then(r => safeJson("zoning", r)),
       ]).then(([flood, heat, zoning]) => {
         if (flood.status === "fulfilled") setFloodData(flood.value as FloodData);
         else setFloodError("Flood data unavailable for this location.");
@@ -653,7 +659,14 @@ export default function UrbanGPTPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ lat: pl.lat, lng: pl.lng, radiusM: rMeters, unit, address: pl.formatted }),
         });
-        const data = await res.json() as UrbanAnalysisResult & { error?: string };
+        const rawText = await res.text();
+        console.log("[urban-gpt] raw response:", rawText.slice(0, 300));
+        let data: UrbanAnalysisResult & { error?: string };
+        try {
+          data = JSON.parse(rawText) as UrbanAnalysisResult & { error?: string };
+        } catch {
+          throw new Error(`Server returned non-JSON (status ${res.status}): ${rawText.slice(0, 120)}`);
+        }
         if (!res.ok) throw new Error(data.error || "Analysis failed.");
         setResult(data);
         hasResultRef.current = true;
@@ -709,9 +722,9 @@ export default function UrbanGPTPage() {
     if (!result) return;
     setFloodLoading(true); setFloodError(null); setFloodData(null);
     fetch(`/api/flood-risk?lat=${result.lat}&lng=${result.lng}`)
-      .then(r => r.json())
+      .then(async r => { const t = await r.text(); console.log("[urban-gpt] flood-risk retry raw:", t.slice(0, 200)); return JSON.parse(t); })
       .then(d => { setFloodData(d as FloodData); setFloodLoading(false); })
-      .catch(() => { setFloodError("Flood data unavailable."); setFloodLoading(false); });
+      .catch(e => { console.error("[urban-gpt] flood retry error:", e); setFloodError("Flood data unavailable."); setFloodLoading(false); });
   }, [result]);
 
   const retryHeat = useCallback(() => {
@@ -719,18 +732,18 @@ export default function UrbanGPTPage() {
     const parksCount = result.overpass.parks.length;
     setHeatLoading(true); setHeatError(null); setHeatData(null);
     fetch(`/api/heat-island?lat=${result.lat}&lng=${result.lng}&parksCount=${parksCount}`)
-      .then(r => r.json())
+      .then(async r => { const t = await r.text(); console.log("[urban-gpt] heat-island retry raw:", t.slice(0, 200)); return JSON.parse(t); })
       .then(d => { setHeatData(d as HeatData); setHeatLoading(false); })
-      .catch(() => { setHeatError("Heat island data unavailable."); setHeatLoading(false); });
+      .catch(e => { console.error("[urban-gpt] heat retry error:", e); setHeatError("Heat island data unavailable."); setHeatLoading(false); });
   }, [result]);
 
   const retryZoning = useCallback(() => {
     if (!result) return;
     setZoningLoading(true); setZoningError(null); setZoningData(null);
     fetch(`/api/zoning?lat=${result.lat}&lng=${result.lng}`)
-      .then(r => r.json())
+      .then(async r => { const t = await r.text(); console.log("[urban-gpt] zoning retry raw:", t.slice(0, 200)); return JSON.parse(t); })
       .then(d => { setZoningData(d as ZoningData); setZoningLoading(false); })
-      .catch(() => { setZoningError("Zoning data unavailable."); setZoningLoading(false); });
+      .catch(e => { console.error("[urban-gpt] zoning retry error:", e); setZoningError("Zoning data unavailable."); setZoningLoading(false); });
   }, [result]);
 
   // ── Debounced re-analyze on radius change ──────────────────────────────────

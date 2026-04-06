@@ -254,6 +254,7 @@ async function fetchOSMLanduse(
 // ─── Main route ────────────────────────────────────────────────────────────────
 
 export async function GET(request: Request) {
+  try {
   const { searchParams } = new URL(request.url);
   const lat = parseFloat(searchParams.get("lat") ?? "");
   const lng = parseFloat(searchParams.get("lng") ?? "");
@@ -361,4 +362,8 @@ export async function GET(request: Request) {
     zoningCodeUrl,
     gisUrl,
   });
+  } catch (err) {
+    console.error("zoning route error:", err);
+    return NextResponse.json({ error: "Failed to fetch zoning data" }, { status: 500 });
+  }
 }
