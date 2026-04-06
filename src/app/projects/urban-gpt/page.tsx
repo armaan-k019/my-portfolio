@@ -36,6 +36,9 @@ interface LayerState {
   restaurants: boolean;
   schools: boolean;
   hospitals: boolean;
+  flood: boolean;
+  heat: boolean;
+  zoning: boolean;
 }
 
 const LAYER_CONFIG: {
@@ -51,6 +54,12 @@ const LAYER_CONFIG: {
   { key: "hospitals",   label: "Health",   color: "bg-brown-light", markerColor: "#4A6B4A" },
 ];
 
+const SPECIALTY_LAYER_CONFIG: { key: "flood" | "heat" | "zoning"; label: string }[] = [
+  { key: "flood",  label: "Flood Risk" },
+  { key: "heat",   label: "Heat Island" },
+  { key: "zoning", label: "Zoning" },
+];
+
 const MAP_STYLES = [
   { elementType: "geometry",                      stylers: [{ color: "#f5f0e8" }] },
   { elementType: "labels.text.fill",              stylers: [{ color: "#4A6B4A" }] },
@@ -64,6 +73,65 @@ const MAP_STYLES = [
   { featureType: "transit.station", elementType: "geometry", stylers: [{ color: "#ddd8cf" }] },
   { featureType: "administrative", elementType: "geometry.stroke", stylers: [{ color: "#c4b8aa" }] },
 ];
+
+// ─── New data layer types ──────────────────────────────────────────────────────
+
+interface FloodZone {
+  zone: string;
+  subtype: string;
+  sfha: boolean;
+  rings: number[][][];
+}
+
+interface FloodData {
+  zoneAtLocation: string;
+  zoneName: string;
+  isHighRisk: boolean;
+  isModerateRisk: boolean;
+  isMinimalRisk: boolean;
+  description: string;
+  sfha: boolean;
+  nearbyZones: FloodZone[];
+  error?: string;
+}
+
+interface HeatData {
+  currentTempC: number;
+  referenceTempC: number;
+  deltaC: number;
+  intensityScore: number;
+  intensityLabel: string;
+  greenSpacePct: number;
+  recommendation: string;
+  error?: string;
+}
+
+interface ZoningDevStd {
+  maxHeightFt: number | null;
+  maxHeightStories: number | null;
+  minLotSqFt: number | null;
+  maxFAR: number | null;
+  minSetbackFrontFt: number | null;
+  minSetbackSideFt: number | null;
+  minSetbackRearFt: number | null;
+  minParkingSpaces: string | null;
+  maxLotCoverage: number | null;
+}
+
+interface ZoningData {
+  zoneCode: string;
+  zoneName: string;
+  zoneType: "residential" | "commercial" | "industrial" | "mixed" | "agricultural" | "institutional" | "unknown";
+  permittedUses: string[];
+  developmentStandards: ZoningDevStd;
+  municipality: string;
+  aiSummary: string;
+  aiDesignNote: string;
+  sourceUrl: string | null;
+  error?: string;
+}
+
+type ActiveTab = "demographics" | "flood" | "heat" | "zoning";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -230,6 +298,310 @@ function IncomeChart({ brackets, mean }: { brackets: IncomeBracket[]; mean: numb
   );
 }
 
+// ─── Panel skeleton / error ───────────────────────────────────────────────────
+
+function PanelSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="space-y-2 animate-pulse">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className={`rounded-xl bg-tan/10 ${i === 0 ? "h-24" : "h-16"}`} />
+      ))}
+    </div>
+  );
+}
+
+function PanelError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="rounded-xl border border-tan/30 bg-white/40 px-4 py-8 text-center">
+      <p className="text-sm text-brown-light mb-3">{message}</p>
+      <button
+        onClick={onRetry}
+        className="text-xs text-terracotta hover:text-terracotta-dark transition-colors underline"
+      >
+        Retry
+      </button>
+    </div>
+  );
+}
+
+// ─── Flood Panel ──────────────────────────────────────────────────────────────
+
+function FloodPanel({
+  data,
+  loading,
+  error,
+  onRetry,
+}: {
+  data: FloodData | null;
+  loading: boolean;
+  error: string | null;
+  onRetry: () => void;
+}) {
+  if (loading) return <PanelSkeleton rows={4} />;
+  if (error || !data) return <PanelError message={error ?? "No flood data available for this location."} onRetry={onRetry} />;
+  if (data.error) return <PanelError message={data.error} onRetry={onRetry} />;
+
+  const badgeBg = data.isHighRisk
+    ? "bg-red-100 text-red-700 border-red-200"
+    : data.isModerateRisk
+    ? "bg-amber-100 text-amber-700 border-amber-200"
+    : "bg-green-100 text-green-700 border-green-200";
+
+  const riskColor = data.isHighRisk
+    ? "text-red-600"
+    : data.isModerateRisk
+    ? "text-amber-600"
+    : "text-green-700";
+
+  const riskLabel = data.isHighRisk
+    ? "High Risk"
+    : data.isModerateRisk
+    ? "Moderate Risk"
+    : data.isMinimalRisk
+    ? "Minimal Risk"
+    : "Undetermined";
+
+  const uniqueNearbyZones = [...new Set(data.nearbyZones.map(z => z.zone))].slice(0, 4);
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-tan/30 bg-white/50 px-4 py-4">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <span className={`text-lg font-bold px-3 py-1 rounded-lg border ${badgeBg}`}>
+            ZONE {data.zoneAtLocation}
+          </span>
+          <div className="text-right">
+            <div className={`text-sm font-semibold ${riskColor}`}>{riskLabel}</div>
+            <div className="text-xs text-brown-light">{data.zoneName}</div>
+          </div>
+        </div>
+        <p className="text-sm text-brown leading-relaxed">{data.description}</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <StatCard
+          label="Special Flood Hazard Area"
+          value={data.sfha ? "Yes" : "No"}
+          valueColor={data.sfha ? "text-red-600" : "text-green-700"}
+          tooltip="SFHA zones (A, AE, VE, etc.) have a 1% or greater annual chance of flooding. Flood insurance is federally required for mortgaged properties in SFHA zones."
+        />
+        <StatCard
+          label="Nearby Zone Types"
+          value={uniqueNearbyZones.length > 0 ? uniqueNearbyZones.join(", ") : "—"}
+          sub="within 0.05° radius"
+        />
+      </div>
+
+      <div className="flex items-center justify-between pt-1">
+        <p className="text-[10px] text-brown-light/60">Source: FEMA National Flood Hazard Layer</p>
+        <a
+          href="https://msc.fema.gov/portal/search"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-terracotta hover:text-terracotta-dark transition-colors"
+        >
+          View FEMA Flood Map →
+        </a>
+      </div>
+    </div>
+  );
+}
+
+// ─── Heat Island Panel ────────────────────────────────────────────────────────
+
+function HeatPanel({
+  data,
+  loading,
+  error,
+  onRetry,
+}: {
+  data: HeatData | null;
+  loading: boolean;
+  error: string | null;
+  onRetry: () => void;
+}) {
+  if (loading) return <PanelSkeleton rows={4} />;
+  if (error || !data) return <PanelError message={error ?? "Heat island data unavailable."} onRetry={onRetry} />;
+
+  const scoreColor =
+    data.intensityScore < 4
+      ? "text-blue-600"
+      : data.intensityScore < 7
+      ? "text-amber-600"
+      : "text-red-600";
+
+  const impactText =
+    data.intensityScore < 4
+      ? "Minimal impact on cooling energy demand."
+      : data.intensityScore < 7
+      ? "This heat island effect increases cooling energy demand by an estimated 5–10% and can raise peak temperatures by 1–3°C compared to surrounding rural areas."
+      : "This level of heat island effect increases cooling energy demand by an estimated 10–20% and can raise peak temperatures by 3–6°C compared to surrounding rural areas.";
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-tan/30 bg-white/50 px-4 py-4">
+        <p className={`text-3xl font-bold ${scoreColor}`}>
+          {data.intensityScore.toFixed(1)}
+          <span className="text-lg font-normal text-brown-light"> / 10</span>
+        </p>
+        <p className="text-sm font-medium text-brown mt-0.5">{data.intensityLabel} Heat Island Effect</p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <StatCard label="Surface Temp" value={`${data.currentTempC}°C`} tooltip="Current surface temperature at the analysis location (Open-Meteo)." />
+        <StatCard label="Rural Reference" value={`${data.referenceTempC}°C`} tooltip="Surface temperature ~5 miles from the site used as a rural baseline." />
+        <StatCard label="Difference" value={`+${data.deltaC}°C`} valueColor={data.deltaC > 3 ? "text-red-600" : "text-amber-600"} tooltip="Temperature delta between urban location and rural reference — the core heat island signal." />
+      </div>
+
+      <div className="rounded-xl border border-tan/30 bg-white/50 px-4 py-3">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-brown-light mb-2">
+          Green Space Coverage
+        </p>
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-2 rounded-full bg-tan/20 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-sage transition-all duration-500"
+              style={{ width: `${data.greenSpacePct}%` }}
+            />
+          </div>
+          <span className="text-sm font-semibold text-darkblue shrink-0">{data.greenSpacePct}%</span>
+        </div>
+        <p className="text-[10px] text-brown-light mt-1">estimated from park count within radius</p>
+      </div>
+
+      <div className="rounded-xl border border-tan/30 bg-white/50 px-4 py-3">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-brown-light mb-1">Impact</p>
+        <p className="text-sm text-brown leading-relaxed">{impactText}</p>
+      </div>
+
+      <div className="rounded-xl border border-tan/30 bg-white/50 px-4 py-3">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-brown-light mb-1">
+          Design Recommendation
+        </p>
+        <p className="text-sm text-brown leading-relaxed">{data.recommendation}</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Zoning Panel ─────────────────────────────────────────────────────────────
+
+function ZoningPanel({
+  data,
+  loading,
+  error,
+  onRetry,
+}: {
+  data: ZoningData | null;
+  loading: boolean;
+  error: string | null;
+  onRetry: () => void;
+}) {
+  const [showUses, setShowUses] = useState(false);
+
+  if (loading) return <PanelSkeleton rows={5} />;
+  if (error || !data) return <PanelError message={error ?? "Zoning data unavailable."} onRetry={onRetry} />;
+  if (data.error) return <PanelError message={data.error} onRetry={onRetry} />;
+
+  const badgeColors: Record<string, string> = {
+    residential:   "bg-blue-100 text-blue-700 border-blue-200",
+    commercial:    "bg-orange-100 text-orange-700 border-orange-200",
+    industrial:    "bg-gray-100 text-gray-600 border-gray-200",
+    mixed:         "bg-purple-100 text-purple-700 border-purple-200",
+    agricultural:  "bg-green-100 text-green-700 border-green-200",
+    institutional: "bg-indigo-100 text-indigo-700 border-indigo-200",
+    unknown:       "bg-tan/20 text-brown-light border-tan/30",
+  };
+  const badgeClass = badgeColors[data.zoneType] ?? badgeColors.unknown;
+  const ds = data.developmentStandards;
+
+  const standards = [
+    { label: "Max Height", value: ds.maxHeightFt != null ? `${ds.maxHeightFt} ft${ds.maxHeightStories ? ` / ${ds.maxHeightStories} stories` : ""}` : "—" },
+    { label: "Max FAR",    value: ds.maxFAR != null ? String(ds.maxFAR) : "—" },
+    { label: "Min Lot Size", value: ds.minLotSqFt != null ? `${ds.minLotSqFt.toLocaleString()} sq ft` : "—" },
+    { label: "Front Setback", value: ds.minSetbackFrontFt != null ? `${ds.minSetbackFrontFt} ft` : "—" },
+    { label: "Side Setback",  value: ds.minSetbackSideFt != null ? `${ds.minSetbackSideFt} ft` : "—" },
+    { label: "Rear Setback",  value: ds.minSetbackRearFt != null ? `${ds.minSetbackRearFt} ft` : "—" },
+    { label: "Lot Coverage",  value: ds.maxLotCoverage != null ? `${ds.maxLotCoverage}% max` : "—" },
+    { label: "Parking",       value: ds.minParkingSpaces ?? "—" },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-tan/30 bg-white/50 px-4 py-4">
+        <div className="flex items-start gap-3 mb-2">
+          <span className={`text-lg font-bold px-3 py-1 rounded-lg border shrink-0 ${badgeClass}`}>
+            {data.zoneCode}
+          </span>
+          <div>
+            <p className="text-sm font-medium text-brown leading-snug">{data.zoneName}</p>
+            {data.municipality && <p className="text-xs text-brown-light">{data.municipality}</p>}
+          </div>
+        </div>
+        {data.aiSummary && (
+          <p className="text-sm text-brown-light leading-relaxed">{data.aiSummary}</p>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-tan/30 bg-white/50 px-4 py-3">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-brown-light mb-3">
+          Development Standards
+        </p>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+          {standards.map(({ label, value }) => (
+            <div key={label}>
+              <p className="text-[10px] text-brown-light/70">{label}</p>
+              <p className="text-xs font-medium text-darkblue">{value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {data.permittedUses.length > 0 && (
+        <div className="rounded-xl border border-tan/30 bg-white/50 px-4 py-3">
+          <button
+            onClick={() => setShowUses(p => !p)}
+            className="flex items-center justify-between w-full text-[10px] font-semibold uppercase tracking-widest text-brown-light"
+          >
+            <span>Permitted Uses ({data.permittedUses.length})</span>
+            <span className="text-[8px]">{showUses ? "▲" : "▼"}</span>
+          </button>
+          {showUses && (
+            <ul className="mt-2 space-y-1">
+              {data.permittedUses.map((use, i) => (
+                <li key={i} className="text-sm text-brown flex gap-2 items-start">
+                  <span className="w-1 h-1 rounded-full bg-brown-light/40 shrink-0 mt-2" />
+                  {use}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {data.aiDesignNote && (
+        <div className="rounded-xl border border-tan/30 bg-white/50 px-4 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-brown-light mb-1">
+            AI Design Note
+          </p>
+          <p className="text-sm text-brown leading-relaxed">{data.aiDesignNote}</p>
+        </div>
+      )}
+
+      {data.sourceUrl && (
+        <a
+          href={data.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-terracotta hover:text-terracotta-dark transition-colors block"
+        >
+          View Municipal Zoning Code →
+        </a>
+      )}
+    </div>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function UrbanGPTPage() {
@@ -242,10 +614,27 @@ export default function UrbanGPTPage() {
   const [result, setResult] = useState<UrbanAnalysisResult | null>(null);
   const [layers, setLayers] = useState<LayerState>({
     transit: true, parks: true, restaurants: true, schools: true, hospitals: true,
+    flood: false, heat: false, zoning: false,
   });
   const [mapsLoaded, setMapsLoaded] = useState(false);
   const [suggestions, setSuggestions] = useState<{ display: string; lat: number; lng: number }[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // New data layer state
+  const [floodData, setFloodData] = useState<FloodData | null>(null);
+  const [floodLoading, setFloodLoading] = useState(false);
+  const [floodError, setFloodError] = useState<string | null>(null);
+
+  const [heatData, setHeatData] = useState<HeatData | null>(null);
+  const [heatLoading, setHeatLoading] = useState(false);
+  const [heatError, setHeatError] = useState<string | null>(null);
+
+  const [zoningData, setZoningData] = useState<ZoningData | null>(null);
+  const [zoningLoading, setZoningLoading] = useState(false);
+  const [zoningError, setZoningError] = useState<string | null>(null);
+
+  const [activeTab, setActiveTab] = useState<ActiveTab>("demographics");
+
   const nominatimRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nominatimAbortRef = useRef<AbortController | null>(null);
 
@@ -263,9 +652,16 @@ export default function UrbanGPTPage() {
   const hasResultRef = useRef(false);
   const currentPlaceRef = useRef<{ lat: number; lng: number; formatted: string } | null>(null);
   const currentRadiusIndexRef = useRef(DEFAULT_RADIUS_INDEX);
-  // Always-current ref so autocomplete listener never captures a stale doAnalyze
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const doAnalyzeRef = useRef<any>(null);
+
+  // New overlay refs
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const floodPolygonsRef = useRef<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const heatCircleRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const zoningCircleRef = useRef<any>(null);
 
   const radiusInMiles = RADIUS_VALUES[radiusIndex];
   const radiusInMeters = radiusInMiles * 1609.344;
@@ -274,7 +670,7 @@ export default function UrbanGPTPage() {
   // ── Load Google Maps ───────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!mapsKey) return; // Maps only loads if key present; Nominatim fallback handles no-key case
+    if (!mapsKey) return;
     if (window.google?.maps) { setMapsLoaded(true); return; }
     window.__urbanGPTMapsReady = () => setMapsLoaded(true);
     if (document.getElementById("urban-gpt-maps-script")) return;
@@ -307,15 +703,14 @@ export default function UrbanGPTPage() {
       setPlace(pl);
       currentPlaceRef.current = pl;
       setError("");
-      // Immediately trigger analysis on selection
       doAnalyzeRef.current?.(pl, currentRadiusIndexRef.current);
     });
   }, [mapsLoaded]);
 
-  // ── Nominatim suggestion search (fallback when Google Maps not loaded) ─────
+  // ── Nominatim suggestion search ────────────────────────────────────────────
 
   useEffect(() => {
-    if (mapsLoaded) { setSuggestions([]); return; } // Google Places handles it
+    if (mapsLoaded) { setSuggestions([]); return; }
     if (nominatimRef.current) clearTimeout(nominatimRef.current);
     nominatimAbortRef.current?.abort();
     if (!address.trim() || address.length < 2) { setSuggestions([]); return; }
@@ -343,31 +738,69 @@ export default function UrbanGPTPage() {
 
   // ── Core analysis ──────────────────────────────────────────────────────────
 
+  const fetchLayerData = useCallback(
+    (lat: number, lng: number, parksCount: number, place: { lat: number; lng: number; formatted: string }) => {
+      // Reset
+      setFloodData(null); setFloodLoading(true); setFloodError(null);
+      setHeatData(null);  setHeatLoading(true);  setHeatError(null);
+      setZoningData(null); setZoningLoading(true); setZoningError(null);
+
+      Promise.allSettled([
+        fetch(`/api/flood-risk?lat=${lat}&lng=${lng}`).then(r => r.json()),
+        fetch(`/api/heat-island?lat=${lat}&lng=${lng}&parksCount=${parksCount}`).then(r => r.json()),
+        fetch(`/api/zoning?lat=${lat}&lng=${lng}`).then(r => r.json()),
+      ]).then(([flood, heat, zoning]) => {
+        if (flood.status === "fulfilled") setFloodData(flood.value as FloodData);
+        else setFloodError("Flood data unavailable for this location.");
+        setFloodLoading(false);
+
+        if (heat.status === "fulfilled") setHeatData(heat.value as HeatData);
+        else setHeatError("Heat island data unavailable.");
+        setHeatLoading(false);
+
+        if (zoning.status === "fulfilled") setZoningData(zoning.value as ZoningData);
+        else setZoningError("Zoning data unavailable for this location.");
+        setZoningLoading(false);
+      });
+
+      // suppress unused var lint
+      void place;
+    },
+    []
+  );
+
   const doAnalyze = useCallback(
     async (pl: { lat: number; lng: number; formatted: string }, ri: number) => {
       const rMeters = RADIUS_VALUES[ri] * 1609.344;
       setLoading(true);
       setError("");
+      setActiveTab("demographics");
       try {
         const res = await fetch("/api/urban-gpt", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ lat: pl.lat, lng: pl.lng, radiusM: rMeters, unit, address: pl.formatted }),
         });
-        const data = await res.json();
+        const data = await res.json() as UrbanAnalysisResult & { error?: string };
         if (!res.ok) throw new Error(data.error || "Analysis failed.");
-        setResult(data as UrbanAnalysisResult);
+        setResult(data);
         hasResultRef.current = true;
+
+        // Fire layer data in parallel (non-blocking)
+        const parksCount = (data as UrbanAnalysisResult).overpass?.parks?.length ?? 0;
+        fetchLayerData(pl.lat, pl.lng, parksCount, pl);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+        setFloodLoading(false);
+        setHeatLoading(false);
+        setZoningLoading(false);
       } finally {
         setLoading(false);
       }
     },
-    [unit]
+    [unit, fetchLayerData]
   );
 
-  // Keep doAnalyzeRef current so autocomplete listeners never capture a stale version
   useEffect(() => { doAnalyzeRef.current = doAnalyze; }, [doAnalyze]);
 
   async function geocodeAddress(addr: string): Promise<{ lat: number; lng: number; formatted: string } | null> {
@@ -399,6 +832,35 @@ export default function UrbanGPTPage() {
     }
   };
 
+  // Retry handlers for layer panels
+  const retryFlood = useCallback(() => {
+    if (!result) return;
+    setFloodLoading(true); setFloodError(null); setFloodData(null);
+    fetch(`/api/flood-risk?lat=${result.lat}&lng=${result.lng}`)
+      .then(r => r.json())
+      .then(d => { setFloodData(d as FloodData); setFloodLoading(false); })
+      .catch(() => { setFloodError("Flood data unavailable."); setFloodLoading(false); });
+  }, [result]);
+
+  const retryHeat = useCallback(() => {
+    if (!result) return;
+    const parksCount = result.overpass.parks.length;
+    setHeatLoading(true); setHeatError(null); setHeatData(null);
+    fetch(`/api/heat-island?lat=${result.lat}&lng=${result.lng}&parksCount=${parksCount}`)
+      .then(r => r.json())
+      .then(d => { setHeatData(d as HeatData); setHeatLoading(false); })
+      .catch(() => { setHeatError("Heat island data unavailable."); setHeatLoading(false); });
+  }, [result]);
+
+  const retryZoning = useCallback(() => {
+    if (!result) return;
+    setZoningLoading(true); setZoningError(null); setZoningData(null);
+    fetch(`/api/zoning?lat=${result.lat}&lng=${result.lng}`)
+      .then(r => r.json())
+      .then(d => { setZoningData(d as ZoningData); setZoningLoading(false); })
+      .catch(() => { setZoningError("Zoning data unavailable."); setZoningLoading(false); });
+  }, [result]);
+
   // ── Debounced re-analyze on radius change ──────────────────────────────────
 
   useEffect(() => {
@@ -424,8 +886,8 @@ export default function UrbanGPTPage() {
   useEffect(() => {
     if (!result || !mapsLoaded || !mapContainerRef.current) return;
     const { lat, lng } = result;
-
     const zoom = getZoomForRadius(result.radiusM);
+
     if (!mapRef.current) {
       const map = new window.google.maps.Map(mapContainerRef.current, {
         center: { lat, lng }, zoom,
@@ -456,7 +918,7 @@ export default function UrbanGPTPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result, mapsLoaded]);
 
-  // ── Layer visibility ───────────────────────────────────────────────────────
+  // ── Layer visibility (original 5) ──────────────────────────────────────────
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -465,6 +927,99 @@ export default function UrbanGPTPage() {
       markers.forEach((m) => m.setVisible(visible));
     });
   }, [layers]);
+
+  // ── Flood overlay ──────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    // Clear existing polygons
+    floodPolygonsRef.current.forEach((p) => p.setMap(null));
+    floodPolygonsRef.current = [];
+
+    if (!mapRef.current || !floodData?.nearbyZones || !layers.flood) return;
+
+    for (const zone of floodData.nearbyZones) {
+      if (!zone.rings?.length) continue;
+
+      const z = zone.zone.toUpperCase();
+      const isHigh = zone.sfha || z.startsWith("A") || z.startsWith("V");
+      const isMod  = z === "X" && zone.subtype?.toUpperCase().includes("500");
+      const fillColor = isHigh ? "#DC3545" : isMod ? "#FFC107" : "#28A745";
+      const fillOpacity = isHigh ? 0.3 : isMod ? 0.25 : 0.15;
+
+      const paths = zone.rings.map((ring) =>
+        ring.map(([lngCoord, latCoord]) => ({ lat: latCoord, lng: lngCoord }))
+      );
+
+      const poly = new window.google.maps.Polygon({
+        paths,
+        map: mapRef.current,
+        fillColor,
+        fillOpacity,
+        strokeColor: fillColor,
+        strokeOpacity: 0.3,
+        strokeWeight: 0.5,
+        clickable: false,
+        zIndex: 1,
+      });
+      floodPolygonsRef.current.push(poly);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [floodData, layers.flood, mapsLoaded]);
+
+  // ── Heat overlay ───────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (heatCircleRef.current) { heatCircleRef.current.setMap(null); heatCircleRef.current = null; }
+    if (!mapRef.current || !heatData || !result || !layers.heat) return;
+
+    const score = heatData.intensityScore;
+    const fillColor = score < 4 ? "#3B82F6" : score < 7 ? "#F59E0B" : "#EF4444";
+    const fillOpacity = 0.1 + (score / 10) * 0.15;
+
+    heatCircleRef.current = new window.google.maps.Circle({
+      map: mapRef.current,
+      center: { lat: result.lat, lng: result.lng },
+      radius: result.radiusM,
+      fillColor,
+      fillOpacity,
+      strokeOpacity: 0,
+      clickable: false,
+      zIndex: 1,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [heatData, layers.heat, mapsLoaded]);
+
+  // ── Zoning overlay ─────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (zoningCircleRef.current) { zoningCircleRef.current.setMap(null); zoningCircleRef.current = null; }
+    if (!mapRef.current || !zoningData || !result || !layers.zoning || zoningData.error) return;
+
+    const colorMap: Record<string, string> = {
+      residential:   "#4A90E2",
+      commercial:    "#FFA500",
+      industrial:    "#808080",
+      mixed:         "#9400D3",
+      agricultural:  "#228B22",
+      institutional: "#4B0082",
+      unknown:       "#888888",
+    };
+    const fillColor = colorMap[zoningData.zoneType] ?? "#888888";
+
+    zoningCircleRef.current = new window.google.maps.Circle({
+      map: mapRef.current,
+      center: { lat: result.lat, lng: result.lng },
+      radius: result.radiusM,
+      fillColor,
+      fillOpacity: 0.15,
+      strokeOpacity: 0,
+      clickable: false,
+      zIndex: 1,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zoningData, layers.zoning, mapsLoaded]);
+
+  // ── renderOverlays ─────────────────────────────────────────────────────────
 
   function renderOverlays(overpass: OverpassData, currentLayers: LayerState) {
     if (!mapRef.current) return;
@@ -497,6 +1052,37 @@ export default function UrbanGPTPage() {
       result.overpass.restaurants.length + result.overpass.schools.length +
       result.overpass.hospitals.length
     : 0;
+
+  // Specialty layer dot color (dynamic based on data)
+  function specialtyDotColor(key: "flood" | "heat" | "zoning"): string {
+    if (!layers[key]) return "bg-brown-light/20";
+    if (key === "flood") {
+      if (!floodData) return "bg-brown-light/30";
+      return floodData.isHighRisk ? "bg-red-400" : floodData.isModerateRisk ? "bg-amber-400" : "bg-green-500";
+    }
+    if (key === "heat") {
+      if (!heatData) return "bg-brown-light/30";
+      const s = heatData.intensityScore;
+      return s < 4 ? "bg-blue-400" : s < 7 ? "bg-amber-400" : "bg-red-400";
+    }
+    if (key === "zoning") {
+      if (!zoningData) return "bg-brown-light/30";
+      const map: Record<string, string> = {
+        residential: "bg-blue-400", commercial: "bg-orange-400",
+        industrial: "bg-gray-400", mixed: "bg-purple-400",
+        agricultural: "bg-green-500", institutional: "bg-indigo-400", unknown: "bg-brown-light/40",
+      };
+      return map[zoningData.zoneType] ?? "bg-brown-light/30";
+    }
+    return "bg-brown-light/20";
+  }
+
+  function specialtyLayerBadge(key: "flood" | "heat" | "zoning"): string | null {
+    if (key === "flood" && floodData && !floodData.error) return floodData.zoneAtLocation;
+    if (key === "heat" && heatData) return `${heatData.intensityScore.toFixed(1)}`;
+    if (key === "zoning" && zoningData && !zoningData.error && zoningData.zoneCode !== "N/A") return zoningData.zoneCode;
+    return null;
+  }
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -617,8 +1203,8 @@ export default function UrbanGPTPage() {
                     <span>
                       ⚠{" "}
                       {result.overpass.timedOutCategories && result.overpass.timedOutCategories.length > 0
-                        ? `${result.overpass.timedOutCategories.join(', ')} data timed out — showing available results for other categories.`
-                        : 'OpenStreetMap data timed out. Amenity counts may be incomplete.'}
+                        ? `${result.overpass.timedOutCategories.join(", ")} data timed out — showing available results.`
+                        : "OpenStreetMap data timed out. Amenity counts may be incomplete."}
                     </span>
                     <button onClick={handleAnalyze} className="shrink-0 text-xs font-medium text-darkblue underline hover:no-underline">Retry</button>
                   </div>
@@ -636,13 +1222,14 @@ export default function UrbanGPTPage() {
                 {mapsKey ? (
                   <div className="relative rounded-xl overflow-hidden border border-tan/30 shadow-sm">
                     <div ref={mapContainerRef} className="w-full h-[480px]" />
+
                     {/* Layer toggle */}
                     <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm rounded-xl border border-tan/20 shadow-sm p-3">
                       <p className="text-[9px] font-semibold uppercase tracking-widest text-brown-light mb-2">Layers</p>
                       <div className="flex flex-col gap-1.5">
+                        {/* Original amenity layers */}
                         {LAYER_CONFIG.map(({ key, label, color }) => {
-                          // Map layer key → overpass category name used in timedOutCategories
-                          const categoryName = key === 'restaurants' ? 'dining' : key === 'hospitals' ? 'health' : key;
+                          const categoryName = key === "restaurants" ? "dining" : key === "hospitals" ? "health" : key;
                           const count = result?.overpass[key as keyof typeof result.overpass] as OverpassPoint[] | undefined;
                           const countNum = Array.isArray(count) ? count.length : 0;
                           const timedOut = result?.overpass.timedOutCategories?.includes(categoryName);
@@ -667,8 +1254,35 @@ export default function UrbanGPTPage() {
                             </label>
                           );
                         })}
+
+                        {/* Divider */}
+                        <div className="h-px bg-tan/30 my-0.5" />
+
+                        {/* Specialty overlay layers */}
+                        {SPECIALTY_LAYER_CONFIG.map(({ key, label }) => {
+                          const badge = specialtyLayerBadge(key);
+                          return (
+                            <label key={key} className="flex items-center gap-2 cursor-pointer">
+                              <div className={`w-3 h-3 rounded-full shrink-0 ${specialtyDotColor(key)} transition-colors`} />
+                              <span className={`text-xs transition-colors flex-1 ${layers[key] ? "text-brown" : "text-brown-light/50"}`}>{label}</span>
+                              {badge && layers[key] ? (
+                                <span className="text-[9px] font-semibold text-darkblue">{badge}</span>
+                              ) : (floodLoading && key === "flood") || (heatLoading && key === "heat") || (zoningLoading && key === "zoning") ? (
+                                <span className="text-[9px] text-brown-light/40 animate-pulse">…</span>
+                              ) : null}
+                              <input type="checkbox" checked={layers[key]}
+                                onChange={() => {
+                                  const newVal = !layers[key];
+                                  setLayers((prev) => ({ ...prev, [key]: newVal }));
+                                  if (newVal) setActiveTab(key as ActiveTab);
+                                }}
+                                className="sr-only" />
+                            </label>
+                          );
+                        })}
                       </div>
                     </div>
+
                     {/* Amenity badge */}
                     <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-xl border border-tan/20 shadow-sm px-3 py-1.5">
                       <p className="text-[10px] text-brown-light">
@@ -681,7 +1295,6 @@ export default function UrbanGPTPage() {
                     </div>
                   </div>
                 ) : result ? (
-                  // OSM iframe fallback when Google Maps key unavailable
                   <div className="relative rounded-xl overflow-hidden border border-tan/30 shadow-sm h-[480px]">
                     <iframe
                       title="Site location"
@@ -704,120 +1317,173 @@ export default function UrbanGPTPage() {
 
               {/* Dashboard */}
               <div className="overflow-y-auto">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-brown-light mb-4">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-brown-light mb-3">
                   {result.address} · {fmtRadius(radiusIndex, unit)} radius
                 </p>
 
-                {/* Demographics */}
-                <SectionHeading>Demographics</SectionHeading>
-                <div className="grid grid-cols-2 gap-2 mb-5">
-                  <StatCard label="Median Income" value={fmtCurrency(result.census.medianIncome)}
-                    sub={result.census.tractName || undefined}
-                    tooltip="Median household income for the census tract containing the address (ACS 5-year estimate)." />
-                  <StatCard label="Mean Income" value={fmtCurrency(result.census.meanIncome)}
-                    sub={result.census.incomeStdDev ? `σ = ${fmtCurrency(result.census.incomeStdDev)}` : undefined}
-                    tooltip="Mean (average) household income. Higher than median indicates a right-skewed distribution, with a small number of high earners pulling the average up." />
-                  <IncomeChart brackets={result.census.incomeBrackets} mean={result.census.meanIncome} />
-                  <StatCard label="Population" value={fmtNum(result.census.population)}
-                    tooltip="Total population of the census tract." />
-                  <StatCard label="Pop. Density" value={fmtDensity(result.census.populationDensity, unit)}
-                    tooltip="People per square mile/km in the census tract. Higher density typically correlates with walkability and mixed-use feasibility." />
-                  <StatCard label="Median Age" value={fmtNum(result.census.medianAge, " yrs")}
-                    tooltip="Median age of residents. Informs programming decisions. Younger populations may prefer flexible, community-oriented spaces." />
-                  <StatCard label="Gender Split"
-                    value={result.census.malePct !== null && result.census.femalePct !== null ? `${result.census.malePct}% M / ${result.census.femalePct}% F` : "-"}
-                    tooltip="Male/female population breakdown for the census tract (ACS 5-year estimate)." />
-                  <StatCard label="Avg. Household Size" value={fmtNum(result.census.avgHouseholdSize)}
-                    tooltip="Average number of people per household. Higher values suggest family-oriented neighborhoods; informs unit mix decisions." />
-                  <StatCard label="Unemployed" value={fmtNum(result.census.unemployedPop)}
-                    tooltip="Number of residents in the labor force who are unemployed. Contextualizes economic conditions and community programming needs." />
-                  <StatCard label="Est. Homeless" value={fmtNum(result.census.estHomelessPop)}
-                    tooltip="ACS imputed estimate of homeless population. Consult local PIT count for accuracy. Relevant for service-oriented programming." />
-                  <StatCard label="Bachelor's Degree+" value={fmtPct(result.census.bachelorsOrHigherPct)}
-                    tooltip="Share of adults with a bachelor's degree or higher. Often correlated with demand for amenity-rich, transit-oriented environments." />
-                  <StatCard label="Non-Hisp. White" value={fmtPct(result.census.nonHispanicWhitePct)}
-                    tooltip="Demographic context for understanding community character and cultural programming needs." />
-                  <StatCard label="Gini Coefficient" value={fmtNum(result.census.gini)}
-                    sub={result.computed.incomeInequalityLabel ?? undefined}
-                    tooltip="Income inequality index from 0 (equal) to 1 (maximally unequal). Affects affordability programming and mixed-income housing strategy." />
+                {/* Tab bar */}
+                <div className="flex border-b border-tan/30 mb-4 overflow-x-auto">
+                  {(["demographics", "flood", "heat", "zoning"] as const).map((tab) => {
+                    const labels: Record<ActiveTab, string> = {
+                      demographics: "Demographics",
+                      flood: "Flood",
+                      heat: "Heat",
+                      zoning: "Zoning",
+                    };
+                    return (
+                      <button
+                        key={tab}
+                        onClick={() => {
+                          setActiveTab(tab);
+                          if (tab !== "demographics") {
+                            setLayers((prev) => ({ ...prev, [tab]: true }));
+                          }
+                        }}
+                        className={`px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors border-b-2 -mb-px ${
+                          activeTab === tab
+                            ? "border-darkblue text-darkblue"
+                            : "border-transparent text-brown-light hover:text-brown"
+                        }`}
+                      >
+                        {labels[tab]}
+                      </button>
+                    );
+                  })}
                 </div>
 
-                {/* Housing */}
-                <SectionHeading>Housing</SectionHeading>
-                <div className="grid grid-cols-2 gap-2 mb-5">
-                  <StatCard label="Median Home Value" value={fmtCurrency(result.census.medianHomeValue)}
-                    tooltip="Median value of owner-occupied housing units. Signals land value and market-rate housing feasibility." />
-                  <StatCard label="Median Gross Rent" value={fmtCurrency(result.census.medianGrossRent)}
-                    tooltip="Median monthly rent including utilities. Key indicator for affordable housing thresholds and mixed-income programming." />
-                  <StatCard label="Vacancy Rate" value={fmtPct(result.census.vacancyRate)}
-                    tooltip="Share of housing units that are vacant. High vacancy may signal disinvestment; low vacancy signals housing pressure." />
-                </div>
-
-                {/* Climate */}
-                {(result.census.tempF !== null) && (
+                {/* Demographics tab */}
+                {activeTab === "demographics" && (
                   <>
-                    <SectionHeading>Climate</SectionHeading>
+                    <SectionHeading>Demographics</SectionHeading>
                     <div className="grid grid-cols-2 gap-2 mb-5">
-                      <StatCard label="Current Temp."
-                        value={result.census.tempF !== null ? `${result.census.tempF}°F` : "-"}
-                        sub={result.census.tempC !== null ? `${result.census.tempC}°C` : undefined}
-                        tooltip="Current outdoor temperature at this location (Open-Meteo). Informs passive heating/cooling strategy and outdoor comfort programming." />
+                      <StatCard label="Median Income" value={fmtCurrency(result.census.medianIncome)}
+                        sub={result.census.tractName || undefined}
+                        tooltip="Median household income for the census tract containing the address (ACS 5-year estimate)." />
+                      <StatCard label="Mean Income" value={fmtCurrency(result.census.meanIncome)}
+                        sub={result.census.incomeStdDev ? `σ = ${fmtCurrency(result.census.incomeStdDev)}` : undefined}
+                        tooltip="Mean (average) household income. Higher than median indicates a right-skewed distribution." />
+                      <IncomeChart brackets={result.census.incomeBrackets} mean={result.census.meanIncome} />
+                      <StatCard label="Population" value={fmtNum(result.census.population)}
+                        tooltip="Total population of the census tract." />
+                      <StatCard label="Pop. Density" value={fmtDensity(result.census.populationDensity, unit)}
+                        tooltip="People per square mile/km in the census tract." />
+                      <StatCard label="Median Age" value={fmtNum(result.census.medianAge, " yrs")}
+                        tooltip="Median age of residents." />
+                      <StatCard label="Gender Split"
+                        value={result.census.malePct !== null && result.census.femalePct !== null ? `${result.census.malePct}% M / ${result.census.femalePct}% F` : "-"}
+                        tooltip="Male/female population breakdown (ACS 5-year)." />
+                      <StatCard label="Avg. Household Size" value={fmtNum(result.census.avgHouseholdSize)}
+                        tooltip="Average number of people per household." />
+                      <StatCard label="Unemployed" value={fmtNum(result.census.unemployedPop)}
+                        tooltip="Number of residents in the labor force who are unemployed." />
+                      <StatCard label="Est. Homeless" value={fmtNum(result.census.estHomelessPop)}
+                        tooltip="ACS imputed estimate of homeless population." />
+                      <StatCard label="Bachelor's Degree+" value={fmtPct(result.census.bachelorsOrHigherPct)}
+                        tooltip="Share of adults with a bachelor's degree or higher." />
+                      <StatCard label="Non-Hisp. White" value={fmtPct(result.census.nonHispanicWhitePct)}
+                        tooltip="Demographic context for understanding community character." />
+                      <StatCard label="Gini Coefficient" value={fmtNum(result.census.gini)}
+                        sub={result.computed.incomeInequalityLabel ?? undefined}
+                        tooltip="Income inequality index from 0 (equal) to 1 (maximally unequal)." />
+                    </div>
+
+                    <SectionHeading>Housing</SectionHeading>
+                    <div className="grid grid-cols-2 gap-2 mb-5">
+                      <StatCard label="Median Home Value" value={fmtCurrency(result.census.medianHomeValue)}
+                        tooltip="Median value of owner-occupied housing units." />
+                      <StatCard label="Median Gross Rent" value={fmtCurrency(result.census.medianGrossRent)}
+                        tooltip="Median monthly rent including utilities." />
+                      <StatCard label="Vacancy Rate" value={fmtPct(result.census.vacancyRate)}
+                        tooltip="Share of housing units that are vacant." />
+                    </div>
+
+                    {result.census.tempF !== null && (
+                      <>
+                        <SectionHeading>Climate</SectionHeading>
+                        <div className="grid grid-cols-2 gap-2 mb-5">
+                          <StatCard label="Current Temp."
+                            value={`${result.census.tempF}°F`}
+                            sub={result.census.tempC !== null ? `${result.census.tempC}°C` : undefined}
+                            tooltip="Current outdoor temperature at this location (Open-Meteo)." />
+                        </div>
+                      </>
+                    )}
+
+                    <SectionHeading>Mobility</SectionHeading>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-5">
+                      <StatCard label="Travel Time" value={fmtNum(result.census.meanTravelTime, " min")}
+                        tooltip="Mean commute time to work." />
+                      <StatCard label="Transit Stops" value={String(result.overpass.transit.length)}
+                        tooltip="Bus stops, subway entrances, and rail stations within the study radius." />
+                      <StatCard label="Parks" value={String(result.overpass.parks.length)}
+                        tooltip="Parks and green spaces within the study radius." />
+                      <StatCard label="Dining" value={String(result.overpass.restaurants.length)}
+                        tooltip="Restaurants, cafes, and bars within the study radius." />
+                      <StatCard label="Schools" value={String(result.overpass.schools.length)}
+                        tooltip="Schools and universities within the study radius." />
+                      <StatCard label="Health Clinics" value={String(result.overpass.hospitals.length)}
+                        tooltip="Hospitals and clinics within the study radius." />
+                    </div>
+
+                    <SectionHeading>Computed Scores</SectionHeading>
+                    <div className="grid grid-cols-2 gap-2 mb-5">
+                      <StatCard label="Walkability" value={String(result.scores.walkability)} score={result.scores.walkability}
+                        tooltip="Derived from transit stops, parks, and restaurants relative to radius." />
+                      <StatCard label="Bike Friendliness" value={String(result.scores.bikeFriendliness)} score={result.scores.bikeFriendliness}
+                        tooltip="Derived from parks and dedicated bike infrastructure (OSM) relative to radius." />
+                    </div>
+
+                    <SectionHeading>Computed Indicators</SectionHeading>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <StatCard
+                        label="Affordability Ratio"
+                        value={result.computed.affordabilityRatio ? `${result.computed.affordabilityRatio}×` : "-"}
+                        sub={
+                          result.computed.affordabilityRatio
+                            ? result.computed.affordabilityRatio < 3 ? "Affordable"
+                              : result.computed.affordabilityRatio < 5 ? "Moderate"
+                              : result.computed.affordabilityRatio < 8 ? "Unaffordable"
+                              : "Severely unaffordable"
+                            : undefined
+                        }
+                        tooltip="Median home value ÷ median household income." />
+                      <StatCard
+                        label="Income Inequality"
+                        value={fmtNum(result.census.gini)}
+                        sub={result.computed.incomeInequalityLabel ?? undefined}
+                        tooltip="Gini coefficient interpreted as an inequality label." />
+                      <StatCard
+                        label="Gentrification Pressure"
+                        value={result.computed.gentrificationPressure ?? "-"}
+                        valueColor={gentrificationColor(result.computed.gentrificationPressure)}
+                        tooltip="Composite of rent-to-income ratio and education level." />
                     </div>
                   </>
                 )}
 
-                {/* Mobility */}
-                <SectionHeading>Mobility</SectionHeading>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-5">
-                  <StatCard label="Travel Time" value={fmtNum(result.census.meanTravelTime, " min")}
-                    tooltip="Mean commute time to work. Long commutes suggest poor transit access; consider how your project can reduce car dependency." />
-                  <StatCard label="Transit Stops" value={String(result.overpass.transit.length)}
-                    tooltip="Bus stops, subway entrances, and rail stations within the study radius (OpenStreetMap)." />
-                  <StatCard label="Parks" value={String(result.overpass.parks.length)}
-                    tooltip="Parks and green spaces within the study radius. Affects open space programming and stormwater strategy." />
-                  <StatCard label="Dining" value={String(result.overpass.restaurants.length)}
-                    tooltip="Restaurants, cafes, and bars within the study radius, used as a proxy for street-level activity and foot traffic." />
-                  <StatCard label="Schools" value={String(result.overpass.schools.length)}
-                    tooltip="Schools and universities within the study radius. Informs safe-route design, noise mitigation, and community programming." />
-                  <StatCard label="Health Clinics" value={String(result.overpass.hospitals.length)}
-                    tooltip="Hospitals and clinics within the study radius. Relevant for ADA access, emergency vehicle routing, and service adjacency." />
-                </div>
+                {/* Flood tab */}
+                {activeTab === "flood" && (
+                  <>
+                    <SectionHeading>Flood Risk</SectionHeading>
+                    <FloodPanel data={floodData} loading={floodLoading} error={floodError} onRetry={retryFlood} />
+                  </>
+                )}
 
-                {/* Computed Scores */}
-                <SectionHeading>Computed Scores</SectionHeading>
-                <div className="grid grid-cols-2 gap-2 mb-5">
-                  <StatCard label="Walkability" value={String(result.scores.walkability)} score={result.scores.walkability}
-                    tooltip="Derived from transit stops, parks, and restaurants relative to radius. Higher = more walkable site context." />
-                  <StatCard label="Bike Friendliness" value={String(result.scores.bikeFriendliness)} score={result.scores.bikeFriendliness}
-                    tooltip="Derived from parks and dedicated bike infrastructure (OSM) relative to radius." />
-                </div>
+                {/* Heat tab */}
+                {activeTab === "heat" && (
+                  <>
+                    <SectionHeading>Urban Heat Island</SectionHeading>
+                    <HeatPanel data={heatData} loading={heatLoading} error={heatError} onRetry={retryHeat} />
+                  </>
+                )}
 
-                {/* Computed Indicators */}
-                <SectionHeading>Computed Indicators</SectionHeading>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <StatCard
-                    label="Affordability Ratio"
-                    value={result.computed.affordabilityRatio ? `${result.computed.affordabilityRatio}×` : "-"}
-                    sub={
-                      result.computed.affordabilityRatio
-                        ? result.computed.affordabilityRatio < 3 ? "Affordable"
-                          : result.computed.affordabilityRatio < 5 ? "Moderate"
-                          : result.computed.affordabilityRatio < 8 ? "Unaffordable"
-                          : "Severely unaffordable"
-                        : undefined
-                    }
-                    tooltip="Median home value ÷ median household income. Values above 5× indicate significant affordability pressure for buyers." />
-                  <StatCard
-                    label="Income Inequality"
-                    value={fmtNum(result.census.gini)}
-                    sub={result.computed.incomeInequalityLabel ?? undefined}
-                    tooltip="Gini coefficient interpreted as an inequality label. High inequality areas benefit from mixed-income housing and community amenities." />
-                  <StatCard
-                    label="Gentrification Pressure"
-                    value={result.computed.gentrificationPressure ?? "-"}
-                    valueColor={gentrificationColor(result.computed.gentrificationPressure)}
-                    tooltip="Composite of rent-to-income ratio and education level. Higher pressure suggests rapid displacement risk and informs affordability strategy." />
-                </div>
+                {/* Zoning tab */}
+                {activeTab === "zoning" && (
+                  <>
+                    <SectionHeading>Zoning</SectionHeading>
+                    <ZoningPanel data={zoningData} loading={zoningLoading} error={zoningError} onRetry={retryZoning} />
+                  </>
+                )}
               </div>
             </div>
 
@@ -832,12 +1498,10 @@ export default function UrbanGPTPage() {
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-white/60 border border-white/15">AI</span>
               </div>
 
-              {/* Summary */}
               <div className="px-6 py-4 border-b border-tan/20 bg-white/20">
                 <p className="text-sm text-brown leading-relaxed">{result.ai.summary}</p>
               </div>
 
-              {/* Community Profile */}
               {result.ai.communityProfile && (
                 <div className="px-6 py-4 border-b border-tan/20">
                   <p className="text-xs font-semibold uppercase tracking-wide text-brown-light mb-2">Community Profile</p>
@@ -845,7 +1509,6 @@ export default function UrbanGPTPage() {
                 </div>
               )}
 
-              {/* Cultural Context */}
               {result.ai.culturalContext && (
                 <div className="px-6 py-4 border-b border-tan/20">
                   <p className="text-xs font-semibold uppercase tracking-wide text-brown-light mb-2">Cultural Context</p>
@@ -853,7 +1516,6 @@ export default function UrbanGPTPage() {
                 </div>
               )}
 
-              {/* Data Insights */}
               {result.ai.dataInsights && result.ai.dataInsights.length > 0 && (
                 <div className="px-6 py-4 border-b border-tan/20">
                   <p className="text-xs font-semibold uppercase tracking-wide text-brown-light mb-3">Data Insights</p>
@@ -871,7 +1533,6 @@ export default function UrbanGPTPage() {
                 </div>
               )}
 
-              {/* Design Recommendations */}
               {result.ai.recommendations && result.ai.recommendations.length > 0 && (
                 <div className="px-6 py-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-brown-light mb-3">Design Recommendations</p>
