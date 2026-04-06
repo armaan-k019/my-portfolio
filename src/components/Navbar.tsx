@@ -72,8 +72,8 @@ export default function Navbar() {
       <nav
         className="sticky top-0 z-50 backdrop-blur-md border-b"
         style={{
-          backgroundColor: "rgba(45, 90, 39, 0.06)",
-          borderBottomColor: "rgba(45, 90, 39, 0.15)",
+          backgroundColor: "#FFFFFF",
+          borderBottomColor: "rgba(45, 90, 39, 0.12)",
         }}
       >
         <div className="max-w-5xl mx-auto px-6 flex items-center justify-between h-16">
@@ -151,7 +151,7 @@ export default function Navbar() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed top-0 right-0 h-full w-64 bg-cream z-50 shadow-xl p-8 flex flex-col gap-6 md:hidden"
+              className="fixed top-0 right-0 h-full w-64 bg-white z-50 shadow-xl p-8 flex flex-col gap-6 md:hidden"
             >
               <button
                 onClick={() => setMobileOpen(false)}
