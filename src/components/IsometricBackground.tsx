@@ -170,7 +170,7 @@ export default function IsometricBackground() {
 
     const GRID_SIZE = 60;
     const DRIFT_CYCLE = 40000;
-    const EDGE_COLOR = "rgba(150, 135, 115, 0.3)";
+    const EDGE_COLOR = "rgba(45, 90, 39, 0.18)";
 
     const forms: Form[] = [
       // Bottom-right: twisted prism (kept as-is)
@@ -203,10 +203,11 @@ export default function IsometricBackground() {
     function shadeFace(normal: Vec3): string {
       const d = dot(normal, normalize(LIGHT));
       const brightness = 0.35 + 0.65 * Math.max(0, d);
-      const r = Math.round(180 + 75 * brightness);
-      const g = Math.round(165 + 87 * brightness);
-      const b = Math.round(145 + 103 * brightness);
-      const alpha = 0.3 + 0.5 * brightness;
+      // Forest green palette: dark faces ~#1A2A1A, light faces ~#4A7A44
+      const r = Math.round(26 + 48 * brightness);
+      const g = Math.round(42 + 80 * brightness);
+      const b = Math.round(26 + 42 * brightness);
+      const alpha = 0.10 + 0.08 * brightness;
       return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
@@ -225,7 +226,7 @@ export default function IsometricBackground() {
 
       ctx!.save();
       ctx!.globalAlpha = 0.70;
-      ctx!.strokeStyle = "rgba(150, 135, 115, 0.15)";
+      ctx!.strokeStyle = "rgba(45, 90, 39, 0.10)";
       ctx!.lineWidth = 0.5;
 
       const startX = (driftX % GRID_SIZE) - GRID_SIZE;
