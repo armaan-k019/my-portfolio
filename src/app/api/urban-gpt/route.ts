@@ -182,7 +182,8 @@ const CENSUS_VARS = [
   "B23025_005E", // unemployed population
   "B01001_002E", // male population
   "B01001_026E", // female population
-  "B99161_002E", // estimated homeless population (imputed ACS)
+  // NOTE: B99161_002E removed — not a valid ACS5 summary variable;
+  // including it caused the entire Census API request to fail.
 ].join(",");
 
 function parseCensusRow(
@@ -212,7 +213,7 @@ function parseCensusRow(
   const unemployedPop   = parseIntCensus(get("B23025_005E"));
   const malePop         = parseIntCensus(get("B01001_002E"));
   const femalePop       = parseIntCensus(get("B01001_026E"));
-  const estHomelessPop  = parseIntCensus(get("B99161_002E"));
+  const estHomelessPop: null = null; // B99161 is not a valid ACS5 variable
 
   const areaLandSqMiles = areaLandSqM / 2_589_988.11;
   const populationDensity =
@@ -314,8 +315,9 @@ async function fetchCensusData(lat: number, lng: number): Promise<CensusData> {
 
   try {
     const geoRes = await fetchWithTimeout(geocoderUrl, {}, 8000);
+    console.log(`[urban-gpt] Geocoder status: ${geoRes.status}`);
     const geoText = await geoRes.text();
-    console.log(`[urban-gpt] Geocoder response: ${geoText}`);
+    console.log(`[urban-gpt] Geocoder response: ${geoText.slice(0, 400)}`);
 
     const geoJson = JSON.parse(geoText) as {
       result?: {
@@ -350,40 +352,36 @@ async function fetchCensusData(lat: number, lng: number): Promise<CensusData> {
     return CENSUS_EMPTY;
   }
 
+  // Query the specific tract directly (not all tracts in county) — faster and avoids
+  // matching errors. Format: for=tract:TRACT&in=state:STATE%20county:COUNTY
   const acsUrl =
     `https://api.census.gov/data/2022/acs/acs5` +
-    `?get=${CENSUS_VARS}&for=tract:*&in=state:${state}%20county:${county}`;
+    `?get=${CENSUS_VARS}&for=tract:${tract}&in=state:${state}%20county:${county}`;
 
   console.log(`[urban-gpt] ACS URL: ${acsUrl}`);
 
   try {
     const acsRes = await fetchWithTimeout(acsUrl, {}, 8000);
+    console.log(`[urban-gpt] ACS response status: ${acsRes.status}`);
     const acsText = await acsRes.text();
     console.log(`[urban-gpt] ACS raw (first 600): ${acsText.slice(0, 600)}`);
 
+    if (!acsRes.ok) {
+      console.error(`[urban-gpt] ACS HTTP ${acsRes.status} — falling back to county`);
+      return fetchCensusCountyFallback(state, county, tractName, areaLandSqM);
+    }
+
     const acsJson = JSON.parse(acsText) as string[][];
     if (!Array.isArray(acsJson) || acsJson.length < 2) {
-      console.warn(`[urban-gpt] ACS empty - trying county fallback`);
+      console.warn(`[urban-gpt] ACS empty response - trying county fallback`);
       return fetchCensusCountyFallback(state, county, tractName, areaLandSqM);
     }
 
     const header = acsJson[0];
-    const tractColIdx = header.indexOf("tract");
+    const dataRow = acsJson[1];
     console.log(`[urban-gpt] ACS header: ${JSON.stringify(header)}`);
-
-    let matchRow: string[] | undefined;
-    if (tractColIdx !== -1) {
-      matchRow = acsJson.slice(1).find(
-        (r) => r[tractColIdx]?.padStart(6, "0") === tract
-      );
-    }
-    if (!matchRow) {
-      console.warn(`[urban-gpt] Tract ${tract} not found - using first data row`);
-      matchRow = acsJson[1];
-    }
-
-    console.log(`[urban-gpt] ACS matched row: ${JSON.stringify(matchRow)}`);
-    return parseCensusRow(matchRow, header, tractName, areaLandSqM);
+    console.log(`[urban-gpt] ACS data row: ${JSON.stringify(dataRow)}`);
+    return parseCensusRow(dataRow, header, tractName, areaLandSqM);
   } catch (err) {
     console.error(`[urban-gpt] ACS error:`, err);
     return fetchCensusCountyFallback(state, county, tractName, areaLandSqM);
@@ -403,6 +401,7 @@ async function fetchCensusCountyFallback(
 
   try {
     const res = await fetchWithTimeout(url, {}, 8000);
+    console.log(`[urban-gpt] County ACS status: ${res.status}`);
     const text = await res.text();
     console.log(`[urban-gpt] County ACS raw (first 400): ${text.slice(0, 400)}`);
 
@@ -714,6 +713,7 @@ async function fetchAIInsights(
     computedIndicators: indicators,
   };
 
+  console.log(`[urban-gpt] Claude input — hasDemographics=${Object.keys(demographics).length > 0} hasHousing=${Object.keys(housing).length > 0} hasClimate=${Object.keys(climate).length > 0}`);
   console.log(`[urban-gpt] Sending to Claude:\n${JSON.stringify(siteData, null, 2)}`);
 
   try {
