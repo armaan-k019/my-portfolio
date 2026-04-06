@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import ThemeToggle, { MY_STYLE, type PageColors } from "@/components/ThemeToggle";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -374,7 +375,7 @@ function ProjectionChart() {
           strokeLinejoin="round" strokeLinecap="round" opacity={0.9} />
       ))}
 
-      {/* Projected lines (dashed) — start from last actual point for continuity */}
+      {/* Projected lines (dashed), starting from last actual point for continuity */}
       {cats.map((cat) => {
         const pts = [actualData[cat][ACTUAL_COUNT - 1], ...projData[cat]]
           .map((v, i) => `${xp(ACTUAL_COUNT - 1 + i)},${yp(v)}`).join(" ");
@@ -510,8 +511,8 @@ function BenchmarkTable() {
       <h3 className="text-xs font-semibold uppercase tracking-widest text-[#9A8070] mb-3">
         How does this compare?
       </h3>
-      <div className="rounded-xl border border-[#2C1810]/[0.08] overflow-hidden shadow-sm">
-        <table className="w-full text-xs">
+      <div className="overflow-x-auto rounded-xl border border-[#2C1810]/[0.08] shadow-sm">
+        <table className="w-full text-xs min-w-[480px]">
           <thead>
             <tr className="bg-[#2C1810]/[0.03] border-b border-[#2C1810]/[0.08]">
               <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-[#9A8070] w-[32%]">
@@ -633,6 +634,28 @@ export default function DriftDetectionPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisError, setError] = useState<string | null>(null);
   const [analyzed, setAnalyzed]   = useState(false);
+  const [theme, setTheme]         = useState<"my" | "company">("my");
+
+  const COMPANY_STYLE: PageColors = {
+    bg: "#fafaf9",
+    cardBg: "#ffffff",
+    cardBorder: "rgba(44,24,16,0.10)",
+    text: "#2C1810",
+    muted: "#6B5244",
+    dim: "#9A8070",
+    accent: "#e85d2f",
+    accentBg: "rgba(232,93,47,0.08)",
+    headerBg: "#ffffff",
+    headerBorder: "rgba(44,24,16,0.10)",
+    headerText: "#2C1810",
+  };
+
+  const C = theme === "my" ? MY_STYLE : COMPANY_STYLE;
+
+  const PAGE_BG  = C.bg;
+  const HEADING  = C.text;
+  const SUBTEXT  = C.muted;
+  const LABEL    = C.dim;
 
   useEffect(() => {
     let redirected = false;
@@ -740,7 +763,7 @@ export default function DriftDetectionPage() {
 
   if (!ready || !authed) {
     return (
-      <div className="min-h-screen bg-[#F5F0E8] flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: C.bg }}>
         <div className="w-5 h-5 rounded-full border-2 border-[#2C1810]/20 border-t-[#2C1810]/60 animate-spin" />
       </div>
     );
@@ -755,22 +778,25 @@ export default function DriftDetectionPage() {
         }
       `}</style>
 
-      <div className="min-h-screen bg-[#F5F0E8]">
+      <div className="min-h-screen" style={{ backgroundColor: PAGE_BG }}>
         <div className="max-w-3xl mx-auto px-6 py-12">
 
-          {/* ── Back link ─────────────────────────────────────────────────── */}
-          <Link
-            href="/demos"
-            className="inline-flex items-center gap-1 text-sm text-[#6B5244] hover:text-terracotta transition-colors mb-8"
-          >
-            ← Back
-          </Link>
+          {/* ── Back link + ThemeToggle ────────────────────────────────────── */}
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-8">
+            <Link
+              href="/demos"
+              className="text-xs text-gray-500 hover:text-gray-700 transition-colors inline-block"
+            >
+              ← Back to Demos
+            </Link>
+            <ThemeToggle theme={theme} onChange={setTheme} companyAccent={COMPANY_STYLE.accent} darkContext={false} />
+          </div>
 
           {/* ── Header ────────────────────────────────────────────────────── */}
           <div className="mb-10">
             <div className="flex items-center gap-2 mb-3">
-              <h1 className="text-2xl font-semibold text-[#2C1810]">Drift Detection</h1>
-              <span className="text-xs px-2 py-0.5 rounded-full border border-[#2C1810]/10 text-[#9A8070] ml-2">
+              <h1 className="text-2xl font-semibold" style={{ color: HEADING }}>Drift Detection</h1>
+              <span className="text-xs px-2 py-0.5 rounded-full border border-[#2C1810]/10 ml-2" style={{ color: LABEL }}>
                 Rho
               </span>
             </div>
@@ -778,27 +804,27 @@ export default function DriftDetectionPage() {
 
           {/* ── Section 1: What this is ──────────────────────────────────── */}
           <section className="mb-10">
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-[#9A8070] mb-3">
+            <h2 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: LABEL }}>
               What this is
             </h2>
-            <p className="text-[#6B5244] leading-relaxed text-sm">
+            <p className="leading-relaxed text-sm" style={{ color: SUBTEXT }}>
               Rho processes every corporate card transaction, AP invoice, and bank transfer for a company in one place. Most anomaly detection tools flag large one-off transactions. Drift Detection surfaces something harder to catch: slow-moving patterns that compound over months - a SaaS category creeping up 12% month-over-month, a vendor billing inconsistently, recurring spend that nobody remembers approving.
             </p>
           </section>
 
           {/* ── Section 2: What Rho currently shows ─────────────────────── */}
           <section className="mb-10">
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-[#9A8070] mb-3">
+            <h2 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: LABEL }}>
               What Rho currently shows
             </h2>
-            <p className="text-[#6B5244] leading-relaxed text-sm mb-5">
+            <p className="leading-relaxed text-sm mb-5" style={{ color: SUBTEXT }}>
               Rho&apos;s dashboard shows account balances and transaction history. It does not surface multi-month trends, flag gradual spend drift, or distinguish intentional growth from unnoticed cost creep.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Left: today */}
-              <div className="rounded-xl border border-[#2C1810]/[0.08] bg-white p-4 shadow-sm">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-[#9A8070] mb-3">
+              <div className="rounded-xl border p-4 shadow-sm" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
+                <p className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: LABEL }}>
                   Today - transaction list
                 </p>
                 <div className="space-y-0">
@@ -809,21 +835,22 @@ export default function DriftDetectionPage() {
                   ].map((row) => (
                     <div
                       key={row.vendor}
-                      className="flex items-center justify-between py-1.5 border-b border-[#2C1810]/[0.06] last:border-0"
+                      className="flex items-center justify-between py-1.5 last:border-0"
+                      style={{ borderBottom: `1px solid ${C.cardBorder}` }}
                     >
                       <div className="flex items-center gap-3">
-                        <span className="text-xs text-[#9A8070] w-12">{row.date}</span>
-                        <span className="text-xs text-[#2C1810]">{row.vendor}</span>
+                        <span className="text-xs w-12" style={{ color: LABEL }}>{row.date}</span>
+                        <span className="text-xs" style={{ color: HEADING }}>{row.vendor}</span>
                       </div>
-                      <span className="text-xs text-[#6B5244] font-mono">{row.amount}</span>
+                      <span className="text-xs font-mono" style={{ color: SUBTEXT }}>{row.amount}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
               {/* Right: with drift detection */}
-              <div className="rounded-xl border border-[#2C1810]/[0.08] bg-white p-4 shadow-sm">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-[#9A8070] mb-3">
+              <div className="rounded-xl border p-4 shadow-sm" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
+                <p className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: LABEL }}>
                   With Drift Detection
                 </p>
                 <div className="space-y-0">
@@ -834,18 +861,19 @@ export default function DriftDetectionPage() {
                   ].map((row) => (
                     <div
                       key={row.vendor}
-                      className="flex items-center justify-between py-1.5 border-b border-[#2C1810]/[0.06] last:border-0"
+                      className="flex items-center justify-between py-1.5 last:border-0"
+                      style={{ borderBottom: `1px solid ${C.cardBorder}` }}
                     >
                       <div className="flex items-center gap-3">
-                        <span className="text-xs text-[#9A8070] w-12">{row.date}</span>
-                        <span className="text-xs text-[#2C1810]">{row.vendor}</span>
+                        <span className="text-xs w-12" style={{ color: LABEL }}>{row.date}</span>
+                        <span className="text-xs" style={{ color: HEADING }}>{row.vendor}</span>
                         {row.drift && (
                           <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700">
                             ↑ drift detected
                           </span>
                         )}
                       </div>
-                      <span className="text-xs text-[#6B5244] font-mono">{row.amount}</span>
+                      <span className="text-xs font-mono" style={{ color: SUBTEXT }}>{row.amount}</span>
                     </div>
                   ))}
                 </div>
@@ -855,18 +883,18 @@ export default function DriftDetectionPage() {
 
           {/* ── Section 2.5: What changes ────────────────────────────────── */}
           <section className="mb-10">
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-[#9A8070] mb-3">
+            <h2 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: LABEL }}>
               What changes
             </h2>
 
             {/* Desktop table */}
-            <div className="hidden sm:block rounded-xl border border-[#2C1810]/[0.08] overflow-hidden shadow-sm text-sm">
+            <div className="hidden sm:block rounded-xl border overflow-hidden shadow-sm text-sm" style={{ borderColor: C.cardBorder }}>
               <table className="w-full">
                 <thead>
-                  <tr className="bg-[#2C1810]/[0.04] border-b border-[#2C1810]/[0.08]">
-                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-[#9A8070] w-[28%]">Feature</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-[#9A8070] w-[36%]">Without Drift Detection</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-[#9A8070] w-[36%]">With Drift Detection</th>
+                  <tr className="border-b" style={{ backgroundColor: `${C.cardBorder}40`, borderColor: C.cardBorder }}>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-widest w-[28%]" style={{ color: LABEL }}>Feature</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-widest w-[36%]" style={{ color: LABEL }}>Without Drift Detection</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-widest w-[36%]" style={{ color: LABEL }}>With Drift Detection</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#2C1810]/[0.06]">
@@ -902,10 +930,10 @@ export default function DriftDetectionPage() {
                       with: "Uniquely possible with Rho's unified cards + AP + banking data in one place",
                     },
                   ].map((row) => (
-                    <tr key={row.feature} className="bg-white">
-                      <td className="px-4 py-3 text-xs font-semibold text-[#2C1810]">{row.feature}</td>
-                      <td className="px-4 py-3 text-xs text-[#9A8070] bg-red-50/50">{row.without}</td>
-                      <td className="px-4 py-3 text-xs text-[#2C1810] bg-emerald-50/50">
+                    <tr key={row.feature} style={{ backgroundColor: C.cardBg }}>
+                      <td className="px-4 py-3 text-xs font-semibold" style={{ color: HEADING }}>{row.feature}</td>
+                      <td className="px-4 py-3 text-xs bg-red-50/50" style={{ color: LABEL }}>{row.without}</td>
+                      <td className="px-4 py-3 text-xs bg-emerald-50/50" style={{ color: HEADING }}>
                         <span className="text-emerald-600 mr-1.5">&#10003;</span>{row.with}
                       </td>
                     </tr>
@@ -948,18 +976,18 @@ export default function DriftDetectionPage() {
                   with: "Uniquely possible with Rho's unified cards + AP + banking data in one place",
                 },
               ].map((row) => (
-                <div key={row.feature} className="rounded-xl border border-[#2C1810]/[0.08] bg-white overflow-hidden shadow-sm">
-                  <div className="px-4 py-2.5 border-b border-[#2C1810]/[0.06]">
-                    <span className="text-xs font-semibold text-[#2C1810]">{row.feature}</span>
+                <div key={row.feature} className="rounded-xl border overflow-hidden shadow-sm" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
+                  <div className="px-4 py-2.5 border-b" style={{ borderColor: C.cardBorder }}>
+                    <span className="text-xs font-semibold" style={{ color: HEADING }}>{row.feature}</span>
                   </div>
-                  <div className="grid grid-cols-2 divide-x divide-[#2C1810]/[0.06]">
+                  <div className="grid grid-cols-2 divide-x" style={{ borderColor: C.cardBorder }}>
                     <div className="px-3 py-2.5 bg-red-50/50">
-                      <p className="text-[9px] font-semibold uppercase tracking-widest text-[#9A8070] mb-1">Without</p>
-                      <p className="text-xs text-[#9A8070]">{row.without}</p>
+                      <p className="text-[9px] font-semibold uppercase tracking-widest mb-1" style={{ color: LABEL }}>Without</p>
+                      <p className="text-xs" style={{ color: LABEL }}>{row.without}</p>
                     </div>
                     <div className="px-3 py-2.5 bg-emerald-50/50">
                       <p className="text-[9px] font-semibold uppercase tracking-widest text-emerald-600 mb-1">With</p>
-                      <p className="text-xs text-[#2C1810]"><span className="text-emerald-600 mr-1">&#10003;</span>{row.with}</p>
+                      <p className="text-xs" style={{ color: HEADING }}><span className="text-emerald-600 mr-1">&#10003;</span>{row.with}</p>
                     </div>
                   </div>
                 </div>
@@ -967,24 +995,58 @@ export default function DriftDetectionPage() {
             </div>
           </section>
 
-          {/* ── Section 3: Try it ─────────────────────────────────────────── */}
+          {/* ── Section C: Why it's better ──────────────────────────────── */}
+          <section className="mb-10">
+            <h2 className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: LABEL }}>
+              Why it&apos;s better
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+              {[
+                {
+                  title: "Catches what one-off detection misses",
+                  body: "Slow-moving patterns like SaaS creep at 12% MoM or inconsistent billing cycles are invisible to standard anomaly detection. Drift Detection finds them.",
+                },
+                {
+                  title: "Only possible with Rho's unified data",
+                  body: "Cards, AP, and bank transfers in one ledger means patterns can be correlated across sources. No other platform has this data advantage.",
+                },
+                {
+                  title: "Surfaces signal, not noise",
+                  body: "Instead of alerting on every large transaction, it ranks by severity and surfaces only what actually needs a CFO's attention.",
+                },
+              ].map((card) => (
+                <div key={card.title} className="rounded-xl border p-4 shadow-sm" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
+                  <p className="text-xs font-semibold mb-2" style={{ color: HEADING }}>{card.title}</p>
+                  <p className="text-xs leading-relaxed" style={{ color: LABEL }}>{card.body}</p>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-xl border px-5 py-4" style={{ borderColor: C.cardBorder, backgroundColor: C.accentBg }}>
+              <p className="text-xs font-semibold mb-1" style={{ color: HEADING }}>Why This Is Different</p>
+              <p className="text-xs leading-relaxed" style={{ color: SUBTEXT }}>
+                Most spend tools show you what happened. Drift Detection shows you what&apos;s <em>happening</em>: the gradual shifts that compound quietly until someone looks at the annual budget and wonders where $40k went.
+              </p>
+            </div>
+          </section>
+
+          {/* ── Section D: Try it ────────────────────────────────────────── */}
           <section>
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-[#9A8070] mb-1">
+            <h2 className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: LABEL }}>
               Try it
             </h2>
-            <p className="text-[#9A8070] text-sm mb-6">
+            <p className="text-sm mb-6" style={{ color: LABEL }}>
               Six months of synthetic company transaction data. Real drift patterns baked in.
             </p>
 
             {/* Chart intro annotation */}
-            <p style={{ fontSize: 11, fontStyle: "italic", color: "#9A8070", marginBottom: 10 }}>
-              The chart below excludes payroll — watch the SaaS line.
+            <p style={{ fontSize: 11, fontStyle: "italic", color: LABEL, marginBottom: 10 }}>
+              The chart below excludes payroll. Watch the SaaS line.
             </p>
 
             {/* Chart + Payroll callout */}
             <div className="flex flex-col sm:flex-row gap-4 mb-4">
-              <div className="flex-1 rounded-xl border border-[#2C1810]/[0.08] bg-white p-5 shadow-sm">
-                <p className="text-xs text-[#9A8070] mb-3">Monthly spend - SaaS, Infrastructure &amp; Misc</p>
+              <div className="flex-1 rounded-xl border p-5 shadow-sm" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
+                <p className="text-xs mb-3" style={{ color: LABEL }}>Monthly spend - SaaS, Infrastructure &amp; Misc</p>
                 <LineChart />
                 <ChartLegend />
               </div>
@@ -995,25 +1057,25 @@ export default function DriftDetectionPage() {
                   <span className="text-emerald-600 text-base">✓</span>
                   <span className="text-xs font-semibold text-emerald-700">Stable</span>
                 </div>
-                <p className="text-xs font-semibold text-[#2C1810]">Payroll</p>
-                <p className="text-xs text-[#6B5244]">$48k / mo avg</p>
+                <p className="text-xs font-semibold" style={{ color: HEADING }}>Payroll</p>
+                <p className="text-xs" style={{ color: SUBTEXT }}>$48k / mo avg</p>
                 <p className="text-[10px] text-emerald-600 font-medium">No drift detected</p>
               </div>
             </div>
 
             {/* Spend Projection Chart */}
-            <div className="rounded-xl border border-[#2C1810]/[0.08] bg-white p-5 shadow-sm mb-4">
-              <p className="text-xs font-medium text-[#2C1810] mb-1">
+            <div className="rounded-xl border p-5 shadow-sm mb-4" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
+              <p className="text-xs font-medium mb-1" style={{ color: HEADING }}>
                 At current drift rates, here is where spend is heading
               </p>
-              <p style={{ fontSize: 11, fontStyle: "italic", color: "#9A8070", marginBottom: 10 }}>
+              <p style={{ fontSize: 11, fontStyle: "italic", color: LABEL, marginBottom: 10 }}>
                 Solid lines = actual · Dashed lines = projected
               </p>
               <ProjectionChart />
               <ChartLegend />
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-[#2C1810]/[0.06]">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t" style={{ borderColor: C.cardBorder }}>
                 <div className="text-center">
-                  <p className="text-[10px] text-[#9A8070] uppercase tracking-wide mb-1.5">
+                  <p className="text-[10px] uppercase tracking-wide mb-1.5" style={{ color: LABEL }}>
                     Projected SaaS spend by Sep 2025
                   </p>
                   <p className="text-2xl font-bold" style={{ color: "#B8952A" }}>
@@ -1021,15 +1083,15 @@ export default function DriftDetectionPage() {
                   </p>
                 </div>
                 <div className="text-center">
-                  <p className="text-[10px] text-[#9A8070] uppercase tracking-wide mb-1.5">
+                  <p className="text-[10px] uppercase tracking-wide mb-1.5" style={{ color: LABEL }}>
                     vs. today
                   </p>
-                  <p className="text-2xl font-bold text-[#2C1810]">
+                  <p className="text-2xl font-bold" style={{ color: HEADING }}>
                     +$2,446<span className="text-sm font-normal"> / month</span>
                   </p>
                 </div>
                 <div className="text-center">
-                  <p className="text-[10px] text-[#9A8070] uppercase tracking-wide mb-1.5">
+                  <p className="text-[10px] uppercase tracking-wide mb-1.5" style={{ color: LABEL }}>
                     Annualized overspend if unaddressed
                   </p>
                   <p className="text-2xl font-bold text-red-600">
@@ -1057,10 +1119,11 @@ export default function DriftDetectionPage() {
             </div>
 
             {/* Transaction table */}
-            <div className="rounded-xl border border-[#2C1810]/[0.08] bg-white overflow-hidden shadow-sm">
-              <div className="grid grid-cols-4 px-4 py-2.5 border-b border-[#2C1810]/[0.08]">
+            <div className="overflow-x-auto rounded-xl border shadow-sm" style={{ borderColor: C.cardBorder }}>
+            <div className="min-w-[480px] rounded-xl overflow-hidden" style={{ backgroundColor: C.cardBg }}>
+              <div className="grid grid-cols-4 px-4 py-2.5 border-b" style={{ borderColor: C.cardBorder }}>
                 {["Date", "Vendor", "Category", "Amount"].map((h) => (
-                  <span key={h} className="text-[10px] font-semibold uppercase tracking-widest text-[#9A8070]">
+                  <span key={h} className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: LABEL }}>
                     {h}
                   </span>
                 ))}
@@ -1096,6 +1159,7 @@ export default function DriftDetectionPage() {
                 })}
               </div>
             </div>
+            </div>
 
             <HealthScorecard />
 
@@ -1104,7 +1168,7 @@ export default function DriftDetectionPage() {
               onClick={handleDetect}
               disabled={analyzing}
               className="mt-4 w-full py-3 rounded-xl text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:opacity-90 active:scale-[0.99]"
-              style={{ background: "#C1513A", color: "white" }}
+              style={{ background: C.accent, color: "white" }}
             >
               {analyzing ? "Analyzing…" : analyzed ? "Run again" : "Detect drift"}
             </button>
@@ -1112,7 +1176,7 @@ export default function DriftDetectionPage() {
             {/* Loading skeletons */}
             {analyzing && (
               <div className="mt-6 space-y-3">
-                <p className="text-xs text-[#9A8070] text-center mb-4">
+                <p className="text-xs text-center mb-4" style={{ color: LABEL }}>
                   Analyzing 6 months of transactions…
                 </p>
                 {[0, 1, 2].map((i) => <SkeletonCard key={i} />)}
@@ -1129,7 +1193,7 @@ export default function DriftDetectionPage() {
             {/* Signal cards */}
             {!analyzing && signals.length > 0 && (
               <div className="mt-6 space-y-3">
-                <p style={{ fontSize: 11, fontStyle: "italic", color: "#9A8070", marginBottom: 4 }}>
+                <p style={{ fontSize: 11, fontStyle: "italic", color: LABEL, marginBottom: 4 }}>
                   {signals.length} patterns a CFO would miss scanning line by line
                 </p>
                 {signals.map((signal, i) => (
@@ -1140,12 +1204,12 @@ export default function DriftDetectionPage() {
 
             {/* Executive Summary */}
             {!analyzing && signals.length > 0 && (
-              <div className="mt-4 rounded-xl border border-[#2C1810]/[0.08] bg-white p-5 shadow-sm"
-                style={{ animation: "fadeSlideIn 0.4s ease forwards 400ms", opacity: 0 }}>
+              <div className="mt-4 rounded-xl border p-5 shadow-sm"
+                style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg, animation: "fadeSlideIn 0.4s ease forwards 400ms", opacity: 0 }}>
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <h3 className="text-sm font-semibold text-[#2C1810]">Executive Summary</h3>
-                    <p className="text-[10px] text-[#9A8070] mt-0.5">
+                    <h3 className="text-sm font-semibold" style={{ color: HEADING }}>Executive Summary</h3>
+                    <p className="text-[10px] mt-0.5" style={{ color: LABEL }}>
                       Generated from 6 months of transaction data
                     </p>
                   </div>
@@ -1163,11 +1227,11 @@ export default function DriftDetectionPage() {
                 ) : execSummary ? (
                   <div className="space-y-3">
                     {execSummary.split("\n\n").filter((p) => p.trim()).map((para, i) => (
-                      <p key={i} className="text-sm text-[#6B5244] leading-relaxed">{para.trim()}</p>
+                      <p key={i} className="text-sm leading-relaxed" style={{ color: SUBTEXT }}>{para.trim()}</p>
                     ))}
                   </div>
                 ) : summaryError ? (
-                  <p className="text-sm text-[#9A8070] italic">Summary unavailable.</p>
+                  <p className="text-sm italic" style={{ color: LABEL }}>Summary unavailable.</p>
                 ) : null}
               </div>
             )}

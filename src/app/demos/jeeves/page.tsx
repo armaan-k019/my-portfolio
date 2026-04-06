@@ -777,7 +777,7 @@ export default function JeevesPage() {
           </button>
         </div>
         <div style={{ marginTop: "8px", textAlign: "center", fontSize: "11px", color: "#7a7060" }}>
-          Powered by Claude + Apify. Responses may take 30-90s for live data scraping.
+          Responses may take 30-90s for live data scraping.
         </div>
       </div>}
 

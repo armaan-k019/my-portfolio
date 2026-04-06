@@ -1,880 +1,912 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
+import ThemeToggle, { MY_STYLE, type PageColors } from "@/components/ThemeToggle";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-type PromptStyle = "informational" | "comparison" | "recommendation";
-type MentionTier = "primary" | "secondary" | "brief" | "none";
-type PageState = "input" | "loading" | "results";
-
-interface BrandScore {
-  brand: string;
-  tier: MentionTier;
-  score: number;
-}
-
-interface PromptResult {
+interface PromptItem {
   prompt: string;
-  responseText: string;
-  brandScores: BrandScore[];
-  failed?: boolean;
+  volume: "High" | "Medium" | "Low";
+  priority: boolean;
 }
 
-interface GEORecommendation {
+interface PromptLibrary {
+  informational: PromptItem[];
+  comparison: PromptItem[];
+  recommendation: PromptItem[];
+}
+
+interface SovRow {
+  prompt: string;
+  response: string;
+  scores: Record<string, number>;
+}
+
+interface SovResult {
+  rows: SovRow[];
+  totals: Record<string, number>;
+  sov: Record<string, number>;
+}
+
+type SignalLevel = "strong" | "weak" | "none";
+
+interface CitationResult {
+  audit: Record<string, Record<string, SignalLevel>>;
+  top_gaps: string[];
+}
+
+interface ContentBrief {
   title: string;
-  explanation: string;
-  difficulty: "Easy" | "Medium" | "Advanced";
-  category: "Content" | "Technical" | "PR" | "Positioning";
+  content_type: string;
+  target_prompt: string;
+  citation_gap_addressed: string;
+  why_it_works: string;
+  h1: string;
+  meta_description: string;
+  key_talking_points: string[];
+  urgency: "Quick Win" | "Medium Term" | "Strategic";
 }
 
-interface LoadingStep {
-  text: string;
-  error?: boolean;
-}
+// ── Constants ─────────────────────────────────────────────────────────────────
 
-interface ComputedScores {
-  totalScore: Record<string, number>;
-  mentionCount: Record<string, number>;
-  primaryCount: Record<string, number>;
-  shareOfVoice: Record<string, number>;
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const TIER_CONFIG: Record<MentionTier, { label: string; icon: string; color: string; bg: string }> = {
-  primary:   { label: "Primary",  icon: "🟢", color: "#16a34a", bg: "#f0fdf4" },
-  secondary: { label: "Secondary",icon: "🟡", color: "#ca8a04", bg: "#fefce8" },
-  brief:     { label: "Brief",    icon: "🔵", color: "#2563eb", bg: "#eff6ff" },
-  none:      { label: "Absent",   icon: "⚪", color: "#9ca3af", bg: "#f9fafb" },
+const SAMPLE = {
+  brand: "AthenaHQ",
+  description: "AI-powered GEO and brand visibility platform",
+  competitors: ["Semrush", "Ahrefs", "Brandwatch"],
+  industry: "AI search optimization",
 };
 
-const DIFF_CONFIG: Record<string, { color: string; bg: string }> = {
-  Easy:     { color: "#16a34a", bg: "#f0fdf4" },
-  Medium:   { color: "#ca8a04", bg: "#fefce8" },
-  Advanced: { color: "#dc2626", bg: "#fef2f2" },
+const LOADING_STEPS = [
+  "Building prompt library for your category…",
+  "Running informational prompt analysis…",
+  "Running comparison prompt analysis…",
+  "Running recommendation prompt analysis…",
+  "Auditing citation sources…",
+  "Identifying content gaps…",
+  "Generating content briefs…",
+];
+
+const SOURCE_TYPES: { key: string; label: string }[] = [
+  { key: "review_sites", label: "Review Sites" },
+  { key: "news_press", label: "News / Press" },
+  { key: "community", label: "Community" },
+  { key: "documentation", label: "Docs" },
+  { key: "analyst_reports", label: "Analyst" },
+  { key: "comparison_pages", label: "Comparison" },
+];
+
+const URGENCY_BADGE: Record<string, string> = {
+  "Quick Win": "bg-green-50 text-green-700 border border-green-200",
+  "Medium Term": "bg-yellow-50 text-yellow-700 border border-yellow-200",
+  "Strategic": "bg-blue-50 text-blue-700 border border-blue-200",
 };
 
-const CAT_CONFIG: Record<string, { color: string; bg: string }> = {
-  Content:     { color: "#7c3aed", bg: "#f5f3ff" },
-  Technical:   { color: "#0369a1", bg: "#f0f9ff" },
-  PR:          { color: "#be185d", bg: "#fdf2f8" },
-  Positioning: { color: "#b45309", bg: "#fffbeb" },
+const INTENT_BADGE: Record<string, string> = {
+  Informational: "bg-purple-50 text-purple-700 border border-purple-200",
+  Comparison: "bg-orange-50 text-orange-700 border border-orange-200",
+  Recommendation: "bg-teal-50 text-teal-700 border border-teal-200",
 };
 
-function computeScores(results: PromptResult[], allBrands: string[]): ComputedScores {
-  const totalScore: Record<string, number> = {};
-  const mentionCount: Record<string, number> = {};
-  const primaryCount: Record<string, number> = {};
+const VOLUME_COLOR: Record<string, string> = {
+  High: "text-green-600",
+  Medium: "text-yellow-600",
+  Low: "text-gray-400",
+};
 
-  for (const b of allBrands) {
-    totalScore[b] = 0;
-    mentionCount[b] = 0;
-    primaryCount[b] = 0;
-  }
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-  for (const r of results.filter(r => !r.failed)) {
-    for (const bs of r.brandScores) {
-      if (totalScore[bs.brand] !== undefined) {
-        totalScore[bs.brand] += bs.score;
-        if (bs.score > 0) mentionCount[bs.brand]++;
-        if (bs.tier === "primary") primaryCount[bs.brand]++;
-      }
-    }
-  }
-
-  const totalAll = Object.values(totalScore).reduce((a, b) => a + b, 0);
-  const shareOfVoice: Record<string, number> = {};
-  for (const b of allBrands) {
-    shareOfVoice[b] = totalAll > 0 ? Math.round((totalScore[b] / totalAll) * 100) : 0;
-  }
-
-  return { totalScore, mentionCount, primaryCount, shareOfVoice };
+function scoreLabel(score: number): { label: string; bg: string; text: string } {
+  if (score === 3) return { label: "Primary", bg: "bg-green-100", text: "text-green-800" };
+  if (score === 2) return { label: "Secondary", bg: "bg-yellow-100", text: "text-yellow-800" };
+  if (score === 1) return { label: "Brief", bg: "bg-blue-100", text: "text-blue-800" };
+  return { label: "Absent", bg: "bg-gray-100", text: "text-gray-400" };
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+function signalIcon(level: SignalLevel) {
+  if (level === "strong") return <span title="Strong signal">✅</span>;
+  if (level === "weak") return <span title="Weak signal">⚠️</span>;
+  return <span title="No signal">❌</span>;
+}
 
-function SOVChart({
-  allBrands,
-  userBrand,
-  scores,
-}: {
-  allBrands: string[];
-  userBrand: string;
-  scores: ComputedScores;
-}) {
-  const [animated, setAnimated] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setAnimated(true), 80);
-    return () => clearTimeout(t);
-  }, []);
+async function callApi<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const raw = await res.text();
+  const json = JSON.parse(raw) as { result?: T; error?: string };
+  if (!res.ok || json.error) throw new Error(json.error ?? `HTTP ${res.status}`);
+  return json.result as T;
+}
 
-  const sorted = [...allBrands].sort((a, b) => scores.totalScore[b] - scores.totalScore[a]);
-  const max = Math.max(...allBrands.map(b => scores.totalScore[b]), 1);
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function SectionProgress({ sections, navy }: { sections: boolean[]; navy: string }) {
+  const labels = ["Prompt Library", "Share of Voice", "Content Briefs"];
+  return (
+    <div className="flex items-center gap-3 mb-8 flex-wrap">
+      {labels.map((label, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <div
+            className="w-2.5 h-2.5 rounded-full transition-all duration-500"
+            style={{ backgroundColor: sections[i] ? navy : "#D1D5DB" }}
+          />
+          <span className="text-xs font-medium" style={{ color: sections[i] ? navy : "#9CA3AF" }}>
+            {label}
+          </span>
+          {i < labels.length - 1 && <span className="text-gray-200 text-xs ml-1">/</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function BriefCard({ brief, brand, navy }: { brief: ContentBrief; brand: string; navy: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  function copyBrief() {
+    const text = `CONTENT BRIEF
+Title: ${brief.title}
+Type: ${brief.content_type}
+Urgency: ${brief.urgency}
+
+Target Prompt: ${brief.target_prompt}
+Citation Gap Addressed: ${brief.citation_gap_addressed}
+
+Why It Works:
+${brief.why_it_works}
+
+H1: ${brief.h1}
+Meta Description: ${brief.meta_description}
+
+Key Talking Points:
+${brief.key_talking_points.map((p, i) => `${i + 1}. ${p}`).join("\n")}`;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   return (
-    <div>
-      <h3 className="text-xs font-semibold uppercase tracking-widest text-[#6b7280] mb-4">
-        AI Share of Voice — Simulated across 5 industry prompts
-      </h3>
-      <div className="space-y-3">
-        {sorted.map((brand) => {
-          const isUser = brand === userBrand;
-          const pct = Math.round((scores.totalScore[brand] / max) * 100);
-          return (
-            <div key={brand}>
-              <div className="flex items-center justify-between mb-1">
-                <span className={`text-sm font-medium ${isUser ? "text-[#1a2744]" : "text-[#374151]"}`}>
-                  {brand}
-                  {isUser && <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#1a2744]/10 text-[#1a2744]">You</span>}
-                </span>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-[#6b7280]">{scores.totalScore[brand]}/15</span>
-                  <span className={`text-xs font-semibold ${isUser ? "text-[#1a2744]" : "text-[#6b7280]"}`}>
-                    {scores.shareOfVoice[brand]}% SOV
-                  </span>
-                </div>
-              </div>
-              <div className="h-7 bg-[#f3f4f6] rounded-lg overflow-hidden">
-                <div
-                  className="h-full rounded-lg transition-all duration-700 ease-out flex items-center pl-2"
-                  style={{
-                    width: animated ? `${Math.max(pct, 2)}%` : "0%",
-                    backgroundColor: isUser ? "#1a2744" : "#9ca3af",
-                  }}
-                >
-                  {pct > 15 && (
-                    <span className="text-[10px] font-semibold text-white/90 truncate">
-                      {scores.totalScore[brand]} pts
-                    </span>
-                  )}
-                </div>
-              </div>
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+      <div className="p-5 flex-1">
+        <div className="flex items-start gap-2 flex-wrap mb-3">
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">
+            {brief.content_type}
+          </span>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${URGENCY_BADGE[brief.urgency]}`}>
+            {brief.urgency}
+          </span>
+        </div>
+        <h3 className="font-bold text-gray-900 text-base leading-snug mb-3">{brief.title}</h3>
+        <div className="space-y-1.5 mb-3">
+          <p className="text-xs text-gray-500">
+            <span className="font-semibold text-gray-700">Targets:</span> {brief.target_prompt}
+          </p>
+          <p className="text-xs text-gray-500">
+            <span className="font-semibold text-gray-700">Fills gap:</span> {brief.citation_gap_addressed}
+          </p>
+        </div>
+        <p className="text-sm text-gray-600 leading-relaxed">{brief.why_it_works}</p>
+      </div>
+
+      {/* Expandable section */}
+      <div className="border-t border-gray-100">
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="w-full px-5 py-3 flex items-center justify-between text-xs font-semibold text-gray-500 hover:text-gray-800 hover:bg-gray-50 transition-colors"
+        >
+          <span>Full brief details</span>
+          <span className="transition-transform duration-200" style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}>
+            ↓
+          </span>
+        </button>
+
+        {expanded && (
+          <div className="px-5 pb-5 space-y-3 border-t border-gray-100 pt-4">
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">H1</p>
+              <p className="text-sm text-gray-800 font-medium">{brief.h1}</p>
             </div>
-          );
-        })}
-      </div>
-
-      {/* Bias disclaimer */}
-      <div className="mt-5 flex items-start gap-2 rounded-lg bg-[#f3f4f6] border border-[#e5e7eb] px-3 py-2.5">
-        <span className="text-sm shrink-0 mt-px">ℹ️</span>
-        <p className="text-[11px] text-[#6b7280] leading-relaxed">
-          <span className="font-semibold text-[#374151]">Note:</span> Scoring is based on Claude&apos;s training data, which may favor brands with stronger documentation and online presence. Newer or niche brands may be underrepresented independent of their actual product quality.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function PromptTable({
-  results,
-  allBrands,
-  userBrand,
-}: {
-  results: PromptResult[];
-  allBrands: string[];
-  userBrand: string;
-}) {
-  const [expanded, setExpanded] = useState<number | null>(null);
-
-  return (
-    <div>
-      <h3 className="text-xs font-semibold uppercase tracking-widest text-[#6b7280] mb-4">
-        Prompt Breakdown
-      </h3>
-      <div className="overflow-x-auto rounded-xl border border-[#e5e7eb]">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-[#f9fafb] border-b border-[#e5e7eb]">
-              <th className="text-left px-4 py-3 text-xs font-semibold text-[#6b7280] min-w-[200px]">Prompt</th>
-              {allBrands.map(b => (
-                <th key={b} className="px-3 py-3 text-xs font-semibold text-[#6b7280] min-w-[110px]">
-                  <span className={b === userBrand ? "text-[#1a2744] font-bold" : ""}>{b}</span>
-                </th>
-              ))}
-              <th className="px-3 py-3 w-8" />
-            </tr>
-          </thead>
-          <tbody>
-            {results.map((r, i) => {
-              const isExp = expanded === i;
-              return (
-                <>
-                  <tr
-                    key={i}
-                    className={`border-b border-[#e5e7eb] cursor-pointer hover:bg-[#f9fafb] transition-colors ${isExp ? "bg-[#f0f9ff]" : ""}`}
-                    onClick={() => setExpanded(isExp ? null : i)}
-                  >
-                    <td className="px-4 py-3 text-[#374151] text-xs leading-relaxed max-w-[260px]">
-                      {r.failed ? (
-                        <span className="text-[#9ca3af] italic">Analysis unavailable</span>
-                      ) : (
-                        <span className="line-clamp-2">&ldquo;{r.prompt}&rdquo;</span>
-                      )}
-                    </td>
-                    {allBrands.map(b => {
-                      const bs = r.brandScores.find(s => s.brand === b);
-                      const tier = bs?.tier ?? "none";
-                      const cfg = TIER_CONFIG[tier];
-                      return (
-                        <td key={b} className="px-3 py-3 text-center">
-                          <span
-                            className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full"
-                            style={{ color: cfg.color, backgroundColor: cfg.bg }}
-                          >
-                            {cfg.icon} {cfg.label}
-                          </span>
-                        </td>
-                      );
-                    })}
-                    <td className="px-3 py-3 text-[#9ca3af] text-xs text-center">
-                      {isExp ? "▲" : "▼"}
-                    </td>
-                  </tr>
-                  {isExp && !r.failed && (
-                    <tr key={`${i}-exp`} className="bg-[#f0f9ff] border-b border-[#e5e7eb]">
-                      <td colSpan={allBrands.length + 2} className="px-4 py-4">
-                        <p className="text-[10px] font-semibold uppercase tracking-widest text-[#6b7280] mb-2">
-                          Claude&apos;s simulated AI response
-                        </p>
-                        <p className="text-xs text-[#374151] leading-relaxed whitespace-pre-wrap">
-                          {r.responseText}
-                        </p>
-                      </td>
-                    </tr>
-                  )}
-                </>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      <p className="mt-2 text-[10px] text-[#9ca3af]">Click any row to see the simulated AI response.</p>
-    </div>
-  );
-}
-
-function BrandScorecard({
-  brand,
-  results,
-  scores,
-  totalPrompts,
-}: {
-  brand: string;
-  results: PromptResult[];
-  scores: ComputedScores;
-  totalPrompts: number;
-}) {
-  const mentionRate = Math.round((scores.mentionCount[brand] / totalPrompts) * 100);
-  const total = scores.totalScore[brand];
-
-  // Strongest: highest score for user's brand
-  const strongestIdx = results.reduce((best, r, i) => {
-    const s     = r.brandScores.find(b => b.brand === brand)?.score ?? 0;
-    const bests = results[best]?.brandScores.find(b => b.brand === brand)?.score ?? -1;
-    return s > bests ? i : best;
-  }, 0);
-
-  // Weakest: lowest score; tiebreak by largest competitor advantage
-  const weakestIdx = results.reduce((worst, r, i) => {
-    const s     = r.brandScores.find(b => b.brand === brand)?.score ?? 0;
-    const worsts = results[worst]?.brandScores.find(b => b.brand === brand)?.score ?? 99;
-    if (s < worsts) return i;
-    if (s === worsts) {
-      // tiebreak: pick the one where competitors scored higher relative to user
-      const compGap = (res: PromptResult) => {
-        const userScore = res.brandScores.find(b => b.brand === brand)?.score ?? 0;
-        const topComp   = Math.max(...res.brandScores.filter(b => b.brand !== brand).map(b => b.score), 0);
-        return topComp - userScore;
-      };
-      return compGap(r) > compGap(results[worst]!) ? i : worst;
-    }
-    return worst;
-  }, 0);
-
-  const strongestPrompt = results[strongestIdx]?.prompt ?? "";
-  const weakestPrompt   = results[weakestIdx]?.prompt   ?? "";
-  const truncate = (s: string, n = 42) => s.length > n ? s.slice(0, n) + "…" : s;
-
-  const simpleStats = [
-    { label: "Total Score",      value: `${total} / ${totalPrompts * 3}`, sub: "max 3pts per prompt" },
-    { label: "Share of Voice",   value: `${scores.shareOfVoice[brand]}%`, sub: "vs all brands analyzed" },
-    { label: "Mention Rate",     value: `${mentionRate}%`,                sub: `${scores.mentionCount[brand]} of ${totalPrompts} prompts` },
-    { label: "Primary Mentions", value: `${scores.primaryCount[brand]}`,  sub: "led the AI response" },
-  ];
-
-  return (
-    <div>
-      <h3 className="text-xs font-semibold uppercase tracking-widest text-[#6b7280] mb-4">
-        {brand} Scorecard
-      </h3>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {simpleStats.map((s) => (
-          <div key={s.label} className="rounded-xl border border-[#e5e7eb] bg-white p-4">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#9ca3af] mb-1">{s.label}</p>
-            <p className="text-xl font-bold text-[#1a2744] mb-0.5 leading-tight">{s.value}</p>
-            <p className="text-[10px] text-[#9ca3af] leading-snug">{s.sub}</p>
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Meta Description</p>
+              <p className="text-sm text-gray-600">{brief.meta_description}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Key Talking Points</p>
+              <ul className="space-y-1">
+                {brief.key_talking_points.map((pt, i) => (
+                  <li key={i} className="text-sm text-gray-600 flex gap-2">
+                    <span className="text-gray-300 flex-shrink-0">•</span>
+                    {pt}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
-        ))}
+        )}
+      </div>
 
-        {/* Strongest Prompt — shows truncated prompt text, full on hover */}
-        <div
-          className="rounded-xl border border-[#e5e7eb] bg-white p-4 group relative cursor-default"
-          title={strongestPrompt}
+      <div className="px-5 pb-4">
+        <button
+          onClick={copyBrief}
+          className="w-full py-2 rounded-lg border text-xs font-semibold transition-all"
+          style={{
+            borderColor: copied ? "#16A34A" : navy,
+            color: copied ? "#16A34A" : navy,
+            backgroundColor: copied ? "#F0FDF4" : "transparent",
+          }}
         >
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-[#9ca3af] mb-1">Strongest Prompt</p>
-          <p className="text-sm font-semibold text-[#1a2744] mb-0.5 leading-snug">
-            &ldquo;{truncate(strongestPrompt)}&rdquo;
-          </p>
-          <p className="text-[10px] text-[#9ca3af]">
-            {TIER_CONFIG[results[strongestIdx]?.brandScores.find(b => b.brand === brand)?.tier ?? "none"].label} mention
-          </p>
-          {strongestPrompt.length > 42 && (
-            <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-10 w-64 rounded-lg bg-[#1a2744] text-white text-xs p-3 shadow-lg leading-relaxed pointer-events-none">
-              &ldquo;{strongestPrompt}&rdquo;
-            </div>
-          )}
-        </div>
-
-        {/* Weakest Prompt — shows truncated prompt text, full on hover */}
-        <div
-          className="rounded-xl border border-[#e5e7eb] bg-white p-4 group relative cursor-default"
-          title={weakestPrompt}
-        >
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-[#9ca3af] mb-1">Weakest Prompt</p>
-          <p className="text-sm font-semibold text-[#1a2744] mb-0.5 leading-snug">
-            &ldquo;{truncate(weakestPrompt)}&rdquo;
-          </p>
-          <p className="text-[10px] text-[#9ca3af]">
-            {TIER_CONFIG[results[weakestIdx]?.brandScores.find(b => b.brand === brand)?.tier ?? "none"].label} mention
-          </p>
-          {weakestPrompt.length > 42 && (
-            <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-10 w-64 rounded-lg bg-[#1a2744] text-white text-xs p-3 shadow-lg leading-relaxed pointer-events-none">
-              &ldquo;{weakestPrompt}&rdquo;
-            </div>
-          )}
-        </div>
+          {copied ? "✓ Copied" : "Copy Brief"}
+        </button>
       </div>
     </div>
   );
 }
 
-function CompetitorTable({
-  allBrands,
-  userBrand,
-  scores,
-  totalPrompts,
-}: {
-  allBrands: string[];
-  userBrand: string;
-  scores: ComputedScores;
-  totalPrompts: number;
-}) {
-  const sorted = [...allBrands].sort((a, b) => scores.totalScore[b] - scores.totalScore[a]);
-  const maxScore = Math.max(...allBrands.map(b => scores.totalScore[b]));
-  const maxMention = Math.max(...allBrands.map(b => scores.mentionCount[b]));
-  const maxPrimary = Math.max(...allBrands.map(b => scores.primaryCount[b]));
-
-  return (
-    <div>
-      <h3 className="text-xs font-semibold uppercase tracking-widest text-[#6b7280] mb-4">
-        Competitor Comparison
-      </h3>
-      <div className="overflow-x-auto rounded-xl border border-[#e5e7eb]">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-[#f9fafb] border-b border-[#e5e7eb]">
-              <th className="text-left px-4 py-3 text-xs font-semibold text-[#6b7280]">Brand</th>
-              <th className="px-4 py-3 text-xs font-semibold text-[#6b7280] text-right">Total Score</th>
-              <th className="px-4 py-3 text-xs font-semibold text-[#6b7280] text-right">Mention Rate</th>
-              <th className="px-4 py-3 text-xs font-semibold text-[#6b7280] text-right">Primary Mentions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((brand) => {
-              const isUser = brand === userBrand;
-              const rate = Math.round((scores.mentionCount[brand] / totalPrompts) * 100);
-              return (
-                <tr key={brand} className={`border-b border-[#e5e7eb] last:border-0 ${isUser ? "bg-[#1a2744]/[0.03]" : ""}`}>
-                  <td className="px-4 py-3">
-                    <span className={`text-sm font-medium ${isUser ? "text-[#1a2744]" : "text-[#374151]"}`}>
-                      {brand}
-                    </span>
-                    {isUser && <span className="ml-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#1a2744]/10 text-[#1a2744]">You</span>}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <span className={`text-sm font-semibold ${scores.totalScore[brand] === maxScore ? "text-[#16a34a]" : "text-[#374151]"}`}>
-                      {scores.totalScore[brand]}/15
-                      {scores.totalScore[brand] === maxScore && <span className="ml-1 text-[10px]">🏆</span>}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <span className={`text-sm ${scores.mentionCount[brand] === maxMention ? "font-semibold text-[#16a34a]" : "text-[#374151]"}`}>
-                      {rate}%
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <span className={`text-sm ${scores.primaryCount[brand] === maxPrimary ? "font-semibold text-[#16a34a]" : "text-[#374151]"}`}>
-                      {scores.primaryCount[brand]}
-                      {scores.primaryCount[brand] === maxPrimary && maxPrimary > 0 && <span className="ml-1 text-[10px]">🏆</span>}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function RecommendationsPanel({
-  recommendations,
-  loading,
-}: {
-  recommendations: GEORecommendation[];
-  loading: boolean;
-}) {
-  return (
-    <div className="rounded-2xl bg-[#1a2744] p-6 sm:p-8">
-      <div className="mb-6">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-[#60a5fa] mb-1">
-          Powered by Claude
-        </p>
-        <h3 className="text-xl font-bold text-white">GEO Recommendations</h3>
-        <p className="text-sm text-[#94a3b8] mt-1">
-          Specific, actionable steps to improve your AI search presence — grounded in your results.
-        </p>
-      </div>
-
-      {loading && recommendations.length === 0 && (
-        <div className="flex items-center gap-3 py-6">
-          <div className="w-4 h-4 rounded-full border-2 border-[#60a5fa]/30 border-t-[#60a5fa] animate-spin" />
-          <span className="text-sm text-[#94a3b8]">Generating recommendations…</span>
-        </div>
-      )}
-
-      {recommendations.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {recommendations.map((rec, i) => {
-            const diffCfg = DIFF_CONFIG[rec.difficulty] ?? DIFF_CONFIG.Medium;
-            const catCfg  = CAT_CONFIG[rec.category]   ?? CAT_CONFIG.Content;
-            return (
-              <div key={i} className="rounded-xl bg-white/[0.06] border border-white/10 p-4">
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <h4 className="text-sm font-semibold text-white leading-snug">{rec.title}</h4>
-                  <span
-                    className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                    style={{ color: diffCfg.color, backgroundColor: diffCfg.bg }}
-                  >
-                    {rec.difficulty}
-                  </span>
-                </div>
-                <p className="text-xs text-[#cbd5e1] leading-relaxed mb-3">{rec.explanation}</p>
-                <span
-                  className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                  style={{ color: catCfg.color, backgroundColor: catCfg.bg }}
-                >
-                  {rec.category}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Main page ────────────────────────────────────────────────────────────────
+// ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function AthenaHQPage() {
-  // ── Form state ───────────────────────────────────────────────────────────────
-  const [brand, setBrand]           = useState("");
-  const [description, setDescription] = useState("");
-  const [comp1, setComp1]           = useState("");
-  const [comp2, setComp2]           = useState("");
-  const [comp3, setComp3]           = useState("");
-  const [industry, setIndustry]     = useState("");
-  const [promptStyle, setPromptStyle] = useState<PromptStyle>("informational");
+  const [theme, setTheme] = useState<"my" | "company">("my");
+  const COMPANY_STYLE: PageColors = {
+    bg: "#f8fafc",
+    cardBg: "#ffffff",
+    cardBorder: "#e2e8f0",
+    text: "#1a2744",
+    muted: "#64748b",
+    dim: "#94a3b8",
+    accent: "#1a2744",
+    accentBg: "rgba(26,39,68,0.06)",
+    headerBg: "#1a2744",
+    headerBorder: "#2a3754",
+    headerText: "#ffffff",
+  };
+  const C = theme === "my" ? MY_STYLE : COMPANY_STYLE;
+  const NAVY = C.accent;
 
-  // ── App state ────────────────────────────────────────────────────────────────
-  const [pageState, setPageState]       = useState<PageState>("input");
-  const [steps, setSteps]               = useState<LoadingStep[]>([]);
-  const [promptResults, setPromptResults] = useState<PromptResult[]>([]);
-  const [recommendations, setRecommendations] = useState<GEORecommendation[]>([]);
-  const [recsLoading, setRecsLoading]   = useState(false);
-  const [globalError, setGlobalError]   = useState("");
+  const [form, setForm] = useState({
+    brand: "",
+    description: "",
+    competitors: ["", "", ""],
+    industry: "",
+  });
 
-  const stepsEndRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(false);
+  const [stepIndex, setStepIndex] = useState(-1);
+  const [error, setError] = useState<string | null>(null);
 
-  const addStep = useCallback((text: string, error = false) => {
-    setSteps(prev => [...prev, { text, error }]);
-  }, []);
+  const [promptLib, setPromptLib] = useState<PromptLibrary | null>(null);
+  const [sovResult, setSovResult] = useState<SovResult | null>(null);
+  const [citationResult, setCitationResult] = useState<CitationResult | null>(null);
+  const [briefs, setBriefs] = useState<ContentBrief[] | null>(null);
 
-  useEffect(() => {
-    stepsEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [steps]);
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
-  const competitors = [comp1, comp2, comp3].filter(Boolean);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
-  // ── Analysis flow ─────────────────────────────────────────────────────────────
-  const handleAnalyze = async () => {
-    if (!brand.trim() || !industry.trim()) return;
+  const sectionsComplete = [!!promptLib, !!sovResult, !!briefs];
 
-    setPageState("loading");
-    setSteps([]);
-    setPromptResults([]);
-    setRecommendations([]);
-    setRecsLoading(false);
-    setGlobalError("");
+  function loadSample() {
+    setForm({
+      brand: SAMPLE.brand,
+      description: SAMPLE.description,
+      competitors: SAMPLE.competitors,
+      industry: SAMPLE.industry,
+    });
+    setPromptLib(null);
+    setSovResult(null);
+    setCitationResult(null);
+    setBriefs(null);
+    setError(null);
+  }
+
+  function reset() {
+    setPromptLib(null);
+    setSovResult(null);
+    setCitationResult(null);
+    setBriefs(null);
+    setError(null);
+    setStepIndex(-1);
+  }
+
+  function toggleRow(i: number) {
+    setExpandedRows(prev => {
+      const next = new Set(prev);
+      next.has(i) ? next.delete(i) : next.add(i);
+      return next;
+    });
+  }
+
+  async function step(index: number, delay = 0) {
+    if (delay) await new Promise(r => setTimeout(r, delay));
+    setStepIndex(index);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setPromptLib(null);
+    setSovResult(null);
+    setCitationResult(null);
+    setBriefs(null);
+    setStepIndex(0);
 
     try {
-      // Step 1: generate prompts
-      addStep("Generating industry prompts…");
-      const genRes = await fetch("/api/athena-hq/generate-prompts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ brand, description, competitors, industry, promptStyle }),
-        signal: AbortSignal.timeout(25000),
+      // ── Step 1: Prompt Library ────────────────────────────────────────────
+      const competitors = form.competitors.filter(c => c.trim());
+      const lib = await callApi<PromptLibrary>("/api/demos/athena-hq/prompts", {
+        brand: form.brand,
+        industry: form.industry,
+        competitors,
       });
-      const rawGen = await genRes.text();
-      let prompts: string[] = [];
-      try {
-        prompts = (JSON.parse(rawGen) as { prompts: string[] }).prompts;
-      } catch {
-        throw new Error("Failed to parse prompts from API.");
-      }
-      if (!prompts?.length) throw new Error("No prompts returned.");
-      addStep(`✓ Generated ${prompts.length} ${promptStyle} prompts`);
+      setPromptLib(lib);
+      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
 
-      // Steps 2–6: analyze prompts in parallel, add steps as each completes
-      const allBrands = [brand, ...competitors];
-      const collected: PromptResult[] = [];
+      // ── Steps 2-4: SOV (9 prompts, 3 per group) ──────────────────────────
+      await step(1, 300);
+      const sovPrompts = [
+        ...lib.informational.slice(0, 3).map(p => p.prompt),
+        ...lib.comparison.slice(0, 3).map(p => p.prompt),
+        ...lib.recommendation.slice(0, 3).map(p => p.prompt),
+      ];
+      await step(2, 800);
+      await step(3, 1200);
 
-      const analyzeOne = async (prompt: string, idx: number): Promise<PromptResult> => {
-        addStep(`Analyzing prompt ${idx + 1} of ${prompts.length}: "${prompt.length > 60 ? prompt.slice(0, 60) + "…" : prompt}"`);
-        try {
-          const res = await fetch("/api/athena-hq/analyze-prompt", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt, brand, description, competitors }),
-            signal: AbortSignal.timeout(25000),
-          });
-          const text = await res.text();
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const data = JSON.parse(text) as PromptResult;
+      const sov = await callApi<SovResult>("/api/demos/athena-hq/sov", {
+        brand: form.brand,
+        competitors,
+        prompts: sovPrompts,
+      });
+      setSovResult(sov);
 
-          // Ensure all brands have a score entry
-          for (const b of allBrands) {
-            if (!data.brandScores.find(s => s.brand === b)) {
-              data.brandScores.push({ brand: b, tier: "none", score: 0 });
-            }
-          }
+      // ── Step 5: Citation Audit ────────────────────────────────────────────
+      await step(4, 300);
+      const citation = await callApi<CitationResult>("/api/demos/athena-hq/citation", {
+        brand: form.brand,
+        competitors,
+        responses: sov.rows.map(r => r.response),
+      });
+      setCitationResult(citation);
 
-          addStep(`✓ Prompt ${idx + 1}: "${prompt.slice(0, 50)}…" — scored`);
-          return data;
-        } catch {
-          addStep(`⚠ Prompt ${idx + 1}: analysis unavailable`, true);
-          return { prompt, responseText: "", brandScores: allBrands.map(b => ({ brand: b, tier: "none" as MentionTier, score: 0 })), failed: true };
-        }
-      };
+      // ── Steps 6-7: Briefs ─────────────────────────────────────────────────
+      await step(5, 300);
+      await step(6, 600);
 
-      const settled = await Promise.allSettled(prompts.map((p, i) => analyzeOne(p, i)));
-      for (const r of settled) {
-        if (r.status === "fulfilled") collected.push(r.value);
-      }
+      const userSov = sov.sov[form.brand] ?? 0;
+      const compSov = competitors.map(c => `${c}: ${sov.sov[c] ?? 0}%`).join(", ");
+      const gapSummary = citation.top_gaps.join("; ");
 
-      // Step 7: scoring
-      addStep("Scoring brand mentions…");
-      setPromptResults(collected);
-
-      // Transition to results
-      setPageState("results");
-
-      // Step 8: recommendations (non-blocking, shows up after results render)
-      setRecsLoading(true);
-      addStep("Generating GEO recommendations…");
-      try {
-        const recsRes = await fetch("/api/athena-hq/recommendations", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ brand, description, industry, competitors, promptResults: collected }),
-          signal: AbortSignal.timeout(25000),
-        });
-        const recsText = await recsRes.text();
-        const recsData = JSON.parse(recsText) as { recommendations: GEORecommendation[] };
-        setRecommendations(recsData.recommendations ?? []);
-        addStep("✓ GEO recommendations ready");
-      } catch {
-        addStep("⚠ Recommendations unavailable", true);
-      } finally {
-        setRecsLoading(false);
-      }
+      const briefData = await callApi<ContentBrief[]>("/api/demos/athena-hq/briefs", {
+        brand: form.brand,
+        industry: form.industry,
+        sovSummary: `${form.brand} has ${userSov}% share of voice. Competitors: ${compSov}`,
+        citationGaps: citation.top_gaps,
+        prompts: sovPrompts,
+      });
+      setBriefs(briefData);
     } catch (err) {
-      setGlobalError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
-      setPageState("input");
+      console.error("[athena] pipeline error:", err);
+      setError(String(err));
+    } finally {
+      setLoading(false);
+      setStepIndex(-1);
     }
-  };
+  }
 
-  const handleReset = () => {
-    setPageState("input");
-    setSteps([]);
-    setPromptResults([]);
-    setRecommendations([]);
-    setGlobalError("");
-  };
+  const allBrands = [form.brand, ...form.competitors.filter(c => c.trim())];
+  const canSubmit = form.brand.trim().length > 0 && form.industry.trim().length > 0;
 
-  // ── Computed values ──────────────────────────────────────────────────────────
-  const allBrands = [brand, ...competitors];
-  const scores = promptResults.length > 0 ? computeScores(promptResults, allBrands) : null;
-
-  // ── Render ────────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#f9fafb] font-sans">
-
-      {/* ── Header ────────────────────────────────────────────────────────────── */}
-      <header className="bg-[#1a2744] text-white">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-start justify-between gap-4 flex-wrap">
+    <div className="min-h-screen" style={{ backgroundColor: C.bg }}>
+      {/* ── Header ── */}
+      <header className="px-6 py-4" style={{ backgroundColor: C.headerBg, borderBottomColor: C.headerBorder }}>
+        <div className="max-w-5xl mx-auto flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <div className="flex items-center gap-3 mb-0.5">
-              <span className="text-xl font-bold tracking-tight">AthenaHQ</span>
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#60a5fa]/20 text-[#93c5fd] border border-[#60a5fa]/20">
-                GEO Visibility Checker · Powered by Claude
+            <div className="flex items-center gap-3 mb-2 flex-wrap">
+              <span className="font-bold text-xl tracking-tight" style={{ color: C.headerText }}>AthenaHQ</span>
+              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border border-white/20 text-white/60 uppercase tracking-widest">
+                GEO Intelligence Suite
               </span>
             </div>
-            <p className="text-xs text-[#94a3b8] leading-relaxed max-w-xl">
-              Generative Engine Optimization (GEO) is the practice of optimizing your brand&apos;s presence in AI-generated search responses.
-              This tool simulates how AI models mention your brand vs. competitors across real industry prompts.
+            <p className="text-xs leading-relaxed max-w-2xl" style={{ color: theme === "my" ? C.muted : "rgba(255,255,255,0.55)" }}>
+              Generative Engine Optimization is how brands win in AI search. This tool shows you which prompts to track, how you appear across those prompts vs. competitors, where your citations are missing, and exactly what content to create to close the gap.
             </p>
           </div>
-          <div className="text-right shrink-0">
-            <p className="text-[10px] text-[#64748b]">Demo by</p>
-            <Link href="/" className="text-xs text-[#93c5fd] hover:underline">Armaan Kazi</Link>
+          <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+            <span className="text-xs" style={{ color: theme === "my" ? C.muted : "rgba(255,255,255,0.30)" }}>
+              Demo by{" "}
+              <Link href="/" className="underline transition-colors hover:opacity-80" style={{ color: theme === "my" ? C.accent : "rgba(255,255,255,0.30)" }}>
+                Armaan Kazi
+              </Link>
+            </span>
+            <ThemeToggle theme={theme} onChange={setTheme} companyAccent={COMPANY_STYLE.accent} darkContext={theme === "company"} />
           </div>
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+      <div className="max-w-5xl mx-auto px-6 py-10">
 
-        {/* ── INPUT ─────────────────────────────────────────────────────────── */}
-        {pageState === "input" && (
-          <div className="max-w-2xl mx-auto">
-            <div className="bg-white rounded-2xl border border-[#e5e7eb] shadow-sm p-6 sm:p-8 space-y-6">
+        {/* ── Back link ─────────────────────────────────────────────────────── */}
+        <Link href="/demos" className="text-xs text-gray-500 hover:text-gray-700 transition-colors mb-8 inline-block">← Back to Demos</Link>
 
-              {globalError && (
-                <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-                  {globalError}
+        {/* ── Section A: What AthenaHQ does today ───────────────────────────── */}
+        <section className="mb-10">
+          <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: C.dim }}>What AthenaHQ does today</p>
+          <p className="text-sm leading-relaxed mb-6" style={{ color: C.muted }}>
+            AthenaHQ tracks how brands appear in AI-generated search results across ChatGPT, Perplexity, Gemini, and AI Overviews. It shows you whether your brand is being mentioned, and how often, when users ask AI engines questions in your category.
+          </p>
+
+          {/* Today vs With Demo */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <div className="rounded-xl border p-5" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
+              <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: C.dim }}>Today</p>
+              <ul className="space-y-2">
+                {["Brand query", "AI engine", "Mention detected", "Visibility score"].map((item) => (
+                  <li key={item} className="flex items-center gap-2 text-sm" style={{ color: C.muted }}>
+                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: C.dim }} />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-xl border p-5" style={{ backgroundColor: C.cardBg, borderColor: NAVY + "33" }}>
+              <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: NAVY }}>With This Demo</p>
+              <ul className="space-y-2">
+                {["Brand query", "AI engine", "Mention scored", "Citation source audited", "Content gap identified", "Brief generated"].map((item) => (
+                  <li key={item} className="flex items-center gap-2 text-sm" style={{ color: C.muted }}>
+                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: NAVY }} />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* Comparison table */}
+          <div className="rounded-xl overflow-x-auto" style={{ border: `1px solid ${C.cardBorder}` }}>
+            <div style={{ minWidth: 480 }}>
+              <div className="grid grid-cols-3 px-4 py-2" style={{ backgroundColor: C.bg }}>
+                <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.dim }}></span>
+                <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.dim }}>Today</span>
+                <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: NAVY }}>With Demo</span>
+              </div>
+              {[
+                ["What you learn", "Whether you appear", "Why you appear, where from, and what to create"],
+                ["Output", "Share of voice score", "Prompt library + SOV + citation audit + content briefs"],
+                ["Next step", "Track and monitor", "Diagnose gaps and act"],
+              ].map(([label, today, demo], i) => (
+                <div key={label} className="grid grid-cols-3 px-4 py-3" style={{ backgroundColor: i % 2 === 1 ? C.bg : C.cardBg }}>
+                  <span className="text-xs font-medium pr-2" style={{ color: C.text }}>{label}</span>
+                  <span className="text-xs pr-2" style={{ color: C.muted }}>{today}</span>
+                  <span className="text-xs font-medium pr-2" style={{ color: NAVY }}>{demo}</span>
                 </div>
-              )}
+              ))}
+            </div>
+          </div>
+        </section>
 
-              {/* Brand */}
-              <div className="space-y-3">
-                <label className="block text-xs font-semibold uppercase tracking-widest text-[#6b7280]">
-                  Your Brand
-                </label>
-                <input
-                  value={brand}
-                  onChange={e => setBrand(e.target.value)}
-                  placeholder="e.g. Stripe, Notion, Linear"
-                  className="w-full px-3 py-2.5 text-sm rounded-lg border border-[#e5e7eb] bg-white text-[#111827] placeholder:text-[#9ca3af] focus:outline-none focus:border-[#1a2744] transition-colors"
-                />
-                <input
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                  placeholder="One-line description or website (gives Claude context)"
-                  className="w-full px-3 py-2.5 text-sm rounded-lg border border-[#e5e7eb] bg-white text-[#111827] placeholder:text-[#9ca3af] focus:outline-none focus:border-[#1a2744] transition-colors"
-                />
+        {/* ── Section B: What this demo adds ────────────────────────────────── */}
+        <section className="mb-10">
+          <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: C.dim }}>What this demo adds</p>
+          <p className="text-sm leading-relaxed mb-4" style={{ color: C.muted }}>
+            The GEO Intelligence Suite runs the full Monitor → Diagnose → Act workflow in one pass. It generates the prompts you should be tracking, runs them against Claude as a proxy for AI search engines, audits which citation source types (review sites, press, community, docs, analyst reports) are being picked up for your brand vs. competitors, and produces specific content briefs to close the gaps.
+          </p>
+        </section>
+
+        {/* ── Section C: Why it's better ────────────────────────────────────── */}
+        <section className="mb-10">
+          <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: C.dim }}>Why it&apos;s better</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            {[
+              {
+                title: "From monitoring to action",
+                body: "Most GEO tools stop at visibility scores. This demo goes three layers deeper: it tells you which specific prompts matter, which source types are missing from your citation profile, and exactly what content to create and why.",
+              },
+              {
+                title: "Citation audit is the missing layer",
+                body: "AI models cite certain source types (review sites, press mentions, community threads) when recommending brands. Knowing your share of voice is useful. Knowing which source types are absent from your citation profile tells you where to invest.",
+              },
+              {
+                title: "Content briefs, not just data",
+                body: "The output isn't a dashboard. It's four ready-to-use content briefs with H1s, meta descriptions, talking points, and reasoning grounded in your actual audit results.",
+              },
+            ].map(({ title, body }) => (
+              <div key={title} className="rounded-xl border p-5" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: NAVY }} />
+                  <p className="text-xs font-semibold" style={{ color: C.text }}>{title}</p>
+                </div>
+                <p className="text-xs leading-relaxed" style={{ color: C.muted }}>{body}</p>
+              </div>
+            ))}
+          </div>
+          <div className="rounded-xl border px-5 py-4" style={{ backgroundColor: C.bg, borderColor: C.cardBorder }}>
+            <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: C.dim }}>Why This Is Different</p>
+            <p className="text-sm leading-relaxed" style={{ color: C.muted }}>
+              Most GEO tools tell you how visible you are. This one tells you why you&apos;re invisible and what to build to fix it.
+            </p>
+          </div>
+        </section>
+
+        {/* ── Section D: Try it label ────────────────────────────────────────── */}
+        <div className="mb-6">
+          <h2 className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: C.dim }}>Try it</h2>
+          <p className="text-sm leading-relaxed" style={{ color: C.muted }}>Enter your brand, up to 3 competitors, and your industry category to generate a full GEO intelligence report.</p>
+        </div>
+
+        {/* ── Input Form ── */}
+        {!promptLib && (
+          <div className="rounded-2xl border shadow-sm p-6 mb-8" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="font-bold text-lg" style={{ color: C.text }}>GEO Analysis Setup</h2>
+                <p className="text-xs mt-0.5" style={{ color: C.muted }}>Enter your brand and up to 3 competitors to benchmark</p>
+              </div>
+              <button
+                type="button"
+                onClick={loadSample}
+                className="text-xs px-3 py-1.5 rounded-lg border transition-colors"
+                style={{ borderColor: C.cardBorder, color: C.muted }}
+              >
+                Load Sample
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: C.muted }}>Brand Name *</label>
+                  <input
+                    type="text"
+                    value={form.brand}
+                    onChange={e => setForm({ ...form, brand: e.target.value })}
+                    placeholder="e.g. AthenaHQ"
+                    className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none placeholder:text-gray-300"
+                    style={{ borderColor: C.cardBorder, color: C.text, backgroundColor: C.cardBg }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: C.muted }}>Industry / Category *</label>
+                  <input
+                    type="text"
+                    value={form.industry}
+                    onChange={e => setForm({ ...form, industry: e.target.value })}
+                    placeholder="e.g. AI search optimization"
+                    className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none placeholder:text-gray-300"
+                    style={{ borderColor: C.cardBorder, color: C.text, backgroundColor: C.cardBg }}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold mb-1" style={{ color: C.muted }}>Brand Description</label>
+                  <input
+                    type="text"
+                    value={form.description}
+                    onChange={e => setForm({ ...form, description: e.target.value })}
+                    placeholder="e.g. AI-powered GEO and brand visibility platform"
+                    className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none placeholder:text-gray-300"
+                    style={{ borderColor: C.cardBorder, color: C.text, backgroundColor: C.cardBg }}
+                  />
+                </div>
               </div>
 
-              {/* Competitors */}
-              <div className="space-y-3">
-                <label className="block text-xs font-semibold uppercase tracking-widest text-[#6b7280]">
-                  Competitors <span className="font-normal normal-case text-[#9ca3af]">(optional, up to 3)</span>
+              <div className="mb-6">
+                <label className="block text-xs font-semibold mb-1" style={{ color: C.muted }}>
+                  Competitors <span className="font-normal" style={{ color: C.dim }}>(up to 3)</span>
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  {[
-                    [comp1, setComp1],
-                    [comp2, setComp2],
-                    [comp3, setComp3],
-                  ].map(([val, set], i) => (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {form.competitors.map((c, i) => (
                     <input
                       key={i}
-                      value={val as string}
-                      onChange={e => (set as (v: string) => void)(e.target.value)}
+                      type="text"
+                      value={c}
+                      onChange={e => {
+                        const updated = [...form.competitors];
+                        updated[i] = e.target.value;
+                        setForm({ ...form, competitors: updated });
+                      }}
                       placeholder={`Competitor ${i + 1}`}
-                      className="w-full px-3 py-2.5 text-sm rounded-lg border border-[#e5e7eb] bg-white text-[#111827] placeholder:text-[#9ca3af] focus:outline-none focus:border-[#1a2744] transition-colors"
+                      className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none placeholder:text-gray-300"
+                      style={{ borderColor: C.cardBorder, color: C.text, backgroundColor: C.cardBg }}
                     />
                   ))}
                 </div>
               </div>
 
-              {/* Industry */}
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold uppercase tracking-widest text-[#6b7280]">
-                  Industry / Category
-                </label>
-                <input
-                  value={industry}
-                  onChange={e => setIndustry(e.target.value)}
-                  placeholder='e.g. "business banking", "project management software", "sustainable skincare"'
-                  className="w-full px-3 py-2.5 text-sm rounded-lg border border-[#e5e7eb] bg-white text-[#111827] placeholder:text-[#9ca3af] focus:outline-none focus:border-[#1a2744] transition-colors"
-                />
-              </div>
-
-              {/* Prompt style */}
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold uppercase tracking-widest text-[#6b7280]">
-                  Target Prompt Style
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(["informational", "comparison", "recommendation"] as PromptStyle[]).map(s => (
-                    <button
-                      key={s}
-                      onClick={() => setPromptStyle(s)}
-                      className={`py-2 px-3 rounded-lg border text-xs font-medium capitalize transition-all ${
-                        promptStyle === s
-                          ? "bg-[#1a2744] text-white border-[#1a2744]"
-                          : "bg-white text-[#374151] border-[#e5e7eb] hover:border-[#1a2744]/30"
-                      }`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[10px] text-[#9ca3af]">
-                  {promptStyle === "informational" && 'Generates "What is the best X?" style queries'}
-                  {promptStyle === "comparison"    && 'Generates "X vs Y vs Z" style queries'}
-                  {promptStyle === "recommendation" && 'Generates "Recommend a tool for..." style queries'}
-                </p>
-              </div>
-
               <button
-                onClick={handleAnalyze}
-                disabled={!brand.trim() || !industry.trim()}
-                className="w-full py-3 rounded-xl bg-[#1a2744] text-white text-sm font-semibold hover:bg-[#243460] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                type="submit"
+                disabled={!canSubmit || loading}
+                className="w-full py-3 rounded-xl text-white text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                style={{ backgroundColor: NAVY }}
               >
-                Analyze AI Visibility →
+                {loading ? "Running analysis…" : "Run GEO Analysis →"}
               </button>
+            </form>
+          </div>
+        )}
+
+        {/* ── Loading Steps ── */}
+        {loading && (
+          <div className="rounded-2xl border shadow-sm p-8 mb-8" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
+            <p className="text-xs font-bold uppercase tracking-widest mb-5" style={{ color: C.dim }}>Running analysis</p>
+            <div className="space-y-3">
+              {LOADING_STEPS.map((s, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  {i < stepIndex ? (
+                    <span className="w-5 h-5 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-xs flex-shrink-0">✓</span>
+                  ) : i === stepIndex ? (
+                    <span className="w-5 h-5 rounded-full border-2 animate-spin flex-shrink-0" style={{ borderColor: NAVY, borderTopColor: "transparent" }} />
+                  ) : (
+                    <span className="w-5 h-5 rounded-full border flex-shrink-0" style={{ borderColor: C.cardBorder }} />
+                  )}
+                  <span className="text-sm" style={{ color: i <= stepIndex ? C.text : C.dim }}>{s}</span>
+                </div>
+              ))}
             </div>
           </div>
         )}
 
-        {/* ── LOADING ───────────────────────────────────────────────────────── */}
-        {pageState === "loading" && (
-          <div className="max-w-2xl mx-auto">
-            <div className="bg-white rounded-2xl border border-[#e5e7eb] shadow-sm p-6 sm:p-8">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-4 h-4 rounded-full border-2 border-[#1a2744]/20 border-t-[#1a2744] animate-spin" />
-                <h2 className="text-sm font-semibold text-[#1a2744]">Running GEO analysis for {brand}…</h2>
+        {/* ── Error ── */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-8 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        {/* ── Results ── */}
+        {promptLib && (
+          <div ref={resultsRef} className="space-y-10">
+            <SectionProgress sections={sectionsComplete} navy={NAVY} />
+
+            {/* ═══ SECTION 1: PROMPT LIBRARY ════════════════════════════════ */}
+            <section>
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{ backgroundColor: NAVY }}>1</span>
+                  <h2 className="font-bold text-xl" style={{ color: C.text }}>Prompts to Track</h2>
+                </div>
+                <p className="text-sm ml-8" style={{ color: C.muted }}>Your GEO monitoring baseline: the queries where AI models decide which brands to recommend in your category.</p>
               </div>
-              <div className="space-y-2">
-                {steps.map((step, i) => (
-                  <div key={i} className={`flex items-start gap-2 text-sm ${step.error ? "text-amber-600" : "text-[#374151]"}`}>
-                    <span className="mt-0.5 shrink-0">{step.error ? "⚠" : "✓"}</span>
-                    <span className="leading-snug">{step.text}</span>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+                {(["informational", "comparison", "recommendation"] as const).map((group) => (
+                  <div key={group} className="rounded-xl border shadow-sm overflow-hidden" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
+                    <div
+                      className="px-4 py-3 border-b"
+                      style={{ borderColor: C.cardBorder, backgroundColor: group === "informational" ? "#F5F3FF" : group === "comparison" ? "#FFF7ED" : "#F0FDFA" }}
+                    >
+                      <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${INTENT_BADGE[group.charAt(0).toUpperCase() + group.slice(1)]}`}>
+                        {group.charAt(0).toUpperCase() + group.slice(1)}
+                      </span>
+                    </div>
+                    <div className="divide-y" style={{ borderColor: C.cardBorder }}>
+                      {promptLib[group].map((item, i) => (
+                        <div key={i} className="px-4 py-3 relative" style={{ borderColor: C.cardBorder }}>
+                          {item.priority && (
+                            <span
+                              className="absolute top-3 right-3 text-[9px] font-bold px-1.5 py-0.5 rounded text-white uppercase tracking-wide"
+                              style={{ backgroundColor: NAVY }}
+                            >
+                              Priority
+                            </span>
+                          )}
+                          <p className="text-xs leading-relaxed pr-12" style={{ color: C.text }}>{item.prompt}</p>
+                          <p className={`text-[10px] mt-1 font-semibold ${VOLUME_COLOR[item.volume]}`}>
+                            {item.volume} volume
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
-                {steps.length > 0 && (
-                  <div className="flex items-center gap-2 text-sm text-[#9ca3af] pt-1">
-                    <div className="w-3 h-3 rounded-full border-2 border-[#9ca3af]/30 border-t-[#9ca3af] animate-spin" />
-                    <span>Working…</span>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <p className="text-xs text-blue-700 leading-relaxed">
+                  <span className="font-bold">Note:</span> AthenaHQ tracks prompts like these across ChatGPT, Perplexity, Gemini, and AI Overviews in real time. This demo uses Claude as a proxy.
+                </p>
+              </div>
+            </section>
+
+            {/* ═══ SECTION 2: SHARE OF VOICE ════════════════════════════════ */}
+            {sovResult && (
+              <section>
+                <div className="mb-6">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{ backgroundColor: NAVY }}>2</span>
+                    <h2 className="font-bold text-xl" style={{ color: C.text }}>AI Share of Voice</h2>
+                  </div>
+                  <p className="text-sm ml-8" style={{ color: C.muted }}>Simulated across 9 industry prompts (3 per intent type).</p>
+                </div>
+
+                {/* SOV Bar Chart */}
+                <div className="rounded-xl border shadow-sm p-6 mb-4" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
+                  <h3 className="text-sm font-bold mb-4" style={{ color: C.text }}>Share of Voice</h3>
+                  <div className="space-y-3">
+                    {allBrands.filter(b => b).sort((a, b) => (sovResult.sov[b] ?? 0) - (sovResult.sov[a] ?? 0)).map((brand) => {
+                      const pct = sovResult.sov[brand] ?? 0;
+                      const isUser = brand === form.brand;
+                      return (
+                        <div key={brand}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-semibold text-gray-700">{brand}</span>
+                            <span className="text-xs font-bold" style={{ color: isUser ? NAVY : "#6B7280" }}>{pct}%</span>
+                          </div>
+                          <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-700"
+                              style={{ width: `${pct}%`, backgroundColor: isUser ? NAVY : "#D1D5DB" }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] mt-4 leading-relaxed" style={{ color: C.dim }}>
+                    Claude's training data may favor brands with stronger documentation. Newer brands may be underrepresented independent of product quality.
+                  </p>
+                </div>
+
+                {/* Prompt Breakdown Table */}
+                <div className="rounded-xl border shadow-sm overflow-hidden mb-4" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
+                  <div className="px-5 py-3 border-b" style={{ borderColor: C.cardBorder }}>
+                    <h3 className="text-sm font-bold" style={{ color: C.text }}>Prompt Breakdown</h3>
+                    <p className="text-xs mt-0.5" style={{ color: C.dim }}>Click any row to see the Claude response</p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b" style={{ backgroundColor: C.bg, borderColor: C.cardBorder }}>
+                          <th className="text-left px-4 py-2.5 font-semibold min-w-[200px]" style={{ color: C.muted }}>Prompt</th>
+                          {allBrands.filter(b => b).map(b => (
+                            <th key={b} className="px-3 py-2.5 font-semibold text-center whitespace-nowrap" style={{ color: b === form.brand ? NAVY : C.muted }}>
+                              {b}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sovResult.rows.map((row, i) => (
+                          <>
+                            <tr
+                              key={i}
+                              className="border-b cursor-pointer transition-colors"
+                              style={{ borderColor: C.cardBorder }}
+                              onClick={() => toggleRow(i)}
+                            >
+                              <td className="px-4 py-3 leading-snug" style={{ color: C.text }}>{row.prompt}</td>
+                              {allBrands.filter(b => b).map(b => {
+                                const s = scoreLabel(row.scores[b] ?? 0);
+                                return (
+                                  <td key={b} className="px-3 py-3 text-center">
+                                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${s.bg} ${s.text}`}>
+                                      {s.label}
+                                    </span>
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                            {expandedRows.has(i) && row.response && (
+                              <tr key={`exp-${i}`} style={{ backgroundColor: C.bg }}>
+                                <td colSpan={allBrands.filter(b => b).length + 1} className="px-4 py-4">
+                                  <p className="text-[10px] font-bold uppercase tracking-wide mb-2" style={{ color: C.dim }}>Claude's response</p>
+                                  <p className="text-xs leading-relaxed whitespace-pre-wrap" style={{ color: C.muted }}>{row.response}</p>
+                                </td>
+                              </tr>
+                            )}
+                          </>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Citation Audit */}
+                {citationResult && (
+                  <div className="rounded-xl border shadow-sm overflow-hidden" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
+                    <div className="px-5 py-3 border-b" style={{ borderColor: C.cardBorder }}>
+                      <h3 className="text-sm font-bold" style={{ color: C.text }}>Citation Source Audit</h3>
+                      <p className="text-xs mt-0.5" style={{ color: C.dim }}>Which source types AI models detected for each brand</p>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b" style={{ backgroundColor: C.bg, borderColor: C.cardBorder }}>
+                            <th className="text-left px-4 py-2.5 font-semibold" style={{ color: C.muted }}>Brand</th>
+                            {SOURCE_TYPES.map(st => (
+                              <th key={st.key} className="px-3 py-2.5 font-semibold text-center whitespace-nowrap" style={{ color: C.muted }}>{st.label}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {allBrands.filter(b => b && citationResult.audit[b]).map(brand => (
+                            <tr key={brand} className="border-b" style={{ borderColor: C.cardBorder }}>
+                              <td className="px-4 py-3 font-semibold" style={{ color: brand === form.brand ? NAVY : C.text }}>{brand}</td>
+                              {SOURCE_TYPES.map(st => (
+                                <td key={st.key} className="px-3 py-3 text-center">
+                                  {signalIcon((citationResult.audit[brand]?.[st.key] ?? "none") as SignalLevel)}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {citationResult.top_gaps.length > 0 && (
+                      <div className="m-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                        <p className="text-xs font-bold text-amber-700 mb-2">{form.brand}: Top Citation Gaps</p>
+                        <ul className="space-y-1">
+                          {citationResult.top_gaps.map((gap, i) => (
+                            <li key={i} className="text-xs text-amber-700 flex gap-2">
+                              <span className="flex-shrink-0">⚠</span>
+                              {gap}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
-              <div ref={stepsEndRef} />
-            </div>
-          </div>
-        )}
+              </section>
+            )}
 
-        {/* ── RESULTS ───────────────────────────────────────────────────────── */}
-        {pageState === "results" && scores && (
-          <div className="space-y-8">
-
-            {/* Ongoing steps (recommendations loading) */}
-            {(recsLoading || steps.some(s => s.error)) && (
-              <div className="bg-white rounded-xl border border-[#e5e7eb] px-5 py-4">
-                <div className="space-y-1.5">
-                  {steps.slice(-3).map((s, i) => (
-                    <div key={i} className={`flex items-center gap-2 text-xs ${s.error ? "text-amber-600" : "text-[#6b7280]"}`}>
-                      <span>{s.error ? "⚠" : "✓"}</span>
-                      <span>{s.text}</span>
-                    </div>
-                  ))}
-                  {recsLoading && (
-                    <div className="flex items-center gap-2 text-xs text-[#9ca3af]">
-                      <div className="w-3 h-3 rounded-full border-2 border-[#9ca3af]/30 border-t-[#9ca3af] animate-spin" />
-                      <span>Generating recommendations…</span>
-                    </div>
-                  )}
+            {/* ═══ SECTION 3: CONTENT BRIEFS ════════════════════════════════ */}
+            {briefs && (
+              <section>
+                <div className="mb-6">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{ backgroundColor: NAVY }}>3</span>
+                    <h2 className="font-bold text-xl" style={{ color: C.text }}>Content Action Plan</h2>
+                  </div>
+                  <p className="text-sm ml-8" style={{ color: C.muted }}>Based on your citation gaps and SOV performance, identifying 4 specific content pieces that would improve your AI search presence.</p>
                 </div>
-              </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {briefs.map((brief, i) => (
+                    <BriefCard key={i} brief={brief} brand={form.brand} navy={NAVY} />
+                  ))}
+                </div>
+              </section>
             )}
-
-            {/* SOV Chart */}
-            <div className="bg-white rounded-2xl border border-[#e5e7eb] shadow-sm p-6 sm:p-8">
-              <SOVChart allBrands={allBrands} userBrand={brand} scores={scores} />
-            </div>
-
-            {/* Prompt breakdown table */}
-            <div className="bg-white rounded-2xl border border-[#e5e7eb] shadow-sm p-6 sm:p-8">
-              <PromptTable results={promptResults} allBrands={allBrands} userBrand={brand} />
-            </div>
-
-            {/* Scorecard */}
-            <div className="bg-white rounded-2xl border border-[#e5e7eb] shadow-sm p-6 sm:p-8">
-              <BrandScorecard
-                brand={brand}
-                results={promptResults}
-                scores={scores}
-                totalPrompts={promptResults.length}
-              />
-            </div>
-
-            {/* Competitor table */}
-            {allBrands.length > 1 && (
-              <div className="bg-white rounded-2xl border border-[#e5e7eb] shadow-sm p-6 sm:p-8">
-                <CompetitorTable
-                  allBrands={allBrands}
-                  userBrand={brand}
-                  scores={scores}
-                  totalPrompts={promptResults.length}
-                />
-              </div>
-            )}
-
-            {/* Recommendations */}
-            <RecommendationsPanel recommendations={recommendations} loading={recsLoading} />
-
-            {/* Disclaimer */}
-            <div className="rounded-xl bg-[#f3f4f6] border border-[#e5e7eb] px-5 py-4 space-y-1">
-              <p className="text-xs text-[#6b7280] leading-relaxed">
-                This demo simulates GEO visibility using Claude as a proxy for AI search engines. Real-world GEO monitoring requires tracking
-                live responses across ChatGPT, Perplexity, Gemini, and other models over time.{" "}
-                <a href="https://athenahq.ai" target="_blank" rel="noopener noreferrer" className="text-[#1a2744] underline hover:no-underline">
-                  Visit athenahq.ai
-                </a>{" "}
-                for production-grade GEO intelligence.
-              </p>
-              <p className="text-[10px] text-[#9ca3af]">
-                Built by Armaan Kazi as a portfolio demo. Not affiliated with AthenaHQ.
-              </p>
-            </div>
 
             {/* Reset */}
-            <div className="text-center pb-4">
-              <button
-                onClick={handleReset}
-                className="px-6 py-2.5 rounded-xl border border-[#e5e7eb] bg-white text-sm font-medium text-[#374151] hover:border-[#1a2744]/30 hover:text-[#1a2744] transition-colors"
-              >
-                ← Run New Analysis
-              </button>
-            </div>
+            {!loading && (
+              <div className="text-center pb-8">
+                <button
+                  onClick={reset}
+                  className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  ← Analyze a different brand
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {/* ── Footer ── */}
+      <footer className="border-t px-6 py-8 mt-10" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
+        <div className="max-w-5xl mx-auto text-center space-y-2">
+          <p className="text-xs leading-relaxed max-w-2xl mx-auto" style={{ color: C.dim }}>
+            This demo simulates GEO intelligence using Claude as a proxy. Real GEO monitoring requires live tracking across ChatGPT, Perplexity, Gemini, and AI Overviews over time.{" "}
+            <a href="https://athenahq.ai" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: C.muted }}>
+              Visit athenahq.ai
+            </a>{" "}
+            for production-grade GEO intelligence.
+          </p>
+          <p className="text-xs" style={{ color: C.dim }}>
+            Built by{" "}
+            <Link href="/" className="transition-colors hover:opacity-80" style={{ color: C.muted }}>
+              Armaan Kazi
+            </Link>
+            {" "}· Not affiliated with AthenaHQ
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }

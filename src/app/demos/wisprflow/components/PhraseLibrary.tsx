@@ -105,7 +105,7 @@ export default function PhraseLibrary({ videoRef, modelRef, captureCallbackRef, 
 
   useEffect(() => { snapshotsRef.current = snapshots; }, [snapshots]);
 
-  // Training capture — subscribes to the main detection loop via captureCallbackRef
+  // Training capture, subscribes to the main detection loop via captureCallbackRef
   useEffect(() => {
     if (!training || trainStep !== "capture") {
       captureCallbackRef.current = null;

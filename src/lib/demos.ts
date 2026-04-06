@@ -87,6 +87,61 @@ export const demos: Record<string, DemoConfig> = {
     url: "/demos/athena-hq",
   },
 
+  // ── Weave — No-Show Recovery Sequencer ──────────────────────────────────────
+  "weave": {
+    company: "Weave",
+    role: "Healthcare SaaS · Patient Engagement · AI Messaging",
+    accentColor: "#00B5A3",
+    headline: "No-Show Recovery Sequencer",
+    pitch: "Generate a complete multi-touch patient recovery sequence — actual SMS and email copy for every touchpoint before and after a missed appointment, tailored to your specialty and patient profile.",
+    sections: [],
+    url: "/demos/weave",
+  },
+
+  // ── Whop — Page Roaster ──────────────────────────────────────────────────────
+  "whop": {
+    company: "Whop",
+    role: "Creator Economy · Conversion · AI Critique",
+    accentColor: "#7c3aed",
+    headline: "Page Roaster",
+    pitch: "Paste your Whop product page and get a brutally honest AI critique of your copy, pricing, conversion strategy, and affiliate setup — with specific rewrites.",
+    sections: [],
+    url: "/demos/whop",
+  },
+
+  // ── Harper Insurance - Business Coverage Profiler ──────────────────────────
+  "harper": {
+    company: "Harper Insurance",
+    role: "Insurtech · Commercial Lines · AI Underwriting",
+    accentColor: "#0f1f3d",
+    headline: "Business Coverage Profiler",
+    pitch: "Enter your business profile and get a structured commercial insurance recommendation — coverage lines, priority tiers, premium estimates, and gap analysis — powered by Claude.",
+    sections: [],
+    url: "/demos/harper",
+  },
+
+  // ── Erebor - De-banking Risk Scorer ────────────────────────────────────────
+  "erebor": {
+    company: "Erebor",
+    role: "Banking · Crypto · Risk Assessment",
+    accentColor: "#c9a84c",
+    headline: "De-banking Risk Scorer",
+    pitch: "Find out how likely your company is to lose banking access -- and which services are most at risk. Built for crypto, AI, defense, and innovation-economy companies.",
+    sections: [],
+    url: "/demos/erebor",
+  },
+
+  // ── SideShift.ai - Swap Route Optimizer ────────────────────────────────────
+  "sideshift": {
+    company: "SideShift.ai",
+    role: "Crypto · Swap Routing · DeFi",
+    accentColor: "#f97316",
+    headline: "Swap Route Optimizer",
+    pitch: "Find the optimal multi-hop route for any crypto swap -- minimizing fees, confirmation time, and slippage across 200+ assets.",
+    sections: [],
+    url: "/demos/sideshift",
+  },
+
   // ── Example entry - test the full flow at /demos with password "demo123" ──
   "demo123": {
     company: "Acme Corp",

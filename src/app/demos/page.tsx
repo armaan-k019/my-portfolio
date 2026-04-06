@@ -51,6 +51,41 @@ function PasswordScreen({ onUnlock }: { onUnlock: (config: DemoConfig, password:
       onUnlock(demos["corgi"]!, trimmed);
       return;
     }
+    // weave demo
+    if (normalized === "weave") {
+      sessionStorage.setItem("demo_access", "weave");
+      setError(false);
+      onUnlock(demos["weave"]!, trimmed);
+      return;
+    }
+    // whop demo
+    if (normalized === "whop") {
+      sessionStorage.setItem("demo_access", "whop");
+      setError(false);
+      onUnlock(demos["whop"]!, trimmed);
+      return;
+    }
+    // erebor demo
+    if (normalized === "erebor") {
+      sessionStorage.setItem("demo_access", "erebor");
+      setError(false);
+      onUnlock(demos["erebor"]!, trimmed);
+      return;
+    }
+    // sideshift demo
+    if (normalized === "sideshift") {
+      sessionStorage.setItem("demo_access", "sideshift");
+      setError(false);
+      onUnlock(demos["sideshift"]!, trimmed);
+      return;
+    }
+    // harper demo
+    if (normalized === "harper") {
+      sessionStorage.setItem("demo_access", "harper");
+      setError(false);
+      onUnlock(demos["harper"]!, trimmed);
+      return;
+    }
     // athena-hq demo
     if (trimmed === "athenaHQ" || normalized === "athenahq") {
       sessionStorage.setItem("demo_access", "athena-hq");

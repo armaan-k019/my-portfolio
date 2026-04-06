@@ -266,12 +266,6 @@ function parseCensusRow(
     }
   }
 
-  console.log(
-    `[urban-gpt] Parsed census → income=${medianIncome} pop=${population} density=${populationDensity} ` +
-    `age=${medianAgeRaw} gini=${gini} homeVal=${medianHomeValue} rent=${medianGrossRent} ` +
-    `hhSize=${avgHouseholdSize} unemployed=${unemployedPop} homeless=${estHomelessPop} travel=${meanTravelTime}`
-  );
-
   return {
     medianIncome, meanIncome, incomeStdDev, incomeBrackets,
     population, populationDensity, tractName,
@@ -305,8 +299,6 @@ async function fetchCensusData(lat: number, lng: number): Promise<CensusData> {
     `?x=${lng}&y=${lat}&benchmark=Public_AR_Current&vintage=Current_Current` +
     `&layers=Census%20Tracts&format=json`;
 
-  console.log(`[urban-gpt] Census geocoder URL: ${geocoderUrl}`);
-
   let state: string | null = null;
   let county: string | null = null;
   let tract: string | null = null;
@@ -315,9 +307,7 @@ async function fetchCensusData(lat: number, lng: number): Promise<CensusData> {
 
   try {
     const geoRes = await fetchWithTimeout(geocoderUrl, {}, 8000);
-    console.log(`[urban-gpt] Geocoder status: ${geoRes.status}`);
     const geoText = await geoRes.text();
-    console.log(`[urban-gpt] Geocoder response: ${geoText.slice(0, 400)}`);
 
     const geoJson = JSON.parse(geoText) as {
       result?: {
@@ -338,7 +328,6 @@ async function fetchCensusData(lat: number, lng: number): Promise<CensusData> {
       tract  = t.TRACT.padStart(6, "0");
       areaLandSqM = parseFloat(String(t.AREALAND ?? 0)) || 0;
       tractName = t.NAME ?? "";
-      console.log(`[urban-gpt] FIPS → state=${state} county=${county} tract=${tract} area=${areaLandSqM}m²`);
     } else {
       console.warn(`[urban-gpt] Geocoder returned no Census Tracts - geographies keys: ${Object.keys(geoJson?.result?.geographies ?? {}).join(", ")}`);
     }
@@ -358,13 +347,9 @@ async function fetchCensusData(lat: number, lng: number): Promise<CensusData> {
     `https://api.census.gov/data/2022/acs/acs5` +
     `?get=${CENSUS_VARS}&for=tract:${tract}&in=state:${state}%20county:${county}`;
 
-  console.log(`[urban-gpt] ACS URL: ${acsUrl}`);
-
   try {
     const acsRes = await fetchWithTimeout(acsUrl, {}, 8000);
-    console.log(`[urban-gpt] ACS response status: ${acsRes.status}`);
     const acsText = await acsRes.text();
-    console.log(`[urban-gpt] ACS raw (first 600): ${acsText.slice(0, 600)}`);
 
     if (!acsRes.ok) {
       console.error(`[urban-gpt] ACS HTTP ${acsRes.status} — falling back to county`);
@@ -379,8 +364,6 @@ async function fetchCensusData(lat: number, lng: number): Promise<CensusData> {
 
     const header = acsJson[0];
     const dataRow = acsJson[1];
-    console.log(`[urban-gpt] ACS header: ${JSON.stringify(header)}`);
-    console.log(`[urban-gpt] ACS data row: ${JSON.stringify(dataRow)}`);
     return parseCensusRow(dataRow, header, tractName, areaLandSqM);
   } catch (err) {
     console.error(`[urban-gpt] ACS error:`, err);
@@ -397,13 +380,10 @@ async function fetchCensusCountyFallback(
   const url =
     `https://api.census.gov/data/2022/acs/acs5` +
     `?get=${CENSUS_VARS}&for=county:${county}&in=state:${state}`;
-  console.log(`[urban-gpt] County fallback ACS URL: ${url}`);
 
   try {
     const res = await fetchWithTimeout(url, {}, 8000);
-    console.log(`[urban-gpt] County ACS status: ${res.status}`);
     const text = await res.text();
-    console.log(`[urban-gpt] County ACS raw (first 400): ${text.slice(0, 400)}`);
 
     const json = JSON.parse(text) as string[][];
     if (!Array.isArray(json) || json.length < 2) return { ...CENSUS_EMPTY, tractName };
@@ -522,7 +502,6 @@ async function fetchOverpassData(
   async function runQuery(category: string, query: string): Promise<OverpassPoint[]> {
     for (const endpoint of OVERPASS_ENDPOINTS) {
       try {
-        console.log(`[urban-gpt] Overpass ${category} → ${endpoint.includes('kumi') ? 'kumi' : 'main'}`);
         const res = await fetchWithTimeout(endpoint, fetchOptions(query), 20000);
         if (!res.ok) {
           console.warn(`[urban-gpt] Overpass ${category}: HTTP ${res.status}`);
@@ -546,7 +525,6 @@ async function fetchOverpassData(
           points.push({ id: el.id, lat: elLat, lon: elLon, name: el.tags?.name ?? "" });
           if (points.length >= OVERPASS_CAP) break;
         }
-        console.log(`[urban-gpt] Overpass ${category}: ${points.length} points`);
         return points;
       } catch (err) {
         console.error(`[urban-gpt] Overpass ${category} @ ${endpoint}: ${(err as Error).message}`);
@@ -554,8 +532,6 @@ async function fetchOverpassData(
     }
     throw new Error(`All Overpass endpoints failed for ${category}`);
   }
-
-  console.log(`[urban-gpt] Overpass parallel queries radius=${R}m (capped=${radiusCapped})`);
 
   const [transitRes, parksRes, diningRes, schoolsRes, healthRes] = await Promise.allSettled([
     runQuery('transit', queries.transit),
@@ -579,11 +555,6 @@ async function fetchOverpassData(
   const restaurants = getOrEmpty(diningRes,  'dining');
   const schools     = getOrEmpty(schoolsRes, 'schools');
   const hospitals   = getOrEmpty(healthRes,  'health');
-
-  console.log(
-    `[urban-gpt] Overpass done: t=${transit.length} p=${parks.length} r=${restaurants.length}` +
-    ` s=${schools.length} h=${hospitals.length} timedOut=[${timedOutCategories.join(',')}]`
-  );
 
   return {
     data: {
@@ -713,9 +684,6 @@ async function fetchAIInsights(
     computedIndicators: indicators,
   };
 
-  console.log(`[urban-gpt] Claude input — hasDemographics=${Object.keys(demographics).length > 0} hasHousing=${Object.keys(housing).length > 0} hasClimate=${Object.keys(climate).length > 0}`);
-  console.log(`[urban-gpt] Sending to Claude:\n${JSON.stringify(siteData, null, 2)}`);
-
   try {
     const message = await client.messages.create({
       model: "claude-sonnet-4-6",
@@ -724,7 +692,6 @@ async function fetchAIInsights(
       messages: [{ role: "user", content: `Analyze this site:\n\n${JSON.stringify(siteData, null, 2)}` }],
     });
 
-    console.log('CLAUDE RESPONSE:', JSON.stringify(message));
     const textBlock = message.content.find((b) => b.type === "text");
     if (!textBlock || textBlock.type !== "text") {
       console.error(`[urban-gpt] Claude returned no text block. Full content:`, JSON.stringify(message.content));
@@ -735,8 +702,6 @@ async function fetchAIInsights(
       .replace(/^```(?:json)?\s*/i, "")
       .replace(/\s*```$/, "")
       .trim();
-    console.log(`[urban-gpt] Claude raw response (first 600): ${raw.slice(0, 600)}`);
-
     try {
       return JSON.parse(raw) as AIInsights;
     } catch (parseErr) {
@@ -777,11 +742,8 @@ export async function POST(request: Request) {
     const cacheKey = `${address}:${radiusM}`;
     const cached = cache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
-      console.log(`[urban-gpt] Cache HIT for "${cacheKey}"`);
       return Response.json(cached.result);
     }
-
-    console.log(`[urban-gpt] POST → address="${address}" lat=${lat} lng=${lng} radius=${radiusM}m unit=${unit}`);
 
     const [censusRes, overpassRes, tempRes] = await Promise.allSettled([
       fetchCensusData(lat, lng),

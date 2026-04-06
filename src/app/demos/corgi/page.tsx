@@ -3,8 +3,9 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import ThemeToggle, { MY_STYLE, type PageColors } from "@/components/ThemeToggle";
 
-// recharts — loaded client-side only (uses window)
+// recharts loaded client-side only (uses window)
 const BarChart     = dynamic(() => import("recharts").then(m => m.BarChart),     { ssr: false });
 const Bar          = dynamic(() => import("recharts").then(m => m.Bar),          { ssr: false });
 const XAxis        = dynamic(() => import("recharts").then(m => m.XAxis),        { ssr: false });
@@ -198,12 +199,12 @@ function computeRiskScore(meanShift: number, varianceChangePct: number, overlapP
     [0.00,   0], [0.05,  10], [0.10,  25], [0.20,  50], [0.35,  75], [0.50, 100],
   ]);
 
-  // Variance Change component (0–100 sub-score, weight 30%) — uses absolute %
+  // Variance Change component (0-100 sub-score, weight 30%), uses absolute %
   const varianceSub = piecewise(Math.abs(varianceChangePct), [
     [0,    0], [25,  10], [75,  30], [150,  60], [250, 100],
   ]);
 
-  // Overlap component (0–100 sub-score, weight 30%) — inverted: less overlap = higher risk
+  // Overlap component (0-100 sub-score, weight 30%), inverted: less overlap = higher risk
   const overlapSub = piecewise(overlapPct, [
     [0,   100], [10,   60], [30,  30], [60,  10], [100,   0],
   ]);
@@ -294,6 +295,23 @@ function LoadingSteps({ steps }: { steps: { text: string; error?: boolean }[] })
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function CorgiPage() {
+  // ── Theme
+  const [theme, setTheme] = useState<"my" | "company">("my");
+  const COMPANY_STYLE: PageColors = {
+    bg: "#f9fafb",
+    cardBg: "#ffffff",
+    cardBorder: "#e5e7eb",
+    text: "#111827",
+    muted: "#6b7280",
+    dim: "#9ca3af",
+    accent: "#d97706",
+    accentBg: "rgba(217,119,6,0.08)",
+    headerBg: "#1a2744",
+    headerBorder: "#2a3754",
+    headerText: "#ffffff",
+  };
+  const C = theme === "my" ? MY_STYLE : COMPANY_STYLE;
+
   // ── Form state
   const [companyName,   setCompanyName]   = useState("");
   const [modelType,     setModelType]     = useState<ModelType>("Credit Scoring");
@@ -348,7 +366,7 @@ export default function CorgiPage() {
     await delay(350);  addStep("Computing distribution shift metrics…");
     await delay(350);  addStep("Scoring liability risk delta…");
 
-    // All math is synchronous — do it here
+    // All math is synchronous, do it here
     const m = computeAllMetrics(t0, t1);
     setMetrics(m);
     setPageState("results");
@@ -401,56 +419,174 @@ export default function CorgiPage() {
   const band = metrics ? riskBand(metrics.riskDeltaScore) : null;
 
   return (
-    <div className="min-h-screen bg-[#f9fafb] font-sans">
+    <div className="min-h-screen font-sans" style={{ backgroundColor: C.bg }}>
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <header className="bg-[#1a2744] text-white">
+      <header style={{ backgroundColor: C.headerBg, borderBottomColor: C.headerBorder }}>
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-xl font-bold tracking-tight">🐕 Corgi Insurance</span>
+              <span className="text-xl font-bold tracking-tight" style={{ color: C.headerText }}>🐕 Corgi Insurance</span>
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#d97706]/20 text-[#fbbf24] border border-[#d97706]/20">
-                AI Model Risk Monitor · Powered by Claude
+                AI Model Risk Monitor
               </span>
             </div>
-            <p className="text-xs text-[#94a3b8] leading-relaxed max-w-2xl">
+            <p className="text-xs leading-relaxed max-w-2xl" style={{ color: theme === "my" ? C.muted : "#94a3b8" }}>
               As your AI model&apos;s outputs drift over time, your liability exposure changes. This tool detects distribution shifts using
               density-based clustering, scores your risk delta, and recommends whether your AI Liability coverage needs to be updated.
             </p>
           </div>
-          <div className="text-right shrink-0">
-            <p className="text-[10px] text-[#64748b]">Demo by</p>
-            <Link href="/" className="text-xs text-[#fbbf24] hover:underline">Armaan Kazi</Link>
+          <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+            <span className="text-xs" style={{ color: theme === "my" ? C.muted : "#fbbf24" }}>
+              Demo by{" "}
+              <Link href="/" className="hover:underline" style={{ color: theme === "my" ? C.accent : "#fbbf24" }}>Armaan Kazi</Link>
+            </span>
+            <ThemeToggle theme={theme} onChange={setTheme} companyAccent={COMPANY_STYLE.accent} darkContext={theme === "company"} />
           </div>
         </div>
       </header>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
 
+        {/* ── Back link ─────────────────────────────────────────────────────── */}
+        <Link href="/demos" className="text-xs text-gray-500 hover:text-gray-700 transition-colors mb-8 inline-block">← Back to Demos</Link>
+
+        {/* ── Section A: What Corgi does today ──────────────────────────────── */}
+        <section className="mb-10">
+          <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: C.dim }}>What Corgi does today</p>
+          <p className="text-sm leading-relaxed mb-6" style={{ color: C.muted }}>
+            Corgi is an AI liability insurance provider. Today, a policy is issued at a fixed coverage limit ($1M, $2M, $5M) and reviewed at renewal time, typically annually. There is no mechanism to detect if the AI model being insured has drifted since the policy was written.
+          </p>
+
+          {/* Today vs With Demo */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <div className="rounded-xl border p-5" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
+              <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: C.dim }}>Today</p>
+              <ul className="space-y-2">
+                {["Policy issued", "Fixed limit", "Annual renewal"].map((item) => (
+                  <li key={item} className="flex items-center gap-2 text-sm" style={{ color: C.muted }}>
+                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: C.dim }} />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-xl border p-5" style={{ backgroundColor: C.cardBg, borderColor: C.accent + "50" }}>
+              <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: C.accent }}>With This Demo</p>
+              <ul className="space-y-2">
+                {["Model outputs sampled", "Drift scored", "Coverage recommendation triggered"].map((item) => (
+                  <li key={item} className="flex items-center gap-2 text-sm" style={{ color: C.muted }}>
+                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: C.accent }} />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* Comparison table */}
+          <div className="rounded-xl overflow-x-auto" style={{ border: `1px solid ${C.cardBorder}` }}>
+            <div style={{ minWidth: 480 }}>
+              <div className="grid grid-cols-3 px-4 py-2" style={{ backgroundColor: C.bg }}>
+                <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.dim }}></span>
+                <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.dim }}>Today</span>
+                <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.accent }}>With Demo</span>
+              </div>
+              {[
+                ["When coverage is reviewed", "At annual renewal", "Whenever model outputs drift significantly"],
+                ["What triggers re-evaluation", "Calendar date", "Statistical deviation in model output distribution"],
+                ["Risk signal", "None between renewals", "Piecewise risk delta score (0–100)"],
+              ].map(([label, today, demo], i) => (
+                <div key={label} className="grid grid-cols-3 px-4 py-3" style={{ backgroundColor: i % 2 === 1 ? C.bg : C.cardBg }}>
+                  <span className="text-xs font-medium pr-2" style={{ color: C.text }}>{label}</span>
+                  <span className="text-xs pr-2" style={{ color: C.muted }}>{today}</span>
+                  <span className="text-xs font-medium pr-2" style={{ color: C.accent }}>{demo}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Section B: What this demo adds ────────────────────────────────── */}
+        <section className="mb-10">
+          <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: C.dim }}>What this demo adds</p>
+          <p className="text-sm leading-relaxed mb-4" style={{ color: C.muted }}>
+            The AI Model Risk Monitor samples your model&apos;s historical outputs, detects distribution shift using density-based clustering, and produces a risk delta score. That score maps directly to a coverage tier recommendation without waiting for a renewal date.
+          </p>
+          <div className="rounded-xl px-5 py-4" style={{ borderWidth: 1, borderStyle: "solid", borderColor: C.accent + "50", backgroundColor: C.accent + "0d" }}>
+            <p className="text-sm leading-relaxed" style={{ color: C.text }}>
+              &ldquo;This is the difference between coverage that reflects the policy you signed and coverage that reflects the model you&apos;re running today.&rdquo;
+            </p>
+          </div>
+        </section>
+
+        {/* ── Section C: Why it's better ────────────────────────────────────── */}
+        <section className="mb-10">
+          <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: C.dim }}>Why it&apos;s better</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            {[
+              {
+                title: "Catches drift before claims do",
+                body: "Traditional AI liability policies are priced on the model's behavior at issuance. If the model drifts (outputs become more variable, a secondary cluster appears) the insurer doesn't know until something goes wrong. This demo surfaces that signal first.",
+              },
+              {
+                title: "Risk score tied to real metrics",
+                body: "The risk delta score is computed from mean shift, variance change, IQR overlap, and cluster analysis, not a questionnaire. It reflects what the model is actually doing.",
+              },
+              {
+                title: "Coverage tiers follow behavior",
+                body: "Rather than one-size-fits-all limits, this system maps risk levels to specific tier increases: Low stays, Moderate gets +1 tier, Critical gets +2 tiers. The recommendation is bounded and explainable.",
+              },
+            ].map(({ title, body }) => (
+              <div key={title} className="rounded-xl border p-5" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: C.accent }} />
+                  <p className="text-xs font-semibold" style={{ color: C.text }}>{title}</p>
+                </div>
+                <p className="text-xs leading-relaxed" style={{ color: C.muted }}>{body}</p>
+              </div>
+            ))}
+          </div>
+          <div className="rounded-xl border px-5 py-4" style={{ backgroundColor: C.bg, borderColor: C.cardBorder }}>
+            <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: C.dim }}>Why This Is Different</p>
+            <p className="text-sm leading-relaxed" style={{ color: C.muted }}>
+              Every other AI liability product prices at issuance and waits for renewal. This one watches the model.
+            </p>
+          </div>
+        </section>
+
+        {/* ── Section D: Try it label ────────────────────────────────────────── */}
+        <div className="mb-6">
+          <h2 className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: C.dim }}>Try it</h2>
+          <p className="text-sm leading-relaxed" style={{ color: C.muted }}>Enter your company context and paste two sets of model outputs (baseline and recent) to generate a drift analysis and coverage recommendation.</p>
+        </div>
+
         {/* ── INPUT ─────────────────────────────────────────────────────────── */}
         {pageState === "input" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
             {/* Left: company context */}
-            <div className="bg-white rounded-2xl border border-[#e5e7eb] shadow-sm p-6 space-y-4">
-              <h2 className="text-xs font-semibold uppercase tracking-widest text-[#6b7280]">Company Context</h2>
+            <div className="rounded-2xl border shadow-sm p-6 space-y-4" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
+              <h2 className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.muted }}>Company Context</h2>
 
               <div>
-                <label className="block text-xs font-medium text-[#374151] mb-1.5">Company Name</label>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: C.text }}>Company Name</label>
                 <input
                   value={companyName}
                   onChange={e => setCompanyName(e.target.value)}
                   placeholder="e.g. Acme FinTech"
-                  className="w-full px-3 py-2.5 text-sm rounded-lg border border-[#e5e7eb] text-[#111827] placeholder:text-[#9ca3af] focus:outline-none focus:border-[#d97706] transition-colors"
+                  className="w-full px-3 py-2.5 text-sm rounded-lg border placeholder:text-[#9ca3af] focus:outline-none transition-colors"
+                  style={{ borderColor: C.cardBorder, color: C.text, backgroundColor: C.cardBg }}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[#374151] mb-1.5">AI Model Type</label>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: C.text }}>AI Model Type</label>
                 <select
                   value={modelType}
                   onChange={e => setModelType(e.target.value as ModelType)}
-                  className="w-full px-3 py-2.5 text-sm rounded-lg border border-[#e5e7eb] text-[#111827] bg-white focus:outline-none focus:border-[#d97706] transition-colors"
+                  className="w-full px-3 py-2.5 text-sm rounded-lg border focus:outline-none transition-colors"
+                  style={{ borderColor: C.cardBorder, color: C.text, backgroundColor: C.cardBg }}
                 >
                   {["Credit Scoring", "Content Moderation", "Fraud Detection", "Recommendation Engine", "Other"].map(t => (
                     <option key={t}>{t}</option>
@@ -459,22 +595,24 @@ export default function CorgiPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[#374151] mb-1.5">Current AI Liability Coverage</label>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: C.text }}>Current AI Liability Coverage</label>
                 <select
                   value={coverage}
                   onChange={e => setCoverage(e.target.value as CoverageLimit)}
-                  className="w-full px-3 py-2.5 text-sm rounded-lg border border-[#e5e7eb] text-[#111827] bg-white focus:outline-none focus:border-[#d97706] transition-colors"
+                  className="w-full px-3 py-2.5 text-sm rounded-lg border focus:outline-none transition-colors"
+                  style={{ borderColor: C.cardBorder, color: C.text, backgroundColor: C.cardBg }}
                 >
                   {["$500K", "$1M", "$2M", "$5M", "$10M"].map(v => <option key={v}>{v}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[#374151] mb-1.5">Funding Stage</label>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: C.text }}>Funding Stage</label>
                 <select
                   value={fundingStage}
                   onChange={e => setFundingStage(e.target.value as FundingStage)}
-                  className="w-full px-3 py-2.5 text-sm rounded-lg border border-[#e5e7eb] text-[#111827] bg-white focus:outline-none focus:border-[#d97706] transition-colors"
+                  className="w-full px-3 py-2.5 text-sm rounded-lg border focus:outline-none transition-colors"
+                  style={{ borderColor: C.cardBorder, color: C.text, backgroundColor: C.cardBg }}
                 >
                   {["Pre-Seed", "Seed", "Series A", "Series B", "Growth"].map(v => <option key={v}>{v}</option>)}
                 </select>
@@ -482,40 +620,43 @@ export default function CorgiPage() {
             </div>
 
             {/* Right: model output data */}
-            <div className="bg-white rounded-2xl border border-[#e5e7eb] shadow-sm p-6 space-y-4">
+            <div className="rounded-2xl border shadow-sm p-6 space-y-4" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
               <div className="flex items-center justify-between">
-                <h2 className="text-xs font-semibold uppercase tracking-widest text-[#6b7280]">Model Output Data</h2>
+                <h2 className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.muted }}>Model Output Data</h2>
                 <button
                   onClick={loadSample}
-                  className="text-xs px-3 py-1.5 rounded-lg border border-[#d97706]/40 text-[#d97706] hover:bg-[#d97706]/5 transition-colors font-medium"
+                  className="text-xs px-3 py-1.5 rounded-lg border transition-colors font-medium"
+                  style={{ borderColor: C.accent + "66", color: C.accent }}
                 >
                   Load Sample Data
                 </button>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[#374151] mb-1.5">
-                  Baseline Outputs (T0) — your stable reference period
+                <label className="block text-xs font-medium mb-1.5" style={{ color: C.text }}>
+                  Baseline Outputs (T0): your stable reference period
                 </label>
                 <textarea
                   value={t0Raw}
                   onChange={e => { setT0Raw(e.target.value); setFormError(""); }}
                   rows={5}
                   placeholder="For best results, paste 25–50 comma-separated values (0–1 range). Example: 0.82, 0.76, 0.91, 0.88, 0.45..."
-                  className="w-full px-3 py-2.5 text-sm rounded-lg border border-[#e5e7eb] text-[#111827] placeholder:text-[#9ca3af] focus:outline-none focus:border-[#d97706] transition-colors resize-none font-mono"
+                  className="w-full px-3 py-2.5 text-sm rounded-lg border placeholder:text-[#9ca3af] focus:outline-none transition-colors resize-none font-mono"
+                  style={{ borderColor: C.cardBorder, color: C.text, backgroundColor: C.cardBg }}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[#374151] mb-1.5">
-                  Recent Outputs (T1) — your current period
+                <label className="block text-xs font-medium mb-1.5" style={{ color: C.text }}>
+                  Recent Outputs (T1): your current period
                 </label>
                 <textarea
                   value={t1Raw}
                   onChange={e => { setT1Raw(e.target.value); setFormError(""); }}
                   rows={5}
                   placeholder="For best results, paste 25–50 comma-separated values (0–1 range) from your most recent period."
-                  className="w-full px-3 py-2.5 text-sm rounded-lg border border-[#e5e7eb] text-[#111827] placeholder:text-[#9ca3af] focus:outline-none focus:border-[#d97706] transition-colors resize-none font-mono"
+                  className="w-full px-3 py-2.5 text-sm rounded-lg border placeholder:text-[#9ca3af] focus:outline-none transition-colors resize-none font-mono"
+                  style={{ borderColor: C.cardBorder, color: C.text, backgroundColor: C.cardBg }}
                 />
               </div>
 
@@ -526,7 +667,8 @@ export default function CorgiPage() {
               <button
                 onClick={handleAnalyze}
                 disabled={!t0Raw.trim() || !t1Raw.trim()}
-                className="w-full py-3 rounded-xl bg-[#d97706] text-white text-sm font-semibold hover:bg-[#b45309] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                style={{ backgroundColor: C.accent }}
               >
                 Analyze Model Risk →
               </button>
@@ -537,10 +679,10 @@ export default function CorgiPage() {
         {/* ── LOADING ───────────────────────────────────────────────────────── */}
         {pageState === "loading" && (
           <div className="max-w-2xl mx-auto">
-            <div className="bg-white rounded-2xl border border-[#e5e7eb] shadow-sm p-6 sm:p-8">
+            <div className="rounded-2xl border shadow-sm p-6 sm:p-8" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-4 h-4 rounded-full border-2 border-[#d97706]/20 border-t-[#d97706] animate-spin" />
-                <h2 className="text-sm font-semibold text-[#1a2744]">Running drift analysis…</h2>
+                <div className="w-4 h-4 rounded-full border-2 animate-spin" style={{ borderColor: C.accent + "33", borderTopColor: C.accent }} />
+                <h2 className="text-sm font-semibold" style={{ color: C.text }}>Running drift analysis…</h2>
               </div>
               <LoadingSteps steps={steps} />
               <div ref={stepsEndRef} />
@@ -554,15 +696,15 @@ export default function CorgiPage() {
 
             {/* Ongoing steps strip */}
             {(recsLoading || recsError) && (
-              <div className="bg-white rounded-xl border border-[#e5e7eb] px-5 py-3">
+              <div className="rounded-xl border px-5 py-3" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
                 <div className="space-y-1">
                   {steps.slice(-2).map((s, i) => (
-                    <div key={i} className={`flex items-center gap-2 text-xs ${s.error ? "text-amber-600" : "text-[#6b7280]"}`}>
+                    <div key={i} className={`flex items-center gap-2 text-xs ${s.error ? "text-amber-600" : ""}`} style={s.error ? {} : { color: C.muted }}>
                       <span>{s.error ? "⚠" : "✓"}</span><span>{s.text}</span>
                     </div>
                   ))}
                   {recsLoading && (
-                    <div className="flex items-center gap-2 text-xs text-[#9ca3af]">
+                    <div className="flex items-center gap-2 text-xs" style={{ color: C.dim }}>
                       <div className="w-3 h-3 rounded-full border-2 border-[#9ca3af]/30 border-t-[#9ca3af] animate-spin" />
                       <span>Generating coverage recommendations…</span>
                     </div>
@@ -572,17 +714,17 @@ export default function CorgiPage() {
             )}
 
             {/* ── 1. Drift Histogram ── */}
-            <div className="bg-white rounded-2xl border border-[#e5e7eb] shadow-sm p-6 sm:p-8">
-              <h3 className="text-xs font-semibold uppercase tracking-widest text-[#6b7280] mb-1">
+            <div className="rounded-2xl border shadow-sm p-6 sm:p-8" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
+              <h3 className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: C.muted }}>
                 Output Distribution Shift
               </h3>
-              <p className="text-xs text-[#9ca3af] mb-5">
+              <p className="text-xs mb-5" style={{ color: C.dim }}>
                 Mean shifted from <span className="font-semibold text-[#374151]">{metrics.t0Mean}</span> →{" "}
                 <span className="font-semibold" style={{ color: band.color }}>{metrics.t1Mean}</span>{" "}
                 ({metrics.t1Mean < metrics.t0Mean ? "−" : "+"}{metrics.meanShift.toFixed(3)})
               </p>
 
-              <div className="h-56">
+              <div className="h-56" style={{ width: "100%", overflowX: "hidden" }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={metrics.histogramData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
@@ -602,24 +744,24 @@ export default function CorgiPage() {
               </div>
 
               {/* Metric stat cards */}
-              <div className="grid grid-cols-3 gap-3 mt-5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">
                 {[
                   { label: "Mean Shift",         value: metrics.meanShift.toFixed(3),                          sub: "absolute Δ in output mean" },
                   { label: "Variance Change",     value: `${metrics.varianceChangePct > 0 ? "+" : ""}${metrics.varianceChangePct.toFixed(1)}%`, sub: "std deviation change" },
                   { label: "Distribution Overlap",value: `${metrics.overlapPct.toFixed(1)}%`,                  sub: "T1 values within T0 IQR" },
                 ].map(s => (
-                  <div key={s.label} className="rounded-xl border border-[#e5e7eb] bg-[#f9fafb] p-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-[#9ca3af] mb-0.5">{s.label}</p>
-                    <p className="text-lg font-bold text-[#1a2744]">{s.value}</p>
-                    <p className="text-[10px] text-[#9ca3af]">{s.sub}</p>
+                  <div key={s.label} className="rounded-xl border p-3" style={{ backgroundColor: C.bg, borderColor: C.cardBorder }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest mb-0.5" style={{ color: C.dim }}>{s.label}</p>
+                    <p className="text-lg font-bold" style={{ color: C.text }}>{s.value}</p>
+                    <p className="text-[10px]" style={{ color: C.dim }}>{s.sub}</p>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* ── 2. Cluster Analysis ── */}
-            <div className="bg-white rounded-2xl border border-[#e5e7eb] shadow-sm p-6 sm:p-8">
-              <h3 className="text-xs font-semibold uppercase tracking-widest text-[#6b7280] mb-4">
+            <div className="rounded-2xl border shadow-sm p-6 sm:p-8" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
+              <h3 className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: C.muted }}>
                 Density-Based Cluster Analysis
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -659,7 +801,7 @@ export default function CorgiPage() {
                     <p className="text-sm font-semibold text-red-800">Bimodal Output Behavior Detected</p>
                     <p className="text-xs text-red-700 mt-0.5 leading-relaxed">
                       A secondary cluster has emerged in your recent outputs, indicating your model is producing two distinct groups of predictions.
-                      This is a major liability red flag — bimodal outputs often signal algorithmic bias or systematic errors affecting a subpopulation.
+                      This is a major liability red flag. Bimodal outputs often signal algorithmic bias or systematic errors affecting a subpopulation.
                     </p>
                   </div>
                 </div>
@@ -667,8 +809,8 @@ export default function CorgiPage() {
             </div>
 
             {/* ── 3. Risk Delta Scorecard ── */}
-            <div className="bg-white rounded-2xl border border-[#e5e7eb] shadow-sm p-6 sm:p-8">
-              <h3 className="text-xs font-semibold uppercase tracking-widest text-[#6b7280] mb-5">
+            <div className="rounded-2xl border shadow-sm p-6 sm:p-8" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
+              <h3 className="text-xs font-semibold uppercase tracking-widest mb-5" style={{ color: C.muted }}>
                 Risk Delta Scorecard
               </h3>
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
@@ -687,12 +829,12 @@ export default function CorgiPage() {
                     },
                     {
                       label: "Recommended Coverage Review",
-                      value: metrics.riskDeltaScore > 25 ? "Yes — review advised" : "No — within normal range",
+                      value: metrics.riskDeltaScore > 25 ? "Yes: review advised" : "No: within normal range",
                       color: metrics.riskDeltaScore > 25 ? "#ea580c" : "#16a34a",
                     },
                   ].map(item => (
-                    <div key={item.label} className="flex items-center justify-between rounded-xl border border-[#e5e7eb] bg-[#f9fafb] px-4 py-3">
-                      <span className="text-xs font-medium text-[#6b7280]">{item.label}</span>
+                    <div key={item.label} className="flex items-center justify-between rounded-xl border px-4 py-3" style={{ backgroundColor: C.bg, borderColor: C.cardBorder }}>
+                      <span className="text-xs font-medium" style={{ color: C.muted }}>{item.label}</span>
                       <span className="text-sm font-bold" style={{ color: item.color }}>{item.value}</span>
                     </div>
                   ))}
@@ -715,21 +857,20 @@ export default function CorgiPage() {
             </div>
 
             {/* ── 4. Claude Recommendations ── */}
-            <div className="rounded-2xl bg-[#1a2744] p-6 sm:p-8">
+            <div className="rounded-2xl p-6 sm:p-8" style={{ backgroundColor: C.headerBg }}>
               <div className="mb-5">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-[#fbbf24] mb-1">Powered by Claude</p>
-                <h3 className="text-xl font-bold text-white">Coverage Analysis</h3>
+                <h3 className="text-xl font-bold" style={{ color: C.headerText }}>Coverage Analysis</h3>
               </div>
 
               {recsLoading && !recs && (
                 <div className="flex items-center gap-3 py-4">
-                  <div className="w-4 h-4 rounded-full border-2 border-[#fbbf24]/30 border-t-[#fbbf24] animate-spin" />
-                  <span className="text-sm text-[#94a3b8]">Analyzing coverage against drift metrics…</span>
+                  <div className="w-4 h-4 rounded-full border-2 animate-spin" style={{ borderColor: C.accent + "4d", borderTopColor: C.accent }} />
+                  <span className="text-sm" style={{ color: theme === "my" ? C.muted : "#94a3b8" }}>Analyzing coverage against drift metrics…</span>
                 </div>
               )}
 
               {recsError && (
-                <div className="rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-[#94a3b8]">
+                <div className="rounded-xl border px-4 py-3 text-sm" style={{ backgroundColor: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.10)", color: theme === "my" ? C.muted : "#94a3b8" }}>
                   {recsError}
                 </div>
               )}
@@ -738,20 +879,20 @@ export default function CorgiPage() {
                 <div className="space-y-5">
                   {/* Coverage banner */}
                   <div className={`rounded-xl px-4 py-3 border ${recs.current_coverage_adequate ? "bg-green-900/30 border-green-700/30" : "bg-amber-900/30 border-amber-600/30"}`}>
-                    <p className="text-sm font-semibold text-white">
+                    <p className="text-sm font-semibold" style={{ color: C.headerText }}>
                       {recs.current_coverage_adequate
                         ? `✅ Current coverage (${coverage}) appears adequate given detected drift levels.`
-                        : `⚠️ Coverage Gap Detected — Recommend increasing from ${coverage} to ${recs.recommended_coverage_limit}`}
+                        : `⚠️ Coverage Gap Detected. Recommend increasing from ${coverage} to ${recs.recommended_coverage_limit}`}
                     </p>
                   </div>
 
                   {/* Risk factors */}
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-[#60a5fa] mb-3">Risk Factors Identified</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: theme === "my" ? C.accent : "#60a5fa" }}>Risk Factors Identified</p>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       {recs.risk_factors.map((f, i) => (
-                        <div key={i} className="rounded-xl bg-white/[0.06] border border-white/10 p-3">
-                          <p className="text-xs text-[#cbd5e1] leading-relaxed">{f}</p>
+                        <div key={i} className="rounded-xl border p-3" style={{ backgroundColor: theme === "my" ? C.bg : "rgba(255,255,255,0.06)", borderColor: theme === "my" ? C.cardBorder : "rgba(255,255,255,0.10)" }}>
+                          <p className="text-xs leading-relaxed" style={{ color: theme === "my" ? C.muted : "#cbd5e1" }}>{f}</p>
                         </div>
                       ))}
                     </div>
@@ -759,19 +900,19 @@ export default function CorgiPage() {
 
                   {/* Recommendations */}
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-[#60a5fa] mb-3">Recommended Actions</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: theme === "my" ? C.accent : "#60a5fa" }}>Recommended Actions</p>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       {recs.recommendations.map((r, i) => {
                         const urg = URGENCY_STYLES[r.urgency] ?? URGENCY_STYLES.Medium;
                         return (
-                          <div key={i} className="rounded-xl bg-white/[0.06] border border-white/10 p-4">
+                          <div key={i} className="rounded-xl border p-4" style={{ backgroundColor: theme === "my" ? C.bg : "rgba(255,255,255,0.06)", borderColor: theme === "my" ? C.cardBorder : "rgba(255,255,255,0.10)" }}>
                             <div className="flex items-start justify-between gap-2 mb-2">
-                              <h4 className="text-xs font-semibold text-white leading-snug">{r.title}</h4>
+                              <h4 className="text-xs font-semibold leading-snug" style={{ color: C.headerText }}>{r.title}</h4>
                               <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ color: urg.color, backgroundColor: urg.bg }}>
                                 {r.urgency}
                               </span>
                             </div>
-                            <p className="text-[11px] text-[#cbd5e1] leading-relaxed">{r.explanation}</p>
+                            <p className="text-[11px] leading-relaxed" style={{ color: theme === "my" ? C.muted : "#cbd5e1" }}>{r.explanation}</p>
                           </div>
                         );
                       })}
@@ -779,48 +920,50 @@ export default function CorgiPage() {
                   </div>
 
                   {/* Regulatory note */}
-                  <div className="flex items-start gap-2 rounded-xl bg-white/[0.04] border border-white/10 px-3 py-2.5">
+                  <div className="flex items-start gap-2 rounded-xl border px-3 py-2.5" style={{ backgroundColor: theme === "my" ? C.bg : "rgba(255,255,255,0.04)", borderColor: theme === "my" ? C.cardBorder : "rgba(255,255,255,0.10)" }}>
                     <span className="text-sm shrink-0">⚖️</span>
-                    <p className="text-[11px] text-[#94a3b8] leading-relaxed">{recs.regulatory_note}</p>
+                    <p className="text-[11px] leading-relaxed" style={{ color: theme === "my" ? C.dim : "#94a3b8" }}>{recs.regulatory_note}</p>
                   </div>
                 </div>
               )}
             </div>
 
             {/* ── 5. Corgi CTA ── */}
-            <div className="rounded-2xl border border-[#e5e7eb] bg-white p-6 text-center">
-              <p className="text-sm font-semibold text-[#1a2744] mb-2">Ready to update your AI Liability coverage?</p>
+            <div className="rounded-2xl border p-6 text-center" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
+              <p className="text-sm font-semibold mb-2" style={{ color: C.text }}>Ready to update your AI Liability coverage?</p>
               <a
                 href="https://corgi.insure"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-block px-5 py-2.5 rounded-xl bg-[#d97706] text-white text-sm font-semibold hover:bg-[#b45309] transition-colors mb-3"
+                className="inline-block px-5 py-2.5 rounded-xl text-white text-sm font-semibold transition-colors mb-3"
+                style={{ backgroundColor: C.accent }}
               >
                 Get a Quote on Corgi →
               </a>
-              <p className="text-xs text-[#9ca3af] max-w-md mx-auto leading-relaxed">
+              <p className="text-xs max-w-md mx-auto leading-relaxed" style={{ color: C.dim }}>
                 Corgi offers specialized AI liability coverage including algorithmic bias, hallucination risk, and IP infringement protection.
               </p>
             </div>
 
             {/* Disclaimer */}
-            <div className="rounded-xl bg-[#f3f4f6] border border-[#e5e7eb] px-5 py-4 space-y-1">
-              <p className="text-xs text-[#6b7280] leading-relaxed">
+            <div className="rounded-xl border px-5 py-4 space-y-1" style={{ backgroundColor: C.bg, borderColor: C.cardBorder }}>
+              <p className="text-xs leading-relaxed" style={{ color: C.muted }}>
                 This demo simulates model drift detection and risk scoring for illustrative purposes. Risk assessments are not actuarially derived
                 and should not be used as the basis for real insurance decisions.{" "}
-                <a href="https://corgi.insure" target="_blank" rel="noopener noreferrer" className="text-[#1a2744] underline hover:no-underline">
+                <a href="https://corgi.insure" target="_blank" rel="noopener noreferrer" className="underline hover:no-underline" style={{ color: C.text }}>
                   Visit corgi.insure
                 </a>{" "}
                 for production-grade AI liability coverage.
               </p>
-              <p className="text-[10px] text-[#9ca3af]">Built by Armaan Kazi as a portfolio demo. Not affiliated with Corgi Insurance.</p>
+              <p className="text-[10px]" style={{ color: C.dim }}>Built by Armaan Kazi as a portfolio demo. Not affiliated with Corgi Insurance.</p>
             </div>
 
             {/* Reset */}
             <div className="text-center pb-4">
               <button
                 onClick={handleReset}
-                className="px-6 py-2.5 rounded-xl border border-[#e5e7eb] bg-white text-sm font-medium text-[#374151] hover:border-[#d97706]/40 hover:text-[#d97706] transition-colors"
+                className="px-6 py-2.5 rounded-xl border text-sm font-medium transition-colors"
+                style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder, color: C.text }}
               >
                 ← Run New Analysis
               </button>
