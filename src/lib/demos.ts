@@ -65,6 +65,17 @@ export const demos: Record<string, DemoConfig> = {
     url: "/demos/wisprflow",
   },
 
+  // ── AthenaHQ - GEO Visibility Checker ──────────────────────────────────────
+  "athena-hq": {
+    company: "AthenaHQ",
+    role: "GEO · AI Search · Brand Intelligence",
+    accentColor: "#1a2744",
+    headline: "GEO Visibility Checker",
+    pitch: "Track how your brand appears in AI-generated search responses across industry prompts — and get actionable recommendations to improve your AI search presence.",
+    sections: [],
+    url: "/demos/athena-hq",
+  },
+
   // ── Example entry - test the full flow at /demos with password "demo123" ──
   "demo123": {
     company: "Acme Corp",

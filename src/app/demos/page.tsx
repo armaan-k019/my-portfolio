@@ -44,6 +44,13 @@ function PasswordScreen({ onUnlock }: { onUnlock: (config: DemoConfig, password:
       onUnlock(demos["wisprflow"]!, trimmed);
       return;
     }
+    // athena-hq demo
+    if (trimmed === "athenaHQ" || normalized === "athenahq") {
+      sessionStorage.setItem("demo_access", "athena-hq");
+      setError(false);
+      onUnlock(demos["athena-hq"]!, trimmed);
+      return;
+    }
     const config = demos[trimmed];
     if (config) {
       setError(false);
