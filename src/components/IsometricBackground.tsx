@@ -170,7 +170,7 @@ export default function IsometricBackground() {
 
     const GRID_SIZE = 60;
     const DRIFT_CYCLE = 40000;
-    const EDGE_COLOR = "rgba(45, 90, 39, 0.18)";
+    const EDGE_COLOR = "rgba(150, 135, 115, 0.3)";
 
     const forms: Form[] = [
       // Bottom-right: twisted prism (kept as-is)
@@ -181,10 +181,10 @@ export default function IsometricBackground() {
         rotOffset: 0,
         baseScale: 1.1,
       },
-      // Top-left: parametric curved ribbon, pushed off left edge
+      // Top-left: parametric curved ribbon, partially cropped
       {
         faces: parametricRibbon(),
-        cx: -0.06, cy: 0.38,
+        cx: 0.1, cy: 0.38,
         rotSpeed: (2 * Math.PI) / 75,
         rotOffset: Math.PI * 0.3,
         baseScale: 1.15,
@@ -203,11 +203,10 @@ export default function IsometricBackground() {
     function shadeFace(normal: Vec3): string {
       const d = dot(normal, normalize(LIGHT));
       const brightness = 0.35 + 0.65 * Math.max(0, d);
-      // Forest green palette: dark faces ~#1A2A1A, light faces ~#4A7A44
-      const r = Math.round(26 + 48 * brightness);
-      const g = Math.round(42 + 80 * brightness);
-      const b = Math.round(26 + 42 * brightness);
-      const alpha = 0.10 + 0.08 * brightness;
+      const r = Math.round(180 + 75 * brightness);
+      const g = Math.round(165 + 87 * brightness);
+      const b = Math.round(145 + 103 * brightness);
+      const alpha = 0.3 + 0.5 * brightness;
       return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
@@ -219,14 +218,14 @@ export default function IsometricBackground() {
       const w = canvas!.width;
       const h = canvas!.height;
 
-      // ── Layer 1: 2D grid ──
+      // ── Layer 1: 2D grid (70% opacity) ──
       const driftProgress = (time % DRIFT_CYCLE) / DRIFT_CYCLE;
       const driftX = -driftProgress * GRID_SIZE;
       const driftY = driftProgress * GRID_SIZE * 0.5;
 
       ctx!.save();
-      ctx!.globalAlpha = 0.35;
-      ctx!.strokeStyle = "rgba(45, 90, 39, 0.10)";
+      ctx!.globalAlpha = 0.70;
+      ctx!.strokeStyle = "rgba(150, 135, 115, 0.15)";
       ctx!.lineWidth = 0.5;
 
       const startX = (driftX % GRID_SIZE) - GRID_SIZE;
@@ -245,9 +244,9 @@ export default function IsometricBackground() {
       }
       ctx!.restore();
 
-      // ── Layer 2: 3D forms ──
+      // ── Layer 2: 3D forms (55% opacity) ──
       ctx!.save();
-      ctx!.globalAlpha = 0.25;
+      ctx!.globalAlpha = 0.55;
       const viewScale = Math.min(w, h) / 900;
       const speed = hoveredRef.current ? 0.5 : 1.0;
 
@@ -316,7 +315,7 @@ export default function IsometricBackground() {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 z-0 pointer-events-none hidden md:block"
+      className="fixed inset-0 z-0 pointer-events-none"
     />
   );
 }
