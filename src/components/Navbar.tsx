@@ -72,8 +72,8 @@ export default function Navbar() {
       <nav
         className="sticky top-0 z-50 backdrop-blur-md border-b"
         style={{
-          backgroundColor: "rgba(107, 143, 110, 0.12)",
-          borderBottomColor: "rgba(107, 143, 110, 0.25)",
+          backgroundColor: "rgba(45, 90, 39, 0.06)",
+          borderBottomColor: "rgba(45, 90, 39, 0.15)",
         }}
       >
         <div className="max-w-5xl mx-auto px-6 flex items-center justify-between h-16">

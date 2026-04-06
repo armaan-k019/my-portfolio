@@ -259,9 +259,9 @@ function sourceBadge(source: UnifiedEvent['source']): string {
 
 function CardSection({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
   return (
-    <div className="border-b border-[#2C1810]/[0.06]">
+    <div className="border-b border-[#1A2A1A]/[0.06]">
       <div className="px-4 pt-4 pb-2">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-[#9B8E85] flex items-center gap-1.5">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-[#7A9B7A] flex items-center gap-1.5">
           <span>{icon}</span>{title}
         </p>
       </div>
@@ -281,28 +281,28 @@ function LocationCard({ loc, onSelect, selected }: { loc: LocationData; onSelect
       onClick={() => onSelect(loc)}
       className={`w-full text-left px-3 py-2.5 rounded-xl border transition-colors group ${
         selected
-          ? 'bg-[#F5F0E8] border-[#2C1810]/20 ring-1 ring-[#2C1810]/10'
-          : 'bg-[#F5F0E8]/60 hover:bg-[#F5F0E8] border-[#2C1810]/[0.06]'
+          ? 'bg-[#EFEDE8] border-[#1A2A1A]/20 ring-1 ring-[#1A2A1A]/10'
+          : 'bg-[#EFEDE8]/60 hover:bg-[#EFEDE8] border-[#1A2A1A]/[0.06]'
       }`}
     >
       <div className="flex items-start justify-between gap-2 mb-1.5">
-        <span className="text-sm font-medium text-[#2C1810] flex items-center gap-1.5">
+        <span className="text-sm font-medium text-[#1A2A1A] flex items-center gap-1.5">
           <span className="text-base leading-none">{typeIcon(loc.type)}</span>
           {loc.name}
         </span>
         {loc.isOpen ? (
           <span className="text-[10px] font-semibold shrink-0 mt-0.5" style={{ color }}>{busynessLabel(loc.busyness)}</span>
         ) : (
-          <span className="text-[10px] font-semibold shrink-0 mt-0.5 text-[#9B8E85]">-</span>
+          <span className="text-[10px] font-semibold shrink-0 mt-0.5 text-[#7A9B7A]">-</span>
         )}
       </div>
 
       {/* Busyness bar */}
-      <div className="w-full h-1 rounded-full bg-[#2C1810]/[0.08] overflow-hidden mb-1.5">
+      <div className="w-full h-1 rounded-full bg-[#1A2A1A]/[0.08] overflow-hidden mb-1.5">
         <div className="h-full rounded-full transition-all duration-700" style={{ width: `${loc.busyness}%`, backgroundColor: color }} />
       </div>
 
-      <div className="flex items-center justify-between text-[10px] text-[#9B8E85]">
+      <div className="flex items-center justify-between text-[10px] text-[#7A9B7A]">
         <span>{loc.hoursToday ?? `Hours: ${loc.peakHours}`}</span>
         {loc.isOpen && wait && <span style={{ color: loc.busyness < 30 ? '#22c55e' : color }}>{wait}</span>}
       </div>
@@ -311,11 +311,11 @@ function LocationCard({ loc, onSelect, selected }: { loc: LocationData; onSelect
         <div className="mt-2 space-y-1">
           {loc.subScores.map(s => (
             <div key={s.label} className="flex items-center gap-2">
-              <span className="text-[10px] text-[#9B8E85] w-16 shrink-0">{s.label}</span>
-              <div className="flex-1 h-0.5 rounded-full bg-[#2C1810]/[0.08] overflow-hidden">
+              <span className="text-[10px] text-[#7A9B7A] w-16 shrink-0">{s.label}</span>
+              <div className="flex-1 h-0.5 rounded-full bg-[#1A2A1A]/[0.08] overflow-hidden">
                 <div className="h-full rounded-full" style={{ width: `${s.score}%`, backgroundColor: busynessHex(s.score) }} />
               </div>
-              <span className="text-[10px] text-[#9B8E85] w-6 text-right">{s.score}</span>
+              <span className="text-[10px] text-[#7A9B7A] w-6 text-right">{s.score}</span>
             </div>
           ))}
         </div>
@@ -326,10 +326,10 @@ function LocationCard({ loc, onSelect, selected }: { loc: LocationData; onSelect
 
 function SkeletonCard() {
   return (
-    <div className="w-full px-3 py-2.5 rounded-xl bg-[#F5F0E8]/60 border border-[#2C1810]/[0.06] animate-pulse">
-      <div className="h-3 bg-[#2C1810]/[0.07] rounded mb-2 w-3/4" />
-      <div className="h-1 bg-[#2C1810]/[0.05] rounded mb-2" />
-      <div className="h-2 bg-[#2C1810]/[0.05] rounded w-1/2" />
+    <div className="w-full px-3 py-2.5 rounded-xl bg-[#EFEDE8]/60 border border-[#1A2A1A]/[0.06] animate-pulse">
+      <div className="h-3 bg-[#1A2A1A]/[0.07] rounded mb-2 w-3/4" />
+      <div className="h-1 bg-[#1A2A1A]/[0.05] rounded mb-2" />
+      <div className="h-2 bg-[#1A2A1A]/[0.05] rounded w-1/2" />
     </div>
   );
 }
@@ -337,26 +337,26 @@ function SkeletonCard() {
 function UnifiedEventCard({ event }: { event: UnifiedEvent }) {
   const [expanded, setExpanded] = useState(false);
   return (
-    <div className="w-full px-3 py-2.5 rounded-xl bg-[#F5F0E8]/60 border border-[#2C1810]/[0.06]">
+    <div className="w-full px-3 py-2.5 rounded-xl bg-[#EFEDE8]/60 border border-[#1A2A1A]/[0.06]">
       <div className="flex items-start justify-between gap-2 mb-1">
-        <span className="text-sm font-medium text-[#2C1810] leading-snug">{event.title}</span>
+        <span className="text-sm font-medium text-[#1A2A1A] leading-snug">{event.title}</span>
         <span className={`text-[9px] shrink-0 mt-0.5 px-1.5 py-0.5 rounded-full capitalize ${eventTypeBadgeClass(event.type)}`}>
           {event.type}
         </span>
       </div>
-      <div className="text-[9px] text-[#9B8E85] mb-1">{event.organization} · {sourceBadge(event.source)}</div>
-      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-[#9B8E85] mb-1.5">
+      <div className="text-[9px] text-[#7A9B7A] mb-1">{event.organization} · {sourceBadge(event.source)}</div>
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-[#7A9B7A] mb-1.5">
         <span>📅 {event.date}</span>
         {event.time && <span>🕐 {event.time}</span>}
         {event.location && <span>📍 {event.location}</span>}
       </div>
       {expanded && (
-        <p className="text-[11px] text-[#6B5244] leading-relaxed mb-1.5">{event.description}</p>
+        <p className="text-[11px] text-[#4A6B4A] leading-relaxed mb-1.5">{event.description}</p>
       )}
       <div className="flex items-center gap-3">
         <button
           onClick={() => setExpanded(e => !e)}
-          className="text-[10px] text-[#9B8E85] hover:text-[#6B5244] transition-colors"
+          className="text-[10px] text-[#7A9B7A] hover:text-[#4A6B4A] transition-colors"
         >
           {expanded ? 'Less ▲' : 'More ▼'}
         </button>
@@ -417,14 +417,14 @@ function EventsTab({ events, eventsLoading, eventsError, failedSources, skippedS
   ];
 
   return (
-    <div className="border-b border-[#2C1810]/[0.06]">
+    <div className="border-b border-[#1A2A1A]/[0.06]">
       <div className="px-4 pt-4 pb-2">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-[#9B8E85] flex items-center gap-1.5">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-[#7A9B7A] flex items-center gap-1.5">
             <span>📅</span>Events
           </p>
           {minutesAgo !== null && (
-            <span className="text-[9px] text-[#9B8E85]/60">
+            <span className="text-[9px] text-[#7A9B7A]/60">
               Updated {minutesAgo === 0 ? 'just now' : `${minutesAgo}m ago`}
             </span>
           )}
@@ -460,8 +460,8 @@ function EventsTab({ events, eventsLoading, eventsError, failedSources, skippedS
               onClick={() => setFilter(f.key)}
               className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
                 filter === f.key
-                  ? 'bg-[#2C1810] text-white border-[#2C1810]'
-                  : 'text-[#9B8E85] border-[#2C1810]/[0.12] hover:border-[#2C1810]/30'
+                  ? 'bg-[#1A2A1A] text-white border-[#1A2A1A]'
+                  : 'text-[#7A9B7A] border-[#1A2A1A]/[0.12] hover:border-[#1A2A1A]/30'
               }`}
             >
               {f.label}
@@ -482,24 +482,24 @@ function EventsTab({ events, eventsLoading, eventsError, failedSources, skippedS
           </>
         ) : eventsError ? (
           <div className="px-1 py-2 space-y-2">
-            <p className="text-[11px] text-[#9B8E85] italic">Could not load events — tap to retry</p>
+            <p className="text-[11px] text-[#7A9B7A] italic">Could not load events — tap to retry</p>
             <button
               onClick={onRetryEvents}
-              className="text-[10px] px-3 py-1.5 rounded-lg bg-[#2C1810]/[0.06] hover:bg-[#2C1810]/[0.12] text-[#6B5244] transition-colors"
+              className="text-[10px] px-3 py-1.5 rounded-lg bg-[#1A2A1A]/[0.06] hover:bg-[#1A2A1A]/[0.12] text-[#4A6B4A] transition-colors"
             >
               Retry
             </button>
           </div>
         ) : filtered.length === 0 ? (
-          <p className="text-[11px] text-[#9B8E85] italic px-1 py-1">No events found.</p>
+          <p className="text-[11px] text-[#7A9B7A] italic px-1 py-1">No events found.</p>
         ) : (
           filtered.map((e, i) => <UnifiedEventCard key={i} event={e} />)
         )}
-        <p className="text-[8px] text-[#9B8E85]/50 px-1 pt-1">GT Involvement · Eventbrite · GT Registrar</p>
+        <p className="text-[8px] text-[#7A9B7A]/50 px-1 pt-1">GT Involvement · Eventbrite · GT Registrar</p>
         {/* Debug panel — remove once events are confirmed working */}
         {sourceDebug && (
-          <div className="mt-2 px-1 py-1.5 rounded-lg bg-[#2C1810]/[0.03] border border-[#2C1810]/[0.06]">
-            <p className="text-[8px] font-semibold text-[#9B8E85]/60 mb-1">Debug</p>
+          <div className="mt-2 px-1 py-1.5 rounded-lg bg-[#1A2A1A]/[0.03] border border-[#1A2A1A]/[0.06]">
+            <p className="text-[8px] font-semibold text-[#7A9B7A]/60 mb-1">Debug</p>
             {([
               { label: 'GT Involvement', key: 'involvement' },
               { label: 'Eventbrite',     key: 'eventbrite'  },
@@ -507,7 +507,7 @@ function EventsTab({ events, eventsLoading, eventsError, failedSources, skippedS
             ] as const).map(({ label, key }) => {
               const d = sourceDebug[key];
               return (
-                <p key={key} className="text-[8px] text-[#9B8E85]/50 leading-relaxed">
+                <p key={key} className="text-[8px] text-[#7A9B7A]/50 leading-relaxed">
                   {label}: {d.status === 'skipped' ? 'skipped — no key' : d.status === 'error' ? 'error' : `${d.count} event${d.count !== 1 ? 's' : ''}`}
                 </p>
               );
@@ -557,13 +557,13 @@ function SidebarContent({
   return (
     <>
       {/* Tab header */}
-      <div className="flex border-b border-[#2C1810]/[0.08] sticky top-0 bg-white z-10 shrink-0">
+      <div className="flex border-b border-[#1A2A1A]/[0.08] sticky top-0 bg-white z-10 shrink-0">
         <button
           onClick={() => onTabChange('campus')}
           className={`flex-1 py-2.5 text-[11px] font-semibold transition-colors ${
             activeTab === 'campus'
-              ? 'text-[#2C1810] border-b-2 border-[#2C1810]'
-              : 'text-[#9B8E85] hover:text-[#6B5244]'
+              ? 'text-[#1A2A1A] border-b-2 border-[#1A2A1A]'
+              : 'text-[#7A9B7A] hover:text-[#4A6B4A]'
           }`}
         >
           Campus
@@ -572,8 +572,8 @@ function SidebarContent({
           onClick={() => onTabChange('events')}
           className={`flex-1 py-2.5 text-[11px] font-semibold transition-colors ${
             activeTab === 'events'
-              ? 'text-[#2C1810] border-b-2 border-[#2C1810]'
-              : 'text-[#9B8E85] hover:text-[#6B5244]'
+              ? 'text-[#1A2A1A] border-b-2 border-[#1A2A1A]'
+              : 'text-[#7A9B7A] hover:text-[#4A6B4A]'
           }`}
         >
           Events
@@ -597,7 +597,7 @@ function SidebarContent({
             {academic.map(loc => <LocationCard key={loc.id} loc={loc} onSelect={onSelectLoc} selected={loc.id === selectedLocId} />)}
           </CardSection>
           <div className="px-4 pb-6 pt-2">
-            <p className="text-[10px] text-[#9B8E85]/70 leading-relaxed italic">
+            <p className="text-[10px] text-[#7A9B7A]/70 leading-relaxed italic">
               Pulse uses modeled crowd data based on class schedules and historical patterns.
               Bus locations are live. Dining and CRC busyness is estimated, not real-time sensor data.
             </p>
@@ -1296,41 +1296,41 @@ export default function PulsePage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="h-screen bg-[#F5F0E8] text-[#2C1810] flex flex-col font-sans overflow-hidden">
+    <div className="h-screen bg-[#EFEDE8] text-[#1A2A1A] flex flex-col font-sans overflow-hidden">
 
       {/* ── Top status bar ──────────────────────────────────────────────────── */}
-      <header className="flex items-center gap-3 px-4 py-2 bg-white border-b border-[#2C1810]/[0.08] text-xs select-none shrink-0 flex-wrap">
-        <Link href="/#projects" className="text-[#9B8E85] hover:text-[#6B5244] transition-colors mr-1">← Back</Link>
+      <header className="flex items-center gap-3 px-4 py-2 bg-white border-b border-[#1A2A1A]/[0.08] text-xs select-none shrink-0 flex-wrap">
+        <Link href="/#projects" className="text-[#7A9B7A] hover:text-[#4A6B4A] transition-colors mr-1">← Back</Link>
 
-        <span className="font-semibold text-sm text-[#2C1810] tracking-tight">Pulse</span>
-        <span className="text-[#9B8E85]">·</span>
+        <span className="font-semibold text-sm text-[#1A2A1A] tracking-tight">Pulse</span>
+        <span className="text-[#7A9B7A]">·</span>
 
-        <span className="text-[#6B5244]">
+        <span className="text-[#4A6B4A]">
           {new Date().toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' })} ET
         </span>
 
-        <span className="hidden sm:inline text-[#9B8E85]">·</span>
+        <span className="hidden sm:inline text-[#7A9B7A]">·</span>
         {data?.weather && (
-          <span className="hidden sm:inline text-[#6B5244]">
+          <span className="hidden sm:inline text-[#4A6B4A]">
             {data.weather.icon} {data.weather.temp}°F · {data.weather.description}
           </span>
         )}
 
-        <span className="text-[#9B8E85]">·</span>
-        <span className="flex items-center gap-1.5 text-[#9B8E85]">
+        <span className="text-[#7A9B7A]">·</span>
+        <span className="flex items-center gap-1.5 text-[#7A9B7A]">
           <span className={`w-1.5 h-1.5 rounded-full ${fetchError ? 'bg-red-500' : 'bg-emerald-400 animate-pulse'}`} />
           {fetchError ? 'Connection error' : lastUpdated ? `Updated ${secAgo}s ago` : 'Loading…'}
         </span>
 
-        <span className="hidden sm:inline text-[#9B8E85]">·</span>
-        <span className="hidden sm:inline text-[#6B5244]">
+        <span className="hidden sm:inline text-[#7A9B7A]">·</span>
+        <span className="hidden sm:inline text-[#4A6B4A]">
           🚌 {activeBusCount} {activeBusCount === 1 ? 'bus' : 'buses'} active
-          {busesSimulated && <span className="text-[#9B8E85] ml-1">(simulated)</span>}
+          {busesSimulated && <span className="text-[#7A9B7A] ml-1">(simulated)</span>}
         </span>
 
         {/* Mobile weather on second row */}
         {data?.weather && (
-          <div className="sm:hidden w-full text-[#6B5244] text-[11px] pb-0.5">
+          <div className="sm:hidden w-full text-[#4A6B4A] text-[11px] pb-0.5">
             {data.weather.icon} {data.weather.temp}°F · {data.weather.description}
           </div>
         )}
@@ -1478,7 +1478,7 @@ export default function PulsePage() {
             </button>
             <button
               className="flex-1 flex items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold transition-all hover:scale-105 active:scale-95"
-              style={{ background: 'linear-gradient(135deg, #B3A369 0%, #C1513A 100%)', color: 'white' }}
+              style={{ background: 'linear-gradient(135deg, #B3A369 0%, #2D5A27 100%)', color: 'white' }}
               onClick={() => setChatOpen(true)}
             >
               <span>✦</span> Ask Pulse
@@ -1487,7 +1487,7 @@ export default function PulsePage() {
         </div>
 
         {/* ── Desktop left sidebar - location data ────────────────────────── */}
-        <aside className="hidden lg:flex lg:flex-col w-72 xl:w-80 flex-shrink-0 bg-white border-r border-[#2C1810]/[0.08] overflow-y-auto order-first">
+        <aside className="hidden lg:flex lg:flex-col w-72 xl:w-80 flex-shrink-0 bg-white border-r border-[#1A2A1A]/[0.08] overflow-y-auto order-first">
           <SidebarContent
             data={data}
             events={events}
@@ -1506,16 +1506,16 @@ export default function PulsePage() {
         </aside>
 
         {/* ── Desktop right panel - persistent chat ───────────────────────── */}
-        <div className="hidden lg:flex lg:flex-col w-80 xl:w-96 flex-shrink-0 bg-white border-l border-[#2C1810]/[0.08]">
+        <div className="hidden lg:flex lg:flex-col w-80 xl:w-96 flex-shrink-0 bg-white border-l border-[#1A2A1A]/[0.08]">
           {/* Chat header */}
-          <div className="px-5 pt-5 pb-4 border-b border-[#2C1810]/[0.08] shrink-0">
+          <div className="px-5 pt-5 pb-4 border-b border-[#1A2A1A]/[0.08] shrink-0">
             <div className="flex items-center gap-2.5 mb-1">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #B3A369, #C1513A)' }}>
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #B3A369, #2D5A27)' }}>
                 <span className="text-sm">✦</span>
               </div>
               <div>
-                <p className="font-semibold text-sm text-[#2C1810] leading-none">Ask Pulse</p>
-                <p className="text-[10px] text-[#9B8E85] mt-0.5">your GT campus guide</p>
+                <p className="font-semibold text-sm text-[#1A2A1A] leading-none">Ask Pulse</p>
+                <p className="text-[10px] text-[#7A9B7A] mt-0.5">your GT campus guide</p>
               </div>
               {data && (
                 <span className="ml-auto flex items-center gap-1 text-[10px] text-emerald-400/70">
@@ -1530,7 +1530,7 @@ export default function PulsePage() {
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
             {chatMessages.length === 0 && (
               <div className="space-y-4">
-                <p className="text-[11px] text-[#9B8E85] leading-relaxed">
+                <p className="text-[11px] text-[#7A9B7A] leading-relaxed">
                   I know what&apos;s happening on campus right now - ask me anything.
                 </p>
                 <div className="space-y-2">
@@ -1538,7 +1538,7 @@ export default function PulsePage() {
                     <button
                       key={s}
                       onClick={() => sendChat(s)}
-                      className="w-full text-left text-[12px] px-3 py-2.5 rounded-xl border border-[#2C1810]/[0.08] text-[#6B5244] hover:text-[#2C1810] hover:border-[#2C1810]/20 hover:bg-[#F5F0E8] transition-all"
+                      className="w-full text-left text-[12px] px-3 py-2.5 rounded-xl border border-[#1A2A1A]/[0.08] text-[#4A6B4A] hover:text-[#1A2A1A] hover:border-[#1A2A1A]/20 hover:bg-[#EFEDE8] transition-all"
                     >
                       {s}
                     </button>
@@ -1549,15 +1549,15 @@ export default function PulsePage() {
             {chatMessages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {m.role === 'assistant' && (
-                  <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-0.5 mr-2" style={{ background: 'linear-gradient(135deg, #B3A369, #C1513A)' }}>
+                  <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-0.5 mr-2" style={{ background: 'linear-gradient(135deg, #B3A369, #2D5A27)' }}>
                     <span className="text-[9px]">✦</span>
                   </div>
                 )}
                 <div
                   className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
                     m.role === 'user'
-                      ? 'bg-[#2C1810]/[0.07] text-[#2C1810] rounded-tr-sm'
-                      : 'bg-[#F5F0E8] text-[#2C1810] rounded-tl-sm border border-[#2C1810]/[0.08]'
+                      ? 'bg-[#1A2A1A]/[0.07] text-[#1A2A1A] rounded-tr-sm'
+                      : 'bg-[#EFEDE8] text-[#1A2A1A] rounded-tl-sm border border-[#1A2A1A]/[0.08]'
                   }`}
                 >
                   {m.content}
@@ -1566,13 +1566,13 @@ export default function PulsePage() {
             ))}
             {chatLoading && (
               <div className="flex items-start gap-2">
-                <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-0.5" style={{ background: 'linear-gradient(135deg, #B3A369, #C1513A)' }}>
+                <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-0.5" style={{ background: 'linear-gradient(135deg, #B3A369, #2D5A27)' }}>
                   <span className="text-[9px]">✦</span>
                 </div>
-                <div className="bg-[#F5F0E8] px-3.5 py-3 rounded-2xl rounded-tl-sm border border-[#2C1810]/[0.08]">
+                <div className="bg-[#EFEDE8] px-3.5 py-3 rounded-2xl rounded-tl-sm border border-[#1A2A1A]/[0.08]">
                   <div className="flex gap-1">
                     {[0,1,2].map(i => (
-                      <span key={i} className="w-1.5 h-1.5 rounded-full bg-[#2C1810]/30 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+                      <span key={i} className="w-1.5 h-1.5 rounded-full bg-[#1A2A1A]/30 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
                     ))}
                   </div>
                 </div>
@@ -1584,7 +1584,7 @@ export default function PulsePage() {
 
           {/* Input */}
           <form
-            className="px-4 pb-4 pt-3 shrink-0 border-t border-[#2C1810]/[0.08]"
+            className="px-4 pb-4 pt-3 shrink-0 border-t border-[#1A2A1A]/[0.08]"
             onSubmit={e => { e.preventDefault(); sendChat(chatInput); }}
           >
             <div className="flex gap-2">
@@ -1593,13 +1593,13 @@ export default function PulsePage() {
                 value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
                 placeholder="Ask anything…"
-                className="flex-1 px-3.5 py-2.5 text-sm rounded-xl bg-[#F5F0E8] border border-[#2C1810]/[0.12] text-[#2C1810] placeholder:text-[#9B8E85] focus:outline-none focus:border-terracotta/40 transition-colors"
+                className="flex-1 px-3.5 py-2.5 text-sm rounded-xl bg-[#EFEDE8] border border-[#1A2A1A]/[0.12] text-[#1A2A1A] placeholder:text-[#7A9B7A] focus:outline-none focus:border-terracotta/40 transition-colors"
               />
               <button
                 type="submit"
                 disabled={!chatInput.trim() || chatLoading || !data}
                 className="px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-30 hover:brightness-110 active:scale-95"
-                style={{ background: 'linear-gradient(135deg, #B3A369, #C1513A)', color: 'white' }}
+                style={{ background: 'linear-gradient(135deg, #B3A369, #2D5A27)', color: 'white' }}
               >
                 →
               </button>
@@ -1610,12 +1610,12 @@ export default function PulsePage() {
 
       {/* ── Mobile bottom drawer - location data ─────────────────────────── */}
       {drawerOpen && (
-        <div className="lg:hidden fixed inset-x-0 bottom-0 z-30 bg-white border-t border-[#2C1810]/[0.08] shadow-2xl overflow-y-auto"
+        <div className="lg:hidden fixed inset-x-0 bottom-0 z-30 bg-white border-t border-[#1A2A1A]/[0.08] shadow-2xl overflow-y-auto"
           style={{ maxHeight: '60vh' }}
         >
-          <div className="flex items-center justify-between px-4 py-2 border-b border-[#2C1810]/[0.06] sticky top-0 bg-white z-10">
-            <span className="text-xs font-semibold text-[#9B8E85] uppercase tracking-widest">Campus Info</span>
-            <button onClick={() => setDrawerOpen(false)} className="text-[#9B8E85] hover:text-[#2C1810] text-xl leading-none">×</button>
+          <div className="flex items-center justify-between px-4 py-2 border-b border-[#1A2A1A]/[0.06] sticky top-0 bg-white z-10">
+            <span className="text-xs font-semibold text-[#7A9B7A] uppercase tracking-widest">Campus Info</span>
+            <button onClick={() => setDrawerOpen(false)} className="text-[#7A9B7A] hover:text-[#1A2A1A] text-xl leading-none">×</button>
           </div>
           <SidebarContent
             data={data}
@@ -1639,27 +1639,27 @@ export default function PulsePage() {
       {chatOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex flex-col bg-white">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[#2C1810]/[0.08] shrink-0">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#1A2A1A]/[0.08] shrink-0">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #B3A369, #C1513A)' }}>
+              <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #B3A369, #2D5A27)' }}>
                 <span className="text-xs">✦</span>
               </div>
-              <span className="font-semibold text-sm text-[#2C1810]">Ask Pulse</span>
+              <span className="font-semibold text-sm text-[#1A2A1A]">Ask Pulse</span>
             </div>
-            <button onClick={() => setChatOpen(false)} className="text-[#9B8E85] hover:text-[#2C1810] text-xl leading-none">×</button>
+            <button onClick={() => setChatOpen(false)} className="text-[#7A9B7A] hover:text-[#1A2A1A] text-xl leading-none">×</button>
           </div>
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
             {chatMessages.length === 0 && (
               <div className="space-y-3">
-                <p className="text-xs text-[#9B8E85] leading-relaxed">I know what&apos;s happening on campus right now - ask me anything.</p>
+                <p className="text-xs text-[#7A9B7A] leading-relaxed">I know what&apos;s happening on campus right now - ask me anything.</p>
                 <div className="space-y-2">
                   {SUGGESTIONS.map(s => (
                     <button
                       key={s}
                       onClick={() => sendChat(s)}
-                      className="w-full text-left text-[12px] px-3 py-2.5 rounded-xl border border-[#2C1810]/[0.08] text-[#6B5244] hover:text-[#2C1810] hover:bg-[#F5F0E8] transition-all"
+                      className="w-full text-left text-[12px] px-3 py-2.5 rounded-xl border border-[#1A2A1A]/[0.08] text-[#4A6B4A] hover:text-[#1A2A1A] hover:bg-[#EFEDE8] transition-all"
                     >
                       {s}
                     </button>
@@ -1671,8 +1671,8 @@ export default function PulsePage() {
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
                   m.role === 'user'
-                    ? 'bg-[#2C1810]/[0.07] text-[#2C1810] rounded-tr-sm'
-                    : 'bg-[#F5F0E8] text-[#2C1810] rounded-tl-sm border border-[#2C1810]/[0.08]'
+                    ? 'bg-[#1A2A1A]/[0.07] text-[#1A2A1A] rounded-tr-sm'
+                    : 'bg-[#EFEDE8] text-[#1A2A1A] rounded-tl-sm border border-[#1A2A1A]/[0.08]'
                 }`}>
                   {m.content}
                 </div>
@@ -1680,10 +1680,10 @@ export default function PulsePage() {
             ))}
             {chatLoading && (
               <div className="flex justify-start">
-                <div className="bg-[#F5F0E8] px-3.5 py-3 rounded-2xl rounded-tl-sm border border-[#2C1810]/[0.08]">
+                <div className="bg-[#EFEDE8] px-3.5 py-3 rounded-2xl rounded-tl-sm border border-[#1A2A1A]/[0.08]">
                   <div className="flex gap-1">
                     {[0,1,2].map(i => (
-                      <span key={i} className="w-1.5 h-1.5 rounded-full bg-[#2C1810]/30 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+                      <span key={i} className="w-1.5 h-1.5 rounded-full bg-[#1A2A1A]/30 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
                     ))}
                   </div>
                 </div>
@@ -1695,7 +1695,7 @@ export default function PulsePage() {
 
           {/* Input */}
           <form
-            className="px-4 pb-6 pt-3 shrink-0 border-t border-[#2C1810]/[0.08]"
+            className="px-4 pb-6 pt-3 shrink-0 border-t border-[#1A2A1A]/[0.08]"
             onSubmit={e => { e.preventDefault(); sendChat(chatInput); }}
           >
             <div className="flex gap-2">
@@ -1704,13 +1704,13 @@ export default function PulsePage() {
                 value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
                 placeholder="Ask anything…"
-                className="flex-1 px-3.5 py-2.5 text-sm rounded-xl bg-[#F5F0E8] border border-[#2C1810]/[0.12] text-[#2C1810] placeholder:text-[#9B8E85] focus:outline-none focus:border-terracotta/40 transition-colors"
+                className="flex-1 px-3.5 py-2.5 text-sm rounded-xl bg-[#EFEDE8] border border-[#1A2A1A]/[0.12] text-[#1A2A1A] placeholder:text-[#7A9B7A] focus:outline-none focus:border-terracotta/40 transition-colors"
               />
               <button
                 type="submit"
                 disabled={!chatInput.trim() || chatLoading || !data}
                 className="px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-30"
-                style={{ background: 'linear-gradient(135deg, #B3A369, #C1513A)', color: 'white' }}
+                style={{ background: 'linear-gradient(135deg, #B3A369, #2D5A27)', color: 'white' }}
               >
                 →
               </button>

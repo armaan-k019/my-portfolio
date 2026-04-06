@@ -305,7 +305,7 @@ function FileImportTab({ onRoomChange }: { onRoomChange: (s: RoomShape) => void 
   return (
     <div className="space-y-3">
       <div
-        className="border-2 border-dashed border-[#E8E0D4] rounded-xl p-6 text-center cursor-pointer hover:border-[#FF6B35]/60 transition-colors"
+        className="border-2 border-dashed border-[#D8E6D8] rounded-xl p-6 text-center cursor-pointer hover:border-[#2D5A27]/60 transition-colors"
         onClick={() => fileRef.current?.click()}
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
@@ -324,13 +324,13 @@ function FileImportTab({ onRoomChange }: { onRoomChange: (s: RoomShape) => void 
             if (f) handleFile(f);
           }}
         />
-        <p className="text-xs font-medium text-[#2C1810]">Drop or click to import</p>
-        <p className="text-xs text-[#6B6054] mt-1">.obj .stl .dxf .ifc .3dm</p>
+        <p className="text-xs font-medium text-[#1A2A1A]">Drop or click to import</p>
+        <p className="text-xs text-[#4A6B4A] mt-1">.obj .stl .dxf .ifc .3dm</p>
       </div>
 
       {status === 'parsing' && (
-        <div className="flex items-center gap-2 text-xs text-[#6B6054]">
-          <span className="inline-block h-3 w-3 rounded-full border-2 border-[#FF6B35] border-t-transparent animate-spin" />
+        <div className="flex items-center gap-2 text-xs text-[#4A6B4A]">
+          <span className="inline-block h-3 w-3 rounded-full border-2 border-[#2D5A27] border-t-transparent animate-spin" />
           {msg}
         </div>
       )}
@@ -339,47 +339,47 @@ function FileImportTab({ onRoomChange }: { onRoomChange: (s: RoomShape) => void 
       )}
 
       {status === 'ready' && rawShape && (
-        <div className="space-y-3 border border-[#E8E0D4] rounded-xl p-3 bg-white/60">
+        <div className="space-y-3 border border-[#D8E6D8] rounded-xl p-3 bg-white/60">
           <p className="text-xs text-green-700">{msg}</p>
 
           {/* Scale */}
           <div>
             <div className="flex justify-between items-center mb-1">
-              <span className="text-[11px] font-medium text-[#2C1810]">Scale</span>
+              <span className="text-[11px] font-medium text-[#1A2A1A]">Scale</span>
               <input
                 type="number"
                 step="0.01"
                 min="0.01"
                 value={scale}
                 onChange={e => setScale(Math.max(0.01, parseFloat(e.target.value) || 1))}
-                className="w-16 text-[11px] text-right px-1.5 py-0.5 border border-[#E8E0D4] rounded bg-white text-[#2C1810] focus:outline-none focus:border-[#FF6B35]"
+                className="w-16 text-[11px] text-right px-1.5 py-0.5 border border-[#D8E6D8] rounded bg-white text-[#1A2A1A] focus:outline-none focus:border-[#2D5A27]"
               />
             </div>
             <input
               type="range" min="0.01" max="10" step="0.01"
               value={scale}
               onChange={e => setScale(parseFloat(e.target.value))}
-              className="w-full h-1.5 accent-[#FF6B35] cursor-pointer"
+              className="w-full h-1.5 accent-[#2D5A27] cursor-pointer"
             />
           </div>
 
           {/* Rotation */}
           <div className="space-y-1.5">
-            <p className="text-[11px] font-medium text-[#2C1810]">Rotation (degrees)</p>
+            <p className="text-[11px] font-medium text-[#1A2A1A]">Rotation (degrees)</p>
             {([['X', rotX, setRotX], ['Y', rotY, setRotY], ['Z', rotZ, setRotZ]] as [string, number, (v: number) => void][]).map(([axis, val, setter]) => (
               <div key={axis} className="flex items-center gap-2">
-                <span className="text-[11px] text-[#6B6054] w-3">{axis}</span>
+                <span className="text-[11px] text-[#4A6B4A] w-3">{axis}</span>
                 <input
                   type="range" min="-180" max="180" step="1"
                   value={val}
                   onChange={e => setter(parseInt(e.target.value))}
-                  className="flex-1 h-1.5 accent-[#FF6B35] cursor-pointer"
+                  className="flex-1 h-1.5 accent-[#2D5A27] cursor-pointer"
                 />
                 <input
                   type="number" min="-180" max="180" step="1"
                   value={val}
                   onChange={e => setter(parseInt(e.target.value) || 0)}
-                  className="w-14 text-[11px] text-right px-1.5 py-0.5 border border-[#E8E0D4] rounded bg-white text-[#2C1810] focus:outline-none focus:border-[#FF6B35]"
+                  className="w-14 text-[11px] text-right px-1.5 py-0.5 border border-[#D8E6D8] rounded bg-white text-[#1A2A1A] focus:outline-none focus:border-[#2D5A27]"
                 />
               </div>
             ))}
@@ -388,13 +388,13 @@ function FileImportTab({ onRoomChange }: { onRoomChange: (s: RoomShape) => void 
           <div className="flex gap-2">
             <button
               onClick={handleApply}
-              className="flex-1 py-1.5 text-xs font-medium rounded-lg bg-[#FF6B35] text-white hover:bg-[#e55e2b] transition-colors"
+              className="flex-1 py-1.5 text-xs font-medium rounded-lg bg-[#2D5A27] text-white hover:bg-[#e55e2b] transition-colors"
             >
               Apply to scene
             </button>
             <button
               onClick={() => { setRotX(0); setRotY(0); setRotZ(0); setScale(1); }}
-              className="px-3 py-1.5 text-xs rounded-lg border border-[#E8E0D4] text-[#6B6054] hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors"
+              className="px-3 py-1.5 text-xs rounded-lg border border-[#D8E6D8] text-[#4A6B4A] hover:border-[#2D5A27] hover:text-[#2D5A27] transition-colors"
             >
               Reset
             </button>
@@ -402,8 +402,8 @@ function FileImportTab({ onRoomChange }: { onRoomChange: (s: RoomShape) => void 
         </div>
       )}
 
-      <div className="text-xs text-[#6B6054] leading-relaxed">
-        <p className="font-medium text-[#2C1810] mb-1">Supported formats</p>
+      <div className="text-xs text-[#4A6B4A] leading-relaxed">
+        <p className="font-medium text-[#1A2A1A] mb-1">Supported formats</p>
         <ul className="space-y-0.5">
           <li><span className="font-mono">.obj/.stl</span>: Standard mesh (Three.js)</li>
           <li><span className="font-mono">.dxf</span>: Drawing Exchange Format (3DFACE entities)</li>
@@ -503,16 +503,16 @@ export default function ShapeInputPanel({
   return (
     <div className="flex flex-col gap-4">
       {/* Tab switcher */}
-      <div className="bg-white/80 rounded-xl border border-[#E8E0D4] shadow-sm overflow-hidden">
-        <div className="flex border-b border-[#E8E0D4]">
+      <div className="bg-white/80 rounded-xl border border-[#D8E6D8] shadow-sm overflow-hidden">
+        <div className="flex border-b border-[#D8E6D8]">
           {(['describe', 'manual', 'import'] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={`flex-1 py-2 text-xs font-medium transition-colors focus:outline-none ${
                 tab === t
-                  ? 'bg-white text-[#FF6B35] border-b-2 border-[#FF6B35]'
-                  : 'text-[#6B6054] hover:text-[#2C1810]'
+                  ? 'bg-white text-[#2D5A27] border-b-2 border-[#2D5A27]'
+                  : 'text-[#4A6B4A] hover:text-[#1A2A1A]'
               }`}
             >
               {TAB_LABELS[t]}
@@ -528,7 +528,7 @@ export default function ShapeInputPanel({
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="e.g. A concert hall 30m long, 20m wide, 15m tall with a curved ceiling"
                 rows={5}
-                className="w-full px-3 py-2 text-xs border border-[#E8E0D4] rounded-lg resize-none focus:outline-none focus:border-[#FF6B35] bg-white text-[#2C1810] placeholder-[#C8BFA8]"
+                className="w-full px-3 py-2 text-xs border border-[#D8E6D8] rounded-lg resize-none focus:outline-none focus:border-[#2D5A27] bg-white text-[#1A2A1A] placeholder-[#A8C0A8]"
                 style={{ minHeight: 100 }}
               />
               {descError && (
@@ -537,7 +537,7 @@ export default function ShapeInputPanel({
               <button
                 onClick={handleGenerate}
                 disabled={generating || !description.trim()}
-                className="w-full py-2 px-4 rounded-lg bg-[#FF6B35] text-white text-xs font-medium hover:bg-[#e55e2b] disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                className="w-full py-2 px-4 rounded-lg bg-[#2D5A27] text-white text-xs font-medium hover:bg-[#e55e2b] disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
                 {generating ? (
                   <>
@@ -555,7 +555,7 @@ export default function ShapeInputPanel({
                 <select
                   defaultValue=""
                   onChange={(e) => handlePreset(e.target.value)}
-                  className="flex-1 px-2 py-1.5 text-xs border border-[#E8E0D4] rounded-lg bg-white text-[#2C1810] focus:outline-none focus:border-[#FF6B35]"
+                  className="flex-1 px-2 py-1.5 text-xs border border-[#D8E6D8] rounded-lg bg-white text-[#1A2A1A] focus:outline-none focus:border-[#2D5A27]"
                 >
                   <option value="" disabled>Load preset…</option>
                   <option value="rectangle">Rectangle (10×8×4)</option>
@@ -567,7 +567,7 @@ export default function ShapeInputPanel({
               <div className="flex gap-2">
                 <button
                   onClick={handleApplyVertices}
-                  className="flex-1 py-1.5 rounded-lg bg-[#FF6B35] text-white text-xs font-medium hover:bg-[#e55e2b] transition-colors"
+                  className="flex-1 py-1.5 rounded-lg bg-[#2D5A27] text-white text-xs font-medium hover:bg-[#e55e2b] transition-colors"
                 >
                   Apply
                 </button>
@@ -577,7 +577,7 @@ export default function ShapeInputPanel({
                     onRoomChange(shape);
                     setLocalVertices(shape.vertices);
                   }}
-                  className="flex-1 py-1.5 rounded-lg border border-[#E8E0D4] text-xs text-[#6B6054] hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors focus:outline-none"
+                  className="flex-1 py-1.5 rounded-lg border border-[#D8E6D8] text-xs text-[#4A6B4A] hover:border-[#2D5A27] hover:text-[#2D5A27] transition-colors focus:outline-none"
                 >
                   Reset
                 </button>
@@ -598,37 +598,37 @@ export default function ShapeInputPanel({
             onRoomChange(shape);
             setLocalVertices(shape.vertices);
           }}
-          className="w-full py-1.5 rounded-lg border border-[#E8E0D4] text-xs text-[#6B6054] hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors bg-white/80 focus:outline-none"
+          className="w-full py-1.5 rounded-lg border border-[#D8E6D8] text-xs text-[#4A6B4A] hover:border-[#2D5A27] hover:text-[#2D5A27] transition-colors bg-white/80 focus:outline-none"
         >
           Reset to Default Room
         </button>
       )}
 
       {/* Sound source position */}
-      <div className="bg-white/80 rounded-xl border border-[#E8E0D4] shadow-sm p-4 space-y-3">
-        <h3 className="font-semibold text-xs text-[#2C1810]">Sound Source Position</h3>
+      <div className="bg-white/80 rounded-xl border border-[#D8E6D8] shadow-sm p-4 space-y-3">
+        <h3 className="font-semibold text-xs text-[#1A2A1A]">Sound Source Position</h3>
         <div className="grid grid-cols-3 gap-2">
           {(['x', 'y', 'z'] as const).map((axis) => (
             <div key={axis} className="flex flex-col gap-1">
-              <label className="text-xs text-[#6B6054] font-medium uppercase">{axis}</label>
+              <label className="text-xs text-[#4A6B4A] font-medium uppercase">{axis}</label>
               <input
                 type="number"
                 step="0.1"
                 value={sourcePosition[axis]}
                 onChange={(e) => handleSourceAxis(axis, e.target.value)}
-                className="w-full px-2 py-1.5 border border-[#E8E0D4] rounded-lg text-xs focus:outline-none focus:border-[#FF6B35] bg-white text-[#2C1810]"
+                className="w-full px-2 py-1.5 border border-[#D8E6D8] rounded-lg text-xs focus:outline-none focus:border-[#2D5A27] bg-white text-[#1A2A1A]"
               />
             </div>
           ))}
         </div>
-        <p className="text-xs text-[#6B6054]">Position in meters from origin</p>
+        <p className="text-xs text-[#4A6B4A]">Position in meters from origin</p>
       </div>
 
       {/* Ray settings */}
-      <div className="bg-white/80 rounded-xl border border-[#E8E0D4] shadow-sm p-4 space-y-3">
+      <div className="bg-white/80 rounded-xl border border-[#D8E6D8] shadow-sm p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-xs text-[#2C1810]">Ray Bounces</h3>
-          <span className="text-xs font-medium text-[#FF6B35]">{maxBounces}</span>
+          <h3 className="font-semibold text-xs text-[#1A2A1A]">Ray Bounces</h3>
+          <span className="text-xs font-medium text-[#2D5A27]">{maxBounces}</span>
         </div>
         <input
           type="range"
@@ -636,21 +636,21 @@ export default function ShapeInputPanel({
           max={10}
           value={maxBounces}
           onChange={(e) => onMaxBouncesChange(Number(e.target.value))}
-          className="w-full accent-[#FF6B35]"
+          className="w-full accent-[#2D5A27]"
         />
-        <p className="text-xs text-[#6B6054]">Number of reflections to simulate (1–10)</p>
+        <p className="text-xs text-[#4A6B4A]">Number of reflections to simulate (1–10)</p>
 
-        <div className="flex items-center justify-between pt-1 border-t border-[#E8E0D4]">
-          <span className="text-xs text-[#2C1810] font-medium">Ray visualization</span>
-          <div className="flex rounded-lg border border-[#E8E0D4] overflow-hidden text-[11px]">
+        <div className="flex items-center justify-between pt-1 border-t border-[#D8E6D8]">
+          <span className="text-xs text-[#1A2A1A] font-medium">Ray visualization</span>
+          <div className="flex rounded-lg border border-[#D8E6D8] overflow-hidden text-[11px]">
             {(['static', 'particles'] as const).map((m) => (
               <button
                 key={m}
                 onClick={() => onVizModeChange(m)}
                 className={`px-2.5 py-1 font-medium transition-colors ${
                   vizMode === m
-                    ? 'bg-[#FF6B35] text-white'
-                    : 'bg-white text-[#6B6054] hover:text-[#2C1810]'
+                    ? 'bg-[#2D5A27] text-white'
+                    : 'bg-white text-[#4A6B4A] hover:text-[#1A2A1A]'
                 }`}
               >
                 {m === 'static' ? '- static' : '◉ particles'}

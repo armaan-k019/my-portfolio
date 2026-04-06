@@ -34,20 +34,20 @@ export async function POST(request: Request): Promise<Response> {
       subject: `[Portfolio] Feedback on ${project} from ${from}`,
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
-          <h2 style="color:#2C1810;margin:0 0 4px">Portfolio Feedback</h2>
-          <p style="color:#9B8E85;font-size:13px;margin:0 0 20px">${new Date().toLocaleString()}</p>
+          <h2 style="color:#1A2A1A;margin:0 0 4px">Portfolio Feedback</h2>
+          <p style="color:#7A9B7A;font-size:13px;margin:0 0 20px">${new Date().toLocaleString()}</p>
           <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:20px">
             <tr>
-              <td style="padding:8px 0;color:#6B6054;width:80px;vertical-align:top">Project</td>
-              <td style="padding:8px 0;color:#2C1810;font-weight:600">${project}</td>
+              <td style="padding:8px 0;color:#4A6B4A;width:80px;vertical-align:top">Project</td>
+              <td style="padding:8px 0;color:#1A2A1A;font-weight:600">${project}</td>
             </tr>
             <tr>
-              <td style="padding:8px 0;color:#6B6054;vertical-align:top">From</td>
-              <td style="padding:8px 0;color:#2C1810">${from}</td>
+              <td style="padding:8px 0;color:#4A6B4A;vertical-align:top">From</td>
+              <td style="padding:8px 0;color:#1A2A1A">${from}</td>
             </tr>
           </table>
-          <div style="background:#F5F0E8;border-radius:8px;padding:16px">
-            <p style="margin:0;color:#2C1810;font-size:14px;line-height:1.6;white-space:pre-wrap">${message}</p>
+          <div style="background:#EFEDE8;border-radius:8px;padding:16px">
+            <p style="margin:0;color:#1A2A1A;font-size:14px;line-height:1.6;white-space:pre-wrap">${message}</p>
           </div>
         </div>
       `,

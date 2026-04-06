@@ -28,14 +28,14 @@ function OctaveBandChart({ octaveBandRT60 }: { octaveBandRT60: OctaveBandRT60 })
     <div className="space-y-1.5">
       {values.map((val, i) => (
         <div key={OCTAVE_BANDS[i]} className="flex items-center gap-2">
-          <span className="text-xs text-[#6B6054] w-6 shrink-0 text-right">{BAND_SHORT[i]}</span>
-          <div className="flex-1 bg-[#F5F0E8] rounded-full h-2 overflow-hidden">
+          <span className="text-xs text-[#4A6B4A] w-6 shrink-0 text-right">{BAND_SHORT[i]}</span>
+          <div className="flex-1 bg-[#EFEDE8] rounded-full h-2 overflow-hidden">
             <div
               className="h-full rounded-full transition-all duration-500"
               style={{ width: `${(val / maxVal) * 100}%`, backgroundColor: BAND_COLORS[i] }}
             />
           </div>
-          <span className="text-xs text-[#2C1810] w-10 text-right shrink-0 tabular-nums">
+          <span className="text-xs text-[#1A2A1A] w-10 text-right shrink-0 tabular-nums">
             {val.toFixed(2)}s
           </span>
         </div>
@@ -96,10 +96,10 @@ function RT60Waveform({ rt60, reflections }: { rt60: number; reflections: number
   }, [playing, rt60, reflections]);
 
   return (
-    <div className="space-y-2 pt-1 border-t border-[#E8E0D4]">
+    <div className="space-y-2 pt-1 border-t border-[#D8E6D8]">
       <button
         onClick={() => setPlaying(p => !p)}
-        className="w-full py-1.5 px-4 rounded-lg border border-[#E8E0D4] bg-white text-xs font-medium text-[#6B6054] hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors"
+        className="w-full py-1.5 px-4 rounded-lg border border-[#D8E6D8] bg-white text-xs font-medium text-[#4A6B4A] hover:border-[#2D5A27] hover:text-[#2D5A27] transition-colors"
       >
         {playing ? 'Stop Waveform' : 'Play Waveform'}
       </button>
@@ -109,7 +109,7 @@ function RT60Waveform({ rt60, reflections }: { rt60: number; reflections: number
             <path
               ref={pathRef}
               d={`M0,${H / 2} L${W},${H / 2}`}
-              stroke="#FF6B35"
+              stroke="#2D5A27"
               strokeWidth={1.5}
               fill="none"
               strokeLinecap="round"
@@ -233,31 +233,31 @@ export default function MetricsPanel({ metrics, shapeDescription, surfaceGroups,
   return (
     <div className="flex flex-col gap-4 h-full">
       {/* ─── Room Metrics ─────────────────────────────────────────────────────── */}
-      <div className="bg-white/80 rounded-xl border border-[#E8E0D4] shadow-sm p-4 space-y-3">
+      <div className="bg-white/80 rounded-xl border border-[#D8E6D8] shadow-sm p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-sm text-[#2C1810]">Room Metrics</h3>
+          <h3 className="font-semibold text-sm text-[#1A2A1A]">Room Metrics</h3>
           {recalcShow && (
-            <span className="text-[10px] text-[#FF6B35] animate-pulse">Recalculating…</span>
+            <span className="text-[10px] text-[#2D5A27] animate-pulse">Recalculating…</span>
           )}
         </div>
 
         <div className="space-y-2">
           <div className="flex justify-between items-center">
-            <span className="text-xs text-[#6B6054]">Volume</span>
-            <span className="text-sm font-medium text-[#2C1810] tabular-nums">
+            <span className="text-xs text-[#4A6B4A]">Volume</span>
+            <span className="text-sm font-medium text-[#1A2A1A] tabular-nums">
               {metrics.volume.toFixed(1)} m³
             </span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-xs text-[#6B6054]">Surface Area</span>
-            <span className="text-sm font-medium text-[#2C1810] tabular-nums">
+            <span className="text-xs text-[#4A6B4A]">Surface Area</span>
+            <span className="text-sm font-medium text-[#1A2A1A] tabular-nums">
               {metrics.surfaceArea.toFixed(1)} m²
             </span>
           </div>
           <div className="flex flex-col gap-1">
             <div className="flex justify-between items-center">
-              <span className="text-xs text-[#6B6054]">RT60 <span className="text-[#9B8E85]">(500 Hz)</span></span>
-              <span className="text-sm font-medium text-[#2C1810] tabular-nums">
+              <span className="text-xs text-[#4A6B4A]">RT60 <span className="text-[#7A9B7A]">(500 Hz)</span></span>
+              <span className="text-sm font-medium text-[#1A2A1A] tabular-nums">
                 {metrics.rt60.toFixed(2)} s
               </span>
             </div>
@@ -266,17 +266,17 @@ export default function MetricsPanel({ metrics, shapeDescription, surfaceGroups,
             </div>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-xs text-[#6B6054]">Early Reflections</span>
-            <span className="text-sm font-medium text-[#2C1810] tabular-nums">
+            <span className="text-xs text-[#4A6B4A]">Early Reflections</span>
+            <span className="text-sm font-medium text-[#1A2A1A] tabular-nums">
               {metrics.earlyReflections}
             </span>
           </div>
         </div>
 
         {/* Octave band chart */}
-        <div className="pt-1 border-t border-[#E8E0D4]">
-          <p className="text-xs text-[#6B6054] mb-2">
-            Octave Band RT60 <span className="text-[#9B8E85]">(Hz)</span>
+        <div className="pt-1 border-t border-[#D8E6D8]">
+          <p className="text-xs text-[#4A6B4A] mb-2">
+            Octave Band RT60 <span className="text-[#7A9B7A]">(Hz)</span>
           </p>
           <OctaveBandChart octaveBandRT60={metrics.octaveBandRT60} />
         </div>
@@ -286,13 +286,13 @@ export default function MetricsPanel({ metrics, shapeDescription, surfaceGroups,
       </div>
 
       {/* ─── Claude Analysis ─────────────────────────────────────────────────── */}
-      <div className="bg-white/80 rounded-xl border border-[#E8E0D4] shadow-sm p-4 flex flex-col gap-3 flex-1">
-        <h3 className="font-semibold text-sm text-[#2C1810]">Claude Analysis</h3>
+      <div className="bg-white/80 rounded-xl border border-[#D8E6D8] shadow-sm p-4 flex flex-col gap-3 flex-1">
+        <h3 className="font-semibold text-sm text-[#1A2A1A]">Claude Analysis</h3>
 
         <button
           onClick={handleAnalyze}
           disabled={loading}
-          className="w-full py-2 px-4 rounded-lg bg-[#FF6B35] text-white text-sm font-medium hover:bg-[#e55e2b] disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+          className="w-full py-2 px-4 rounded-lg bg-[#2D5A27] text-white text-sm font-medium hover:bg-[#e55e2b] disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? 'Analyzing with Claude…' : 'Analyze Acoustics'}
         </button>
@@ -304,7 +304,7 @@ export default function MetricsPanel({ metrics, shapeDescription, surfaceGroups,
         {summaryHtml && (
           <div className="flex flex-col gap-2">
             <div
-              className="text-xs text-[#2C1810] leading-relaxed
+              className="text-xs text-[#1A2A1A] leading-relaxed
                 [&_h1]:font-bold [&_h1]:text-sm [&_h1]:mb-1
                 [&_h2]:font-semibold [&_h2]:text-xs [&_h2]:mt-2 [&_h2]:mb-1
                 [&_h3]:font-semibold [&_h3]:text-xs [&_h3]:mt-1.5 [&_h3]:mb-0.5
@@ -313,13 +313,13 @@ export default function MetricsPanel({ metrics, shapeDescription, surfaceGroups,
               dangerouslySetInnerHTML={{ __html: summaryHtml }}
             />
             {timestamp && (
-              <p className="text-xs text-[#6B6054]">Last analyzed at {timestamp}</p>
+              <p className="text-xs text-[#4A6B4A]">Last analyzed at {timestamp}</p>
             )}
           </div>
         )}
 
         {!summary && !loading && !error && (
-          <p className="text-xs text-[#6B6054] italic">
+          <p className="text-xs text-[#4A6B4A] italic">
             Click above to get an expert acoustic analysis from Claude.
           </p>
         )}
@@ -327,7 +327,7 @@ export default function MetricsPanel({ metrics, shapeDescription, surfaceGroups,
         {/* Export */}
         <button
           onClick={handleExport}
-          className="mt-auto w-full py-1.5 px-4 rounded-lg border border-[#E8E0D4] bg-white text-xs font-medium text-[#6B6054] hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors"
+          className="mt-auto w-full py-1.5 px-4 rounded-lg border border-[#D8E6D8] bg-white text-xs font-medium text-[#4A6B4A] hover:border-[#2D5A27] hover:text-[#2D5A27] transition-colors"
         >
           Export Report (PDF)
         </button>

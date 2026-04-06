@@ -2,7 +2,7 @@
 
 export default function Footer() {
   return (
-    <footer className="bg-sage">
+    <footer className="bg-[#1A2A1A]">
       <div className="max-w-5xl mx-auto px-6 py-10 flex flex-col md:flex-row items-center justify-between gap-6">
         <p className="text-sm font-medium text-white">Armaan Kazi</p>
 
@@ -62,7 +62,7 @@ export default function Footer() {
         </p>
       </div>
       <div className="text-center pb-6">
-        <p className="text-xs" style={{ color: "rgba(107, 82, 68, 0.6)" }}>
+        <p className="text-xs" style={{ color: "rgba(74, 107, 74, 0.6)" }}>
           Want to get in touch with someone I&apos;ve worked with? Reach out and I&apos;ll make the introduction.
         </p>
       </div>

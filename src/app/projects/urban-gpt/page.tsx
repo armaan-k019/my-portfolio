@@ -47,13 +47,13 @@ const LAYER_CONFIG: {
   { key: "transit",     label: "Transit",  color: "bg-darkblue",    markerColor: "#1E3A5F" },
   { key: "parks",       label: "Parks",    color: "bg-sage",        markerColor: "#6B8F6E" },
   { key: "restaurants", label: "Dining",   color: "bg-tan",         markerColor: "#D4A96A" },
-  { key: "schools",     label: "Schools",  color: "bg-terracotta",  markerColor: "#C1513A" },
-  { key: "hospitals",   label: "Health",   color: "bg-brown-light", markerColor: "#6B5244" },
+  { key: "schools",     label: "Schools",  color: "bg-terracotta",  markerColor: "#2D5A27" },
+  { key: "hospitals",   label: "Health",   color: "bg-brown-light", markerColor: "#4A6B4A" },
 ];
 
 const MAP_STYLES = [
   { elementType: "geometry",                      stylers: [{ color: "#f5f0e8" }] },
-  { elementType: "labels.text.fill",              stylers: [{ color: "#6B5244" }] },
+  { elementType: "labels.text.fill",              stylers: [{ color: "#4A6B4A" }] },
   { elementType: "labels.text.stroke",            stylers: [{ color: "#f5f0e8" }] },
   { featureType: "water",  elementType: "geometry",        stylers: [{ color: "#c9d8e8" }] },
   { featureType: "road",   elementType: "geometry",        stylers: [{ color: "#ede5d8" }] },
@@ -435,7 +435,7 @@ export default function UrbanGPTPage() {
       });
       const centerMarker = new window.google.maps.Marker({
         position: { lat, lng }, map, title: result.address, zIndex: 100,
-        icon: { path: window.google.maps.SymbolPath.CIRCLE, scale: 9, fillColor: "#C1513A", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 },
+        icon: { path: window.google.maps.SymbolPath.CIRCLE, scale: 9, fillColor: "#2D5A27", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 },
       });
       const circle = new window.google.maps.Circle({
         map, center: { lat, lng }, radius: result.radiusM,
@@ -475,8 +475,8 @@ export default function UrbanGPTPage() {
       { key: "transit",     points: overpass.transit,     color: "#1E3A5F" },
       { key: "parks",       points: overpass.parks,       color: "#6B8F6E" },
       { key: "restaurants", points: overpass.restaurants, color: "#D4A96A" },
-      { key: "schools",     points: overpass.schools,     color: "#C1513A" },
-      { key: "hospitals",   points: overpass.hospitals,   color: "#6B5244" },
+      { key: "schools",     points: overpass.schools,     color: "#2D5A27" },
+      { key: "hospitals",   points: overpass.hospitals,   color: "#4A6B4A" },
     ];
     for (const { key, points, color } of cats) {
       const markers = points.map((pt) =>

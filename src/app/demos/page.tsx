@@ -56,7 +56,7 @@ function PasswordScreen({ onUnlock }: { onUnlock: (config: DemoConfig, password:
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F0E8] flex flex-col items-center justify-center px-6">
+    <div className="min-h-screen bg-[#EFEDE8] flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <Link href="/" className="text-xs text-terracotta hover:text-terracotta-dark transition-colors mb-10 inline-block">
           &larr; Back to portfolio
@@ -131,7 +131,7 @@ function PasswordScreen({ onUnlock }: { onUnlock: (config: DemoConfig, password:
 
 function DemoView({ config, onExit }: { config: DemoConfig; onExit: () => void }) {
   return (
-    <div className="min-h-screen bg-[#F5F0E8] flex flex-col">
+    <div className="min-h-screen bg-[#EFEDE8] flex flex-col">
       {/* Header */}
       <header
         className="border-b px-6 py-4"
@@ -145,7 +145,7 @@ function DemoView({ config, onExit }: { config: DemoConfig; onExit: () => void }
             )}
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="font-bold text-lg text-[#2C1810] leading-tight">{config.company}</h1>
+                <h1 className="font-bold text-lg text-[#1A2A1A] leading-tight">{config.company}</h1>
                 <span
                   className="text-[10px] font-semibold px-2 py-0.5 rounded-full border"
                   style={{ color: config.accentColor, borderColor: config.accentColor + "50", backgroundColor: config.accentColor + "12" }}
@@ -153,7 +153,7 @@ function DemoView({ config, onExit }: { config: DemoConfig; onExit: () => void }
                   {config.role}
                 </span>
               </div>
-              <p className="text-xs text-[#6B6054]">
+              <p className="text-xs text-[#4A6B4A]">
                 Built by{" "}
                 <Link href="/" className="hover:underline" style={{ color: config.accentColor }}>
                   Armaan Kazi
@@ -164,7 +164,7 @@ function DemoView({ config, onExit }: { config: DemoConfig; onExit: () => void }
 
           <button
             onClick={onExit}
-            className="text-xs text-[#9B8E85] hover:text-[#2C1810] transition-colors border border-[#E8E0D4] rounded-lg px-3 py-1.5"
+            className="text-xs text-[#7A9B7A] hover:text-[#1A2A1A] transition-colors border border-[#D8E6D8] rounded-lg px-3 py-1.5"
           >
             Exit demo
           </button>
@@ -179,9 +179,9 @@ function DemoView({ config, onExit }: { config: DemoConfig; onExit: () => void }
         <p className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: config.accentColor }}>
           Built for {config.company}
         </p>
-        <h2 className="text-2xl font-semibold text-[#2C1810] mb-3">{config.headline}</h2>
-        <p className="text-[#6B6054] leading-relaxed max-w-2xl mb-4">{config.pitch}</p>
-        <p className="text-sm text-[#9B8E85] leading-relaxed max-w-2xl border-l-2 border-[#E8E0D4] pl-4">
+        <h2 className="text-2xl font-semibold text-[#1A2A1A] mb-3">{config.headline}</h2>
+        <p className="text-[#4A6B4A] leading-relaxed max-w-2xl mb-4">{config.pitch}</p>
+        <p className="text-sm text-[#7A9B7A] leading-relaxed max-w-2xl border-l-2 border-[#D8E6D8] pl-4">
           This page exists because I believe the best way to show what I can do is to actually do it.
           Everything here was built from scratch. No templates, no boilerplate. I picked the problem,
           designed the system, and shipped it. That&apos;s how I work.
@@ -200,13 +200,13 @@ function DemoView({ config, onExit }: { config: DemoConfig; onExit: () => void }
             </h3>
 
             {section.type === "text" && section.content && (
-              <p className="text-[#2C1810] leading-relaxed">{section.content}</p>
+              <p className="text-[#1A2A1A] leading-relaxed">{section.content}</p>
             )}
 
             {section.type === "embed" && section.projectSlug && (
-              <div className="rounded-xl overflow-hidden border border-[#E8E0D4] shadow-sm">
-                <div className="bg-[#1a1a1a]/5 border-b border-[#E8E0D4] px-4 py-2 flex items-center justify-between">
-                  <span className="text-xs text-[#9B8E85] font-mono">/projects/{section.projectSlug}</span>
+              <div className="rounded-xl overflow-hidden border border-[#D8E6D8] shadow-sm">
+                <div className="bg-[#1a1a1a]/5 border-b border-[#D8E6D8] px-4 py-2 flex items-center justify-between">
+                  <span className="text-xs text-[#7A9B7A] font-mono">/projects/{section.projectSlug}</span>
                   <a
                     href={`/projects/${section.projectSlug}`}
                     target="_blank"
@@ -230,13 +230,13 @@ function DemoView({ config, onExit }: { config: DemoConfig; onExit: () => void }
       </div>
 
       {/* Footer CTA */}
-      <footer className="border-t border-[#E8E0D4] bg-white/40 px-6 py-14">
+      <footer className="border-t border-[#D8E6D8] bg-white/40 px-6 py-14">
         <div className="max-w-4xl mx-auto text-center">
-          <p className="text-lg font-semibold text-[#2C1810] mb-2">Interested? Let&apos;s talk.</p>
-          <p className="text-sm text-[#6B6054] max-w-md mx-auto mb-2 leading-relaxed">
+          <p className="text-lg font-semibold text-[#1A2A1A] mb-2">Interested? Let&apos;s talk.</p>
+          <p className="text-sm text-[#4A6B4A] max-w-md mx-auto mb-2 leading-relaxed">
             I&apos;d love to tell you more about my work and what I could bring to {config.company}.
           </p>
-          <p className="text-sm text-[#9B8E85] max-w-md mx-auto mb-8 leading-relaxed">
+          <p className="text-sm text-[#7A9B7A] max-w-md mx-auto mb-8 leading-relaxed">
             I&apos;m a fast learner, I care a lot about the craft, and I show up with opinions and a bias toward building.
             If that sounds like someone you want on your team, reach out.
           </p>
@@ -252,12 +252,12 @@ function DemoView({ config, onExit }: { config: DemoConfig; onExit: () => void }
               href="https://www.linkedin.com/in/kaziarmaan/"
               target="_blank"
               rel="noopener noreferrer"
-              className="px-5 py-2.5 rounded-lg text-sm font-medium border border-[#E8E0D4] text-[#6B6054] hover:border-[#c8bfb0] transition-colors"
+              className="px-5 py-2.5 rounded-lg text-sm font-medium border border-[#D8E6D8] text-[#4A6B4A] hover:border-[#c8bfb0] transition-colors"
             >
               LinkedIn
             </a>
           </div>
-          <p className="mt-8 text-xs text-[#9B8E85]">
+          <p className="mt-8 text-xs text-[#7A9B7A]">
             <Link href="/" className="hover:underline">Back to portfolio</Link>
           </p>
         </div>

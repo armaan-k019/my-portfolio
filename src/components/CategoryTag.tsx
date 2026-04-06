@@ -3,24 +3,24 @@ import type { Category } from "../../content/projects";
 const categoryConfig: Record<Category, { label: string; bg: string; text: string; border: string; hoverBg: string }> = {
   cs: {
     label: "CS",
-    bg: "bg-terracotta/25",
-    text: "text-terracotta",
-    border: "border-terracotta/40",
-    hoverBg: "hover:bg-terracotta/5",
+    bg: "bg-[#E8F0E6]",
+    text: "text-[#2D5A27]",
+    border: "border-[#2D5A27]/40",
+    hoverBg: "hover:bg-[#2D5A27]/10",
   },
   architecture: {
     label: "Architecture",
-    bg: "bg-sage/25",
-    text: "text-sage",
-    border: "border-sage/40",
-    hoverBg: "hover:bg-sage/5",
+    bg: "bg-[#E8F0E6]",
+    text: "text-[#4A6B4A]",
+    border: "border-[#4A6B4A]/40",
+    hoverBg: "hover:bg-[#4A6B4A]/10",
   },
   intersection: {
     label: "CS \u00d7 Architecture",
-    bg: "bg-darkblue/25",
-    text: "text-darkblue",
-    border: "border-darkblue/40",
-    hoverBg: "hover:bg-darkblue/5",
+    bg: "bg-[#2D5A27]",
+    text: "text-[#C8DEC4]",
+    border: "border-[#2D5A27]",
+    hoverBg: "hover:bg-[#1A3A16]",
   },
 };
 

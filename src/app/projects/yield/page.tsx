@@ -621,17 +621,17 @@ export default function YieldPage() {
                     <ResponsiveContainer width="100%" height={180}>
                       <BarChart data={chartData} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#D4A96A22" />
-                        <XAxis dataKey="ticker" tick={{ fontSize: 11, fill: "#6B5244" }} axisLine={false} tickLine={false} />
+                        <XAxis dataKey="ticker" tick={{ fontSize: 11, fill: "#4A6B4A" }} axisLine={false} tickLine={false} />
                         <YAxis
                           width={48}
-                          tick={{ fontSize: 10, fill: "#6B5244" }}
+                          tick={{ fontSize: 10, fill: "#4A6B4A" }}
                           axisLine={false}
                           tickLine={false}
                           tickFormatter={(v) => `${v > 0 ? "+" : ""}${v}%`}
                         />
                         <Tooltip
                           formatter={(v) => [`${(v as number) >= 0 ? "+" : ""}${v}%`, "Day change"]}
-                          contentStyle={{ background: "#F5F0E8", border: "1px solid #D4A96A44", borderRadius: 8, fontSize: 12 }}
+                          contentStyle={{ background: "#EFEDE8", border: "1px solid #D4A96A44", borderRadius: 8, fontSize: 12 }}
                           cursor={{ fill: "#D4A96A11" }}
                         />
                         <Bar dataKey="change" radius={[4, 4, 0, 0]}>
