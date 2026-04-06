@@ -46,7 +46,7 @@ export async function POST(request: Request): Promise<Response> {
               <td style="padding:8px 0;color:#1A2A1A">${from}</td>
             </tr>
           </table>
-          <div style="background:#EFEDE8;border-radius:8px;padding:16px">
+          <div style="background:#FFFFFF;border-radius:8px;padding:16px">
             <p style="margin:0;color:#1A2A1A;font-size:14px;line-height:1.6;white-space:pre-wrap">${message}</p>
           </div>
         </div>

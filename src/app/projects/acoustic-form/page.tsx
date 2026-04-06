@@ -81,7 +81,7 @@ function HowToUsePanel() {
     <div className="bg-white/80 rounded-xl border border-[#D8E6D8] shadow-sm">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#EFEDE8]/60 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#FFFFFF]/60 transition-colors"
       >
         <span className="font-semibold text-xs text-[#1A2A1A]">How to use</span>
         <span className="text-[#7A9B7A] text-xs">{open ? '−' : '+'}</span>
@@ -108,7 +108,7 @@ function HowToUsePanel() {
             <div className="space-y-1">
               {controls.map(c => (
                 <div key={c.key} className="flex items-center justify-between">
-                  <span className="text-[11px] font-mono bg-[#EFEDE8] text-[#1A2A1A] px-1.5 py-0.5 rounded">{c.key}</span>
+                  <span className="text-[11px] font-mono bg-[#FFFFFF] text-[#1A2A1A] px-1.5 py-0.5 rounded">{c.key}</span>
                   <span className="text-[11px] text-[#4A6B4A]">{c.action}</span>
                 </div>
               ))}
@@ -133,7 +133,7 @@ function HowItWorksPanel() {
     <div className="bg-white/80 rounded-xl border border-[#D8E6D8] shadow-sm">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#EFEDE8]/60 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#FFFFFF]/60 transition-colors"
       >
         <span className="font-semibold text-xs text-[#1A2A1A]">How it works</span>
         <span className="text-[#7A9B7A] text-xs">{open ? '−' : '+'}</span>
@@ -144,7 +144,7 @@ function HowItWorksPanel() {
           {/* Sabine's Formula */}
           <div className="mt-3">
             <p className="text-xs font-semibold text-[#1A2A1A] mb-1">Sabine&apos;s Formula</p>
-            <div className="bg-[#EFEDE8] rounded-lg px-3 py-2 mb-2 text-center">
+            <div className="bg-[#FFFFFF] rounded-lg px-3 py-2 mb-2 text-center">
               <span className="text-xs font-mono text-[#1A2A1A]">RT60 = 0.161 &times; V / A</span>
             </div>
             <p className="text-[11px] text-[#4A6B4A] leading-relaxed">
@@ -319,7 +319,7 @@ export default function AcousticFormPage() {
     `Sources: ${sourcePositions.length}. Receivers: ${receiverPoints.length}.`;
 
   return (
-    <div className="h-screen bg-[#EFEDE8] flex flex-col overflow-hidden">
+    <div className="h-screen bg-[#FFFFFF] flex flex-col overflow-hidden">
 
       {/* ─── Mobile message ──────────────────────────────────────────────────── */}
       <div className="lg:hidden flex flex-col items-center justify-center h-full px-8 text-center gap-4">
@@ -367,7 +367,7 @@ export default function AcousticFormPage() {
           <div className="bg-white/80 rounded-xl border border-[#D8E6D8] shadow-sm">
             <button
               onClick={() => setStructureOpen(o => !o)}
-              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#EFEDE8]/60 transition-colors focus:outline-none"
+              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#FFFFFF]/60 transition-colors focus:outline-none"
             >
               <span className="font-semibold text-xs text-[#1A2A1A]">Generate Preformed Structure</span>
               <span className="text-[#7A9B7A] text-xs">{structureOpen ? '−' : '+'}</span>
@@ -432,7 +432,7 @@ export default function AcousticFormPage() {
                       </button>
                       <button
                         onClick={() => { setStructureData(null); setStructureName(""); setStructureDescription(""); setStructureError(""); }}
-                        className="text-[10px] px-2 py-1 rounded bg-[#EFEDE8] text-[#4A6B4A] hover:bg-[#EDE8DE] transition-colors focus:outline-none"
+                        className="text-[10px] px-2 py-1 rounded bg-[#FFFFFF] text-[#4A6B4A] hover:bg-[#EDE8DE] transition-colors focus:outline-none"
                       >
                         Reset to default room
                       </button>

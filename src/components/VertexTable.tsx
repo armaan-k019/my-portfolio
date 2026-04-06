@@ -30,7 +30,7 @@ export default function VertexTable({ vertices, onChange }: VertexTableProps) {
       <div className="overflow-x-auto rounded-lg border border-[#D8E6D8]">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-[#EFEDE8] border-b border-[#D8E6D8]">
+            <tr className="bg-[#FFFFFF] border-b border-[#D8E6D8]">
               <th className="px-2 py-1.5 text-left text-[#4A6B4A] font-medium w-8">#</th>
               <th className="px-2 py-1.5 text-left text-[#4A6B4A] font-medium">X</th>
               <th className="px-2 py-1.5 text-left text-[#4A6B4A] font-medium">Y</th>

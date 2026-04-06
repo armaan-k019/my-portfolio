@@ -631,7 +631,7 @@ export default function YieldPage() {
                         />
                         <Tooltip
                           formatter={(v) => [`${(v as number) >= 0 ? "+" : ""}${v}%`, "Day change"]}
-                          contentStyle={{ background: "#EFEDE8", border: "1px solid #D4A96A44", borderRadius: 8, fontSize: 12 }}
+                          contentStyle={{ background: "#FFFFFF", border: "1px solid #D4A96A44", borderRadius: 8, fontSize: 12 }}
                           cursor={{ fill: "#D4A96A11" }}
                         />
                         <Bar dataKey="change" radius={[4, 4, 0, 0]}>

@@ -29,7 +29,7 @@ function OctaveBandChart({ octaveBandRT60 }: { octaveBandRT60: OctaveBandRT60 })
       {values.map((val, i) => (
         <div key={OCTAVE_BANDS[i]} className="flex items-center gap-2">
           <span className="text-xs text-[#4A6B4A] w-6 shrink-0 text-right">{BAND_SHORT[i]}</span>
-          <div className="flex-1 bg-[#EFEDE8] rounded-full h-2 overflow-hidden">
+          <div className="flex-1 bg-[#FFFFFF] rounded-full h-2 overflow-hidden">
             <div
               className="h-full rounded-full transition-all duration-500"
               style={{ width: `${(val / maxVal) * 100}%`, backgroundColor: BAND_COLORS[i] }}

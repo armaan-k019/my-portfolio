@@ -56,7 +56,7 @@ function PasswordScreen({ onUnlock }: { onUnlock: (config: DemoConfig, password:
   }
 
   return (
-    <div className="min-h-screen bg-[#EFEDE8] flex flex-col items-center justify-center px-6">
+    <div className="min-h-screen bg-[#FFFFFF] flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <Link href="/" className="text-xs text-terracotta hover:text-terracotta-dark transition-colors mb-10 inline-block">
           &larr; Back to portfolio
@@ -131,7 +131,7 @@ function PasswordScreen({ onUnlock }: { onUnlock: (config: DemoConfig, password:
 
 function DemoView({ config, onExit }: { config: DemoConfig; onExit: () => void }) {
   return (
-    <div className="min-h-screen bg-[#EFEDE8] flex flex-col">
+    <div className="min-h-screen bg-[#FFFFFF] flex flex-col">
       {/* Header */}
       <header
         className="border-b px-6 py-4"

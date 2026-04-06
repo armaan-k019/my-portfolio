@@ -281,8 +281,8 @@ function LocationCard({ loc, onSelect, selected }: { loc: LocationData; onSelect
       onClick={() => onSelect(loc)}
       className={`w-full text-left px-3 py-2.5 rounded-xl border transition-colors group ${
         selected
-          ? 'bg-[#EFEDE8] border-[#1A2A1A]/20 ring-1 ring-[#1A2A1A]/10'
-          : 'bg-[#EFEDE8]/60 hover:bg-[#EFEDE8] border-[#1A2A1A]/[0.06]'
+          ? 'bg-[#FFFFFF] border-[#1A2A1A]/20 ring-1 ring-[#1A2A1A]/10'
+          : 'bg-[#FFFFFF]/60 hover:bg-[#FFFFFF] border-[#1A2A1A]/[0.06]'
       }`}
     >
       <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -326,7 +326,7 @@ function LocationCard({ loc, onSelect, selected }: { loc: LocationData; onSelect
 
 function SkeletonCard() {
   return (
-    <div className="w-full px-3 py-2.5 rounded-xl bg-[#EFEDE8]/60 border border-[#1A2A1A]/[0.06] animate-pulse">
+    <div className="w-full px-3 py-2.5 rounded-xl bg-[#FFFFFF]/60 border border-[#1A2A1A]/[0.06] animate-pulse">
       <div className="h-3 bg-[#1A2A1A]/[0.07] rounded mb-2 w-3/4" />
       <div className="h-1 bg-[#1A2A1A]/[0.05] rounded mb-2" />
       <div className="h-2 bg-[#1A2A1A]/[0.05] rounded w-1/2" />
@@ -337,7 +337,7 @@ function SkeletonCard() {
 function UnifiedEventCard({ event }: { event: UnifiedEvent }) {
   const [expanded, setExpanded] = useState(false);
   return (
-    <div className="w-full px-3 py-2.5 rounded-xl bg-[#EFEDE8]/60 border border-[#1A2A1A]/[0.06]">
+    <div className="w-full px-3 py-2.5 rounded-xl bg-[#FFFFFF]/60 border border-[#1A2A1A]/[0.06]">
       <div className="flex items-start justify-between gap-2 mb-1">
         <span className="text-sm font-medium text-[#1A2A1A] leading-snug">{event.title}</span>
         <span className={`text-[9px] shrink-0 mt-0.5 px-1.5 py-0.5 rounded-full capitalize ${eventTypeBadgeClass(event.type)}`}>
@@ -1296,7 +1296,7 @@ export default function PulsePage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="h-screen bg-[#EFEDE8] text-[#1A2A1A] flex flex-col font-sans overflow-hidden">
+    <div className="h-screen bg-[#FFFFFF] text-[#1A2A1A] flex flex-col font-sans overflow-hidden">
 
       {/* ── Top status bar ──────────────────────────────────────────────────── */}
       <header className="flex items-center gap-3 px-4 py-2 bg-white border-b border-[#1A2A1A]/[0.08] text-xs select-none shrink-0 flex-wrap">
@@ -1538,7 +1538,7 @@ export default function PulsePage() {
                     <button
                       key={s}
                       onClick={() => sendChat(s)}
-                      className="w-full text-left text-[12px] px-3 py-2.5 rounded-xl border border-[#1A2A1A]/[0.08] text-[#4A6B4A] hover:text-[#1A2A1A] hover:border-[#1A2A1A]/20 hover:bg-[#EFEDE8] transition-all"
+                      className="w-full text-left text-[12px] px-3 py-2.5 rounded-xl border border-[#1A2A1A]/[0.08] text-[#4A6B4A] hover:text-[#1A2A1A] hover:border-[#1A2A1A]/20 hover:bg-[#FFFFFF] transition-all"
                     >
                       {s}
                     </button>
@@ -1557,7 +1557,7 @@ export default function PulsePage() {
                   className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
                     m.role === 'user'
                       ? 'bg-[#1A2A1A]/[0.07] text-[#1A2A1A] rounded-tr-sm'
-                      : 'bg-[#EFEDE8] text-[#1A2A1A] rounded-tl-sm border border-[#1A2A1A]/[0.08]'
+                      : 'bg-[#FFFFFF] text-[#1A2A1A] rounded-tl-sm border border-[#1A2A1A]/[0.08]'
                   }`}
                 >
                   {m.content}
@@ -1569,7 +1569,7 @@ export default function PulsePage() {
                 <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-0.5" style={{ background: 'linear-gradient(135deg, #B3A369, #2D5A27)' }}>
                   <span className="text-[9px]">✦</span>
                 </div>
-                <div className="bg-[#EFEDE8] px-3.5 py-3 rounded-2xl rounded-tl-sm border border-[#1A2A1A]/[0.08]">
+                <div className="bg-[#FFFFFF] px-3.5 py-3 rounded-2xl rounded-tl-sm border border-[#1A2A1A]/[0.08]">
                   <div className="flex gap-1">
                     {[0,1,2].map(i => (
                       <span key={i} className="w-1.5 h-1.5 rounded-full bg-[#1A2A1A]/30 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
@@ -1593,7 +1593,7 @@ export default function PulsePage() {
                 value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
                 placeholder="Ask anything…"
-                className="flex-1 px-3.5 py-2.5 text-sm rounded-xl bg-[#EFEDE8] border border-[#1A2A1A]/[0.12] text-[#1A2A1A] placeholder:text-[#7A9B7A] focus:outline-none focus:border-terracotta/40 transition-colors"
+                className="flex-1 px-3.5 py-2.5 text-sm rounded-xl bg-[#FFFFFF] border border-[#1A2A1A]/[0.12] text-[#1A2A1A] placeholder:text-[#7A9B7A] focus:outline-none focus:border-terracotta/40 transition-colors"
               />
               <button
                 type="submit"
@@ -1659,7 +1659,7 @@ export default function PulsePage() {
                     <button
                       key={s}
                       onClick={() => sendChat(s)}
-                      className="w-full text-left text-[12px] px-3 py-2.5 rounded-xl border border-[#1A2A1A]/[0.08] text-[#4A6B4A] hover:text-[#1A2A1A] hover:bg-[#EFEDE8] transition-all"
+                      className="w-full text-left text-[12px] px-3 py-2.5 rounded-xl border border-[#1A2A1A]/[0.08] text-[#4A6B4A] hover:text-[#1A2A1A] hover:bg-[#FFFFFF] transition-all"
                     >
                       {s}
                     </button>
@@ -1672,7 +1672,7 @@ export default function PulsePage() {
                 <div className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
                   m.role === 'user'
                     ? 'bg-[#1A2A1A]/[0.07] text-[#1A2A1A] rounded-tr-sm'
-                    : 'bg-[#EFEDE8] text-[#1A2A1A] rounded-tl-sm border border-[#1A2A1A]/[0.08]'
+                    : 'bg-[#FFFFFF] text-[#1A2A1A] rounded-tl-sm border border-[#1A2A1A]/[0.08]'
                 }`}>
                   {m.content}
                 </div>
@@ -1680,7 +1680,7 @@ export default function PulsePage() {
             ))}
             {chatLoading && (
               <div className="flex justify-start">
-                <div className="bg-[#EFEDE8] px-3.5 py-3 rounded-2xl rounded-tl-sm border border-[#1A2A1A]/[0.08]">
+                <div className="bg-[#FFFFFF] px-3.5 py-3 rounded-2xl rounded-tl-sm border border-[#1A2A1A]/[0.08]">
                   <div className="flex gap-1">
                     {[0,1,2].map(i => (
                       <span key={i} className="w-1.5 h-1.5 rounded-full bg-[#1A2A1A]/30 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
@@ -1704,7 +1704,7 @@ export default function PulsePage() {
                 value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
                 placeholder="Ask anything…"
-                className="flex-1 px-3.5 py-2.5 text-sm rounded-xl bg-[#EFEDE8] border border-[#1A2A1A]/[0.12] text-[#1A2A1A] placeholder:text-[#7A9B7A] focus:outline-none focus:border-terracotta/40 transition-colors"
+                className="flex-1 px-3.5 py-2.5 text-sm rounded-xl bg-[#FFFFFF] border border-[#1A2A1A]/[0.12] text-[#1A2A1A] placeholder:text-[#7A9B7A] focus:outline-none focus:border-terracotta/40 transition-colors"
               />
               <button
                 type="submit"

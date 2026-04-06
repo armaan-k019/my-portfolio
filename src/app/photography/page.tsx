@@ -1,128 +1,277 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Image from "next/image";
-import { albums, type Album, type Photo } from "../../../content/photography";
-import { AnimatePresence, motion } from "framer-motion";
+import { PHOTOS, DESTINATIONS, type Photo } from "../../../content/photos";
 
-export default function PhotographyPage() {
-  const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
-  const [lightboxPhoto, setLightboxPhoto] = useState<Photo | null>(null);
+// ─── Lightbox ─────────────────────────────────────────────────────────────────
+
+function Lightbox({
+  photo,
+  onClose,
+  onPrev,
+  onNext,
+  hasPrev,
+  hasNext,
+  index,
+  total,
+}: {
+  photo: Photo;
+  onClose: () => void;
+  onPrev: () => void;
+  onNext: () => void;
+  hasPrev: boolean;
+  hasNext: boolean;
+  index: number;
+  total: number;
+}) {
+  const touchStartX = useRef<number>(0);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft" && hasPrev) onPrev();
+      if (e.key === "ArrowRight" && hasNext) onNext();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose, onPrev, onNext, hasPrev, hasNext]);
+
+  // Prevent scroll on body
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-16">
-      <h1 className="text-2xl font-semibold text-brown mb-1">Photography</h1>
-      <div className="w-10 h-[3px] bg-terracotta mb-10" />
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ backgroundColor: "rgba(0,0,0,0.92)" }}
+      onClick={onClose}
+    >
+      {/* Close button */}
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
+        aria-label="Close"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
 
-      {/* Album grid */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {albums.map((album) => (
-          <button
-            key={album.slug}
-            onClick={() => setSelectedAlbum(album)}
-            className="text-left group cursor-pointer"
-          >
-            <div className="relative h-[260px] rounded-xl overflow-hidden">
-              {/* Background image or gradient placeholder */}
-              <div
-                className="absolute inset-0 group-hover:scale-105 transition-transform duration-300"
-                style={{ background: album.coverGradient }}
-              >
-                <Image
-                  src={album.cover}
-                  alt={album.title}
-                  fill
-                  className="object-cover opacity-80"
-                />
-              </div>
-              {/* Dark gradient overlay on bottom */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-              {/* Text overlay */}
-              <div className="absolute bottom-0 left-0 right-0 p-4">
-                <h2 className="font-semibold text-white text-lg">{album.title}</h2>
-                <p className="text-sm text-white/80">{album.location}</p>
-              </div>
-            </div>
-          </button>
-        ))}
+      {/* Prev arrow */}
+      {hasPrev && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onPrev(); }}
+          className="absolute left-4 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
+          aria-label="Previous photo"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+      )}
+
+      {/* Next arrow */}
+      {hasNext && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onNext(); }}
+          className="absolute right-4 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
+          aria-label="Next photo"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      )}
+
+      {/* Photo + caption */}
+      <div
+        className="flex flex-col items-center gap-3 px-16 max-w-[90vw]"
+        onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+        onTouchEnd={(e) => {
+          const delta = e.changedTouches[0].clientX - touchStartX.current;
+          if (delta > 50 && hasPrev) onPrev();
+          if (delta < -50 && hasNext) onNext();
+        }}
+      >
+        <div className="relative" style={{ maxHeight: "85vh", maxWidth: "90vw" }}>
+          <Image
+            src={photo.src}
+            alt={photo.location}
+            width={photo.w}
+            height={photo.h}
+            style={{ maxHeight: "85vh", maxWidth: "90vw", width: "auto", height: "auto", objectFit: "contain" }}
+            className="rounded-lg shadow-2xl"
+            priority
+            unoptimized={photo.src.startsWith("http")}
+          />
+        </div>
+        <div className="flex items-center gap-3">
+          <p className="text-white/60 text-xs font-medium tracking-wide uppercase">{photo.location}</p>
+          <span className="text-white/30 text-xs">{index + 1} / {total}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Photo card ───────────────────────────────────────────────────────────────
+
+function PhotoCard({ photo, onClick }: { photo: Photo; onClick: () => void }) {
+  const [loaded, setLoaded] = useState(false);
+
+  return (
+    <button
+      onClick={onClick}
+      className="block w-full break-inside-avoid mb-2 group relative rounded-lg overflow-hidden cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2D5A27]"
+      style={{ aspectRatio: `${photo.w}/${photo.h}` }}
+      aria-label={`Open photo from ${photo.location}`}
+    >
+      {/* Skeleton while loading */}
+      <div
+        className={`absolute inset-0 bg-[#D8E6D8] transition-opacity duration-300 ${loaded ? "opacity-0" : "opacity-100"}`}
+      />
+
+      <Image
+        src={photo.src}
+        alt={photo.location}
+        width={photo.w}
+        height={photo.h}
+        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+        style={{ width: "100%", height: "auto", display: "block" }}
+        className={`transition-all duration-300 group-hover:scale-[1.02] ${loaded ? "opacity-100" : "opacity-0"}`}
+        loading="lazy"
+        onLoad={() => setLoaded(true)}
+        unoptimized={photo.src.startsWith("http")}
+      />
+
+      {/* Hover overlay — location label */}
+      <div
+        className="absolute inset-x-0 bottom-0 h-16 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end pb-2.5 px-3"
+        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
+      >
+        <span className="text-white text-[11px] font-medium tracking-wide">
+          {photo.location}
+        </span>
+      </div>
+    </button>
+  );
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+
+export default function PhotographyPage() {
+  const [activeFilter, setActiveFilter] = useState("All");
+  const [fading, setFading] = useState(false);
+  const [pendingFilter, setPendingFilter] = useState("All");
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  const filteredPhotos = useMemo(
+    () => activeFilter === "All" ? PHOTOS : PHOTOS.filter(p => p.location === activeFilter),
+    [activeFilter]
+  );
+
+  const handleFilterChange = useCallback((dest: string) => {
+    if (dest === activeFilter) return;
+    setPendingFilter(dest);
+    setFading(true);
+  }, [activeFilter]);
+
+  // After fade-out, apply the filter and fade back in
+  useEffect(() => {
+    if (!fading) return;
+    const t = setTimeout(() => {
+      setActiveFilter(pendingFilter);
+      setFading(false);
+    }, 150);
+    return () => clearTimeout(t);
+  }, [fading, pendingFilter]);
+
+  const openLightbox = useCallback((index: number) => setLightboxIndex(index), []);
+  const closeLightbox = useCallback(() => setLightboxIndex(null), []);
+  const goPrev = useCallback(() => setLightboxIndex(i => i !== null && i > 0 ? i - 1 : i), []);
+  const goNext = useCallback(() => setLightboxIndex(i => i !== null && i < filteredPhotos.length - 1 ? i + 1 : i), [filteredPhotos.length]);
+
+  return (
+    <div className="min-h-screen bg-[#FFFFFF]">
+
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <div className="max-w-7xl mx-auto px-6 pt-12 pb-6">
+        <h1 className="text-2xl font-semibold text-[#1A2A1A] mb-1">Photography</h1>
+        <p className="text-sm text-[#4A6B4A]">
+          Travel photography — {DESTINATIONS.length} destinations, {PHOTOS.length} photos.
+        </p>
       </div>
 
-      {/* Album expanded view */}
-      <AnimatePresence>
-        {selectedAlbum && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-cream/95 overflow-y-auto"
+      {/* ── Filter pills ───────────────────────────────────────────────────── */}
+      <div className="max-w-7xl mx-auto px-6 pb-8">
+        <div className="flex flex-wrap gap-2">
+          {/* All pill */}
+          <button
+            onClick={() => handleFilterChange("All")}
+            className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
+              activeFilter === "All"
+                ? "bg-[#2D5A27] text-white border-[#2D5A27] shadow-sm"
+                : "bg-transparent text-[#4A6B4A] border-[#D8E6D8] hover:border-[#2D5A27] hover:text-[#2D5A27]"
+            }`}
           >
-            <div className="max-w-5xl mx-auto px-6 py-8">
-              <button
-                onClick={() => setSelectedAlbum(null)}
-                className="text-sm text-terracotta hover:text-terracotta-dark transition-colors mb-6"
-              >
-                &larr; Back to albums
-              </button>
-              <h2 className="text-xl font-semibold text-darkblue mb-1">{selectedAlbum.title}</h2>
-              <p className="text-sm text-brown-light mb-2">{selectedAlbum.location}</p>
-              <p className="text-sm text-brown-light mb-8">{selectedAlbum.caption}</p>
-              <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 space-y-4">
-                {selectedAlbum.photos.map((photo, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setLightboxPhoto(photo)}
-                    className="break-inside-avoid block w-full cursor-pointer"
-                  >
-                    <div className="relative rounded-lg overflow-hidden bg-cream-dark">
-                      <Image
-                        src={photo.src}
-                        alt={photo.alt}
-                        width={600}
-                        height={450}
-                        className="w-full h-auto object-cover hover:scale-[1.02] transition-transform duration-300"
-                      />
-                    </div>
-                    {photo.caption && (
-                      <p className="text-xs text-brown-light mt-1.5 text-left">{photo.caption}</p>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            All ({PHOTOS.length})
+          </button>
 
-      {/* Lightbox */}
-      <AnimatePresence>
-        {lightboxPhoto && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4 cursor-pointer"
-            onClick={() => setLightboxPhoto(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.95 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.95 }}
-              className="relative max-w-4xl w-full max-h-[85vh]"
+          {DESTINATIONS.map((dest) => (
+            <button
+              key={dest.name}
+              onClick={() => handleFilterChange(dest.name)}
+              className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
+                activeFilter === dest.name
+                  ? "bg-[#2D5A27] text-white border-[#2D5A27] shadow-sm"
+                  : "bg-transparent text-[#4A6B4A] border-[#D8E6D8] hover:border-[#2D5A27] hover:text-[#2D5A27]"
+              }`}
             >
-              <Image
-                src={lightboxPhoto.src}
-                alt={lightboxPhoto.alt}
-                width={1200}
-                height={900}
-                className="w-full h-auto max-h-[80vh] object-contain rounded-lg"
-              />
-              {lightboxPhoto.caption && (
-                <p className="text-sm text-white/80 text-center mt-3">{lightboxPhoto.caption}</p>
-              )}
-            </motion.div>
-          </motion.div>
+              {dest.name} ({dest.count})
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Masonry grid ───────────────────────────────────────────────────── */}
+      <div className="max-w-7xl mx-auto px-6 pb-16">
+        <div
+          className={`columns-1 sm:columns-2 lg:columns-3 gap-2 transition-opacity duration-150 ${
+            fading ? "opacity-0" : "opacity-100"
+          }`}
+        >
+          {filteredPhotos.map((photo, i) => (
+            <PhotoCard
+              key={photo.id}
+              photo={photo}
+              onClick={() => openLightbox(i)}
+            />
+          ))}
+        </div>
+
+        {filteredPhotos.length === 0 && (
+          <p className="text-center text-[#7A9B7A] text-sm py-20">No photos in this destination yet.</p>
         )}
-      </AnimatePresence>
+      </div>
+
+      {/* ── Lightbox ───────────────────────────────────────────────────────── */}
+      {lightboxIndex !== null && filteredPhotos[lightboxIndex] && (
+        <Lightbox
+          photo={filteredPhotos[lightboxIndex]}
+          onClose={closeLightbox}
+          onPrev={goPrev}
+          onNext={goNext}
+          hasPrev={lightboxIndex > 0}
+          hasNext={lightboxIndex < filteredPhotos.length - 1}
+          index={lightboxIndex}
+          total={filteredPhotos.length}
+        />
+      )}
     </div>
   );
 }

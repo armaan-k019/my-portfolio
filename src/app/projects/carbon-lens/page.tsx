@@ -545,7 +545,7 @@ export default function CarbonLensPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#EFEDE8]">
+    <div className="min-h-screen bg-[#FFFFFF]">
       <style>{`
         .report-body p { margin-bottom: 0.5rem; }
         .report-body p:last-child { margin-bottom: 0; }
@@ -666,7 +666,7 @@ export default function CarbonLensPage() {
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-[#D8E6D8] bg-[#EFEDE8]/50">
+                <tr className="border-b border-[#D8E6D8] bg-[#FFFFFF]/50">
                   <th className="text-left px-5 py-3 text-[10px] font-semibold uppercase tracking-wide text-[#7A9B7A] w-72">Material</th>
                   <th className="text-left px-3 py-3 text-[10px] font-semibold uppercase tracking-wide text-[#7A9B7A] w-28">Quantity</th>
                   <th className="text-left px-3 py-3 text-[10px] font-semibold uppercase tracking-wide text-[#7A9B7A] w-16">Unit</th>
@@ -682,7 +682,7 @@ export default function CarbonLensPage() {
                   const isNeg = lineTotal < 0;
                   const hasQty = (parseFloat(row.quantity) || 0) > 0;
                   return (
-                    <tr key={row.id} className="hover:bg-[#EFEDE8]/30 transition-colors group">
+                    <tr key={row.id} className="hover:bg-[#FFFFFF]/30 transition-colors group">
                       <td className="px-5 py-3">
                         <select
                           value={row.materialKey}
@@ -783,7 +783,7 @@ export default function CarbonLensPage() {
           </div>
 
           {/* Totals footer */}
-          <div className="border-t border-[#D8E6D8] px-5 py-4 bg-[#EFEDE8]/40 space-y-3">
+          <div className="border-t border-[#D8E6D8] px-5 py-4 bg-[#FFFFFF]/40 space-y-3">
             <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
               <div>
                 <p className="text-[10px] text-[#7A9B7A] uppercase tracking-wide font-medium">Total Embodied Carbon</p>
