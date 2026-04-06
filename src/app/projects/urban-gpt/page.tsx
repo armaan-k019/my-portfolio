@@ -106,28 +106,18 @@ interface HeatData {
   error?: string;
 }
 
-interface ZoningDevStd {
-  maxHeightFt: number | null;
-  maxHeightStories: number | null;
-  minLotSqFt: number | null;
-  maxFAR: number | null;
-  minSetbackFrontFt: number | null;
-  minSetbackSideFt: number | null;
-  minSetbackRearFt: number | null;
-  minParkingSpaces: string | null;
-  maxLotCoverage: number | null;
-}
-
 interface ZoningData {
-  zoneCode: string;
+  zoneCode: string | null;
   zoneName: string;
   zoneType: "residential" | "commercial" | "industrial" | "mixed" | "agricultural" | "institutional" | "unknown";
-  permittedUses: string[];
-  developmentStandards: ZoningDevStd;
-  municipality: string;
+  source: "arcgis" | "osm";
+  city: string;
+  dataQuality: "official" | "estimated";
+  disclaimer: string;
   aiSummary: string;
   aiDesignNote: string;
-  sourceUrl: string | null;
+  zoningCodeUrl: string;
+  gisUrl: string;
   error?: string;
 }
 
@@ -497,9 +487,7 @@ function ZoningPanel({
   error: string | null;
   onRetry: () => void;
 }) {
-  const [showUses, setShowUses] = useState(false);
-
-  if (loading) return <PanelSkeleton rows={5} />;
+  if (loading) return <PanelSkeleton rows={4} />;
   if (error || !data) return <PanelError message={error ?? "Zoning data unavailable."} onRetry={onRetry} />;
   if (data.error) return <PanelError message={data.error} onRetry={onRetry} />;
 
@@ -513,29 +501,25 @@ function ZoningPanel({
     unknown:       "bg-tan/20 text-brown-light border-tan/30",
   };
   const badgeClass = badgeColors[data.zoneType] ?? badgeColors.unknown;
-  const ds = data.developmentStandards;
-
-  const standards = [
-    { label: "Max Height", value: ds.maxHeightFt != null ? `${ds.maxHeightFt} ft${ds.maxHeightStories ? ` / ${ds.maxHeightStories} stories` : ""}` : "—" },
-    { label: "Max FAR",    value: ds.maxFAR != null ? String(ds.maxFAR) : "—" },
-    { label: "Min Lot Size", value: ds.minLotSqFt != null ? `${ds.minLotSqFt.toLocaleString()} sq ft` : "—" },
-    { label: "Front Setback", value: ds.minSetbackFrontFt != null ? `${ds.minSetbackFrontFt} ft` : "—" },
-    { label: "Side Setback",  value: ds.minSetbackSideFt != null ? `${ds.minSetbackSideFt} ft` : "—" },
-    { label: "Rear Setback",  value: ds.minSetbackRearFt != null ? `${ds.minSetbackRearFt} ft` : "—" },
-    { label: "Lot Coverage",  value: ds.maxLotCoverage != null ? `${ds.maxLotCoverage}% max` : "—" },
-    { label: "Parking",       value: ds.minParkingSpaces ?? "—" },
-  ];
 
   return (
     <div className="space-y-3">
+      {/* Zone header */}
       <div className="rounded-xl border border-tan/30 bg-white/50 px-4 py-4">
-        <div className="flex items-start gap-3 mb-2">
-          <span className={`text-lg font-bold px-3 py-1 rounded-lg border shrink-0 ${badgeClass}`}>
-            {data.zoneCode}
-          </span>
-          <div>
+        <div className="flex items-start gap-3 mb-3">
+          {data.zoneCode && (
+            <span className={`text-lg font-bold px-3 py-1 rounded-lg border shrink-0 ${badgeClass}`}>
+              {data.zoneCode}
+            </span>
+          )}
+          <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-brown leading-snug">{data.zoneName}</p>
-            {data.municipality && <p className="text-xs text-brown-light">{data.municipality}</p>}
+            {data.city && <p className="text-xs text-brown-light mt-0.5">{data.city}</p>}
+          </div>
+          {/* Data quality indicator */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className={`w-2 h-2 rounded-full ${data.dataQuality === "official" ? "bg-green-500" : "bg-amber-400"}`} />
+            <span className="text-[10px] text-brown-light capitalize">{data.dataQuality}</span>
           </div>
         </div>
         {data.aiSummary && (
@@ -543,67 +527,38 @@ function ZoningPanel({
         )}
       </div>
 
-      <div className="rounded-xl border border-tan/30 bg-white/50 px-4 py-3">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-brown-light mb-3">
-          Development Standards
-        </p>
-        {standards.every(s => s.value === "—") ? (
-          <p className="text-xs text-brown-light/70 leading-relaxed">
-            Detailed development standards not available for this jurisdiction. Check local municipal code.
-          </p>
-        ) : (
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-            {standards.map(({ label, value }) => (
-              <div key={label}>
-                <p className="text-[10px] text-brown-light/70">{label}</p>
-                <p className="text-xs font-medium text-darkblue">{value}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {data.permittedUses.length > 0 && (
-        <div className="rounded-xl border border-tan/30 bg-white/50 px-4 py-3">
-          <button
-            onClick={() => setShowUses(p => !p)}
-            className="flex items-center justify-between w-full text-[10px] font-semibold uppercase tracking-widest text-brown-light"
-          >
-            <span>Permitted Uses ({data.permittedUses.length})</span>
-            <span className="text-[8px]">{showUses ? "▲" : "▼"}</span>
-          </button>
-          {showUses && (
-            <ul className="mt-2 space-y-1">
-              {data.permittedUses.map((use, i) => (
-                <li key={i} className="text-sm text-brown flex gap-2 items-start">
-                  <span className="w-1 h-1 rounded-full bg-brown-light/40 shrink-0 mt-2" />
-                  {use}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-
+      {/* AI design note */}
       {data.aiDesignNote && (
         <div className="rounded-xl border border-tan/30 bg-white/50 px-4 py-3">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-brown-light mb-1">
-            AI Design Note
+            Design Implication
           </p>
           <p className="text-sm text-brown leading-relaxed">{data.aiDesignNote}</p>
         </div>
       )}
 
-      {data.sourceUrl && (
+      {/* Disclaimer */}
+      <p className="text-[10px] text-brown-light/60 leading-relaxed px-1">{data.disclaimer}</p>
+
+      {/* Links */}
+      <div className="flex flex-col gap-2">
         <a
-          href={data.sourceUrl}
+          href={data.zoningCodeUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs text-terracotta hover:text-terracotta-dark transition-colors block"
+          className="text-xs text-terracotta hover:text-terracotta-dark transition-colors"
         >
-          Find local zoning code →
+          Find {data.city ? `${data.city} ` : ""}zoning code →
         </a>
-      )}
+        <a
+          href={data.gisUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-terracotta hover:text-terracotta-dark transition-colors"
+        >
+          View on municipal GIS →
+        </a>
+      </div>
     </div>
   );
 }
