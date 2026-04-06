@@ -93,10 +93,10 @@ export default function AboutSection() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2 mb-5">
-            <span className="text-xs px-3 py-1 rounded-full bg-tan/20 text-brown-light border border-tan/40">
+            <span className="text-xs px-3 py-1 rounded-full bg-[#F0F5F0] text-brown-light border border-[#D8E6D8]">
               📍 Atlanta, GA
             </span>
-            <span className="text-xs px-3 py-1 rounded-full bg-tan/20 text-brown-light border border-tan/40">
+            <span className="text-xs px-3 py-1 rounded-full bg-[#F0F5F0] text-brown-light border border-[#D8E6D8]">
               🎓 Georgia Tech &apos;27
             </span>
           </div>
@@ -133,7 +133,7 @@ export default function AboutSection() {
           {favColumns.map((col) => (
             <div
               key={col.label}
-              className="bg-cream-warm rounded-xl border border-tan/30 p-4 shadow-sm"
+              className="bg-[#F7FAF7] rounded-xl border border-[#D8E6D8] p-4 shadow-sm"
             >
               <p className="text-lg mb-1">{col.emoji}</p>
               <p className={`text-sm font-semibold ${col.labelColor} mb-3`}>{col.label}</p>

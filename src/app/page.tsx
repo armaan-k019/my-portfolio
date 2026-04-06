@@ -8,7 +8,7 @@ import { projects } from "../../content/projects";
 import { getResearchEntries } from "@/lib/mdx";
 
 function SectionDivider() {
-  return <div className="h-px bg-tan/30" />;
+  return <div className="h-px bg-[#D8E6D8]/60" />;
 }
 
 export default function Home() {
@@ -22,8 +22,8 @@ export default function Home() {
 
       <SectionDivider />
 
-      {/* Work - dark blue at 12% opacity */}
-      <section id="work" className="py-14" style={{ backgroundColor: "rgba(30, 58, 95, 0.12)" }}>
+      {/* Work - subtle green tint */}
+      <section id="work" className="py-14" style={{ backgroundColor: "rgba(45, 90, 39, 0.03)" }}>
         <div className="max-w-5xl mx-auto px-6">
           <SectionReveal>
             <h2 className="text-xl font-semibold text-brown mb-1">Experience</h2>
@@ -35,8 +35,8 @@ export default function Home() {
 
       <SectionDivider />
 
-      {/* Projects - terracotta at 3% */}
-      <section id="projects" className="py-14" style={{ backgroundColor: "rgba(193, 81, 58, 0.03)" }}>
+      {/* Projects - very subtle green tint */}
+      <section id="projects" className="py-14" style={{ backgroundColor: "rgba(45, 90, 39, 0.02)" }}>
         <div className="max-w-5xl mx-auto px-6">
           <SectionReveal>
             <h2 className="text-xl font-semibold text-brown mb-1">Projects</h2>
@@ -48,8 +48,8 @@ export default function Home() {
 
       <SectionDivider />
 
-      {/* Research - dark blue at 3% */}
-      <section id="research" className="py-14" style={{ backgroundColor: "rgba(30, 58, 95, 0.03)" }}>
+      {/* Research - very subtle green tint */}
+      <section id="research" className="py-14" style={{ backgroundColor: "rgba(45, 90, 39, 0.03)" }}>
         <div className="max-w-5xl mx-auto px-6">
           <SectionReveal>
             <h2 className="text-xl font-semibold text-brown mb-1">Research &amp; Publications</h2>
