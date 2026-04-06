@@ -2,19 +2,11 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import type { PulseData, LocationData } from "../../api/pulse/route";
 import type { UnifiedEvent, EventsResponse, SourceStatus } from "../../api/events/route";
 
-// ─── Global window augmentation ───────────────────────────────────────────────
-
-declare global {
-  interface Window {
-    __pulseMapReady?: () => void;
-    gm_authFailure?: () => void;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    google?: any;
-  }
-}
+const PulseMap = dynamic(() => import("./PulseMap"), { ssr: false });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -25,92 +17,16 @@ interface ChatMessage {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const GT_CENTER = { lat: 33.7756, lng: -84.3963 };
-const GT_ZOOM   = 15;
-const POLL_MS   = 10_000;
+const POLL_MS = 10_000;
 
-// ─── Bus Route definitions (stop coordinates for Directions API) ──────────────
+type RouteId = "red" | "blue" | "green" | "gold";
 
 const BUS_ROUTE_DEFS = [
-  {
-    id: 'red' as const,
-    name: 'Red',
-    color: '#E8392A',
-    stops: [
-      { lat: 33.7748, lng: -84.3963, name: 'Student Center' },
-      { lat: 33.7769, lng: -84.4039, name: 'CRC' },
-      { lat: 33.7721, lng: -84.3902, name: 'North Ave Dining' },
-      { lat: 33.7756, lng: -84.3963, name: 'Tech Tower' },
-      { lat: 33.7775, lng: -84.3958, name: 'Klaus' },
-      { lat: 33.7757, lng: -84.3963, name: 'CULC' },
-    ],
-  },
-  {
-    id: 'blue' as const,
-    name: 'Blue',
-    color: '#1A6FBF',
-    stops: [
-      { lat: 33.7694, lng: -84.3956, name: 'West Village' },
-      { lat: 33.7763, lng: -84.3939, name: 'College of Design' },
-      { lat: 33.7742, lng: -84.3964, name: 'Skiles' },
-      { lat: 33.7748, lng: -84.3963, name: 'Student Center' },
-    ],
-  },
-  {
-    id: 'green' as const,
-    name: 'Green',
-    color: '#2E8B57',
-    stops: [
-      { lat: 33.7756, lng: -84.3963, name: 'Ferst Dr & Cherry' },
-      { lat: 33.7780, lng: -84.4012, name: 'Stamps Health' },
-      { lat: 33.7769, lng: -84.4039, name: 'CRC' },
-      { lat: 33.7694, lng: -84.3956, name: 'West Village' },
-    ],
-  },
-  {
-    id: 'gold' as const,
-    name: 'Gold',
-    color: '#B8952A',
-    stops: [
-      { lat: 33.7748, lng: -84.3963, name: 'Student Center' },
-      { lat: 33.7771, lng: -84.3998, name: 'Boggs' },
-      { lat: 33.7721, lng: -84.3902, name: 'North Ave Dining' },
-    ],
-  },
+  { id: "red"   as const, name: "Red",   color: "#E8392A" },
+  { id: "blue"  as const, name: "Blue",  color: "#1A6FBF" },
+  { id: "green" as const, name: "Green", color: "#2E8B57" },
+  { id: "gold"  as const, name: "Gold",  color: "#B8952A" },
 ];
-
-type RouteId = 'red' | 'blue' | 'green' | 'gold';
-
-// ─── Campus location coordinate mapping ───────────────────────────────────────
-
-const CAMPUS_LOCATIONS: Record<string, { lat: number; lng: number }> = {
-  "student center":    { lat: 33.7756, lng: -84.3963 },
-  "tech green":        { lat: 33.7758, lng: -84.3970 },
-  "crc":               { lat: 33.7748, lng: -84.3972 },
-  "culc":              { lat: 33.7760, lng: -84.3948 },
-  "clough commons":    { lat: 33.7760, lng: -84.3948 },
-  "klaus":             { lat: 33.7773, lng: -84.3942 },
-  "college of design": { lat: 33.7756, lng: -84.3985 },
-  "skiles":            { lat: 33.7763, lng: -84.3945 },
-  "north ave dining":  { lat: 33.7771, lng: -84.3978 },
-  "west village":      { lat: 33.7752, lng: -84.4002 },
-  "bobby dodd":        { lat: 33.7744, lng: -84.3936 },
-  "mccamish":          { lat: 33.7744, lng: -84.3952 },
-  "ferst center":      { lat: 33.7790, lng: -84.3970 },
-  "greek row":         { lat: 33.7694, lng: -84.3896 },
-  "van leer":          { lat: 33.7764, lng: -84.4006 },
-  "boggs":             { lat: 33.7771, lng: -84.3998 },
-  "mason":             { lat: 33.7756, lng: -84.3940 },
-  "tech tower":        { lat: 33.7756, lng: -84.3963 },
-};
-
-function matchLocationCoords(location: string): { lat: number; lng: number } | null {
-  const lower = location.toLowerCase();
-  for (const [key, coords] of Object.entries(CAMPUS_LOCATIONS)) {
-    if (lower.includes(key)) return coords;
-  }
-  return null;
-}
 
 // ─── Busyness colour helpers ──────────────────────────────────────────────────
 
@@ -155,72 +71,6 @@ function typeIcon(type: LocationData['type']): string {
   }
 }
 
-// ─── Campus event coord matching ──────────────────────────────────────────────
-
-const CAMPUS_COORDS: { name: string; lat: number; lng: number }[] = [
-  { name: 'Tech Green',          lat: 33.7751, lng: -84.3963 },
-  { name: 'Student Center',      lat: 33.7748, lng: -84.3963 },
-  { name: 'Clough Commons',      lat: 33.7757, lng: -84.3963 },
-  { name: 'CULC',                lat: 33.7757, lng: -84.3963 },
-  { name: 'Klaus',               lat: 33.7775, lng: -84.3958 },
-  { name: 'Van Leer',            lat: 33.7764, lng: -84.4006 },
-  { name: 'Skiles',              lat: 33.7742, lng: -84.3964 },
-  { name: 'Boggs',               lat: 33.7771, lng: -84.3998 },
-  { name: 'Mason',               lat: 33.7756, lng: -84.3940 },
-  { name: 'CRC',                 lat: 33.7769, lng: -84.4039 },
-  { name: 'Campus Rec',          lat: 33.7769, lng: -84.4039 },
-  { name: 'North Ave Dining',    lat: 33.7721, lng: -84.3902 },
-  { name: 'West Village',        lat: 33.7694, lng: -84.3956 },
-  { name: 'Bobby Dodd',          lat: 33.7721, lng: -84.3929 },
-  { name: 'Ferst Center',        lat: 33.7747, lng: -84.3979 },
-  { name: 'Exhibition Hall',     lat: 33.7731, lng: -84.3960 },
-  { name: 'Tech Tower',          lat: 33.7756, lng: -84.3963 },
-  { name: 'College of Design',   lat: 33.7763, lng: -84.3939 },
-  { name: 'College of Architecture', lat: 33.7756, lng: -84.3985 },
-  { name: 'Hinman',              lat: 33.7694, lng: -84.3896 },
-  { name: 'Paper Tricentennial', lat: 33.7751, lng: -84.3963 },
-  { name: 'Howey Physics',       lat: 33.7764, lng: -84.3945 },
-  { name: 'Cherry Emerson',      lat: 33.7771, lng: -84.3940 },
-  { name: 'Bunger Henry',        lat: 33.7756, lng: -84.3952 },
-];
-
-function matchEventCoords(location: string): { lat: number; lng: number } | null {
-  const lower = location.toLowerCase();
-  for (const c of CAMPUS_COORDS) {
-    if (lower.includes(c.name.toLowerCase())) return { lat: c.lat, lng: c.lng };
-  }
-  return null;
-}
-
-// ─── Physical footprint radii (metres) per location id ────────────────────────
-const PHYSICAL_RADIUS: Record<string, number> = {
-  chick_fil_a:    25,
-  panda:          25,
-  north_ave:      55,
-  west_village:   55,
-  crc:            90,
-  clough:         45,
-  student_center: 45,
-  tech_green:     70,
-  van_leer:       35,
-  boggs:          32,
-  skiles:         32,
-  mason:          30,
-  design:         30,
-  tech_tower:     22,
-};
-
-function physRadius(id: string): number {
-  return PHYSICAL_RADIUS[id] ?? 30;
-}
-
-// ─── Heatmap weight from busyness score ───────────────────────────────────────
-function heatWeight(busyness: number): number {
-  if (busyness < 30) return 0.2;
-  if (busyness < 60) return 0.6;
-  return 1.0;
-}
-
 // ─── Event type color/badge helpers ──────────────────────────────────────────
 
 function eventTypeBadgeClass(type: UnifiedEvent['type']): string {
@@ -235,17 +85,6 @@ function eventTypeBadgeClass(type: UnifiedEvent['type']): string {
   }
 }
 
-function eventTypePinColor(type: UnifiedEvent['type']): string {
-  switch (type) {
-    case 'party':
-    case 'social':   return '#a855f7';
-    case 'official': return '#0d9488';
-    case 'popup':    return '#d97706';
-    case 'sports':   return '#2563eb';
-    case 'lecture':  return '#4f46e5';
-    default:         return '#6b7280';
-  }
-}
 
 function sourceBadge(source: UnifiedEvent['source']): string {
   switch (source) {
@@ -631,9 +470,6 @@ export default function PulsePage() {
   const [skippedSources,    setSkippedSources]    = useState<string[]>([]);
   const [sourceDebug,       setSourceDebug]       = useState<SourceDebug | null>(null);
   const [eventsUpdatedAt,   setEventsUpdatedAt]   = useState(0);
-  const [mapsLoaded,        setMapsLoaded]        = useState(false);
-  const [mapError,          setMapError]          = useState<string | null>(null);
-  const [mapTimedOut,       setMapTimedOut]       = useState(false);
   const [lastUpdated,       setLastUpdated]       = useState<number>(0);
   const [secAgo,            setSecAgo]            = useState(0);
   const [fetchError,        setFetchError]        = useState(false);
@@ -659,179 +495,10 @@ export default function PulsePage() {
   const [activeBusCount,  setActiveBusCount] = useState(0);
   const [busesSimulated,  setBusesSimulated]  = useState(false);
 
-  // ── Map / overlay refs
-  const mapContainerRef      = useRef<HTMLDivElement>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mapRef               = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const heatmapRef           = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const circlesRef           = useRef<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const locationMarkersRef   = useRef<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const eventMarkersRef      = useRef<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const busMarkersRef        = useRef<any[]>([]);
-  // Route polylines: one per route id
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const routePolylinesRef    = useRef<Record<string, any>>({});
-  // Route stop markers: one array per route id
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const routeStopMarkersRef  = useRef<Record<string, any[]>>({});
-  // Cached Directions API results (fetched once per route)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const routeShapesRef       = useRef<Record<string, any>>({});
-  // Decoded LatLng arrays per route (populated when route polylines are fetched)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const routePathsRef        = useRef<Record<string, any[]>>({});
-  // Simulation state per animated bus
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const simBusesRef          = useRef<{
-    routeId: RouteId;
-    routeName: string;
-    routeColor: string;
-    stops: { lat: number; lng: number; name: string }[];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    path: any[];
-    waypointIdx: number;   // integer index into path
-    progress: number;      // 0..1 — how far along the current segment
-    stopTimer: number;     // ms remaining at a stop (0 = moving)
-    nextStopName: string;  // label shown in info window
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    marker: any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    iw: any;
-  }[]>([]);
-  const simAnimFrameRef      = useRef<number>(0);
-  const circleAnimRef        = useRef<number>(0);
-  const pollRef              = useRef<ReturnType<typeof setInterval> | null>(null);
-  const busPollRef           = useRef<ReturnType<typeof setInterval> | null>(null);
-  const tickRef              = useRef<ReturnType<typeof setInterval> | null>(null);
-  const dataRef              = useRef<PulseData | null>(null);
-  const chatEndRef           = useRef<HTMLDivElement>(null);
-
-  const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
-
-  // ── Load Google Maps ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (window.google?.maps) { setMapsLoaded(true); return; }
-    window.__pulseMapReady = () => setMapsLoaded(true);
-    window.gm_authFailure  = () => setMapError('Google Maps API key is invalid or this domain is not allowlisted. Check Google Cloud Console → Credentials.');
-    if (document.getElementById("pulse-maps-script")) return;
-    if (!mapsKey) {
-      console.error('NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is not set');
-      setMapError('Google Maps API key is not configured.');
-      return;
-    }
-    const s = document.createElement("script");
-    s.id    = "pulse-maps-script";
-    s.src   = `https://maps.googleapis.com/maps/api/js?key=${mapsKey}&libraries=visualization,geometry&callback=__pulseMapReady`;
-    s.async = true; s.defer = true;
-    s.onerror = () => setMapError('Failed to load Google Maps script. Check network connectivity.');
-    document.head.appendChild(s);
-    return () => { delete window.__pulseMapReady; delete window.gm_authFailure; };
-  }, [mapsKey]);
-
-  // ── Map load timeout ──────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (mapsLoaded || mapError) return;
-    const t = setTimeout(() => setMapTimedOut(true), 10_000);
-    return () => clearTimeout(t);
-  }, [mapsLoaded, mapError]);
-
-  // ── Init map ──────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!mapsLoaded || !mapContainerRef.current || mapRef.current) return;
-    const map = new window.google.maps.Map(mapContainerRef.current, {
-      center: GT_CENTER,
-      zoom:   GT_ZOOM,
-      mapTypeId: 'roadmap',
-      styles: [
-        { elementType: 'geometry',        stylers: [{ color: '#f5f0e8' }] },
-        { elementType: 'labels.text.fill',stylers: [{ color: '#5C4A3A' }] },
-        { featureType: 'water',           elementType: 'geometry', stylers: [{ color: '#c9d8e8' }] },
-        { featureType: 'road',            elementType: 'geometry', stylers: [{ color: '#ede5d8' }] },
-        { featureType: 'road.highway',    elementType: 'geometry', stylers: [{ color: '#e0d5c5' }] },
-        { featureType: 'poi.park',        elementType: 'geometry', stylers: [{ color: '#d5e4d0' }] },
-        { featureType: 'poi',             elementType: 'labels',   stylers: [{ visibility: 'off' }] },
-        { featureType: 'transit',         elementType: 'labels',   stylers: [{ visibility: 'off' }] },
-      ],
-      disableDefaultUI: false,
-      zoomControl: false,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: false,
-      gestureHandling: 'none',
-      scrollwheel: false,
-      disableDoubleClickZoom: true,
-      draggable: false,
-      keyboardShortcuts: false,
-      restriction: {
-        latLngBounds: {
-          north: 33.790,
-          south: 33.760,
-          east:  -84.375,
-          west:  -84.420,
-        },
-        strictBounds: true,
-      },
-    });
-    mapRef.current = map;
-  }, [mapsLoaded]);
-
-  // ── Fetch real bus route shapes from GT RideSystems (once on map load) ──────────
-  useEffect(() => {
-    if (!mapsLoaded || !mapRef.current || !window.google?.maps) return;
-
-    fetch('/api/bus-routes', { cache: 'no-store' })
-      .then(r => r.json())
-      .then((data: { routes: { id: string; name: string; color: string; encodedPolyline: string }[] }) => {
-        const routes = data.routes ?? [];
-        routes.forEach(route => {
-          // Map numeric route ID to the client-side RouteId key
-          const key = route.name.toLowerCase() as RouteId;
-          if (routeShapesRef.current[key]) return;
-          routeShapesRef.current[key] = 'loaded';
-
-          const visible = routeToggles[key];
-          // Decode the encoded polyline using the Google Maps geometry library
-          const path = window.google.maps.geometry
-            ? window.google.maps.geometry.encoding.decodePath(route.encodedPolyline)
-            : [];
-
-          // Store path for simulation
-          routePathsRef.current[key] = path as unknown as any[];
-
-          const poly = new window.google.maps.Polyline({
-            path,
-            geodesic: true,
-            strokeColor: route.color,
-            strokeOpacity: 0.85,
-            strokeWeight: 3,
-            map: visible ? mapRef.current : null,
-            zIndex: 2,
-          });
-          routePolylinesRef.current[key] = poly;
-        });
-
-        // Kick off simulation now that paths are available
-        startSimulation();
-      })
-      .catch(err => console.error('[routes] Failed to fetch bus routes:', err));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapsLoaded]);
-
-  // ── Sync route polyline/stop visibility with toggle state ──────────────────────
-  useEffect(() => {
-    if (!mapRef.current) return;
-    BUS_ROUTE_DEFS.forEach(route => {
-      const visible = routeToggles[route.id];
-      routePolylinesRef.current[route.id]?.setMap(visible ? mapRef.current : null);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      routeStopMarkersRef.current[route.id]?.forEach((m: any) => m.setMap(visible ? mapRef.current : null));
-    });
-  }, [routeToggles]);
+  const pollRef    = useRef<ReturnType<typeof setInterval> | null>(null);
+  const tickRef    = useRef<ReturnType<typeof setInterval> | null>(null);
+  const dataRef    = useRef<PulseData | null>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   // ── Fetch pulse data ──────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -848,189 +515,6 @@ export default function PulsePage() {
       setFetchError(true);
     }
   }, []);
-
-  // ── Bus simulation helpers ────────────────────────────────────────────────────
-
-  function createBusIcon(color: string): string {
-    const canvas = document.createElement('canvas');
-    canvas.width = 36;
-    canvas.height = 36;
-    const ctx = canvas.getContext('2d')!;
-    ctx.beginPath();
-    ctx.arc(18, 18, 16, 0, Math.PI * 2);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2.5;
-    ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.fill();
-    ctx.font = '18px serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('🚌', 18, 18);
-    return canvas.toDataURL();
-  }
-
-  function busInfoContent(color: string, routeName: string, nextStop: string, atStop: boolean) {
-    return `<div style="font-family:sans-serif;padding:6px 10px;max-width:210px;line-height:1.4">
-      <p style="font-weight:700;margin:0 0 2px;color:${color};font-size:13px">Route: ${routeName}</p>
-      <p style="margin:0 0 2px;font-size:11px;color:#555">Status: <span style="color:#888;font-style:italic">Simulated position</span></p>
-      <p style="margin:0;font-size:11px;color:#555">${atStop ? 'At stop:' : 'Next stop:'} <strong>${nextStop}</strong></p>
-    </div>`;
-  }
-
-  function findNextStop(
-    stops: { lat: number; lng: number; name: string }[],
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    path: any[],
-    waypointIdx: number,
-  ): string {
-    // Walk forward through remaining waypoints, find which stop comes soonest
-    const SEARCH = Math.min(path.length, 80);
-    for (let i = 0; i < SEARCH; i++) {
-      const pt = path[(waypointIdx + i) % path.length];
-      if (!pt) continue;
-      const lat = pt.lat(); const lng = pt.lng();
-      for (const stop of stops) {
-        if (Math.abs(lat - stop.lat) < 0.001 && Math.abs(lng - stop.lng) < 0.001) {
-          return stop.name;
-        }
-      }
-    }
-    return stops[0]?.name ?? '';
-  }
-
-  // ── Start the rAF simulation loop ─────────────────────────────────────────────
-  const startSimulation = useCallback(() => {
-    if (!mapRef.current || !window.google?.maps) return;
-
-    // Cancel any existing loop
-    cancelAnimationFrame(simAnimFrameRef.current);
-
-    // Clear existing bus markers
-    busMarkersRef.current.forEach(m => m.setMap(null));
-    busMarkersRef.current = [];
-    simBusesRef.current = [];
-
-    const pathsReady = BUS_ROUTE_DEFS.some(r => routePathsRef.current[r.id]?.length > 1);
-    if (!pathsReady) return; // routes not loaded yet — will retry when routes arrive
-
-    // Spawn 2 buses per active route, staggered 50% apart
-    BUS_ROUTE_DEFS.forEach(route => {
-      if (!routeToggles[route.id]) return;
-      const path = routePathsRef.current[route.id];
-      if (!path || path.length < 4) return;
-
-      ([0, Math.floor(path.length / 2)] as const).forEach(startIdx => {
-        const initialNextStop = findNextStop(route.stops, path, startIdx);
-        const marker = new window.google.maps.Marker({
-          position: path[startIdx],
-          map: mapRef.current,
-          icon: {
-            url: createBusIcon(route.color),
-            scaledSize: new window.google.maps.Size(36, 36),
-            anchor: new window.google.maps.Point(18, 18),
-          },
-          title: `Route: ${route.name}`,
-          zIndex: 10,
-        });
-        const iw = new window.google.maps.InfoWindow({
-          content: busInfoContent(route.color, route.name, initialNextStop, false),
-        });
-        marker.addListener('click', () => iw.open(mapRef.current, marker));
-        busMarkersRef.current.push(marker);
-        simBusesRef.current.push({
-          routeId:      route.id,
-          routeName:    route.name,
-          routeColor:   route.color,
-          stops:        route.stops,
-          path,
-          waypointIdx:  startIdx,
-          progress:     0,
-          stopTimer:    0,
-          nextStopName: initialNextStop,
-          marker,
-          iw,
-        });
-      });
-    });
-
-    setBusesSimulated(true);
-    setActiveBusCount(simBusesRef.current.length);
-
-    // ── rAF animation loop ────────────────────────────────────────────────────
-    // Buses travel at ~15 mph campus speed: each encoded-polyline segment is
-    // roughly 15–25 m, taking ~4 s to cross. Speed ≈ 0.25 progress-units / sec.
-    const SPEED = 0.25; // segments per second
-    let lastTs: number | null = null;
-
-    function tick(ts: number) {
-      if (lastTs === null) lastTs = ts;
-      const dt = Math.min(ts - lastTs, 100); // cap delta at 100 ms (handles tab-hidden)
-      lastTs = ts;
-
-      simBusesRef.current.forEach(bus => {
-        if (!routeToggles[bus.routeId]) return; // skip if route toggled off
-
-        if (bus.stopTimer > 0) {
-          bus.stopTimer -= dt;
-          return; // paused at a stop
-        }
-
-        bus.progress += SPEED * (dt / 1000);
-
-        if (bus.progress >= 1) {
-          // Advance to next waypoint
-          bus.progress -= 1;
-          bus.waypointIdx = (bus.waypointIdx + 1) % bus.path.length;
-
-          // Stop detection: within 0.001° of any stop on this route
-          const pt = bus.path[bus.waypointIdx];
-          if (pt) {
-            const lat = pt.lat(); const lng = pt.lng();
-            let atStop = false;
-            for (const stop of bus.stops) {
-              if (Math.abs(lat - stop.lat) < 0.001 && Math.abs(lng - stop.lng) < 0.001) {
-                bus.stopTimer = 4000;
-                bus.nextStopName = stop.name;
-                bus.iw.setContent(busInfoContent(bus.routeColor, bus.routeName, stop.name, true));
-                atStop = true;
-                break;
-              }
-            }
-            if (!atStop) {
-              const next = findNextStop(bus.stops, bus.path, bus.waypointIdx);
-              if (next !== bus.nextStopName) {
-                bus.nextStopName = next;
-                bus.iw.setContent(busInfoContent(bus.routeColor, bus.routeName, next, false));
-              }
-            }
-          }
-        }
-
-        // Interpolate position between current and next waypoint
-        const cur  = bus.path[bus.waypointIdx];
-        const next = bus.path[(bus.waypointIdx + 1) % bus.path.length];
-        if (cur && next) {
-          const lat = cur.lat() + (next.lat() - cur.lat()) * bus.progress;
-          const lng = cur.lng() + (next.lng() - cur.lng()) * bus.progress;
-          bus.marker.setPosition({ lat, lng });
-        }
-      });
-
-      simAnimFrameRef.current = requestAnimationFrame(tick);
-    }
-
-    simAnimFrameRef.current = requestAnimationFrame(tick);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routeToggles]);
-
-  // ── Fetch bus positions (no-op API, triggers simulation) ─────────────────────
-  const fetchBuses = useCallback(async () => {
-    if (!mapRef.current || !window.google?.maps) return;
-    // The API always returns [] — simulation is fully client-side
-    startSimulation();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startSimulation]);
 
   // ── Fetch unified events ──────────────────────────────────────────────────────
   const fetchEvents = useCallback(async () => {
@@ -1056,13 +540,11 @@ export default function PulsePage() {
   useEffect(() => {
     fetchData();
     fetchEvents();
-    pollRef.current    = setInterval(fetchData, POLL_MS);
-    busPollRef.current = setInterval(fetchBuses, 15_000);
+    pollRef.current = setInterval(fetchData, POLL_MS);
     return () => {
-      if (pollRef.current)    clearInterval(pollRef.current);
-      if (busPollRef.current) clearInterval(busPollRef.current);
+      if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [fetchData, fetchEvents, fetchBuses]);
+  }, [fetchData, fetchEvents]);
 
   // Live "last updated X seconds ago" counter
   useEffect(() => {
@@ -1072,182 +554,11 @@ export default function PulsePage() {
     return () => { if (tickRef.current) clearInterval(tickRef.current); };
   }, [lastUpdated]);
 
-  // Fetch buses whenever map becomes ready
-  useEffect(() => {
-    if (mapsLoaded) fetchBuses();
-  }, [mapsLoaded, fetchBuses]);
-
-  // ── Heatmap layer ──────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!mapRef.current || !data || !window.google?.maps?.visualization) return;
-
-    const points = data.locations.map(loc => ({
-      location: new window.google.maps.LatLng(loc.lat, loc.lng),
-      weight:   heatWeight(loc.busyness),
-    }));
-
-    if (heatmapRef.current) {
-      heatmapRef.current.setData(points);
-      heatmapRef.current.setMap(showHeatmap ? mapRef.current : null);
-    } else {
-      heatmapRef.current = new window.google.maps.visualization.HeatmapLayer({
-        data: points,
-        map:  showHeatmap ? mapRef.current : null,
-        radius:   40,
-        opacity:  0.65,
-        gradient: [
-          'rgba(0,160,0,0)',
-          'rgba(0,200,0,1)',
-          'rgba(200,200,0,1)',
-          'rgba(250,130,0,1)',
-          'rgba(240,50,50,1)',
-        ],
-      });
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, showHeatmap, mapsLoaded]);
-
-  // ── Location pin markers ──────────────────────────────────────────────────
-  useEffect(() => {
-    if (!mapRef.current || !data || !window.google?.maps) return;
-
-    locationMarkersRef.current.forEach(m => m.setMap(null));
-    locationMarkersRef.current = [];
-
-    locationMarkersRef.current = data.locations.map(loc => {
-      const color = busynessHex(loc.busyness);
-      const svgPin = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="30" viewBox="0 0 24 30">
-        <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 18 12 18s12-9 12-18C24 5.373 18.627 0 12 0z" fill="${color}" stroke="white" stroke-width="1.5"/>
-        <circle cx="12" cy="12" r="4.5" fill="white" opacity="0.9"/>
-      </svg>`;
-      const iconUrl = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgPin)}`;
-      const marker = new window.google.maps.Marker({
-        position: { lat: loc.lat, lng: loc.lng },
-        map: mapRef.current,
-        icon: {
-          url: iconUrl,
-          scaledSize: new window.google.maps.Size(24, 30),
-          anchor: new window.google.maps.Point(12, 30),
-        },
-        title: loc.name,
-        zIndex: 5,
-      });
-      marker.addListener('click', () => setSelectedLoc(loc));
-      return marker;
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, mapsLoaded]);
-
-  // ── Pulsing circles layer ─────────────────────────────────────────────────
-  useEffect(() => {
-    if (!mapRef.current || !data) return;
-
-    circlesRef.current.forEach(c => c.setMap(null));
-    circlesRef.current = [];
-
-    if (!showCircles) {
-      cancelAnimationFrame(circleAnimRef.current);
-      return;
-    }
-
-    circlesRef.current = data.locations.map(loc => {
-      const baseRadius = physRadius(loc.id) + (loc.busyness / 100) * 30;
-      return new window.google.maps.Circle({
-        map:           mapRef.current,
-        center:        { lat: loc.lat, lng: loc.lng },
-        radius:        baseRadius,
-        fillColor:     busynessHex(loc.busyness),
-        fillOpacity:   0.28,
-        strokeColor:   busynessHex(loc.busyness),
-        strokeOpacity: 0.7,
-        strokeWeight:  1.5,
-        clickable:     true,
-      });
-    });
-
-    circlesRef.current.forEach((circle, i) => {
-      circle.addListener('click', () => setSelectedLoc(data.locations[i] ?? null));
-    });
-
-    let t = 0;
-    function animateCircles() {
-      circleAnimRef.current = requestAnimationFrame(animateCircles);
-      if (document.hidden) return;
-      t += 0.025;
-      circlesRef.current.forEach((circle, i) => {
-        const loc = data!.locations[i];
-        if (!loc) return;
-        const base      = physRadius(loc.id) + (loc.busyness / 100) * 30;
-        const amplitude = base * 0.15;
-        const phase     = i * 0.6;
-        const r         = base + Math.sin(t + phase) * amplitude;
-        circle.setRadius(r);
-        circle.setOptions({ fillOpacity: 0.18 + Math.sin(t + phase) * 0.10 });
-      });
-    }
-    animateCircles();
-
-    return () => cancelAnimationFrame(circleAnimRef.current);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, showCircles, mapsLoaded]);
-
-  // ── Event markers ─────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!mapRef.current || !window.google?.maps) return;
-
-    eventMarkersRef.current.forEach(m => m.setMap(null));
-    eventMarkersRef.current = [];
-
-    if (!showEvents) return;
-
-    events.filter(e => e.onCampus && e.location).forEach(event => {
-      const coords = matchEventCoords(event.location!) ?? matchLocationCoords(event.location!);
-      if (!coords) return;
-
-      const pinColor = eventTypePinColor(event.type);
-      const svgPin = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="28" viewBox="0 0 24 30">
-        <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 18 12 18s12-9 12-18C24 5.373 18.627 0 12 0z" fill="${pinColor}" stroke="white" stroke-width="1.5"/>
-        <text x="12" y="16" text-anchor="middle" fill="white" font-size="10" font-family="sans-serif">📅</text>
-      </svg>`;
-      const iconUrl = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgPin)}`;
-      const marker = new window.google.maps.Marker({
-        position: coords,
-        map: mapRef.current,
-        icon: {
-          url: iconUrl,
-          scaledSize: new window.google.maps.Size(22, 28),
-          anchor: new window.google.maps.Point(11, 28),
-        },
-        title: event.title,
-        zIndex: 7,
-      });
-      marker.addListener('click', () => {
-        const iw = new window.google.maps.InfoWindow({
-          content: `<div style="font-family:sans-serif;padding:4px 8px;max-width:200px">
-            <p style="font-weight:600;margin:0;color:${pinColor};font-size:13px">${event.title}</p>
-            <p style="margin:4px 0 0;font-size:11px;color:#555">${event.date}${event.time ? ' · ' + event.time : ''}</p>
-            <p style="margin:2px 0 0;font-size:11px;color:#555">${event.location}</p>
-            <p style="margin:2px 0 0;font-size:10px;color:#888">${event.organization}</p>
-          </div>`,
-        });
-        iw.open(mapRef.current, marker);
-      });
-      eventMarkersRef.current.push(marker);
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [events, showEvents, mapsLoaded]);
-
   // ── Cleanup ───────────────────────────────────────────────────────────────
   useEffect(() => {
     return () => {
-      if (pollRef.current)    clearInterval(pollRef.current);
-      if (busPollRef.current) clearInterval(busPollRef.current);
-      if (tickRef.current)    clearInterval(tickRef.current);
-      cancelAnimationFrame(simAnimFrameRef.current);
-      cancelAnimationFrame(circleAnimRef.current);
-      locationMarkersRef.current.forEach(m => m.setMap(null));
-      eventMarkersRef.current.forEach(m => m.setMap(null));
-      busMarkersRef.current.forEach(m => m.setMap(null));
+      if (pollRef.current) clearInterval(pollRef.current);
+      if (tickRef.current) clearInterval(tickRef.current);
     };
   }, []);
 
@@ -1288,9 +599,6 @@ export default function PulsePage() {
   // ── Select location (pan map + show popup) ─────────────────────────────────
   const selectLocation = useCallback((loc: LocationData) => {
     setSelectedLoc(loc);
-    if (mapRef.current) {
-      mapRef.current.panTo({ lat: loc.lat, lng: loc.lng });
-    }
   }, []);
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -1343,42 +651,22 @@ export default function PulsePage() {
         <div className="relative flex-1 min-h-0">
 
           {/* Map */}
-          <div ref={mapContainerRef} className="absolute inset-0 bg-[#111318]" />
-          {!mapsLoaded && !mapError && !mapTimedOut && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-2">
-              <div className="w-5 h-5 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-              <p className="text-white/25 text-xs">Loading map…</p>
-            </div>
-          )}
-          {(mapError || mapTimedOut) && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#111318]/80 backdrop-blur-sm">
-              <span className="text-3xl">🗺️</span>
-              <p className="text-white/70 text-sm font-medium">Map unavailable</p>
-              <p className="text-white/35 text-xs max-w-[260px] text-center leading-relaxed">
-                {mapError ?? 'Map took too long to load. Check your connection or try again.'}
-              </p>
-              <button
-                onClick={() => {
-                  setMapError(null);
-                  setMapTimedOut(false);
-                  const existing = document.getElementById('pulse-maps-script');
-                  if (existing) existing.remove();
-                  if (window.google?.maps) { setMapsLoaded(true); return; }
-                  window.__pulseMapReady = () => setMapsLoaded(true);
-                  window.gm_authFailure  = () => setMapError('Google Maps API key is invalid or this domain is not allowlisted.');
-                  const s = document.createElement('script');
-                  s.id    = 'pulse-maps-script';
-                  s.src   = `https://maps.googleapis.com/maps/api/js?key=${mapsKey}&libraries=visualization,geometry&callback=__pulseMapReady`;
-                  s.async = true; s.defer = true;
-                  s.onerror = () => setMapError('Failed to load Google Maps script.');
-                  document.head.appendChild(s);
-                }}
-                className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-white/70 text-xs transition-colors"
-              >
-                Retry
-              </button>
-            </div>
-          )}
+          <div className="absolute inset-0">
+            <PulseMap
+              data={data}
+              events={events}
+              showHeatmap={showHeatmap}
+              showCircles={showCircles}
+              showEvents={showEvents}
+              routeToggles={routeToggles}
+              onSelectLoc={selectLocation}
+              selectedLoc={selectedLoc}
+              onBusStatusChange={(count, sim) => {
+                setActiveBusCount(count);
+                setBusesSimulated(sim);
+              }}
+            />
+          </div>
 
           {/* ── Layer toggle panel (top-left) ──────────────────────────── */}
           <div className="absolute top-3 left-3 z-10 bg-black/70 backdrop-blur-md rounded-xl border border-white/[0.08] min-w-[140px]">

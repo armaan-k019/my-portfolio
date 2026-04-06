@@ -3,22 +3,14 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import dynamic from "next/dynamic";
 import type {
   UrbanAnalysisResult,
   OverpassPoint,
-  OverpassData,
   IncomeBracket,
 } from "../../api/urban-gpt/route";
 
-// ─── Google Maps global types ─────────────────────────────────────────────────
-
-declare global {
-  interface Window {
-    __urbanGPTMapsReady?: () => void;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    google?: any;
-  }
-}
+const UrbanGPTMap = dynamic(() => import("./UrbanGPTMap"), { ssr: false });
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -60,19 +52,6 @@ const SPECIALTY_LAYER_CONFIG: { key: "flood" | "heat" | "zoning"; label: string 
   { key: "zoning", label: "Zoning" },
 ];
 
-const MAP_STYLES = [
-  { elementType: "geometry",                      stylers: [{ color: "#f5f0e8" }] },
-  { elementType: "labels.text.fill",              stylers: [{ color: "#4A6B4A" }] },
-  { elementType: "labels.text.stroke",            stylers: [{ color: "#f5f0e8" }] },
-  { featureType: "water",  elementType: "geometry",        stylers: [{ color: "#c9d8e8" }] },
-  { featureType: "road",   elementType: "geometry",        stylers: [{ color: "#ede5d8" }] },
-  { featureType: "road",   elementType: "geometry.stroke", stylers: [{ color: "#d4c8b8" }] },
-  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#e4d9ca" }] },
-  { featureType: "poi",    elementType: "geometry",        stylers: [{ color: "#e8e2d5" }] },
-  { featureType: "poi.park", elementType: "geometry",      stylers: [{ color: "#d5e4d0" }] },
-  { featureType: "transit.station", elementType: "geometry", stylers: [{ color: "#ddd8cf" }] },
-  { featureType: "administrative", elementType: "geometry.stroke", stylers: [{ color: "#c4b8aa" }] },
-];
 
 // ─── New data layer types ──────────────────────────────────────────────────────
 
@@ -155,13 +134,6 @@ function fmtNum(n: number | null, suffix = ""): string {
   return `${n.toLocaleString()}${suffix}`;
 }
 
-function getZoomForRadius(radiusM: number): number {
-  const miles = radiusM / 1609.344;
-  if (miles < 1)  return 15;
-  if (miles < 2)  return 14;
-  if (miles < 5)  return 13;
-  return 12;
-}
 
 function gentrificationColor(level: string | null): string {
   if (!level) return "text-brown-light";
@@ -577,7 +549,6 @@ export default function UrbanGPTPage() {
     transit: true, parks: true, restaurants: true, schools: true, hospitals: true,
     flood: false, heat: false, zoning: false,
   });
-  const [mapsLoaded, setMapsLoaded] = useState(false);
   const [suggestions, setSuggestions] = useState<{ display: string; lat: number; lng: number }[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -599,15 +570,6 @@ export default function UrbanGPTPage() {
   const nominatimRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nominatimAbortRef = useRef<AbortController | null>(null);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mapRef = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const circleRef = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const markerGroupsRef = useRef<Map<string, any[]>>(new Map());
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const centerMarkerRef = useRef<any>(null);
-  const mapContainerRef = useRef<HTMLDivElement>(null);
   const addressInputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasResultRef = useRef(false);
@@ -616,62 +578,11 @@ export default function UrbanGPTPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const doAnalyzeRef = useRef<any>(null);
 
-  // New overlay refs
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const floodPolygonsRef = useRef<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const heatCircleRef = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const zoningCircleRef = useRef<any>(null);
-
   const radiusInMiles = RADIUS_VALUES[radiusIndex];
-  const radiusInMeters = radiusInMiles * 1609.344;
-  const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
-
-  // ── Load Google Maps ───────────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (!mapsKey) return;
-    if (window.google?.maps) { setMapsLoaded(true); return; }
-    window.__urbanGPTMapsReady = () => setMapsLoaded(true);
-    if (document.getElementById("urban-gpt-maps-script")) return;
-    const script = document.createElement("script");
-    script.id = "urban-gpt-maps-script";
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsKey}&libraries=places&callback=__urbanGPTMapsReady`;
-    script.async = true;
-    script.defer = true;
-    document.head.appendChild(script);
-    return () => { delete window.__urbanGPTMapsReady; };
-  }, [mapsKey]);
-
-  // ── Initialize Autocomplete ────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (!mapsLoaded || !addressInputRef.current) return;
-    const ac = new window.google.maps.places.Autocomplete(addressInputRef.current, {
-      types: ["address"],
-      componentRestrictions: { country: "us" },
-      fields: ["formatted_address", "geometry"],
-    });
-    ac.addListener("place_changed", () => {
-      const p = ac.getPlace();
-      if (!p?.geometry?.location) return;
-      const lat = p.geometry.location.lat() as number;
-      const lng = p.geometry.location.lng() as number;
-      const formatted = (p.formatted_address as string) ?? "";
-      setAddress(formatted);
-      const pl = { lat, lng, formatted };
-      setPlace(pl);
-      currentPlaceRef.current = pl;
-      setError("");
-      doAnalyzeRef.current?.(pl, currentRadiusIndexRef.current);
-    });
-  }, [mapsLoaded]);
 
   // ── Nominatim suggestion search ────────────────────────────────────────────
 
   useEffect(() => {
-    if (mapsLoaded) { setSuggestions([]); return; }
     if (nominatimRef.current) clearTimeout(nominatimRef.current);
     nominatimAbortRef.current?.abort();
     if (!address.trim() || address.length < 2) { setSuggestions([]); return; }
@@ -695,7 +606,7 @@ export default function UrbanGPTPage() {
       if (nominatimRef.current) clearTimeout(nominatimRef.current);
       nominatimAbortRef.current?.abort();
     };
-  }, [address, mapsLoaded]);
+  }, [address]);
 
   // ── Core analysis ──────────────────────────────────────────────────────────
 
@@ -834,178 +745,6 @@ export default function UrbanGPTPage() {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [radiusIndex, doAnalyze]);
 
-  // ── Update circle radius ───────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (!circleRef.current || !mapRef.current) return;
-    circleRef.current.setRadius(radiusInMeters);
-    mapRef.current.setZoom(getZoomForRadius(radiusInMeters));
-  }, [radiusInMeters]);
-
-  // ── Init / update map on result ────────────────────────────────────────────
-
-  useEffect(() => {
-    if (!result || !mapsLoaded || !mapContainerRef.current) return;
-    const { lat, lng } = result;
-    const zoom = getZoomForRadius(result.radiusM);
-
-    if (!mapRef.current) {
-      const map = new window.google.maps.Map(mapContainerRef.current, {
-        center: { lat, lng }, zoom,
-        mapTypeControl: false, streetViewControl: false, fullscreenControl: false,
-        zoomControlOptions: { position: window.google.maps.ControlPosition.RIGHT_CENTER },
-        styles: MAP_STYLES,
-      });
-      const centerMarker = new window.google.maps.Marker({
-        position: { lat, lng }, map, title: result.address, zIndex: 100,
-        icon: { path: window.google.maps.SymbolPath.CIRCLE, scale: 9, fillColor: "#2D5A27", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 },
-      });
-      const circle = new window.google.maps.Circle({
-        map, center: { lat, lng }, radius: result.radiusM,
-        fillColor: "#1E3A5F", fillOpacity: 0.05, strokeColor: "#1E3A5F", strokeOpacity: 0.4, strokeWeight: 1.5, clickable: false,
-      });
-      mapRef.current = map;
-      circleRef.current = circle;
-      centerMarkerRef.current = centerMarker;
-    } else {
-      circleRef.current?.setCenter({ lat, lng });
-      circleRef.current?.setRadius(result.radiusM);
-      centerMarkerRef.current?.setPosition({ lat, lng });
-      mapRef.current.setCenter({ lat, lng });
-      mapRef.current.setZoom(zoom);
-    }
-
-    renderOverlays(result.overpass, layers);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result, mapsLoaded]);
-
-  // ── Layer visibility (original 5) ──────────────────────────────────────────
-
-  useEffect(() => {
-    if (!mapRef.current) return;
-    markerGroupsRef.current.forEach((markers, key) => {
-      const visible = layers[key as keyof LayerState];
-      markers.forEach((m) => m.setVisible(visible));
-    });
-  }, [layers]);
-
-  // ── Flood overlay ──────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    // Clear existing polygons
-    floodPolygonsRef.current.forEach((p) => p.setMap(null));
-    floodPolygonsRef.current = [];
-
-    if (!mapRef.current || !floodData?.nearbyZones || !layers.flood) return;
-
-    for (const zone of floodData.nearbyZones) {
-      if (!zone.rings?.length) continue;
-
-      const z = zone.zone.toUpperCase();
-      const isHigh = zone.sfha || z.startsWith("A") || z.startsWith("V");
-      const isMod  = z === "X" && zone.subtype?.toUpperCase().includes("500");
-      const fillColor = isHigh ? "#DC3545" : isMod ? "#FFC107" : "#28A745";
-      const fillOpacity = isHigh ? 0.3 : isMod ? 0.25 : 0.15;
-
-      const paths = zone.rings.map((ring) =>
-        ring.map(([lngCoord, latCoord]) => ({ lat: latCoord, lng: lngCoord }))
-      );
-
-      const poly = new window.google.maps.Polygon({
-        paths,
-        map: mapRef.current,
-        fillColor,
-        fillOpacity,
-        strokeColor: fillColor,
-        strokeOpacity: 0.3,
-        strokeWeight: 0.5,
-        clickable: false,
-        zIndex: 1,
-      });
-      floodPolygonsRef.current.push(poly);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [floodData, layers.flood, mapsLoaded]);
-
-  // ── Heat overlay ───────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (heatCircleRef.current) { heatCircleRef.current.setMap(null); heatCircleRef.current = null; }
-    if (!mapRef.current || !heatData || !result || !layers.heat) return;
-
-    const score = heatData.intensityScore;
-    const fillColor = score < 4 ? "#3B82F6" : score < 7 ? "#F59E0B" : "#EF4444";
-    const fillOpacity = 0.1 + (score / 10) * 0.15;
-
-    heatCircleRef.current = new window.google.maps.Circle({
-      map: mapRef.current,
-      center: { lat: result.lat, lng: result.lng },
-      radius: result.radiusM,
-      fillColor,
-      fillOpacity,
-      strokeOpacity: 0,
-      clickable: false,
-      zIndex: 1,
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [heatData, layers.heat, mapsLoaded]);
-
-  // ── Zoning overlay ─────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (zoningCircleRef.current) { zoningCircleRef.current.setMap(null); zoningCircleRef.current = null; }
-    if (!mapRef.current || !zoningData || !result || !layers.zoning || zoningData.error) return;
-
-    const colorMap: Record<string, string> = {
-      residential:   "#4A90E2",
-      commercial:    "#FFA500",
-      industrial:    "#808080",
-      mixed:         "#9400D3",
-      agricultural:  "#228B22",
-      institutional: "#4B0082",
-      unknown:       "#888888",
-    };
-    const fillColor = colorMap[zoningData.zoneType] ?? "#888888";
-
-    zoningCircleRef.current = new window.google.maps.Circle({
-      map: mapRef.current,
-      center: { lat: result.lat, lng: result.lng },
-      radius: result.radiusM,
-      fillColor,
-      fillOpacity: 0.15,
-      strokeOpacity: 0,
-      clickable: false,
-      zIndex: 1,
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [zoningData, layers.zoning, mapsLoaded]);
-
-  // ── renderOverlays ─────────────────────────────────────────────────────────
-
-  function renderOverlays(overpass: OverpassData, currentLayers: LayerState) {
-    if (!mapRef.current) return;
-    markerGroupsRef.current.forEach((g) => g.forEach((m) => m.setMap(null)));
-    markerGroupsRef.current.clear();
-
-    const cats: { key: keyof LayerState; points: OverpassPoint[]; color: string }[] = [
-      { key: "transit",     points: overpass.transit,     color: "#1E3A5F" },
-      { key: "parks",       points: overpass.parks,       color: "#6B8F6E" },
-      { key: "restaurants", points: overpass.restaurants, color: "#D4A96A" },
-      { key: "schools",     points: overpass.schools,     color: "#2D5A27" },
-      { key: "hospitals",   points: overpass.hospitals,   color: "#4A6B4A" },
-    ];
-    for (const { key, points, color } of cats) {
-      const markers = points.map((pt) =>
-        new window.google.maps.Marker({
-          position: { lat: pt.lat, lng: pt.lon }, map: mapRef.current,
-          visible: currentLayers[key], title: pt.name || key,
-          icon: { path: window.google.maps.SymbolPath.CIRCLE, scale: 5, fillColor: color, fillOpacity: 0.85, strokeColor: "#fff", strokeWeight: 1 },
-        })
-      );
-      markerGroupsRef.current.set(key, markers);
-    }
-  }
-
   // ── Derived display values ─────────────────────────────────────────────────
 
   const totalAmenities = result
@@ -1084,7 +823,7 @@ export default function UrbanGPTPage() {
               placeholder="e.g. 123 Peachtree St NE, Atlanta, GA"
               className="w-full rounded-lg border border-tan/40 bg-cream-dark/20 px-3 py-2.5 text-sm text-brown placeholder:text-brown-light/50 focus:outline-none focus:ring-2 focus:ring-terracotta/30 focus:border-terracotta/50 transition-colors"
             />
-            {!mapsLoaded && showSuggestions && suggestions.length > 0 && (
+            {showSuggestions && suggestions.length > 0 && (
               <ul className="absolute z-20 top-full left-0 right-0 mt-1 rounded-xl border border-tan/30 bg-white/95 backdrop-blur-sm shadow-lg overflow-hidden">
                 {suggestions.map((s, i) => (
                   <li key={i}>
@@ -1180,100 +919,84 @@ export default function UrbanGPTPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
               {/* Map */}
               <div className="lg:sticky lg:top-6 self-start">
-                {mapsKey ? (
-                  <div className="relative rounded-xl overflow-hidden border border-tan/30 shadow-sm">
-                    <div ref={mapContainerRef} className="w-full h-[480px]" />
-
-                    {/* Layer toggle */}
-                    <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm rounded-xl border border-tan/20 shadow-sm p-3">
-                      <p className="text-[9px] font-semibold uppercase tracking-widest text-brown-light mb-2">Layers</p>
-                      <div className="flex flex-col gap-1.5">
-                        {/* Original amenity layers */}
-                        {LAYER_CONFIG.map(({ key, label, color }) => {
-                          const categoryName = key === "restaurants" ? "dining" : key === "hospitals" ? "health" : key;
-                          const count = result?.overpass[key as keyof typeof result.overpass] as OverpassPoint[] | undefined;
-                          const countNum = Array.isArray(count) ? count.length : 0;
-                          const timedOut = result?.overpass.timedOutCategories?.includes(categoryName);
-                          return (
-                            <label key={key} className="flex items-center gap-2 cursor-pointer">
-                              <div className={`w-3 h-3 rounded-full shrink-0 ${layers[key] ? color : "bg-brown-light/20"} transition-colors`} />
-                              <span className={`text-xs transition-colors flex-1 ${layers[key] ? "text-brown" : "text-brown-light/50"}`}>{label}</span>
-                              {loading ? (
-                                <span className="text-[9px] text-brown-light/40 animate-pulse">…</span>
-                              ) : result ? (
-                                timedOut ? (
-                                  <span className="text-[9px] text-tan/70 italic">timeout</span>
-                                ) : countNum === 0 ? (
-                                  <span className="text-[9px] text-brown-light/40 italic">none</span>
-                                ) : (
-                                  <span className="text-[9px] font-semibold text-darkblue">{countNum}</span>
-                                )
-                              ) : null}
-                              <input type="checkbox" checked={layers[key]}
-                                onChange={() => setLayers((prev) => ({ ...prev, [key]: !prev[key] }))}
-                                className="sr-only" />
-                            </label>
-                          );
-                        })}
-
-                        {/* Divider */}
-                        <div className="h-px bg-tan/30 my-0.5" />
-
-                        {/* Specialty overlay layers */}
-                        {SPECIALTY_LAYER_CONFIG.map(({ key, label }) => {
-                          const badge = specialtyLayerBadge(key);
-                          return (
-                            <label key={key} className="flex items-center gap-2 cursor-pointer">
-                              <div className={`w-3 h-3 rounded-full shrink-0 ${specialtyDotColor(key)} transition-colors`} />
-                              <span className={`text-xs transition-colors flex-1 ${layers[key] ? "text-brown" : "text-brown-light/50"}`}>{label}</span>
-                              {badge && layers[key] ? (
-                                <span className="text-[9px] font-semibold text-darkblue">{badge}</span>
-                              ) : (floodLoading && key === "flood") || (heatLoading && key === "heat") || (zoningLoading && key === "zoning") ? (
-                                <span className="text-[9px] text-brown-light/40 animate-pulse">…</span>
-                              ) : null}
-                              <input type="checkbox" checked={layers[key]}
-                                onChange={() => {
-                                  const newVal = !layers[key];
-                                  setLayers((prev) => ({ ...prev, [key]: newVal }));
-                                  if (newVal) setActiveTab(key as ActiveTab);
-                                }}
-                                className="sr-only" />
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Amenity badge */}
-                    <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-xl border border-tan/20 shadow-sm px-3 py-1.5">
-                      <p className="text-[10px] text-brown-light">
-                        {loading ? (
-                          <span className="text-darkblue animate-pulse">Loading…</span>
-                        ) : (
-                          <><span className="font-semibold text-darkblue">{totalAmenities}</span> points</>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                ) : result ? (
-                  <div className="relative rounded-xl overflow-hidden border border-tan/30 shadow-sm h-[480px]">
-                    <iframe
-                      title="Site location"
-                      width="100%"
-                      height="100%"
-                      loading="lazy"
-                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${result.lng - 0.04},${result.lat - 0.03},${result.lng + 0.04},${result.lat + 0.03}&layer=mapnik&marker=${result.lat},${result.lng}`}
-                      className="w-full h-full border-0"
+                <div className="relative rounded-xl overflow-hidden border border-tan/30 shadow-sm">
+                  <div className="w-full h-[480px]">
+                    <UrbanGPTMap
+                      result={result}
+                      layers={layers}
+                      floodData={floodData}
+                      heatData={heatData}
+                      zoningData={zoningData}
                     />
-                    <div className="absolute bottom-2 right-2 bg-white/80 rounded px-2 py-0.5 text-[10px] text-brown-light">
-                      © OpenStreetMap contributors
+                  </div>
+
+                  {/* Layer toggle */}
+                  <div className="absolute top-3 left-3 z-[1000] bg-white/90 backdrop-blur-sm rounded-xl border border-tan/20 shadow-sm p-3">
+                    <p className="text-[9px] font-semibold uppercase tracking-widest text-brown-light mb-2">Layers</p>
+                    <div className="flex flex-col gap-1.5">
+                      {/* Original amenity layers */}
+                      {LAYER_CONFIG.map(({ key, label, color }) => {
+                        const categoryName = key === "restaurants" ? "dining" : key === "hospitals" ? "health" : key;
+                        const count = result?.overpass[key as keyof typeof result.overpass] as OverpassPoint[] | undefined;
+                        const countNum = Array.isArray(count) ? count.length : 0;
+                        const timedOut = result?.overpass.timedOutCategories?.includes(categoryName);
+                        return (
+                          <label key={key} className="flex items-center gap-2 cursor-pointer">
+                            <div className={`w-3 h-3 rounded-full shrink-0 ${layers[key] ? color : "bg-brown-light/20"} transition-colors`} />
+                            <span className={`text-xs transition-colors flex-1 ${layers[key] ? "text-brown" : "text-brown-light/50"}`}>{label}</span>
+                            {loading ? (
+                              <span className="text-[9px] text-brown-light/40 animate-pulse">…</span>
+                            ) : result ? (
+                              timedOut ? (
+                                <span className="text-[9px] text-tan/70 italic">timeout</span>
+                              ) : countNum === 0 ? (
+                                <span className="text-[9px] text-brown-light/40 italic">none</span>
+                              ) : (
+                                <span className="text-[9px] font-semibold text-darkblue">{countNum}</span>
+                              )
+                            ) : null}
+                            <input type="checkbox" checked={layers[key]}
+                              onChange={() => setLayers((prev) => ({ ...prev, [key]: !prev[key] }))}
+                              className="sr-only" />
+                          </label>
+                        );
+                      })}
+
+                      {/* Divider */}
+                      <div className="h-px bg-tan/30 my-0.5" />
+
+                      {/* Specialty overlay layers */}
+                      {SPECIALTY_LAYER_CONFIG.map(({ key, label }) => {
+                        const badge = specialtyLayerBadge(key);
+                        return (
+                          <label key={key} className="flex items-center gap-2 cursor-pointer">
+                            <div className={`w-3 h-3 rounded-full shrink-0 ${specialtyDotColor(key)} transition-colors`} />
+                            <span className={`text-xs transition-colors flex-1 ${layers[key] ? "text-brown" : "text-brown-light/50"}`}>{label}</span>
+                            {badge && layers[key] ? (
+                              <span className="text-[9px] font-semibold text-darkblue">{badge}</span>
+                            ) : (floodLoading && key === "flood") || (heatLoading && key === "heat") || (zoningLoading && key === "zoning") ? (
+                              <span className="text-[9px] text-brown-light/40 animate-pulse">…</span>
+                            ) : null}
+                            <input type="checkbox" checked={layers[key]}
+                              onChange={() => {
+                                const newVal = !layers[key];
+                                setLayers((prev) => ({ ...prev, [key]: newVal }));
+                                if (newVal) setActiveTab(key as ActiveTab);
+                              }}
+                              className="sr-only" />
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
-                ) : (
-                  <div className="rounded-xl border border-tan/30 bg-white/40 h-[480px] flex items-center justify-center">
-                    <p className="text-sm text-brown-light/40 italic">Map will appear after analysis</p>
+
+                  {/* Amenity badge */}
+                  <div className="absolute top-3 right-3 z-[1000] bg-white/90 backdrop-blur-sm rounded-xl border border-tan/20 shadow-sm px-3 py-1.5">
+                    <p className="text-[10px] text-brown-light">
+                      <><span className="font-semibold text-darkblue">{totalAmenities}</span> points</>
+                    </p>
                   </div>
-                )}
+                </div>
               </div>
 
               {/* Dashboard */}
