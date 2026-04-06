@@ -101,7 +101,7 @@ export interface UrbanAnalysisResult {
   overpassError?: boolean;
 }
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 // ─── Server-side cache ────────────────────────────────────────────────────────
 
@@ -524,7 +524,7 @@ async function fetchOverpassData(
     for (const endpoint of OVERPASS_ENDPOINTS) {
       try {
         console.log(`[urban-gpt] Overpass ${category} → ${endpoint.includes('kumi') ? 'kumi' : 'main'}`);
-        const res = await fetchWithTimeout(endpoint, fetchOptions(query), 27000);
+        const res = await fetchWithTimeout(endpoint, fetchOptions(query), 20000);
         if (!res.ok) {
           console.warn(`[urban-gpt] Overpass ${category}: HTTP ${res.status}`);
           continue;
@@ -783,11 +783,21 @@ export async function POST(request: Request) {
 
     console.log(`[urban-gpt] POST → address="${address}" lat=${lat} lng=${lng} radius=${radiusM}m unit=${unit}`);
 
-    const [census, overpassResult, temp] = await Promise.all([
+    const [censusRes, overpassRes, tempRes] = await Promise.allSettled([
       fetchCensusData(lat, lng),
       fetchOverpassData(lat, lng, radiusM),
       fetchTemperature(lat, lng),
     ]);
+
+    const census = censusRes.status === "fulfilled" ? censusRes.value : { ...CENSUS_EMPTY };
+    const overpassResult = overpassRes.status === "fulfilled"
+      ? overpassRes.value
+      : { data: { transit: [], parks: [], restaurants: [], schools: [], hospitals: [], bikeWayCount: 0 } as OverpassData, error: true };
+    const temp = tempRes.status === "fulfilled" ? tempRes.value : { tempF: null, tempC: null };
+
+    if (censusRes.status === "rejected")   console.error("[urban-gpt] census rejected:", censusRes.reason);
+    if (overpassRes.status === "rejected") console.error("[urban-gpt] overpass rejected:", overpassRes.reason);
+    if (tempRes.status === "rejected")     console.error("[urban-gpt] temp rejected:", tempRes.reason);
 
     census.tempF = temp.tempF;
     census.tempC = temp.tempC;

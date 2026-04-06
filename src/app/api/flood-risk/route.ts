@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 interface FemaFeature {
   attributes: { FLD_ZONE: string; ZONE_SUBTY: string; SFHA_TF: string };

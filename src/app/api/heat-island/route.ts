@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 function intensityLabel(score: number): string {
   if (score < 2) return "Minimal";
