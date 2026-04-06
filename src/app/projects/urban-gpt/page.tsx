@@ -547,14 +547,20 @@ function ZoningPanel({
         <p className="text-[10px] font-semibold uppercase tracking-widest text-brown-light mb-3">
           Development Standards
         </p>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-          {standards.map(({ label, value }) => (
-            <div key={label}>
-              <p className="text-[10px] text-brown-light/70">{label}</p>
-              <p className="text-xs font-medium text-darkblue">{value}</p>
-            </div>
-          ))}
-        </div>
+        {standards.every(s => s.value === "—") ? (
+          <p className="text-xs text-brown-light/70 leading-relaxed">
+            Detailed development standards not available for this jurisdiction. Check local municipal code.
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+            {standards.map(({ label, value }) => (
+              <div key={label}>
+                <p className="text-[10px] text-brown-light/70">{label}</p>
+                <p className="text-xs font-medium text-darkblue">{value}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {data.permittedUses.length > 0 && (
@@ -595,7 +601,7 @@ function ZoningPanel({
           rel="noopener noreferrer"
           className="text-xs text-terracotta hover:text-terracotta-dark transition-colors block"
         >
-          View Municipal Zoning Code →
+          Find local zoning code →
         </a>
       )}
     </div>
