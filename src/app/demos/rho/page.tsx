@@ -136,6 +136,61 @@ const TRANSACTIONS: Transaction[] = [
   { date: "2025-03-17", vendor: "GitHub",          category: "SaaS",           amount:  210,  method: "card"    },
 ];
 
+// ─── Scenario B: Healthy Spend ─────────────────────────────────────────────────
+// Month indexes: 0=Oct, 1=Nov, 2=Dec, 3=Jan, 4=Feb, 5=Mar
+
+const TRANSACTIONS_B: Transaction[] = [
+  // ── Payroll - natural variation under 1% MoM ─────────────────────────────
+  { date: "2024-10-01", vendor: "Gusto Payroll",        category: "Payroll",        amount: 51800, method: "ACH"  },
+  { date: "2024-11-01", vendor: "Gusto Payroll",        category: "Payroll",        amount: 52100, method: "ACH"  },
+  { date: "2024-12-01", vendor: "Gusto Payroll",        category: "Payroll",        amount: 52000, method: "ACH"  },
+  { date: "2025-01-01", vendor: "Gusto Payroll",        category: "Payroll",        amount: 52300, method: "ACH"  },
+  { date: "2025-02-01", vendor: "Gusto Payroll",        category: "Payroll",        amount: 52000, method: "ACH"  },
+  { date: "2025-03-01", vendor: "Gusto Payroll",        category: "Payroll",        amount: 52100, method: "ACH"  },
+
+  // ── SaaS - natural variation under 2% MoM ────────────────────────────────
+  { date: "2024-10-05", vendor: "Notion",               category: "SaaS",           amount:   280, method: "card" },
+  { date: "2024-11-05", vendor: "Notion",               category: "SaaS",           amount:   285, method: "card" },
+  { date: "2024-12-05", vendor: "Notion",               category: "SaaS",           amount:   280, method: "card" },
+  { date: "2025-01-05", vendor: "Notion",               category: "SaaS",           amount:   280, method: "card" },
+  { date: "2025-02-05", vendor: "Notion",               category: "SaaS",           amount:   283, method: "card" },
+  { date: "2025-03-05", vendor: "Notion",               category: "SaaS",           amount:   280, method: "card" },
+  { date: "2024-10-07", vendor: "Figma",                category: "SaaS",           amount:   320, method: "card" },
+  { date: "2024-11-07", vendor: "Figma",                category: "SaaS",           amount:   320, method: "card" },
+  { date: "2024-12-07", vendor: "Figma",                category: "SaaS",           amount:   325, method: "card" },
+  { date: "2025-01-07", vendor: "Figma",                category: "SaaS",           amount:   320, method: "card" },
+  { date: "2025-02-07", vendor: "Figma",                category: "SaaS",           amount:   320, method: "card" },
+  { date: "2025-03-07", vendor: "Figma",                category: "SaaS",           amount:   322, method: "card" },
+  { date: "2024-10-10", vendor: "Linear",               category: "SaaS",           amount:   190, method: "card" },
+  { date: "2024-11-10", vendor: "Linear",               category: "SaaS",           amount:   190, method: "card" },
+  { date: "2024-12-10", vendor: "Linear",               category: "SaaS",           amount:   192, method: "card" },
+  { date: "2025-01-10", vendor: "Linear",               category: "SaaS",           amount:   190, method: "card" },
+  { date: "2025-02-10", vendor: "Linear",               category: "SaaS",           amount:   190, method: "card" },
+  { date: "2025-03-10", vendor: "Linear",               category: "SaaS",           amount:   191, method: "card" },
+  { date: "2024-10-12", vendor: "Slack",                category: "SaaS",           amount:   380, method: "card" },
+  { date: "2024-11-12", vendor: "Slack",                category: "SaaS",           amount:   378, method: "card" },
+  { date: "2024-12-12", vendor: "Slack",                category: "SaaS",           amount:   380, method: "card" },
+  { date: "2025-01-12", vendor: "Slack",                category: "SaaS",           amount:   382, method: "card" },
+  { date: "2025-02-12", vendor: "Slack",                category: "SaaS",           amount:   380, method: "card" },
+  { date: "2025-03-12", vendor: "Slack",                category: "SaaS",           amount:   380, method: "card" },
+
+  // ── Infrastructure - minor expected variance ──────────────────────────────
+  { date: "2024-10-20", vendor: "Amazon Web Services",  category: "Infrastructure", amount:  1800, method: "card" },
+  { date: "2024-11-20", vendor: "Amazon Web Services",  category: "Infrastructure", amount:  1820, method: "card" },
+  { date: "2024-12-20", vendor: "Amazon Web Services",  category: "Infrastructure", amount:  1795, method: "card" },
+  { date: "2025-01-20", vendor: "Amazon Web Services",  category: "Infrastructure", amount:  1810, method: "card" },
+  { date: "2025-02-20", vendor: "Amazon Web Services",  category: "Infrastructure", amount:  1800, method: "card" },
+  { date: "2025-03-20", vendor: "Amazon Web Services",  category: "Infrastructure", amount:  1805, method: "card" },
+
+  // ── Misc - small natural fluctuation ─────────────────────────────────────
+  { date: "2024-10-28", vendor: "FedEx",                category: "Misc",           amount:    85, method: "card" },
+  { date: "2024-11-28", vendor: "FedEx",                category: "Misc",           amount:    92, method: "card" },
+  { date: "2024-12-28", vendor: "FedEx",                category: "Misc",           amount:    85, method: "card" },
+  { date: "2025-01-28", vendor: "FedEx",                category: "Misc",           amount:    88, method: "card" },
+  { date: "2025-02-28", vendor: "FedEx",                category: "Misc",           amount:    85, method: "card" },
+  { date: "2025-03-28", vendor: "FedEx",                category: "Misc",           amount:    85, method: "card" },
+];
+
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatDate(iso: string): string {
@@ -162,7 +217,7 @@ const MONTH_PREFIXES = ["2024-10", "2024-11", "2024-12", "2025-01", "2025-02", "
 
 // ─── SVG Line Chart - Payroll excluded (shown as stable callout instead) ────────
 
-function LineChart() {
+function LineChart({ transactions = TRANSACTIONS }: { transactions?: Transaction[] }) {
   const width = 600;
   const height = 200;
   const padL  = 52;
@@ -178,14 +233,14 @@ function LineChart() {
     const result: Record<string, number[]> = {};
     for (const cat of chartCategories) {
       result[cat] = MONTH_PREFIXES.map((prefix) =>
-        TRANSACTIONS
+        transactions
           .filter((t) => t.category === cat && t.date.startsWith(prefix))
           .reduce((s, t) => s + t.amount, 0)
       );
     }
     return result;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [transactions]);
 
   const allValues = Object.values(monthlyTotals).flat();
   const maxVal = Math.max(...allValues) * 1.12;
@@ -266,14 +321,23 @@ function LineChart() {
       })}
 
       {/* SaaS drift annotation: right-aligned at last (Mar) point */}
-      <text
-        x={xPos(5) - 3}
-        y={yPos(monthlyTotals["SaaS"]?.[5] ?? 0) - 7}
-        fontSize={9}
-        textAnchor="end"
-        fill={CATEGORY_COLORS["SaaS"]}
-        fontWeight="600"
-      >↑ +69% over 6 months</text>
+      {(() => {
+        const saasVals = monthlyTotals["SaaS"] ?? [];
+        const first = saasVals[0] ?? 0;
+        const last  = saasVals[saasVals.length - 1] ?? 0;
+        const pct   = first > 0 ? Math.round(((last - first) / first) * 100) : 0;
+        if (Math.abs(pct) < 3) return null;
+        return (
+          <text
+            x={xPos(5) - 3}
+            y={yPos(last) - 7}
+            fontSize={9}
+            textAnchor="end"
+            fill={CATEGORY_COLORS["SaaS"]}
+            fontWeight="600"
+          >{pct > 0 ? `↑ +${pct}%` : `↓ ${pct}%`} over 6 months</text>
+        );
+      })()}
 
       {/* Infrastructure "growing" label at midpoint (Dec) */}
       <text
@@ -422,9 +486,9 @@ function ProjectionChart() {
 
 // ─── Health Scorecard ─────────────────────────────────────────────────────────────
 
-function HealthScorecard() {
-  const score = 67;
-  const grade = score >= 80 ? "B" : score >= 60 ? "C" : "D";
+function HealthScorecard({ scenario = "A" }: { scenario?: "A" | "B" }) {
+  const score = scenario === "B" ? 94 : 67;
+  const grade = score >= 90 ? "A" : score >= 80 ? "B" : score >= 60 ? "C" : "D";
   const accentColor = score >= 80 ? "#10b981" : score >= 60 ? "#B8952A" : "#ef4444";
   const borderBg = score >= 80
     ? "border-emerald-200 bg-emerald-50"
@@ -432,12 +496,19 @@ function HealthScorecard() {
     ? "border-amber-200 bg-amber-50"
     : "border-red-200 bg-red-50";
 
-  const bars = [
-    { label: "SaaS Efficiency",      fill: 0.18, status: "HIGH RISK",    color: "#ef4444" },
-    { label: "Vendor Reliability",   fill: 0.45, status: "MEDIUM RISK",  color: "#B8952A" },
-    { label: "Subscription Hygiene", fill: 0.40, status: "MEDIUM RISK",  color: "#B8952A" },
-    { label: "Payroll Stability",    fill: 1.00, status: "HEALTHY",      color: "#10b981" },
-  ];
+  const bars = scenario === "B"
+    ? [
+        { label: "SaaS Efficiency",      fill: 0.97, status: "HEALTHY", color: "#10b981" },
+        { label: "Vendor Reliability",   fill: 0.95, status: "HEALTHY", color: "#10b981" },
+        { label: "Subscription Hygiene", fill: 0.92, status: "HEALTHY", color: "#10b981" },
+        { label: "Payroll Stability",    fill: 1.00, status: "HEALTHY", color: "#10b981" },
+      ]
+    : [
+        { label: "SaaS Efficiency",      fill: 0.18, status: "HIGH RISK",    color: "#ef4444" },
+        { label: "Vendor Reliability",   fill: 0.45, status: "MEDIUM RISK",  color: "#B8952A" },
+        { label: "Subscription Hygiene", fill: 0.40, status: "MEDIUM RISK",  color: "#B8952A" },
+        { label: "Payroll Stability",    fill: 1.00, status: "HEALTHY",      color: "#10b981" },
+      ];
 
   return (
     <div className={`rounded-xl border p-5 shadow-sm mb-4 ${borderBg}`}>
@@ -490,13 +561,20 @@ function HealthScorecard() {
 
 // ─── Benchmark Table ──────────────────────────────────────────────────────────────
 
-function BenchmarkTable() {
-  const rows = [
-    { metric: "SaaS % of burn",      company: "18%", seriesA: "12%", seriesB: "15%", cmp: "worse"   },
-    { metric: "MoM SaaS growth",     company: "11%", seriesA: "4%",  seriesB: "6%",  cmp: "worse"   },
-    { metric: "Infra % of burn",     company: "9%",  seriesA: "8%",  seriesB: "10%", cmp: "between" },
-    { metric: "Payroll % of burn",   company: "60%", seriesA: "65%", seriesB: "58%", cmp: "between" },
-  ];
+function BenchmarkTable({ scenario = "A" }: { scenario?: "A" | "B" }) {
+  const rows = scenario === "B"
+    ? [
+        { metric: "SaaS % of burn",    company: "2%",  seriesA: "12%", seriesB: "15%", cmp: "better"  },
+        { metric: "MoM SaaS growth",   company: "~1%", seriesA: "4%",  seriesB: "6%",  cmp: "better"  },
+        { metric: "Infra % of burn",   company: "3%",  seriesA: "8%",  seriesB: "10%", cmp: "better"  },
+        { metric: "Payroll % of burn", company: "94%", seriesA: "65%", seriesB: "58%", cmp: "between" },
+      ]
+    : [
+        { metric: "SaaS % of burn",    company: "18%", seriesA: "12%", seriesB: "15%", cmp: "worse"   },
+        { metric: "MoM SaaS growth",   company: "11%", seriesA: "4%",  seriesB: "6%",  cmp: "worse"   },
+        { metric: "Infra % of burn",   company: "9%",  seriesA: "8%",  seriesB: "10%", cmp: "between" },
+        { metric: "Payroll % of burn", company: "60%", seriesA: "65%", seriesB: "58%", cmp: "between" },
+      ];
 
   function cellStyle(cmp: string): React.CSSProperties {
     if (cmp === "worse")  return { backgroundColor: "#FEF2F2", color: "#991B1B" };
@@ -544,8 +622,8 @@ function BenchmarkTable() {
         </table>
       </div>
       <p className="text-[10px] text-[#9A8070] mt-3 leading-relaxed">
-        Benchmarks based on Rho platform aggregates across 500+ startups.
-        This company&apos;s SaaS growth rate is {saasMultiple}x the Series A average.
+        Benchmark ranges are illustrative estimates based on publicly available Series A and Series B startup spending patterns. Not derived from Rho platform data.
+        {scenario === "A" && <> This company&apos;s SaaS growth rate is {saasMultiple}x the Series A average.</>}
       </p>
     </div>
   );
@@ -635,6 +713,9 @@ export default function DriftDetectionPage() {
   const [analysisError, setError] = useState<string | null>(null);
   const [analyzed, setAnalyzed]   = useState(false);
   const [theme, setTheme]         = useState<"my" | "company">("my");
+  const [scenario, setScenario]   = useState<"A" | "B">("A");
+
+  const activeTransactions = scenario === "A" ? TRANSACTIONS : TRANSACTIONS_B;
 
   const COMPANY_STYLE: PageColors = {
     bg: "#fafaf9",
@@ -678,13 +759,13 @@ export default function DriftDetectionPage() {
   }, []);
 
   const filtered = useMemo(
-    () => filter === "All" ? TRANSACTIONS : TRANSACTIONS.filter((t) => t.category === filter),
-    [filter]
+    () => filter === "All" ? activeTransactions : activeTransactions.filter((t) => t.category === filter),
+    [filter, activeTransactions]
   );
 
   const trendingSet = useMemo(() => {
     const vendorMonths = new Map<string, Array<{ monthIdx: number; tx: Transaction }>>();
-    TRANSACTIONS.forEach((t) => {
+    activeTransactions.forEach((t) => {
       if (t.category !== "SaaS") return;
       const mIdx = MONTH_PREFIXES.findIndex((p) => t.date.startsWith(p));
       if (mIdx < 0) return;
@@ -745,7 +826,7 @@ export default function DriftDetectionPage() {
       const res = await fetch("/api/drift-detect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transactions: TRANSACTIONS }),
+        body: JSON.stringify({ transactions: activeTransactions, scenario }),
       });
       const data = await res.json() as { signals?: DriftSignal[]; error?: string };
       if (data.error && (!data.signals || data.signals.length === 0)) {
@@ -1034,20 +1115,46 @@ export default function DriftDetectionPage() {
             <h2 className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: LABEL }}>
               Try it
             </h2>
-            <p className="text-sm mb-6" style={{ color: LABEL }}>
-              Six months of synthetic company transaction data. Real drift patterns baked in.
+            <p className="text-sm mb-4" style={{ color: LABEL }}>
+              Six months of synthetic company transaction data. Switch scenarios to see how the detector responds.
             </p>
+
+            {/* Scenario switcher */}
+            <div className="flex gap-3 mb-6">
+              {(["A", "B"] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => {
+                    setScenario(s);
+                    setSignals([]);
+                    setAnalyzed(false);
+                    setExecSummary(null);
+                    setSummaryError(null);
+                    setError(null);
+                  }}
+                  className={`flex-1 sm:flex-none text-sm px-6 py-3 rounded-xl border-2 transition-all font-semibold shadow-sm ${
+                    scenario === s
+                      ? "border-[#2C1810]/30 text-[#2C1810] bg-[#2C1810]/[0.07]"
+                      : "border-[#2C1810]/10 text-[#9A8070] bg-white hover:text-[#6B5244] hover:border-[#2C1810]/20 hover:bg-[#2C1810]/[0.02]"
+                  }`}
+                >
+                  {s === "A" ? "Scenario A: SaaS Creep" : "Scenario B: Healthy Spend"}
+                </button>
+              ))}
+            </div>
 
             {/* Chart intro annotation */}
             <p style={{ fontSize: 11, fontStyle: "italic", color: LABEL, marginBottom: 10 }}>
-              The chart below excludes payroll. Watch the SaaS line.
+              {scenario === "A"
+                ? "The chart below excludes payroll. Watch the SaaS line."
+                : "The chart below excludes payroll. Notice the flat, stable lines."}
             </p>
 
             {/* Chart + Payroll callout */}
             <div className="flex flex-col sm:flex-row gap-4 mb-4">
               <div className="flex-1 rounded-xl border p-5 shadow-sm" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
                 <p className="text-xs mb-3" style={{ color: LABEL }}>Monthly spend - SaaS, Infrastructure &amp; Misc</p>
-                <LineChart />
+                <LineChart transactions={activeTransactions} />
                 <ChartLegend />
               </div>
 
@@ -1058,48 +1165,57 @@ export default function DriftDetectionPage() {
                   <span className="text-xs font-semibold text-emerald-700">Stable</span>
                 </div>
                 <p className="text-xs font-semibold" style={{ color: HEADING }}>Payroll</p>
-                <p className="text-xs" style={{ color: SUBTEXT }}>$48k / mo avg</p>
+                <p className="text-xs" style={{ color: SUBTEXT }}>{scenario === "B" ? "$52k" : "$48k"} / mo avg</p>
                 <p className="text-[10px] text-emerald-600 font-medium">No drift detected</p>
               </div>
             </div>
 
-            {/* Spend Projection Chart */}
-            <div className="rounded-xl border p-5 shadow-sm mb-4" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
-              <p className="text-xs font-medium mb-1" style={{ color: HEADING }}>
-                At current drift rates, here is where spend is heading
-              </p>
-              <p style={{ fontSize: 11, fontStyle: "italic", color: LABEL, marginBottom: 10 }}>
-                Solid lines = actual · Dashed lines = projected
-              </p>
-              <ProjectionChart />
-              <ChartLegend />
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t" style={{ borderColor: C.cardBorder }}>
-                <div className="text-center">
-                  <p className="text-[10px] uppercase tracking-wide mb-1.5" style={{ color: LABEL }}>
-                    Projected SaaS spend by Sep 2025
-                  </p>
-                  <p className="text-2xl font-bold" style={{ color: "#B8952A" }}>
-                    $5,257<span className="text-sm font-normal"> / mo</span>
-                  </p>
-                </div>
-                <div className="text-center">
-                  <p className="text-[10px] uppercase tracking-wide mb-1.5" style={{ color: LABEL }}>
-                    vs. today
-                  </p>
-                  <p className="text-2xl font-bold" style={{ color: HEADING }}>
-                    +$2,446<span className="text-sm font-normal"> / month</span>
-                  </p>
-                </div>
-                <div className="text-center">
-                  <p className="text-[10px] uppercase tracking-wide mb-1.5" style={{ color: LABEL }}>
-                    Annualized overspend if unaddressed
-                  </p>
-                  <p className="text-2xl font-bold text-red-600">
-                    $13,869<span className="text-sm font-normal"> cumulative</span>
-                  </p>
+            {/* Spend Projection Chart - only meaningful for Scenario A */}
+            {scenario === "A" ? (
+              <div className="rounded-xl border p-5 shadow-sm mb-4" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
+                <p className="text-xs font-medium mb-1" style={{ color: HEADING }}>
+                  At current drift rates, here is where spend is heading
+                </p>
+                <p style={{ fontSize: 11, fontStyle: "italic", color: LABEL, marginBottom: 10 }}>
+                  Solid lines = actual · Dashed lines = projected
+                </p>
+                <ProjectionChart />
+                <ChartLegend />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t" style={{ borderColor: C.cardBorder }}>
+                  <div className="text-center">
+                    <p className="text-[10px] uppercase tracking-wide mb-1.5" style={{ color: LABEL }}>
+                      Projected SaaS spend by Sep 2025
+                    </p>
+                    <p className="text-2xl font-bold" style={{ color: "#B8952A" }}>
+                      $5,257<span className="text-sm font-normal"> / mo</span>
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] uppercase tracking-wide mb-1.5" style={{ color: LABEL }}>
+                      vs. today
+                    </p>
+                    <p className="text-2xl font-bold" style={{ color: HEADING }}>
+                      +$2,446<span className="text-sm font-normal"> / month</span>
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] uppercase tracking-wide mb-1.5" style={{ color: LABEL }}>
+                      Annualized overspend if unaddressed
+                    </p>
+                    <p className="text-2xl font-bold text-red-600">
+                      $13,869<span className="text-sm font-normal"> cumulative</span>
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm mb-4">
+                <p className="text-xs font-semibold text-emerald-700 mb-1">Spend trajectory is stable</p>
+                <p className="text-xs text-emerald-700 leading-relaxed">
+                  No significant drift detected. SaaS costs are growing in line with team size, infrastructure costs are predictable, and there are no forgotten subscriptions or vendor billing anomalies.
+                </p>
+              </div>
+            )}
 
             {/* Filter pills */}
             <div className="flex flex-wrap gap-2 mb-3">
@@ -1161,7 +1277,7 @@ export default function DriftDetectionPage() {
             </div>
             </div>
 
-            <HealthScorecard />
+            <HealthScorecard scenario={scenario} />
 
             {/* Detect button */}
             <button
@@ -1190,11 +1306,31 @@ export default function DriftDetectionPage() {
               </div>
             )}
 
+            {/* Scenario B: healthy spend banner - leads before any signal cards */}
+            {!analyzing && analyzed && scenario === "B" && (
+              <div
+                className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm"
+                style={{ animation: "fadeSlideIn 0.4s ease forwards", opacity: 0 }}
+              >
+                <div className="flex items-start gap-3">
+                  <span className="text-emerald-500 text-lg leading-none mt-0.5">✓</span>
+                  <div>
+                    <p className="text-sm font-semibold text-emerald-800 mb-1">Spending patterns are well-controlled</p>
+                    <p className="text-xs text-emerald-700 leading-relaxed">
+                      SaaS costs are growing in line with team size and infrastructure costs are predictable. No compounding drift detected across any category.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Signal cards */}
             {!analyzing && signals.length > 0 && (
-              <div className="mt-6 space-y-3">
+              <div className="mt-4 space-y-3">
                 <p style={{ fontSize: 11, fontStyle: "italic", color: LABEL, marginBottom: 4 }}>
-                  {signals.length} patterns a CFO would miss scanning line by line
+                  {scenario === "B"
+                    ? `${signals.length} informational note${signals.length === 1 ? "" : "s"} - no action required`
+                    : `${signals.length} patterns a CFO would miss scanning line by line`}
                 </p>
                 {signals.map((signal, i) => (
                   <SignalCard key={signal.id ?? i} signal={signal} index={i} />
@@ -1237,7 +1373,7 @@ export default function DriftDetectionPage() {
             )}
 
             {/* Benchmark comparison */}
-            {!analyzing && signals.length > 0 && <BenchmarkTable />}
+            {!analyzing && signals.length > 0 && <BenchmarkTable scenario={scenario} />}
           </section>
 
         </div>
