@@ -39,7 +39,7 @@ export async function POST(request: Request): Promise<Response> {
     const resend = new Resend(apiKey);
     const result = await resend.emails.send({
       from: 'onboarding@resend.dev',
-      to:   'archarmaan@gmail.com',
+      to:   'armaan.k019@gmail.com',
       subject: `[Portfolio] Feedback on ${project} from ${from}`,
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
