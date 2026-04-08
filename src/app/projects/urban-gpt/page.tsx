@@ -649,16 +649,20 @@ export default function UrbanGPTPage() {
   const doAnalyze = useCallback(
     async (pl: { lat: number; lng: number; formatted: string }, ri: number) => {
       const rMeters = RADIUS_VALUES[ri] * 1609.344;
+      const requestBody = JSON.stringify({ lat: pl.lat, lng: pl.lng, radiusM: rMeters, unit, address: pl.formatted });
       setLoading(true);
       setError("");
       setActiveTab("demographics");
-      try {
+
+      const attempt = async () => {
         const res = await fetch("/api/urban-gpt", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ lat: pl.lat, lng: pl.lng, radiusM: rMeters, unit, address: pl.formatted }),
+          body: requestBody,
         });
         const rawText = await res.text();
+        // Auto-retry once on cold-start 504
+        if (res.status === 504) return null;
         let data: UrbanAnalysisResult & { error?: string };
         try {
           data = JSON.parse(rawText) as UrbanAnalysisResult & { error?: string };
@@ -666,11 +670,18 @@ export default function UrbanGPTPage() {
           throw new Error(`Server returned non-JSON (status ${res.status}): ${rawText.slice(0, 120)}`);
         }
         if (!res.ok) throw new Error(data.error || "Analysis failed.");
+        return data;
+      };
+
+      try {
+        let data = await attempt();
+        if (!data) data = await attempt(); // one silent retry on 504
+        if (!data) throw new Error("Request timed out. Please try again.");
         setResult(data);
         hasResultRef.current = true;
 
         // Fire layer data in parallel (non-blocking)
-        const parksCount = (data as UrbanAnalysisResult).overpass?.parks?.length ?? 0;
+        const parksCount = data.overpass?.parks?.length ?? 0;
         fetchLayerData(pl.lat, pl.lng, parksCount, pl);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
@@ -900,6 +911,7 @@ export default function UrbanGPTPage() {
         <div className="flex flex-col items-center gap-3 py-12">
           <div className="w-6 h-6 border-2 border-terracotta/30 border-t-terracotta rounded-full animate-spin" />
           <p className="text-sm text-brown-light">Fetching demographic, transit, and spatial data…</p>
+          <p className="text-xs text-brown-light/50">This pulls from Census, OpenStreetMap, and Claude — expect 20–40 seconds.</p>
         </div>
       )}
 
