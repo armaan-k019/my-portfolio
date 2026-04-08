@@ -306,7 +306,7 @@ async function fetchCensusData(lat: number, lng: number): Promise<CensusData> {
   let tractName = "";
 
   try {
-    const geoRes = await fetchWithTimeout(geocoderUrl, {}, 8000);
+    const geoRes = await fetchWithTimeout(geocoderUrl, {}, 5000);
     const geoText = await geoRes.text();
 
     const geoJson = JSON.parse(geoText) as {
@@ -348,7 +348,7 @@ async function fetchCensusData(lat: number, lng: number): Promise<CensusData> {
     `?get=${CENSUS_VARS}&for=tract:${tract}&in=state:${state}%20county:${county}`;
 
   try {
-    const acsRes = await fetchWithTimeout(acsUrl, {}, 8000);
+    const acsRes = await fetchWithTimeout(acsUrl, {}, 5000);
     const acsText = await acsRes.text();
 
     if (!acsRes.ok) {
@@ -471,7 +471,7 @@ async function fetchOverpassData(
   });
 
   const makeQuery = (body: string) =>
-    `[out:json][timeout:25];\n(\n${body}\n);\nout center;`;
+    `[out:json][timeout:8];\n(\n${body}\n);\nout center;`;
 
   const queries: Record<string, string> = {
     transit: makeQuery(`
@@ -502,7 +502,7 @@ async function fetchOverpassData(
   async function runQuery(category: string, query: string): Promise<OverpassPoint[]> {
     for (const endpoint of OVERPASS_ENDPOINTS) {
       try {
-        const res = await fetchWithTimeout(endpoint, fetchOptions(query), 20000);
+        const res = await fetchWithTimeout(endpoint, fetchOptions(query), 10000);
         if (!res.ok) {
           console.warn(`[urban-gpt] Overpass ${category}: HTTP ${res.status}`);
           continue;
@@ -624,7 +624,6 @@ async function fetchAIInsights(
   overpass: OverpassData,
   scores: Scores,
 ): Promise<AIInsights> {
-  const n = (v: number | null, suffix = "") => (v !== null ? `${v}${suffix}` : null);
   const c = (v: number | null) => (v !== null ? `$${v.toLocaleString()}` : null);
   const pct = (v: number | null) => (v !== null ? `${v}%` : null);
   const radiusMiles = radiusM / 1609.344;
