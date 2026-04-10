@@ -163,7 +163,7 @@ export default function DemosPage() {
 
         <h1 className="text-2xl font-semibold text-darkblue mb-3">Demos</h1>
         <p className="text-sm text-brown-light leading-relaxed max-w-2xl mb-10">
-          These are some demos I made for companies I think are cool. Each one is built from scratch — tailored to the team and what I think they actually care about. Less &ldquo;here&apos;s my resume,&rdquo; more &ldquo;here&apos;s what I&apos;d ship on week one.&rdquo;
+          Demos I built for companies I wanted to work at. Each one is tailored to the company — what they do, what I think they care about, and what I&apos;d actually want to work on there.
         </p>
 
         <div className="grid md:grid-cols-2 gap-5">
