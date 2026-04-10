@@ -54,14 +54,6 @@ const demoCards: DemoCard[] = [
     url: "/demos/whop",
   },
   {
-    slug: "harper",
-    company: "Harper Insurance",
-    headline: "Business Coverage Profiler",
-    pitch: "Enter your business profile and get a structured commercial insurance recommendation — coverage lines, priority tiers, premium estimates, and gap analysis.",
-    accentColor: "#0f1f3d",
-    url: "/demos/harper",
-  },
-  {
     slug: "sideshift",
     company: "SideShift.ai",
     headline: "Swap Route Optimizer",
@@ -163,7 +155,7 @@ export default function DemosPage() {
 
         <h1 className="text-2xl font-semibold text-darkblue mb-3">Demos</h1>
         <p className="text-sm text-brown-light leading-relaxed max-w-xl mb-10">
-          Demos I built for companies I wanted to work at, tailored to the team and what I think they care about.
+          Demos built for specific companies, tailored to what I think their teams care about.
         </p>
 
         <div className="grid md:grid-cols-3 gap-4">
@@ -199,6 +191,18 @@ export default function DemosPage() {
         </div>
 
         <PrivateSection />
+
+        <p className="mt-8 text-xs text-brown-light/50">
+          Additional demos available on{" "}
+          <a
+            href="https://github.com/armaan-k019"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-brown-light transition-colors"
+          >
+            GitHub &rarr;
+          </a>
+        </p>
       </div>
     </div>
   );
