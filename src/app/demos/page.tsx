@@ -162,11 +162,11 @@ export default function DemosPage() {
         </Link>
 
         <h1 className="text-2xl font-semibold text-darkblue mb-3">Demos</h1>
-        <p className="text-sm text-brown-light leading-relaxed max-w-2xl mb-10">
-          Demos I built for companies I wanted to work at. Each one is tailored to the company: what they do, what I think they care about, and what I&apos;d actually want to work on there.
+        <p className="text-sm text-brown-light leading-relaxed max-w-xl mb-10">
+          Demos I built for companies I wanted to work at, tailored to the team and what I think they care about.
         </p>
 
-        <div className="grid md:grid-cols-2 gap-5">
+        <div className="grid md:grid-cols-3 gap-4">
           <AnimatePresence mode="popLayout">
             {demoCards.map((demo, i) => (
               <motion.div
@@ -190,8 +190,7 @@ export default function DemosPage() {
                     }}
                   >
                     <h3 className="font-medium text-brown mb-1">{demo.company}</h3>
-                    <p className="text-xs font-medium text-brown-light mb-2">{demo.headline}</p>
-                    <p className="text-xs text-brown-light/70 line-clamp-2 leading-relaxed">{demo.pitch}</p>
+                    <p className="text-xs text-brown-light leading-relaxed">{demo.headline}</p>
                   </div>
                 </Link>
               </motion.div>
