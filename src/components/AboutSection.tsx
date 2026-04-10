@@ -122,7 +122,7 @@ export default function AboutSection() {
           transition={{ duration: 0.5, delay: 0.15, ease: "easeOut" }}
           className="flex items-center justify-center"
         >
-          <div className="w-full">
+          <div className="w-full" style={{ transform: "translateX(48px)" }}>
             <Carousel />
           </div>
         </motion.div>
