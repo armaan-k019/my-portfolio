@@ -120,8 +120,11 @@ export default function AboutSection() {
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.5, delay: 0.15, ease: "easeOut" }}
+          className="flex items-center justify-center"
         >
-          <Carousel />
+          <div className="w-full">
+            <Carousel />
+          </div>
         </motion.div>
       </div>
 
