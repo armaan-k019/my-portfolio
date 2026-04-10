@@ -43,17 +43,6 @@ export const demos: Record<string, DemoConfig> = {
     url: "/demos/mayo-dental",
   },
 
-  // ── Jeeves Competitive Intelligence Agent - AI-powered competitor research ──
-  "jeeves#$": {
-    company: "Jeeves",
-    role: "Competitive Intelligence Agent",
-    accentColor: "#C9A84C",
-    headline: "AI-powered competitive intelligence for fintech sales teams",
-    pitch: "Jeeves Intel is a full competitive intelligence agent - live web scraping via Apify, Claude-powered analysis, persona-aware reporting (Sales / Product / Executive), and objection handling. Built on the original open-source Jeeves agent, migrated from OpenAI to Anthropic.",
-    sections: [],
-    url: "/demos/jeeves",
-  },
-
   // ── Wispr Flow - ASL pipeline concept demo ──────────────────────────────────
   "wisprflow": {
     company: "Wispr Flow",
