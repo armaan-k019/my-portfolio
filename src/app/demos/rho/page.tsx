@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ThemeToggle, { MY_STYLE, type PageColors } from "@/components/ThemeToggle";
 
@@ -704,9 +703,6 @@ function SkeletonCard() {
 // ─── Page ───────────────────────────────────────────────────────────────────────
 
 export default function DriftDetectionPage() {
-  const router = useRouter();
-  const [authed, setAuthed]       = useState(false);
-  const [ready, setReady]         = useState(false);
   const [filter, setFilter]       = useState<CategoryFilter>("All");
   const [signals, setSignals]     = useState<DriftSignal[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
@@ -737,26 +733,6 @@ export default function DriftDetectionPage() {
   const HEADING  = C.text;
   const SUBTEXT  = C.muted;
   const LABEL    = C.dim;
-
-  useEffect(() => {
-    let redirected = false;
-    try {
-      const val = sessionStorage.getItem("demo_access");
-      if (val !== "rho" && !redirected) {
-        redirected = true;
-        router.push("/demos");
-      } else {
-        setAuthed(true);
-      }
-    } catch {
-      if (!redirected) {
-        redirected = true;
-        router.push("/demos");
-      }
-    }
-    setReady(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const filtered = useMemo(
     () => filter === "All" ? activeTransactions : activeTransactions.filter((t) => t.category === filter),
@@ -840,14 +816,6 @@ export default function DriftDetectionPage() {
     } finally {
       setAnalyzing(false);
     }
-  }
-
-  if (!ready || !authed) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: C.bg }}>
-        <div className="w-5 h-5 rounded-full border-2 border-[#2C1810]/20 border-t-[#2C1810]/60 animate-spin" />
-      </div>
-    );
   }
 
   return (

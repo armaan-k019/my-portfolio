@@ -65,17 +65,6 @@ export const demos: Record<string, DemoConfig> = {
     url: "/demos/wisprflow",
   },
 
-  // ── Corgi Insurance - AI Model Risk Monitor ────────────────────────────────
-  "corgi": {
-    company: "Corgi Insurance",
-    role: "Insurtech · AI Liability · Model Risk",
-    accentColor: "#d97706",
-    headline: "AI Model Risk Monitor",
-    pitch: "Detect model drift in your AI systems and automatically assess how it impacts your liability risk exposure — powered by clustering and Claude.",
-    sections: [],
-    url: "/demos/corgi",
-  },
-
   // ── AthenaHQ - GEO Visibility Checker ──────────────────────────────────────
   "athena-hq": {
     company: "AthenaHQ",
@@ -118,17 +107,6 @@ export const demos: Record<string, DemoConfig> = {
     pitch: "Enter your business profile and get a structured commercial insurance recommendation — coverage lines, priority tiers, premium estimates, and gap analysis — powered by Claude.",
     sections: [],
     url: "/demos/harper",
-  },
-
-  // ── Erebor - De-banking Risk Scorer ────────────────────────────────────────
-  "erebor": {
-    company: "Erebor",
-    role: "Banking · Crypto · Risk Assessment",
-    accentColor: "#c9a84c",
-    headline: "De-banking Risk Scorer",
-    pitch: "Find out how likely your company is to lose banking access -- and which services are most at risk. Built for crypto, AI, defense, and innovation-economy companies.",
-    sections: [],
-    url: "/demos/erebor",
   },
 
   // ── SideShift.ai - Swap Route Optimizer ────────────────────────────────────
