@@ -214,7 +214,7 @@ export default function WhopPage() {
         <div className="w-full max-w-[860px] mx-auto flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="flex items-center gap-3 mb-2 flex-wrap">
-              <h1 className="text-2xl font-black tracking-tight" style={{ color: C.headerText }}>Whop Page Roaster 🔥</h1>
+              <h1 className="text-2xl font-black tracking-tight" style={{ color: C.headerText }}>Whop Page Roaster</h1>
               <span
                 className="text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase tracking-widest"
                 style={{ borderColor: PURPLE + "60", color: PURPLE, backgroundColor: PURPLE + "15" }}
@@ -444,7 +444,7 @@ export default function WhopPage() {
                 className="w-full py-4 rounded-xl text-base font-black disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:opacity-90"
                 style={{ backgroundColor: PURPLE, color: "white" }}
               >
-                Roast My Page 🔥
+                Roast My Page
               </button>
             </form>
           </div>

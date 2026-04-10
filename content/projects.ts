@@ -91,6 +91,7 @@ export const projects: Project[] = [
     blurb: "Embodied carbon estimator for early-stage architectural design decisions.",
     description: "A material embodied carbon calculator for architects. Input material quantities and receive an embodied carbon estimate benchmarked against industry standards, a visual breakdown by material category, and AI-generated substitution recommendations to reduce the building's climate impact.",
     stack: ["Next.js", "Claude API", "ICE Database v3.0"],
+    github: "https://github.com/armaan-k019/carbon-lens",
   },
   {
     slug: "fine-print",
