@@ -43,6 +43,17 @@ export const demos: Record<string, DemoConfig> = {
     url: "/demos/mayo-dental",
   },
 
+  // ── Greptile - PR Review Auditor ────────────────────────────────────────────
+  "greptile": {
+    company: "Greptile",
+    role: "DevTools · Code Review · AI Analysis",
+    accentColor: "#1a1a1a",
+    headline: "PR Review Auditor",
+    pitch: "Paste a GitHub PR URL and see which review comments are signal, which are noise, and which bugs the human reviewers missed entirely.",
+    sections: [],
+    url: "/demos/greptile",
+  },
+
   // ── Wispr Flow - ASL pipeline concept demo ──────────────────────────────────
   "wisprflow": {
     company: "Wispr Flow",

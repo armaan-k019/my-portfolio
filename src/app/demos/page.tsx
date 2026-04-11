@@ -69,6 +69,14 @@ const demoCards: DemoCard[] = [
     accentColor: "#6C47FF",
     url: "/demos/wisprflow",
   },
+  {
+    slug: "greptile",
+    company: "Greptile",
+    headline: "PR Review Auditor",
+    pitch: "Paste a GitHub PR URL and see which review comments are signal, which are noise, and which bugs the human reviewers missed entirely.",
+    accentColor: "#1a1a1a",
+    url: "/demos/greptile",
+  },
 ];
 
 // ─── Password section ────────────────────────────────────────────────────────
