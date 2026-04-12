@@ -23,7 +23,7 @@ export interface DemoConfig {
 export const demos: Record<string, DemoConfig> = {
   // ── Rho Technologies - parametric architecture PoC ──────────────────────────
   "rho": {
-    company: "Rho Technologies",
+    company: "Rho",
     role: "Software Engineer",
     accentColor: "#CC4729",
     headline: "Parametric structural optimization, built from scratch",

@@ -23,7 +23,7 @@ interface DemoCard {
 const demoCards: DemoCard[] = [
   {
     slug: "rho",
-    company: "Rho Technologies",
+    company: "Rho",
     headline: "Parametric structural optimization, built from scratch",
     pitch: "A real-time topology optimization dashboard with AI-assisted structural feedback. Deep systems thinking, 3D rendering, and applied ML.",
     accentColor: "#CC4729",
@@ -68,14 +68,6 @@ const demoCards: DemoCard[] = [
     pitch: "TensorFlow.js hand-pose CV recognizes ASL signs from a webcam, converts them to words, and feeds that text stream into Wispr Flow — no microphone needed.",
     accentColor: "#6C47FF",
     url: "/demos/wisprflow",
-  },
-  {
-    slug: "greptile",
-    company: "Greptile",
-    headline: "PR Review Auditor",
-    pitch: "Paste a GitHub PR URL and see which review comments are signal, which are noise, and which bugs the human reviewers missed entirely.",
-    accentColor: "#1a1a1a",
-    url: "/demos/greptile",
   },
 ];
 
