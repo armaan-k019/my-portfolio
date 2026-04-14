@@ -545,7 +545,7 @@ export default function CarbonLensPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#FFFFFF]">
+    <div className="min-h-screen">
       <style>{`
         .report-body p { margin-bottom: 0.5rem; }
         .report-body p:last-child { margin-bottom: 0; }

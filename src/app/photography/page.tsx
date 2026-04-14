@@ -4,6 +4,15 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Image from "next/image";
 import { PHOTOS, DESTINATIONS, type Photo } from "../../../content/photos";
 
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 // ─── Lightbox ─────────────────────────────────────────────────────────────────
 
 function Lightbox({
@@ -127,36 +136,33 @@ function PhotoCard({ photo, onClick }: { photo: Photo; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="block w-full break-inside-avoid mb-2 group relative rounded-lg overflow-hidden cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2D5A27]"
-      style={{ aspectRatio: `${photo.w}/${photo.h}` }}
+      className="block w-full break-inside-avoid mb-2 group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2D5A27]"
       aria-label={`Open photo from ${photo.location}`}
     >
-      {/* Skeleton while loading */}
-      <div
-        className={`absolute inset-0 bg-[#D8E6D8] transition-opacity duration-300 ${loaded ? "opacity-0" : "opacity-100"}`}
-      />
+      {/* Inner div owns the rounding, clip, and skeleton background.
+          No fixed aspect-ratio here — the Image's natural height drives the layout. */}
+      <div className="relative rounded-lg overflow-hidden bg-[#D8E6D8]">
+        <Image
+          src={photo.src}
+          alt={photo.location}
+          width={photo.w}
+          height={photo.h}
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          style={{ width: "100%", height: "auto", display: "block" }}
+          className={`transition-all duration-300 group-hover:scale-[1.02] ${loaded ? "opacity-100" : "opacity-0"}`}
+          loading="lazy"
+          onLoad={() => setLoaded(true)}
+        />
 
-      <Image
-        src={photo.src}
-        alt={photo.location}
-        width={photo.w}
-        height={photo.h}
-        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-        style={{ width: "100%", height: "auto", display: "block" }}
-        className={`transition-all duration-300 group-hover:scale-[1.02] ${loaded ? "opacity-100" : "opacity-0"}`}
-        loading="lazy"
-        onLoad={() => setLoaded(true)}
-        unoptimized={photo.src.startsWith("http")}
-      />
-
-      {/* Hover overlay — location label */}
-      <div
-        className="absolute inset-x-0 bottom-0 h-16 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end pb-2.5 px-3"
-        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
-      >
-        <span className="text-white text-[11px] font-medium tracking-wide">
-          {photo.location}
-        </span>
+        {/* Hover overlay — location label */}
+        <div
+          className="absolute inset-x-0 bottom-0 h-16 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end pb-2.5 px-3"
+          style={{ background: "linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
+        >
+          <span className="text-white text-[11px] font-medium tracking-wide">
+            {photo.location}
+          </span>
+        </div>
       </div>
     </button>
   );
@@ -169,10 +175,16 @@ export default function PhotographyPage() {
   const [fading, setFading] = useState(false);
   const [pendingFilter, setPendingFilter] = useState("All");
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [photos, setPhotos] = useState<Photo[]>(PHOTOS);
+
+  // Shuffle once on mount so the grid shows a different arrangement each visit
+  useEffect(() => {
+    setPhotos(shuffle(PHOTOS));
+  }, []);
 
   const filteredPhotos = useMemo(
-    () => activeFilter === "All" ? PHOTOS : PHOTOS.filter(p => p.location === activeFilter),
-    [activeFilter]
+    () => activeFilter === "All" ? photos : photos.filter(p => p.location === activeFilter),
+    [activeFilter, photos]
   );
 
   const handleFilterChange = useCallback((dest: string) => {
@@ -197,7 +209,7 @@ export default function PhotographyPage() {
   const goNext = useCallback(() => setLightboxIndex(i => i !== null && i < filteredPhotos.length - 1 ? i + 1 : i), [filteredPhotos.length]);
 
   return (
-    <div className="min-h-screen bg-[#FFFFFF]">
+    <div className="min-h-screen">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="max-w-7xl mx-auto px-6 pt-12 pb-6">
@@ -257,6 +269,15 @@ export default function PhotographyPage() {
         {filteredPhotos.length === 0 && (
           <p className="text-center text-[#7A9B7A] text-sm py-20">No photos in this destination yet.</p>
         )}
+      </div>
+
+      {/* ── Closing banner ─────────────────────────────────────────────────── */}
+      <div className="max-w-7xl mx-auto px-6 pb-20 pt-4">
+        <div className="border-t border-[#D8E6D8] pt-10 text-center">
+          <p className="text-sm text-[#4A6B4A]">
+            More to come. I&apos;m always shooting.
+          </p>
+        </div>
       </div>
 
       {/* ── Lightbox ───────────────────────────────────────────────────────── */}

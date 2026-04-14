@@ -4,9 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 const images = [
-  "/images/hero01.png",
   "/images/hero02.png",
   "/images/hero04.png",
+  "/images/hero01.png",
 ];
 
 export default function Carousel() {

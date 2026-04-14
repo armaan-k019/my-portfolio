@@ -24,8 +24,8 @@ const demoCards: DemoCard[] = [
   {
     slug: "rho",
     company: "Rho",
-    headline: "Parametric structural optimization, built from scratch",
-    pitch: "A real-time topology optimization dashboard with AI-assisted structural feedback. Deep systems thinking, 3D rendering, and applied ML.",
+    headline: "Drift Detection",
+    pitch: "Spend anomaly detection for finance teams.",
     accentColor: "#CC4729",
     url: "/demos/rho",
   },
@@ -168,7 +168,7 @@ export default function DemosPage() {
   const [hovered, setHovered] = useState<string | null>(null);
 
   return (
-    <div className="min-h-screen bg-[#FAFAF8]">
+    <div className="min-h-screen">
       <div className="max-w-4xl mx-auto px-6 py-16">
         <Link
           href="/"
@@ -179,7 +179,7 @@ export default function DemosPage() {
 
         <h1 className="text-2xl font-semibold text-darkblue mb-3">Demos</h1>
         <p className="text-sm text-brown-light leading-relaxed max-w-xl mb-10">
-          Demos built for specific companies, tailored to what I think their teams care about.
+          Company-specific projects, each built around one problem I wanted to dig into.
         </p>
 
         <div className="grid md:grid-cols-3 gap-4">
