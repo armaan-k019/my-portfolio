@@ -710,6 +710,7 @@ export default function DriftDetectionPage() {
   const [analyzed, setAnalyzed]   = useState(false);
   const [theme, setTheme]         = useState<"my" | "company">("my");
   const [scenario, setScenario]   = useState<"A" | "B">("A");
+  const [txExpanded, setTxExpanded] = useState(false);
 
   const activeTransactions = scenario === "A" ? TRANSACTIONS : TRANSACTIONS_B;
 
@@ -828,28 +829,48 @@ export default function DriftDetectionPage() {
       `}</style>
 
       <div className="min-h-screen" style={{ backgroundColor: PAGE_BG }}>
-        <div className="max-w-3xl mx-auto px-6 py-12">
 
-          {/* ── Back link + ThemeToggle ────────────────────────────────────── */}
-          <div className="flex items-center justify-between flex-wrap gap-2 mb-8">
-            <Link
-              href="/demos"
-              className="text-xs text-gray-500 hover:text-gray-700 transition-colors inline-block"
-            >
-              ← Back to Demos
-            </Link>
-            <ThemeToggle theme={theme} onChange={setTheme} companyAccent={COMPANY_STYLE.accent} darkContext={false} />
-          </div>
-
-          {/* ── Header ────────────────────────────────────────────────────── */}
-          <div className="mb-10">
-            <div className="flex items-center gap-2 mb-3">
-              <h1 className="text-2xl font-semibold" style={{ color: HEADING }}>Drift Detection</h1>
-              <span className="text-xs px-2 py-0.5 rounded-full border border-[#2C1810]/10 ml-2" style={{ color: LABEL }}>
-                Rho
+        {/* ── Header ────────────────────────────────────────────────────────── */}
+        <header className="px-6 py-5 border-b" style={{ backgroundColor: C.headerBg, borderColor: C.headerBorder }}>
+          <div className="max-w-3xl mx-auto flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <div className="flex items-center gap-3 mb-2 flex-wrap">
+                <h1 className="text-2xl font-black tracking-tight" style={{ color: C.headerText }}>
+                  Drift Detection
+                </h1>
+                <span
+                  className="text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase tracking-widest"
+                  style={{ borderColor: C.accent + "50", color: C.accent, backgroundColor: C.accent + "12" }}
+                >
+                  Built for Rho
+                </span>
+              </div>
+              <p className="text-sm" style={{ color: C.headerText !== "#ffffff" ? C.muted : "#9ca3af" }}>
+                Surface slow-moving spend patterns your dashboard cannot see.
+              </p>
+            </div>
+            <div className="flex flex-col items-end gap-1.5">
+              <span className="text-xs" style={{ color: C.dim }}>
+                Demo by{" "}
+                <Link href="/" className="underline hover:opacity-70 transition-opacity" style={{ color: C.muted }}>
+                  Armaan Kazi
+                </Link>
               </span>
+              <ThemeToggle theme={theme} onChange={setTheme} companyAccent={COMPANY_STYLE.accent} darkContext={false} />
             </div>
           </div>
+        </header>
+
+        <div className="max-w-3xl mx-auto px-6 py-10">
+
+          {/* ── Back link ──────────────────────────────────────────────────── */}
+          <Link
+            href="/demos"
+            className="text-xs transition-colors mb-8 inline-block hover:opacity-70"
+            style={{ color: C.muted }}
+          >
+            ← Back to Demos
+          </Link>
 
           {/* ── Section 1: What this is ──────────────────────────────────── */}
           <section className="mb-10">
@@ -1044,6 +1065,16 @@ export default function DriftDetectionPage() {
             </div>
           </section>
 
+          {/* ── Section B.5: What this demo adds ────────────────────────── */}
+          <section className="mb-10">
+            <h2 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: LABEL }}>
+              What this demo adds
+            </h2>
+            <p className="text-sm leading-relaxed" style={{ color: SUBTEXT }}>
+              Drift Detection runs six months of synthetic transaction data through a pattern analysis engine that looks for what standard dashboards miss: compounding spend trends, inconsistent vendor billing, and flat recurring charges that nobody is watching. It surfaces each signal with severity ranking and a projected cost if left unaddressed.
+            </p>
+          </section>
+
           {/* ── Section C: Why it's better ──────────────────────────────── */}
           <section className="mb-10">
             <h2 className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: LABEL }}>
@@ -1064,15 +1095,18 @@ export default function DriftDetectionPage() {
                   body: "Instead of alerting on every large transaction, it ranks by severity and surfaces only what actually needs a CFO's attention.",
                 },
               ].map((card) => (
-                <div key={card.title} className="rounded-xl border p-4 shadow-sm" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
-                  <p className="text-xs font-semibold mb-2" style={{ color: HEADING }}>{card.title}</p>
+                <div key={card.title} className="rounded-xl border p-5" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: C.accent }} />
+                    <p className="text-xs font-semibold" style={{ color: HEADING }}>{card.title}</p>
+                  </div>
                   <p className="text-xs leading-relaxed" style={{ color: LABEL }}>{card.body}</p>
                 </div>
               ))}
             </div>
             <div className="rounded-xl border px-5 py-4" style={{ borderColor: C.cardBorder, backgroundColor: C.accentBg }}>
-              <p className="text-xs font-semibold mb-1" style={{ color: HEADING }}>Why This Is Different</p>
-              <p className="text-xs leading-relaxed" style={{ color: SUBTEXT }}>
+              <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: LABEL }}>Why This Is Different</p>
+              <p className="text-sm leading-relaxed" style={{ color: SUBTEXT }}>
                 Most spend tools show you what happened. Drift Detection shows you what&apos;s <em>happening</em>: the gradual shifts that compound quietly until someone looks at the annual budget and wonders where $40k went.
               </p>
             </div>
@@ -1119,7 +1153,7 @@ export default function DriftDetectionPage() {
             </p>
 
             {/* Chart + Payroll callout */}
-            <div className="flex flex-col sm:flex-row gap-4 mb-4">
+            <div className="flex flex-col sm:flex-row gap-4 mb-8">
               <div className="flex-1 rounded-xl border p-5 shadow-sm" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
                 <p className="text-xs mb-3" style={{ color: LABEL }}>Monthly spend - SaaS, Infrastructure &amp; Misc</p>
                 <LineChart transactions={activeTransactions} />
@@ -1177,7 +1211,7 @@ export default function DriftDetectionPage() {
                 </div>
               </div>
             ) : (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm mb-4">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm mb-8">
                 <p className="text-xs font-semibold text-emerald-700 mb-1">Spend trajectory is stable</p>
                 <p className="text-xs text-emerald-700 leading-relaxed">
                   No significant drift detected. SaaS costs are growing in line with team size, infrastructure costs are predictable, and there are no forgotten subscriptions or vendor billing anomalies.
@@ -1185,67 +1219,88 @@ export default function DriftDetectionPage() {
               </div>
             )}
 
-            {/* Filter pills */}
-            <div className="flex flex-wrap gap-2 mb-3">
-              {CATEGORIES.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setFilter(cat)}
-                  className={`text-xs px-3 py-1 rounded-full border transition-colors ${
-                    filter === cat
-                      ? "border-[#2C1810]/20 text-[#2C1810] bg-[#2C1810]/[0.06] font-medium"
-                      : "border-[#2C1810]/10 text-[#9A8070] hover:text-[#6B5244] hover:border-[#2C1810]/20"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-
-            {/* Transaction table */}
-            <div className="overflow-x-auto rounded-xl border shadow-sm" style={{ borderColor: C.cardBorder }}>
-            <div className="min-w-[480px] rounded-xl overflow-hidden" style={{ backgroundColor: C.cardBg }}>
-              <div className="grid grid-cols-4 px-4 py-2.5 border-b" style={{ borderColor: C.cardBorder }}>
-                {["Date", "Vendor", "Category", "Amount"].map((h) => (
-                  <span key={h} className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: LABEL }}>
-                    {h}
-                  </span>
-                ))}
-              </div>
-              <div className="divide-y divide-[#2C1810]/[0.05] max-h-72 overflow-y-auto">
-                {filtered.map((t, i) => {
-                  const isSignalVendor = analyzed && allSignalVendors.has(t.vendor);
-                  const isTrending = trendingSet.has(t);
-                  return (
-                    <div
-                      key={i}
-                      className="grid grid-cols-4 px-4 py-2.5 hover:bg-[#2C1810]/[0.02] transition-colors"
-                      style={{
-                        backgroundColor: isSignalVendor ? "#FFFBEB" : i % 2 === 1 ? "#FAFAF8" : "white",
-                        borderLeft: isSignalVendor ? "2px solid #B8952A" : undefined,
-                      }}
-                    >
-                      <span className="text-xs text-[#9A8070]">{formatDate(t.date)}</span>
-                      <span className="text-xs text-[#2C1810] truncate pr-2">{t.vendor}</span>
-                      <span className="text-xs font-medium flex items-center gap-1" style={{ color: CATEGORY_COLORS[t.category] ?? "#9A8070" }}>
-                        {t.category}
-                        {isTrending && (
-                          <span style={{ fontSize: 8, backgroundColor: "#FEF3C7", color: "#B8952A", border: "1px solid #FDE68A", borderRadius: 9999, padding: "0 4px", lineHeight: "14px", whiteSpace: "nowrap" }}>
-                            ↑ trending
-                          </span>
-                        )}
-                      </span>
-                      <span className="text-xs text-[#6B5244] font-mono">
-                        ${t.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            </div>
-
             <HealthScorecard scenario={scenario} />
+
+            {/* Transaction table - collapsed by default */}
+            <div className="mt-6 mb-4">
+              <button
+                onClick={() => setTxExpanded((v) => !v)}
+                className="flex items-center gap-2 text-xs font-medium transition-colors hover:opacity-70"
+                style={{ color: SUBTEXT }}
+              >
+                <span
+                  className="transition-transform duration-200"
+                  style={{ display: "inline-block", transform: txExpanded ? "rotate(90deg)" : "rotate(0deg)" }}
+                >
+                  ▶
+                </span>
+                {txExpanded ? "Hide transactions" : "Show transactions"}
+                <span className="text-[10px]" style={{ color: LABEL }}>({filtered.length} rows)</span>
+              </button>
+
+              {txExpanded && (
+                <div className="mt-3">
+                  {/* Filter pills */}
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {CATEGORIES.map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => setFilter(cat)}
+                        className={`text-xs px-3 py-1 rounded-full border transition-colors ${
+                          filter === cat
+                            ? "border-[#2C1810]/20 text-[#2C1810] bg-[#2C1810]/[0.06] font-medium"
+                            : "border-[#2C1810]/10 text-[#9A8070] hover:text-[#6B5244] hover:border-[#2C1810]/20"
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="overflow-x-auto rounded-xl border shadow-sm" style={{ borderColor: C.cardBorder }}>
+                  <div className="min-w-[480px] rounded-xl overflow-hidden" style={{ backgroundColor: C.cardBg }}>
+                    <div className="grid grid-cols-4 px-4 py-2.5 border-b" style={{ borderColor: C.cardBorder }}>
+                      {["Date", "Vendor", "Category", "Amount"].map((h) => (
+                        <span key={h} className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: LABEL }}>
+                          {h}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="divide-y divide-[#2C1810]/[0.05] max-h-72 overflow-y-auto">
+                      {filtered.map((t, i) => {
+                        const isSignalVendor = analyzed && allSignalVendors.has(t.vendor);
+                        const isTrending = trendingSet.has(t);
+                        return (
+                          <div
+                            key={i}
+                            className="grid grid-cols-4 px-4 py-2.5 hover:bg-[#2C1810]/[0.02] transition-colors"
+                            style={{
+                              backgroundColor: isSignalVendor ? "#FFFBEB" : i % 2 === 1 ? "#FAFAF8" : "white",
+                              borderLeft: isSignalVendor ? "2px solid #B8952A" : undefined,
+                            }}
+                          >
+                            <span className="text-xs text-[#9A8070]">{formatDate(t.date)}</span>
+                            <span className="text-xs text-[#2C1810] truncate pr-2">{t.vendor}</span>
+                            <span className="text-xs font-medium flex items-center gap-1" style={{ color: CATEGORY_COLORS[t.category] ?? "#9A8070" }}>
+                              {t.category}
+                              {isTrending && (
+                                <span style={{ fontSize: 8, backgroundColor: "#FEF3C7", color: "#B8952A", border: "1px solid #FDE68A", borderRadius: 9999, padding: "0 4px", lineHeight: "14px", whiteSpace: "nowrap" }}>
+                                  ↑ trending
+                                </span>
+                              )}
+                            </span>
+                            <span className="text-xs text-[#6B5244] font-mono">
+                              ${t.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Detect button */}
             <button

@@ -468,21 +468,24 @@ export default function WeavePage() {
             ].map(card => (
               <div
                 key={card.title}
-                className="rounded-xl border p-4"
+                className="rounded-xl border p-5"
                 style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}
               >
-                <p className="text-xs font-semibold mb-2" style={{ color: C.text }}>{card.title}</p>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: TEAL }} />
+                  <p className="text-xs font-semibold" style={{ color: C.text }}>{card.title}</p>
+                </div>
                 <p className="text-xs leading-relaxed" style={{ color: C.muted }}>{card.body}</p>
               </div>
             ))}
           </div>
           <div
             className="rounded-xl border px-5 py-4"
-            style={{ borderColor: TEAL + "40", backgroundColor: TEAL_LIGHT }}
+            style={{ borderColor: C.cardBorder, backgroundColor: C.accentBg }}
           >
-            <p className="text-xs font-semibold mb-1" style={{ color: TEAL }}>Why This Is Different</p>
-            <p className="text-xs leading-relaxed" style={{ color: C.text }}>
-              Generic reminders reduce no-shows by maybe 10–15%. Sequences tailored to patient history and appointment risk can reach 30–40% reduction. The difference isn&apos;t automation, it&apos;s personalization that Weave&apos;s platform is already positioned to deliver.
+            <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: C.dim }}>Why This Is Different</p>
+            <p className="text-sm leading-relaxed" style={{ color: C.muted }}>
+              Generic reminders reduce no-shows by maybe 10-15%. Sequences tailored to patient history and appointment risk can reach 30-40% reduction. The difference is not automation, it is personalization that Weave&apos;s platform is already positioned to deliver.
             </p>
           </div>
         </section>

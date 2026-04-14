@@ -131,7 +131,7 @@ function SignalBar({ pct, C }: { pct: number; C: PageColors }) {
   const color = pct >= 70 ? "#16a34a" : pct >= 40 ? "#ca8a04" : "#dc2626";
   return (
     <div className="flex items-center gap-3">
-      <div className="flex-1 h-2 rounded-full" style={{ backgroundColor: C.cardBorder }}>
+      <div className="flex-1 h-3 rounded-full overflow-hidden" style={{ backgroundColor: C.cardBorder }}>
         <div className="h-full rounded-full" style={{ width: `${width}%`, backgroundColor: color, transition: "width 800ms ease-out" }} />
       </div>
       <span className="text-xs font-bold tabular-nums w-10 text-right" style={{ color }}>{pct}%</span>
@@ -148,12 +148,25 @@ function AnimatedGrade({ grade, C }: { grade: string; C: PageColors }) {
     const t2 = setTimeout(() => setScale(1.0), 250);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [grade]);
+  const color = GRADE_COLOR[grade];
   return (
     <div
-      className="font-black leading-none tabular-nums"
-      style={{ color: GRADE_COLOR[grade], fontSize: "96px", transform: `scale(${scale})`, transition: "transform 150ms ease-out", display: "inline-block" }}
+      className="rounded-full flex items-center justify-center mx-auto"
+      style={{
+        width: 144,
+        height: 144,
+        border: `4px solid ${color}`,
+        backgroundColor: color + "12",
+        transform: `scale(${scale})`,
+        transition: "transform 150ms ease-out",
+      }}
     >
-      {grade}
+      <span
+        className="font-black leading-none tabular-nums"
+        style={{ color, fontSize: "72px" }}
+      >
+        {grade}
+      </span>
     </div>
   );
 }
@@ -560,34 +573,37 @@ export default function GreptilePage() {
             </div>
 
             {/* 2. Review Health Scorecard */}
-            <div className="rounded-2xl border text-center px-6 py-10" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
-              <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: C.dim }}>
+            <div className="rounded-2xl border px-6 py-10" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
+              <p className="text-xs font-bold uppercase tracking-widest mb-6 text-center" style={{ color: C.dim }}>
                 Review Health Score
               </p>
-              <div className="mb-2">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-8 mb-8">
                 <AnimatedGrade grade={result.review_health.grade} C={C} />
+                <div className="text-center sm:text-left">
+                  <p className="text-5xl font-black tabular-nums mb-1" style={{ color: GRADE_COLOR[result.review_health.grade] }}>
+                    {result.review_health.score}<span className="text-2xl font-bold" style={{ color: C.dim }}>/100</span>
+                  </p>
+                  <div className="flex items-center justify-center sm:justify-start gap-5 mt-4">
+                    <div className="text-center">
+                      <p className="text-2xl font-black" style={{ color: "#16a34a" }}>{result.review_health.signal_count}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: C.dim }}>Signal</p>
+                    </div>
+                    <div className="w-px h-8" style={{ backgroundColor: C.cardBorder }} />
+                    <div className="text-center">
+                      <p className="text-2xl font-black" style={{ color: "#dc2626" }}>{result.review_health.noise_count}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: C.dim }}>Noise</p>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <p className="text-4xl font-black mb-6" style={{ color: GRADE_COLOR[result.review_health.grade] }}>
-                {result.review_health.score}/100
-              </p>
-              <div className="max-w-xs mx-auto mb-6">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs" style={{ color: C.muted }}>Signal ratio</span>
+              <div className="max-w-sm mx-auto mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold" style={{ color: C.muted }}>Signal ratio</span>
                   <span className="text-xs font-bold" style={{ color: C.text }}>{result.review_health.signal_percentage}%</span>
                 </div>
                 <SignalBar pct={result.review_health.signal_percentage} C={C} />
               </div>
-              <div className="flex items-center justify-center gap-6 flex-wrap mb-4">
-                <div className="text-center">
-                  <p className="text-2xl font-black" style={{ color: "#16a34a" }}>{result.review_health.signal_count}</p>
-                  <p className="text-xs" style={{ color: C.muted }}>Signal comments</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-black" style={{ color: "#dc2626" }}>{result.review_health.noise_count}</p>
-                  <p className="text-xs" style={{ color: C.muted }}>Noise comments</p>
-                </div>
-              </div>
-              <p className="text-sm max-w-lg mx-auto" style={{ color: C.muted }}>{result.review_health.verdict}</p>
+              <p className="text-sm max-w-lg mx-auto text-center" style={{ color: C.muted }}>{result.review_health.verdict}</p>
             </div>
 
             {/* 3. Comment-by-comment breakdown */}
@@ -603,31 +619,33 @@ export default function GreptilePage() {
                   return (
                     <div
                       key={i}
-                      className="rounded-xl border-l-4 p-4"
+                      className="rounded-xl p-4"
                       style={{
                         backgroundColor: C.cardBg,
                         border: `1px solid ${C.cardBorder}`,
                         borderLeftColor: borderColor,
                         borderLeftWidth: "4px",
-                        opacity: isNoise ? 0.65 : 1,
+                        opacity: isNoise ? 0.6 : 1,
                       }}
                     >
-                      <div className="flex flex-wrap items-center gap-2 mb-2">
-                        <span className="text-xs font-bold" style={{ color: C.text }}>{comment.author}</span>
-                        <span className="text-xs font-mono" style={{ color: C.dim }}>
-                          {comment.file !== "general" ? comment.file.split("/").slice(-1)[0] : "general"}
+                      <div className="mb-2">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <span className="text-xs font-bold" style={{ color: C.text }}>{comment.author}</span>
+                          <ClassificationBadge cls={comment.classification} />
+                          <CategoryBadge cat={comment.category} />
+                          {comment.classification === "Signal" && <SeverityBadge sev={comment.severity} />}
+                        </div>
+                        <span className="text-[10px] font-mono" style={{ color: C.dim }}>
+                          {comment.file !== "general" ? comment.file : "general comment"}
                         </span>
-                        <ClassificationBadge cls={comment.classification} />
-                        <CategoryBadge cat={comment.category} />
-                        {comment.classification === "Signal" && <SeverityBadge sev={comment.severity} />}
                       </div>
                       <blockquote
-                        className="text-sm italic mb-2 pl-3 border-l-2"
-                        style={{ color: C.text, borderColor: borderColor + "60" }}
+                        className="text-sm italic mb-3 pl-3 py-2 border-l-2 rounded-r"
+                        style={{ color: C.text, borderColor: borderColor + "70", backgroundColor: borderColor + "08" }}
                       >
                         {comment.body.length > 200 ? comment.body.slice(0, 200) + "..." : comment.body}
                       </blockquote>
-                      <p className="text-xs" style={{ color: C.muted }}>{comment.reasoning}</p>
+                      <p className="text-[11px] leading-relaxed" style={{ color: C.dim }}>{comment.reasoning}</p>
                     </div>
                   );
                 })}
@@ -666,11 +684,16 @@ export default function GreptilePage() {
                           <Badge label={issue.category} color={CATEGORY_COLOR[issue.category] ?? "#9ca3af"} bg={(CATEGORY_COLOR[issue.category] ?? "#9ca3af") + "20"} />
                         </div>
                         <p className="text-sm font-semibold text-white mb-3">{issue.issue}</p>
-                        <div className="rounded-lg border border-gray-700 bg-black px-4 py-3">
-                          <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: "#6b7280" }}>
-                            What Greptile would say:
-                          </p>
-                          <p className="text-sm leading-relaxed text-gray-300">{issue.what_greptile_would_say}</p>
+                        <div
+                          className="rounded-lg border border-gray-700 bg-black overflow-hidden"
+                          style={{ borderLeftColor: SEVERITY_COLOR[issue.severity], borderLeftWidth: 3 }}
+                        >
+                          <div className="px-4 py-3">
+                            <p className="text-[10px] font-black uppercase tracking-widest mb-2" style={{ color: SEVERITY_COLOR[issue.severity] + "cc" }}>
+                              &#10095; Greptile would flag:
+                            </p>
+                            <p className="text-sm leading-relaxed text-gray-200">{issue.what_greptile_would_say}</p>
+                          </div>
                         </div>
                       </SlidingCard>
                     ))}
@@ -701,13 +724,27 @@ export default function GreptilePage() {
                         .map((r, i) => {
                           const signalPct = Math.round(r.signal_ratio * 100);
                           const signalColor = signalPct >= 70 ? "#16a34a" : signalPct >= 40 ? "#ca8a04" : "#dc2626";
+                          const rowBg = i % 2 === 0 ? C.cardBg : C.bg;
                           return (
-                            <tr key={i} style={{ borderBottom: `1px solid ${C.cardBorder}` }}>
+                            <tr
+                              key={i}
+                              className="transition-colors"
+                              style={{ borderBottom: `1px solid ${C.cardBorder}`, backgroundColor: rowBg }}
+                              onMouseEnter={e => (e.currentTarget.style.backgroundColor = C.accentBg)}
+                              onMouseLeave={e => (e.currentTarget.style.backgroundColor = rowBg)}
+                            >
                               <td className="px-4 py-3 font-semibold" style={{ color: C.text }}>{r.reviewer}</td>
                               <td className="px-4 py-3" style={{ color: C.muted }}>{r.comments_left}</td>
                               <td className="px-4 py-3 font-bold" style={{ color: "#16a34a" }}>{r.signal_count}</td>
                               <td className="px-4 py-3 font-bold" style={{ color: "#dc2626" }}>{r.noise_count}</td>
-                              <td className="px-4 py-3 font-bold" style={{ color: signalColor }}>{signalPct}%</td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-14 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: C.cardBorder }}>
+                                    <div className="h-full rounded-full" style={{ width: `${signalPct}%`, backgroundColor: signalColor }} />
+                                  </div>
+                                  <span className="text-xs font-bold tabular-nums" style={{ color: signalColor }}>{signalPct}%</span>
+                                </div>
+                              </td>
                               <td className="px-4 py-3">
                                 <CategoryBadge cat={r.top_category} />
                               </td>
@@ -721,36 +758,12 @@ export default function GreptilePage() {
             )}
 
             {/* 6. Summary */}
-            <div className="rounded-xl border px-5 py-4" style={{ backgroundColor: C.accentBg, borderColor: C.accent + "30" }}>
-              <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: C.accent }}>Overall Assessment</p>
-              <p className="text-sm leading-relaxed" style={{ color: C.muted }}>{result.summary}</p>
-            </div>
-
-            {/* 7. Greptile CTA */}
             <div
-              className="rounded-2xl text-center px-6 py-12"
-              style={{ backgroundColor: DARK_PANEL }}
+              className="rounded-xl px-5 py-5"
+              style={{ backgroundColor: C.accentBg, borderLeft: `4px solid ${C.accent}`, border: `1px solid ${C.accent + "25"}`, borderLeftWidth: 4, borderLeftColor: C.accent }}
             >
-              <p className="text-xl font-black text-white mb-3">Ship with confidence. Review with context.</p>
-              <p className="text-sm max-w-xl mx-auto mb-6 leading-relaxed" style={{ color: "#9ca3af" }}>
-                Greptile reviews every PR with full codebase context, not just the diff. It catches what humans miss and cuts the noise that slows teams down.
-              </p>
-              <a
-                href="https://greptile.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-block rounded-xl font-black text-sm transition-all hover:opacity-90 mb-6"
-                style={{ backgroundColor: "#ffffff", color: "#1a1a1a", padding: "14px 36px" }}
-              >
-                Try Greptile Free &rarr;
-              </a>
-              <div className="flex items-center justify-center gap-4 flex-wrap text-xs" style={{ color: "#6b7280" }}>
-                <span>250+ companies</span>
-                <span>&#183;</span>
-                <span>Stripe, Amazon, PostHog</span>
-                <span>&#183;</span>
-                <span>Merge 4x faster</span>
-              </div>
+              <p className="text-[10px] font-black uppercase tracking-widest mb-3" style={{ color: C.accent }}>Overall Assessment</p>
+              <p className="text-sm leading-relaxed font-medium" style={{ color: C.text }}>{result.summary}</p>
             </div>
 
           </div>

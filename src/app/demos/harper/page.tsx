@@ -224,42 +224,43 @@ export default function HarperPage() {
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: C.bg }}>
       {/* Header */}
       <header
-        className="border-b px-6 py-4"
+        className="border-b px-6 py-5"
         style={{ backgroundColor: C.headerBg, borderColor: C.headerBorder }}
       >
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <span className="font-bold text-xl tracking-tight" style={{ color: C.headerText }}>
-              Harper
-            </span>
-            <span className="text-lg font-light" style={{ color: C.headerText + "60" }}>|</span>
-            <span className="text-sm" style={{ color: C.headerText + "99" }}>Business Coverage Profiler</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex flex-col items-end gap-1.5">
-              <span className="text-xs" style={{ color: C.headerText + "99" }}>
-                Built by{" "}
-                <Link href="/" className="hover:underline" style={{ color: C.headerText }}>
-                  Armaan Kazi
-                </Link>
+        <div className="max-w-4xl mx-auto flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <div className="flex items-center gap-3 mb-2 flex-wrap">
+              <span className="font-black text-2xl tracking-tight" style={{ color: C.headerText }}>
+                Harper
               </span>
-              <ThemeToggle
-                theme={theme}
-                onChange={setTheme}
-                companyAccent={COMPANY_STYLE.accent}
-                darkContext={theme === "company"}
-              />
+              <span
+                className="text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase tracking-widest"
+                style={{
+                  borderColor: NAVY + "50",
+                  color: theme === "my" ? "#9ca3af" : NAVY,
+                  backgroundColor: NAVY + "12",
+                }}
+              >
+                Built for Harper
+              </span>
             </div>
-            <Link
-              href="/demos"
-              className="text-xs border rounded-lg px-3 py-1.5 transition-colors"
-              style={{
-                borderColor: C.headerText + "40",
-                color: C.headerText + "99",
-              }}
-            >
-              Exit demo
-            </Link>
+            <p className="text-sm" style={{ color: theme === "my" ? C.muted : C.headerText + "99" }}>
+              Commercial insurance coverage profiler for any business type.
+            </p>
+          </div>
+          <div className="flex flex-col items-end gap-1.5">
+            <span className="text-xs" style={{ color: theme === "my" ? C.dim : C.headerText + "80" }}>
+              Demo by{" "}
+              <Link href="/" className="underline hover:opacity-70 transition-opacity" style={{ color: theme === "my" ? C.muted : C.headerText + "99" }}>
+                Armaan Kazi
+              </Link>
+            </span>
+            <ThemeToggle
+              theme={theme}
+              onChange={setTheme}
+              companyAccent={COMPANY_STYLE.accent}
+              darkContext={theme === "company"}
+            />
           </div>
         </div>
       </header>
@@ -270,20 +271,6 @@ export default function HarperPage() {
         <Link href="/demos" className="text-xs transition-colors mb-8 inline-block" style={{ color: C.muted }}>
           ← Back to Demos
         </Link>
-
-        {/* Hero */}
-        <div className="mb-10">
-          <p className="text-xs font-semibold tracking-widest uppercase mb-2" style={{ color: NAVY }}>
-            Built for Harper Insurance
-          </p>
-          <h1 className="text-2xl font-bold mb-2" style={{ color: NAVY }}>
-            Business Coverage Profiler
-          </h1>
-          <p className="leading-relaxed max-w-2xl text-sm" style={{ color: C.muted }}>
-            Enter your business profile and get a structured commercial insurance recommendation: coverage lines,
-            priority tiers, premium estimates, and gap analysis.
-          </p>
-        </div>
 
         {/* Section A: What Harper does today */}
         <section className="mb-10">

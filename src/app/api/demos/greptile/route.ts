@@ -54,8 +54,12 @@ async function ghFetch<T>(url: string): Promise<{ data: T; status: number }> {
 export async function POST(request: Request) {
   console.log("[greptile] hit");
 
+  console.log("GITHUB_TOKEN present:", !!process.env.GITHUB_TOKEN)
+  console.log("GITHUB_TOKEN first 4 chars:", process.env.GITHUB_TOKEN?.slice(0, 4))
+
   try {
     const body = await request.json() as { prUrl: string };
+    console.log("Request body:", body)
     const { prUrl } = body;
 
     // Parse PR URL
@@ -71,9 +75,15 @@ export async function POST(request: Request) {
 
     console.log(`[greptile] fetching ${owner}/${repo}#${prNumber}`);
 
-    // Fetch all four endpoints in parallel
-    const [prRes, filesRes, reviewsRes, commentsRes] = await Promise.all([
-      ghFetch<GitHubPR>(base),
+    // Fetch PR metadata first to log raw response before parsing
+    const prRawRes = await fetch(base, { headers: ghHeaders() });
+    const prRawBody = await prRawRes.text();
+    console.log("[greptile] PR metadata status:", prRawRes.status);
+    console.log("[greptile] PR metadata raw body:", prRawBody.slice(0, 500));
+    const prRes = { data: JSON.parse(prRawBody) as GitHubPR, status: prRawRes.status };
+
+    // Fetch remaining three endpoints in parallel
+    const [filesRes, reviewsRes, commentsRes] = await Promise.all([
       ghFetch<GitHubFile[]>(`${base}/files`),
       ghFetch<GitHubReview[]>(`${base}/reviews`),
       ghFetch<GitHubComment[]>(`${base}/comments`),

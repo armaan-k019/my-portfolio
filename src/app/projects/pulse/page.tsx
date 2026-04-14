@@ -311,7 +311,7 @@ function EventsTab({ events, eventsLoading, eventsError, failedSources, skippedS
       <div className="px-3 pb-3 space-y-2">
         {/* Partial failure warning */}
         {failedSources.length > 0 && failedSources.length < 3 && (
-          <p className="text-[9px] text-amber-600/80 italic px-1">Some sources unavailable — showing partial results.</p>
+          <p className="text-[9px] text-amber-600/80 italic px-1">Some sources unavailable. Showing partial results.</p>
         )}
         {eventsLoading ? (
           <>
@@ -321,7 +321,7 @@ function EventsTab({ events, eventsLoading, eventsError, failedSources, skippedS
           </>
         ) : eventsError ? (
           <div className="px-1 py-2 space-y-2">
-            <p className="text-[11px] text-[#7A9B7A] italic">Could not load events — tap to retry</p>
+            <p className="text-[11px] text-[#7A9B7A] italic">Could not load events. Tap to retry.</p>
             <button
               onClick={onRetryEvents}
               className="text-[10px] px-3 py-1.5 rounded-lg bg-[#1A2A1A]/[0.06] hover:bg-[#1A2A1A]/[0.12] text-[#4A6B4A] transition-colors"
@@ -347,7 +347,7 @@ function EventsTab({ events, eventsLoading, eventsError, failedSources, skippedS
               const d = sourceDebug[key];
               return (
                 <p key={key} className="text-[8px] text-[#7A9B7A]/50 leading-relaxed">
-                  {label}: {d.status === 'skipped' ? 'skipped — no key' : d.status === 'error' ? 'error' : `${d.count} event${d.count !== 1 ? 's' : ''}`}
+                  {label}: {d.status === 'skipped' ? 'skipped (no key)' : d.status === 'error' ? 'error' : `${d.count} event${d.count !== 1 ? 's' : ''}`}
                 </p>
               );
             })}
@@ -727,7 +727,7 @@ export default function PulsePage() {
             </div>
             <div className="px-3 pb-2 pt-1 border-t border-white/[0.06] mt-1">
               <p className="text-[8px] text-white/20 leading-tight">
-                Simulated — live tracking<br/>requires GT PTS credentials
+                Simulated. Live tracking<br/>requires GT PTS credentials.
               </p>
             </div>
           </div>

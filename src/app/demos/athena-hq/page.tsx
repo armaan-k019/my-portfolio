@@ -404,23 +404,30 @@ export default function AthenaHQPage() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: C.bg }}>
       {/* ── Header ── */}
-      <header className="px-6 py-4" style={{ backgroundColor: C.headerBg, borderBottomColor: C.headerBorder }}>
+      <header className="px-6 py-5 border-b" style={{ backgroundColor: C.headerBg, borderColor: C.headerBorder }}>
         <div className="max-w-5xl mx-auto flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="flex items-center gap-3 mb-2 flex-wrap">
-              <span className="font-bold text-xl tracking-tight" style={{ color: C.headerText }}>AthenaHQ</span>
-              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border border-white/20 text-white/60 uppercase tracking-widest">
-                GEO Intelligence Suite
+              <span className="font-black text-2xl tracking-tight" style={{ color: C.headerText }}>AthenaHQ</span>
+              <span
+                className="text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase tracking-widest"
+                style={{
+                  borderColor: NAVY + "50",
+                  color: theme === "my" ? "#9ca3af" : NAVY,
+                  backgroundColor: NAVY + "12",
+                }}
+              >
+                Built for AthenaHQ
               </span>
             </div>
-            <p className="text-xs leading-relaxed max-w-2xl" style={{ color: theme === "my" ? C.muted : "rgba(255,255,255,0.55)" }}>
-              Generative Engine Optimization is how brands win in AI search. This tool shows you which prompts to track, how you appear across those prompts vs. competitors, where your citations are missing, and exactly what content to create to close the gap.
+            <p className="text-sm" style={{ color: theme === "my" ? C.muted : "rgba(255,255,255,0.55)" }}>
+              GEO visibility, citation gaps, and content briefs in one pass.
             </p>
           </div>
           <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-            <span className="text-xs" style={{ color: theme === "my" ? C.muted : "rgba(255,255,255,0.30)" }}>
+            <span className="text-xs" style={{ color: theme === "my" ? C.dim : "rgba(255,255,255,0.30)" }}>
               Demo by{" "}
-              <Link href="/" className="underline transition-colors hover:opacity-80" style={{ color: theme === "my" ? C.accent : "rgba(255,255,255,0.30)" }}>
+              <Link href="/" className="underline transition-colors hover:opacity-80" style={{ color: theme === "my" ? C.muted : "rgba(255,255,255,0.55)" }}>
                 Armaan Kazi
               </Link>
             </span>

@@ -458,17 +458,20 @@ export default function SideShiftPage() {
             ].map(card => (
               <div
                 key={card.title}
-                className="rounded-xl p-4"
+                className="rounded-xl p-5"
                 style={{ backgroundColor: CARD, border: `1px solid ${BORDER}` }}
               >
-                <p className="text-xs font-bold mb-2" style={{ color: TEXT }}>{card.title}</p>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: ORANGE }} />
+                  <p className="text-xs font-semibold" style={{ color: TEXT }}>{card.title}</p>
+                </div>
                 <p className="text-xs leading-relaxed" style={{ color: MUTED }}>{card.body}</p>
               </div>
             ))}
           </div>
-          <div className="rounded-xl px-5 py-4" style={{ border: `1px solid ${ORANGE}40`, backgroundColor: ORANGE + "0d" }}>
-            <p className="text-xs font-bold mb-1" style={{ color: ORANGE }}>Why This Is Different</p>
-            <p className="text-xs leading-relaxed" style={{ color: MUTED }}>
+          <div className="rounded-xl px-5 py-4" style={{ border: `1px solid ${BORDER}`, backgroundColor: ORANGE + "0d" }}>
+            <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: DIM }}>Why This Is Different</p>
+            <p className="text-sm leading-relaxed" style={{ color: MUTED }}>
               Most swap tools show you one price. This shows you whether that price is actually the best you can get.
             </p>
           </div>
@@ -606,12 +609,8 @@ export default function SideShiftPage() {
               <button
                 type="submit"
                 disabled={!canSubmit}
-                className="w-full py-3 rounded-xl font-bold text-sm transition-all"
-                style={{
-                  backgroundColor: canSubmit ? ORANGE : BORDER,
-                  color: canSubmit ? "#fff" : DIM,
-                  cursor: canSubmit ? "pointer" : "not-allowed",
-                }}
+                className="w-full py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
+                style={{ backgroundColor: ORANGE, color: "#fff" }}
               >
                 Analyze Routes
               </button>

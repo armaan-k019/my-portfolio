@@ -412,7 +412,7 @@ function HeatPanel({
       <div className="grid grid-cols-3 gap-2">
         <StatCard label="Surface Temp" value={`${data.currentTempC}°C`} tooltip="Current surface temperature at the analysis location (Open-Meteo)." />
         <StatCard label="Rural Reference" value={`${data.referenceTempC}°C`} tooltip="Surface temperature ~5 miles from the site used as a rural baseline." />
-        <StatCard label="Difference" value={`+${data.deltaC}°C`} valueColor={data.deltaC > 3 ? "text-red-600" : "text-amber-600"} tooltip="Temperature delta between urban location and rural reference — the core heat island signal." />
+        <StatCard label="Difference" value={`+${data.deltaC}°C`} valueColor={data.deltaC > 3 ? "text-red-600" : "text-amber-600"} tooltip="Temperature delta between urban location and rural reference (the core heat island signal)." />
       </div>
 
       <div className="rounded-xl border border-tan/30 bg-white/50 px-4 py-3">
@@ -911,7 +911,7 @@ export default function UrbanGPTPage() {
         <div className="flex flex-col items-center gap-3 py-12">
           <div className="w-6 h-6 border-2 border-terracotta/30 border-t-terracotta rounded-full animate-spin" />
           <p className="text-sm text-brown-light">Fetching demographic, transit, and spatial data…</p>
-          <p className="text-xs text-brown-light/50">This pulls from Census, OpenStreetMap, and Claude — expect 20–40 seconds.</p>
+          <p className="text-xs text-brown-light/50">This pulls from Census, OpenStreetMap, and Claude. Expect 20-40 seconds.</p>
         </div>
       )}
 
@@ -926,14 +926,14 @@ export default function UrbanGPTPage() {
                     <span>
                       ⚠{" "}
                       {result.overpass.timedOutCategories && result.overpass.timedOutCategories.length > 0
-                        ? `${result.overpass.timedOutCategories.join(", ")} data timed out — showing available results.`
+                        ? `${result.overpass.timedOutCategories.join(", ")} data timed out; showing available results.`
                         : "OpenStreetMap data timed out. Amenity counts may be incomplete."}
                     </span>
                     <button onClick={handleAnalyze} className="shrink-0 text-xs font-medium text-darkblue underline hover:no-underline">Retry</button>
                   </div>
                 )}
                 {result.overpass.radiusCapped && (
-                  <p>ℹ Amenity data shown for 5 mi radius — demographic data covers the full selected radius.</p>
+                  <p>ℹ Amenity data shown for 5 mi radius. Demographic data covers the full selected radius.</p>
                 )}
               </div>
             )}

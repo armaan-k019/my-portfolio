@@ -203,7 +203,7 @@ export default function PhotographyPage() {
       <div className="max-w-7xl mx-auto px-6 pt-12 pb-6">
         <h1 className="text-2xl font-semibold text-[#1A2A1A] mb-1">Photography</h1>
         <p className="text-sm text-[#4A6B4A]">
-          Travel photography — {DESTINATIONS.length} destinations, {PHOTOS.length} photos.
+          Travel photography: {DESTINATIONS.length} destinations, {PHOTOS.length} photos.
         </p>
       </div>
 

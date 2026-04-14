@@ -18,28 +18,28 @@ interface MaterialData {
 const CARBON_DATA: Record<string, MaterialData> = {
   concrete_general:       { name: "Concrete (General)",           category: "Concrete",    unit: "m³",    kgCO2e_per_unit: 300,    density_kg_per_m3: 2400, alternatives: ["concrete_30mpa","concrete_ggbs50","timber_glulam"], description: "Standard ready-mix concrete" },
   concrete_30mpa:         { name: "Concrete 30 MPa",              category: "Concrete",    unit: "m³",    kgCO2e_per_unit: 270,    density_kg_per_m3: 2400, alternatives: ["concrete_ggbs50","concrete_ggbs70"], description: "Standard structural concrete" },
-  concrete_ggbs50:        { name: "Concrete 50% GGBS",            category: "Concrete",    unit: "m³",    kgCO2e_per_unit: 165,    density_kg_per_m3: 2400, alternatives: ["concrete_ggbs70"], description: "Concrete with 50% GGBS — significantly lower carbon" },
-  concrete_ggbs70:        { name: "Concrete 70% GGBS",            category: "Concrete",    unit: "m³",    kgCO2e_per_unit: 100,    density_kg_per_m3: 2400, alternatives: [], description: "Concrete with 70% GGBS — lowest carbon concrete option" },
+  concrete_ggbs50:        { name: "Concrete 50% GGBS",            category: "Concrete",    unit: "m³",    kgCO2e_per_unit: 165,    density_kg_per_m3: 2400, alternatives: ["concrete_ggbs70"], description: "Concrete with 50% GGBS, significantly lower carbon" },
+  concrete_ggbs70:        { name: "Concrete 70% GGBS",            category: "Concrete",    unit: "m³",    kgCO2e_per_unit: 100,    density_kg_per_m3: 2400, alternatives: [], description: "Concrete with 70% GGBS, lowest carbon concrete option" },
   steel_structural:       { name: "Structural Steel (Virgin)",    category: "Steel",       unit: "tonne", kgCO2e_per_unit: 2500,   density_kg_per_m3: 7850, alternatives: ["steel_recycled","timber_glulam"], description: "Primary structural steel, virgin production" },
   steel_recycled:         { name: "Structural Steel (Recycled)",  category: "Steel",       unit: "tonne", kgCO2e_per_unit: 500,    density_kg_per_m3: 7850, alternatives: [], description: "Steel from electric arc furnace using recycled content" },
   steel_rebar:            { name: "Steel Rebar",                  category: "Steel",       unit: "tonne", kgCO2e_per_unit: 1990,   density_kg_per_m3: 7850, alternatives: ["steel_rebar_recycled"], description: "Reinforcing bar for concrete" },
   steel_rebar_recycled:   { name: "Steel Rebar (Recycled)",       category: "Steel",       unit: "tonne", kgCO2e_per_unit: 660,    density_kg_per_m3: 7850, alternatives: [], description: "Recycled content rebar" },
-  timber_glulam:          { name: "Glulam Timber",                category: "Timber",      unit: "m³",    kgCO2e_per_unit: -900,   density_kg_per_m3: 550,  alternatives: [], description: "Glued laminated timber — carbon negative" },
-  timber_clt:             { name: "Cross Laminated Timber (CLT)", category: "Timber",      unit: "m³",    kgCO2e_per_unit: -750,   density_kg_per_m3: 500,  alternatives: [], description: "CLT panels — carbon negative structural material" },
+  timber_glulam:          { name: "Glulam Timber",                category: "Timber",      unit: "m³",    kgCO2e_per_unit: -900,   density_kg_per_m3: 550,  alternatives: [], description: "Glued laminated timber, carbon negative" },
+  timber_clt:             { name: "Cross Laminated Timber (CLT)", category: "Timber",      unit: "m³",    kgCO2e_per_unit: -750,   density_kg_per_m3: 500,  alternatives: [], description: "CLT panels, carbon negative structural material" },
   timber_softwood:        { name: "Sawn Softwood",                category: "Timber",      unit: "m³",    kgCO2e_per_unit: -800,   density_kg_per_m3: 500,  alternatives: [], description: "General sawn softwood timber" },
   brick_clay:             { name: "Clay Brick",                   category: "Masonry",     unit: "m³",    kgCO2e_per_unit: 360,    density_kg_per_m3: 1700, alternatives: ["brick_reclaimed","concrete_block"], description: "Standard fired clay brick" },
-  brick_reclaimed:        { name: "Reclaimed Brick",              category: "Masonry",     unit: "m³",    kgCO2e_per_unit: 40,     density_kg_per_m3: 1700, alternatives: [], description: "Reclaimed clay brick — very low embodied carbon" },
+  brick_reclaimed:        { name: "Reclaimed Brick",              category: "Masonry",     unit: "m³",    kgCO2e_per_unit: 40,     density_kg_per_m3: 1700, alternatives: [], description: "Reclaimed clay brick, very low embodied carbon" },
   concrete_block:         { name: "Concrete Block",               category: "Masonry",     unit: "m³",    kgCO2e_per_unit: 230,    density_kg_per_m3: 1800, alternatives: ["brick_reclaimed"], description: "Standard concrete masonry unit" },
   glass_float:            { name: "Float Glass",                  category: "Glass",       unit: "m²",    kgCO2e_per_unit: 25,     density_kg_per_m3: 2500, alternatives: ["glass_triple"], description: "Standard float glass, 6mm" },
-  glass_triple:           { name: "Triple Glazed Unit",           category: "Glass",       unit: "m²",    kgCO2e_per_unit: 90,     density_kg_per_m3: 2500, alternatives: [], description: "Triple glazed unit — higher upfront carbon, better thermal performance" },
+  glass_triple:           { name: "Triple Glazed Unit",           category: "Glass",       unit: "m²",    kgCO2e_per_unit: 90,     density_kg_per_m3: 2500, alternatives: [], description: "Triple glazed unit, higher upfront carbon but better thermal performance" },
   insulation_mineral_wool:{ name: "Mineral Wool Insulation",      category: "Insulation",  unit: "m³",    kgCO2e_per_unit: 33,     density_kg_per_m3: 25,   alternatives: ["insulation_cork","insulation_hemp"], description: "Standard mineral wool / rockwool insulation" },
-  insulation_eps:         { name: "EPS Insulation",               category: "Insulation",  unit: "m³",    kgCO2e_per_unit: 88,     density_kg_per_m3: 20,   alternatives: ["insulation_mineral_wool","insulation_cork"], description: "Expanded polystyrene — higher carbon than mineral alternatives" },
-  insulation_cork:        { name: "Cork Insulation",              category: "Insulation",  unit: "m³",    kgCO2e_per_unit: -100,   density_kg_per_m3: 120,  alternatives: [], description: "Natural cork — carbon negative insulation" },
-  insulation_hemp:        { name: "Hemp Insulation",              category: "Insulation",  unit: "m³",    kgCO2e_per_unit: -35,    density_kg_per_m3: 40,   alternatives: [], description: "Hemp-based insulation — low carbon natural material" },
-  aluminum_primary:       { name: "Aluminum (Primary)",           category: "Aluminum",    unit: "tonne", kgCO2e_per_unit: 11900,  density_kg_per_m3: 2700, alternatives: ["aluminum_recycled"], description: "Primary aluminum — very high embodied carbon" },
-  aluminum_recycled:      { name: "Aluminum (Recycled)",          category: "Aluminum",    unit: "tonne", kgCO2e_per_unit: 1700,   density_kg_per_m3: 2700, alternatives: [], description: "Recycled aluminum — 85% lower carbon than primary" },
+  insulation_eps:         { name: "EPS Insulation",               category: "Insulation",  unit: "m³",    kgCO2e_per_unit: 88,     density_kg_per_m3: 20,   alternatives: ["insulation_mineral_wool","insulation_cork"], description: "Expanded polystyrene, higher carbon than mineral alternatives" },
+  insulation_cork:        { name: "Cork Insulation",              category: "Insulation",  unit: "m³",    kgCO2e_per_unit: -100,   density_kg_per_m3: 120,  alternatives: [], description: "Natural cork, carbon negative insulation" },
+  insulation_hemp:        { name: "Hemp Insulation",              category: "Insulation",  unit: "m³",    kgCO2e_per_unit: -35,    density_kg_per_m3: 40,   alternatives: [], description: "Hemp-based insulation, low carbon natural material" },
+  aluminum_primary:       { name: "Aluminum (Primary)",           category: "Aluminum",    unit: "tonne", kgCO2e_per_unit: 11900,  density_kg_per_m3: 2700, alternatives: ["aluminum_recycled"], description: "Primary aluminum, very high embodied carbon" },
+  aluminum_recycled:      { name: "Aluminum (Recycled)",          category: "Aluminum",    unit: "tonne", kgCO2e_per_unit: 1700,   density_kg_per_m3: 2700, alternatives: [], description: "Recycled aluminum, 85% lower carbon than primary" },
   flooring_carpet:        { name: "Carpet",                       category: "Flooring",    unit: "m²",    kgCO2e_per_unit: 18,     density_kg_per_m3: null, alternatives: ["flooring_timber"], description: "Standard broadloom carpet" },
-  flooring_timber:        { name: "Timber Flooring",              category: "Flooring",    unit: "m²",    kgCO2e_per_unit: -12,    density_kg_per_m3: null, alternatives: [], description: "Solid timber flooring — carbon storing" },
+  flooring_timber:        { name: "Timber Flooring",              category: "Flooring",    unit: "m²",    kgCO2e_per_unit: -12,    density_kg_per_m3: null, alternatives: [], description: "Solid timber flooring, carbon storing" },
   flooring_ceramic:       { name: "Ceramic Tiles",                category: "Flooring",    unit: "m²",    kgCO2e_per_unit: 22,     density_kg_per_m3: null, alternatives: ["flooring_timber"], description: "Standard ceramic floor tiles" },
 };
 
@@ -114,11 +114,11 @@ function fmtNum(v: number): string {
 function getBenchmarkRating(perM2: number, buildingType: string): { label: string; color: string; tier: string } {
   const b = BENCHMARKS[buildingType];
   if (!b) return { label: "Select building type", color: "#7A9B7A", tier: "unknown" };
-  if (perM2 <= b.excellent) return { label: "Excellent — below RIBA 2030 target",           color: "#2E8B57", tier: "excellent" };
-  if (perM2 <= b.good)      return { label: "Good — below industry average",                 color: "#2A9D8F", tier: "good" };
-  if (perM2 <= b.average)   return { label: "Average — meets minimum standards",             color: "#B8952A", tier: "average" };
-  if (perM2 <= b.poor)      return { label: "Below average — consider substitutions",        color: "#E76F51", tier: "below" };
-  return                           { label: "High carbon — significant intervention needed", color: "#2D5A27", tier: "poor" };
+  if (perM2 <= b.excellent) return { label: "Excellent: below RIBA 2030 target",           color: "#2E8B57", tier: "excellent" };
+  if (perM2 <= b.good)      return { label: "Good: below industry average",                 color: "#2A9D8F", tier: "good" };
+  if (perM2 <= b.average)   return { label: "Average: meets minimum standards",             color: "#B8952A", tier: "average" };
+  if (perM2 <= b.poor)      return { label: "Below average: consider substitutions",        color: "#E76F51", tier: "below" };
+  return                           { label: "High carbon: significant intervention needed", color: "#2D5A27", tier: "poor" };
 }
 
 // ─── Carbon breakdown chart (SVG) ────────────────────────────────────────────
@@ -278,7 +278,7 @@ function SwapSuggestions({ rows, onSwap }: {
   return (
     <div className="space-y-4">
       {swaps.length === 0 && (
-        <p className="text-xs text-[#7A9B7A] italic">No further substitution opportunities — all materials are at their lowest available carbon intensity.</p>
+        <p className="text-xs text-[#7A9B7A] italic">No further substitution opportunities. All materials are at their lowest available carbon intensity.</p>
       )}
       <div className="space-y-2">
       {swaps.slice(0, 6).map((s, i) => (
@@ -328,7 +328,7 @@ function SwapSuggestions({ rows, onSwap }: {
                 <span className="text-emerald-600 text-sm leading-none">✓</span>
                 <div className="flex-1 min-w-0">
                   <span className="text-xs text-[#1A2A1A] font-medium">{m.name}</span>
-                  <span className="text-[10px] text-emerald-600 ml-1.5">— lowest carbon option in category</span>
+                  <span className="text-[10px] text-emerald-600 ml-1.5">(lowest carbon option in category)</span>
                 </div>
               </div>
             ))}
@@ -586,7 +586,7 @@ export default function CarbonLensPage() {
             <p className="text-[10px] font-semibold uppercase tracking-widest text-[#7A9B7A] mb-2">What is embodied carbon?</p>
             <p className="text-xs text-[#4A6B4A] leading-relaxed">
               Embodied carbon refers to the greenhouse gas emissions produced during the manufacture, transport, and installation
-              of building materials — before the building is ever occupied. It typically accounts for 20–50% of a building&apos;s
+              of building materials, before the building is ever occupied. It typically accounts for 20-50% of a building&apos;s
               lifetime carbon footprint and is locked in at the point of construction. Making smarter material choices early
               in design is the highest-leverage moment for reducing a building&apos;s climate impact.
             </p>
@@ -595,7 +595,7 @@ export default function CarbonLensPage() {
             <p className="text-[10px] font-semibold uppercase tracking-widest text-[#7A9B7A] mb-2">Data source</p>
             <p className="text-xs text-[#4A6B4A] leading-relaxed">
               Carbon intensities from the <strong className="text-[#1A2A1A]">ICE Database v3.0</strong> (Inventory of Carbon
-              and Energy, University of Bath) — the industry standard reference for embodied carbon in construction materials.
+              and Energy, University of Bath), the industry standard reference for embodied carbon in construction materials.
               Results are estimates for comparative design decisions, not certified assessments.
             </p>
           </div>
@@ -854,7 +854,7 @@ export default function CarbonLensPage() {
         <section className="bg-white/80 rounded-xl border border-[#D8E6D8] shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-[#D8E6D8]">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-[#7A9B7A]">Material Substitution Opportunities</p>
-            <p className="text-[10px] text-[#7A9B7A] mt-0.5">Ranked by potential carbon saving — biggest wins first</p>
+            <p className="text-[10px] text-[#7A9B7A] mt-0.5">Ranked by potential carbon saving, biggest wins first</p>
           </div>
           <div className="p-5">
             <SwapSuggestions rows={rows} onSwap={applySwap} />
