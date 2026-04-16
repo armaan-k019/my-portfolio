@@ -28,6 +28,20 @@ export const MY_STYLE: PageColors = {
   headerText: "#1a1a1a",
 };
 
+export const CSS_VAR_COLORS: PageColors = {
+  bg: "var(--ct-bg)",
+  cardBg: "var(--ct-card-bg)",
+  cardBorder: "var(--ct-card-border)",
+  text: "var(--ct-text)",
+  muted: "var(--ct-muted)",
+  dim: "var(--ct-dim)",
+  accent: "var(--ct-accent)",
+  accentBg: "var(--ct-accent-bg)",
+  headerBg: "var(--ct-header-bg)",
+  headerBorder: "var(--ct-header-border)",
+  headerText: "var(--ct-header-text)",
+};
+
 interface ThemeToggleProps {
   theme: "my" | "company";
   onChange: (t: "my" | "company") => void;

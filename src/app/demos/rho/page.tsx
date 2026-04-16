@@ -2,7 +2,20 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import ThemeToggle, { MY_STYLE, type PageColors } from "@/components/ThemeToggle";
+import ThemeToggle, { MY_STYLE, CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
+import CompanyThemeStyle from "@/components/CompanyThemeStyle";
+
+const RHO_ORANGE = "#e85d2f";
+
+
+const COMPANY_THEME_CSS = `
+.company-theme {
+  --ct-bg: #fafaf9; --ct-card-bg: #ffffff; --ct-card-border: rgba(44,24,16,0.10);
+  --ct-text: #2C1810; --ct-muted: #6B5244; --ct-dim: #9A8070;
+  --ct-accent: ${RHO_ORANGE}; --ct-accent-bg: rgba(232,93,47,0.08);
+  --ct-header-bg: #ffffff; --ct-header-border: rgba(44,24,16,0.10); --ct-header-text: #2C1810;
+}
+`;
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -714,21 +727,7 @@ export default function DriftDetectionPage() {
 
   const activeTransactions = scenario === "A" ? TRANSACTIONS : TRANSACTIONS_B;
 
-  const COMPANY_STYLE: PageColors = {
-    bg: "#fafaf9",
-    cardBg: "#ffffff",
-    cardBorder: "rgba(44,24,16,0.10)",
-    text: "#2C1810",
-    muted: "#6B5244",
-    dim: "#9A8070",
-    accent: "#e85d2f",
-    accentBg: "rgba(232,93,47,0.08)",
-    headerBg: "#ffffff",
-    headerBorder: "rgba(44,24,16,0.10)",
-    headerText: "#2C1810",
-  };
-
-  const C = theme === "my" ? MY_STYLE : COMPANY_STYLE;
+  const C = theme === "my" ? MY_STYLE : CSS_VAR_COLORS;
 
   const PAGE_BG  = C.bg;
   const HEADING  = C.text;
@@ -828,7 +827,8 @@ export default function DriftDetectionPage() {
         }
       `}</style>
 
-      <div className="min-h-screen" style={{ backgroundColor: PAGE_BG }}>
+      <CompanyThemeStyle active={theme === "company"} css={COMPANY_THEME_CSS} />
+      <div className={`min-h-screen${theme === "company" ? " company-theme" : ""}`} style={{ backgroundColor: PAGE_BG }}>
 
         {/* ── Header ────────────────────────────────────────────────────────── */}
         <header className="px-6 py-5 border-b" style={{ backgroundColor: C.headerBg, borderColor: C.headerBorder }}>
@@ -856,7 +856,7 @@ export default function DriftDetectionPage() {
                   Armaan Kazi
                 </Link>
               </span>
-              <ThemeToggle theme={theme} onChange={setTheme} companyAccent={COMPANY_STYLE.accent} darkContext={false} />
+              <ThemeToggle theme={theme} onChange={setTheme} companyAccent={RHO_ORANGE} darkContext={false} />
             </div>
           </div>
         </header>

@@ -2,9 +2,33 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import ThemeToggle, { MY_STYLE, type PageColors } from "@/components/ThemeToggle";
+import ThemeToggle, { MY_STYLE, CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
+import CompanyThemeStyle from "@/components/CompanyThemeStyle";
 
 const RETELL_GREEN = "#00C389";
+
+const COMPANY_STYLE: PageColors = {
+  bg: "#0f0f1a",
+  cardBg: "#1a1a2e",
+  cardBorder: "#2a2a44",
+  text: "#ffffff",
+  muted: "#a0a0c0",
+  dim: "#606080",
+  accent: RETELL_GREEN,
+  accentBg: RETELL_GREEN + "14",
+  headerBg: "#0f0f1a",
+  headerBorder: "#2a2a44",
+  headerText: "#ffffff",
+};
+
+const COMPANY_THEME_CSS = `
+.company-theme {
+  --ct-bg: #0f0f1a; --ct-card-bg: #1a1a2e; --ct-card-border: #2a2a44;
+  --ct-text: #ffffff; --ct-muted: #a0a0c0; --ct-dim: #606080;
+  --ct-accent: ${RETELL_GREEN}; --ct-accent-bg: ${RETELL_GREEN}14;
+  --ct-header-bg: #0f0f1a; --ct-header-border: #2a2a44; --ct-header-text: #ffffff;
+}
+`;
 
 const SAMPLE_TRANSCRIPT = `Agent: Hello, thank you for calling Bright Dental. How can I assist you today?
 User: Hi, I need to reschedule my appointment.
@@ -166,21 +190,7 @@ export default function RetellPage() {
 
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  const COMPANY_STYLE: PageColors = {
-    bg: "#0f0f1a",
-    cardBg: "#1a1a2e",
-    cardBorder: "#2a2a44",
-    text: "#ffffff",
-    muted: "#a0a0c0",
-    dim: "#606080",
-    accent: RETELL_GREEN,
-    accentBg: RETELL_GREEN + "14",
-    headerBg: "#0f0f1a",
-    headerBorder: "#2a2a44",
-    headerText: "#ffffff",
-  };
-
-  const C = theme === "my" ? MY_STYLE : COMPANY_STYLE;
+  const C = theme === "my" ? MY_STYLE : CSS_VAR_COLORS;
   const ACCENT = C.accent;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -210,7 +220,8 @@ export default function RetellPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: C.bg, color: C.text }}>
+    <div className={`min-h-screen${theme === "company" ? " company-theme" : ""}`} style={{ backgroundColor: C.bg, color: C.text }}>
+      <CompanyThemeStyle active={theme === "company"} css={COMPANY_THEME_CSS} />
 
       {/* Header */}
       <header
@@ -227,24 +238,24 @@ export default function RetellPage() {
                 className="text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase tracking-widest"
                 style={{
                   borderColor: RETELL_GREEN + "50",
-                  color: theme === "my" ? C.accent : RETELL_GREEN,
+                  color: C.accent,
                   backgroundColor: RETELL_GREEN + "12",
                 }}
               >
                 Built for Retell
               </span>
             </div>
-            <p className="text-sm" style={{ color: theme === "my" ? C.muted : "#a0a0c0" }}>
+            <p className="text-sm" style={{ color: C.muted }}>
               Find every moment your voice agent sounded robotic. Score the humanity. Get the rewrites.
             </p>
           </div>
           <div className="flex flex-col items-end gap-1.5">
-            <span className="text-xs" style={{ color: theme === "my" ? C.dim : "#606080" }}>
+            <span className="text-xs" style={{ color: C.dim }}>
               Demo by{" "}
               <Link
                 href="/"
                 className="underline hover:opacity-70 transition-opacity"
-                style={{ color: theme === "my" ? C.muted : "#a0a0c0" }}
+                style={{ color: C.muted }}
               >
                 Armaan Kazi
               </Link>

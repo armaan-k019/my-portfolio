@@ -2,7 +2,26 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
-import ThemeToggle, { MY_STYLE, type PageColors } from "@/components/ThemeToggle";
+import ThemeToggle, { MY_STYLE, CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
+import CompanyThemeStyle from "@/components/CompanyThemeStyle";
+import { Merriweather } from "next/font/google";
+
+const merriweather = Merriweather({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-brand" });
+
+const HARPER_NAVY = "#0f1f3d";
+
+
+const COMPANY_THEME_CSS = `
+.company-theme {
+  --ct-bg: #ffffff; --ct-card-bg: #ffffff; --ct-card-border: rgba(15,31,61,0.15);
+  --ct-text: ${HARPER_NAVY}; --ct-muted: #4b6080; --ct-dim: #8a9abc;
+  --ct-accent: ${HARPER_NAVY}; --ct-accent-bg: rgba(15,31,61,0.06);
+  --ct-header-bg: ${HARPER_NAVY}; --ct-header-border: #1a2f5a; --ct-header-text: #ffffff;
+  font-family: var(--font-brand, 'Merriweather', serif);
+}
+.company-theme h1, .company-theme h2, .company-theme h3, .company-theme h4 { font-family: var(--font-brand, 'Merriweather', serif); }
+.company-theme button, .company-theme input, .company-theme select, .company-theme textarea { font-family: inherit; }
+`;
 
 interface CoverageLine {
   name: string;
@@ -132,21 +151,7 @@ export default function HarperPage() {
 
   const [theme, setTheme] = useState<"my" | "company">("my");
 
-  const COMPANY_STYLE: PageColors = {
-    bg: "#ffffff",
-    cardBg: "#ffffff",
-    cardBorder: "rgba(15,31,61,0.15)",
-    text: "#0f1f3d",
-    muted: "#4b6080",
-    dim: "#8a9abc",
-    accent: "#0f1f3d",
-    accentBg: "rgba(15,31,61,0.06)",
-    headerBg: "#0f1f3d",
-    headerBorder: "#1a2f5a",
-    headerText: "#ffffff",
-  };
-
-  const C = theme === "my" ? MY_STYLE : COMPANY_STYLE;
+  const C = theme === "my" ? MY_STYLE : CSS_VAR_COLORS;
   const NAVY = C.accent;
 
   function loadSample() {
@@ -221,7 +226,8 @@ export default function HarperPage() {
   const totalMax = sorted.reduce((sum, l) => sum + l.premium_max, 0);
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: C.bg }}>
+    <div className={`min-h-screen flex flex-col${theme === "company" ? ` company-theme ${merriweather.variable}` : ""}`} style={{ backgroundColor: C.bg }}>
+      <CompanyThemeStyle active={theme === "company"} css={COMPANY_THEME_CSS} />
       {/* Header */}
       <header
         className="border-b px-6 py-5"
@@ -258,7 +264,7 @@ export default function HarperPage() {
             <ThemeToggle
               theme={theme}
               onChange={setTheme}
-              companyAccent={COMPANY_STYLE.accent}
+              companyAccent={HARPER_NAVY}
               darkContext={theme === "company"}
             />
           </div>

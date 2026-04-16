@@ -2,7 +2,40 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import ThemeToggle, { MY_STYLE, type PageColors } from "@/components/ThemeToggle";
+import ThemeToggle, { MY_STYLE, CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
+import CompanyThemeStyle from "@/components/CompanyThemeStyle";
+import { JetBrains_Mono } from "next/font/google";
+
+const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-brand" });
+
+const GREPTILE_DARK = "#1a1a1a";
+
+const COMPANY_STYLE: PageColors = {
+  bg: "#ffffff",
+  cardBg: "#fafafa",
+  cardBorder: "#e5e7eb",
+  text: "#1a1a1a",
+  muted: "#6b7280",
+  dim: "#9ca3af",
+  accent: GREPTILE_DARK,
+  accentBg: "#f3f4f6",
+  headerBg: GREPTILE_DARK,
+  headerBorder: "#333333",
+  headerText: "#ffffff",
+};
+
+const COMPANY_THEME_CSS = `
+.company-theme {
+  --ct-bg: #ffffff; --ct-card-bg: #fafafa; --ct-card-border: #e5e7eb;
+  --ct-text: #1a1a1a; --ct-muted: #6b7280; --ct-dim: #9ca3af;
+  --ct-accent: ${GREPTILE_DARK}; --ct-accent-bg: #f3f4f6;
+  --ct-header-bg: ${GREPTILE_DARK}; --ct-header-border: #333333; --ct-header-text: #ffffff;
+  font-family: var(--font-brand, 'JetBrains Mono', monospace);
+}
+.company-theme .rounded-xl, .company-theme .rounded-lg,
+.company-theme .rounded-2xl, .company-theme .rounded-full { border-radius: 2px; }
+.company-theme button, .company-theme input, .company-theme textarea { border-radius: 2px; font-family: inherit; }
+`;
 
 const SAMPLE_PR = "https://github.com/tailwindlabs/tailwindcss/pull/14326";
 
@@ -203,20 +236,7 @@ export default function GreptilePage() {
 
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  const COMPANY_STYLE: PageColors = {
-    bg: "#ffffff",
-    cardBg: "#fafafa",
-    cardBorder: "#e5e7eb",
-    text: "#1a1a1a",
-    muted: "#6b7280",
-    dim: "#9ca3af",
-    accent: "#1a1a1a",
-    accentBg: "#f3f4f6",
-    headerBg: "#1a1a1a",
-    headerBorder: "#333333",
-    headerText: "#ffffff",
-  };
-  const C = theme === "my" ? MY_STYLE : COMPANY_STYLE;
+  const C = theme === "my" ? MY_STYLE : CSS_VAR_COLORS;
 
   const DARK_PANEL = theme === "my" ? "#1e2a1e" : "#1a1a1a";
   const DARK_PANEL_BORDER = theme === "my" ? "#2d4a2d" : "#333333";
@@ -259,7 +279,8 @@ export default function GreptilePage() {
     : [];
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: C.bg, color: C.text }}>
+    <div className={`min-h-screen${theme === "company" ? ` company-theme ${jetbrainsMono.variable}` : ""}`} style={{ backgroundColor: C.bg, color: C.text }}>
+      <CompanyThemeStyle active={theme === "company"} css={COMPANY_THEME_CSS} />
 
       {/* Header */}
       <header
@@ -290,7 +311,7 @@ export default function GreptilePage() {
                 Armaan Kazi
               </Link>
             </span>
-            <ThemeToggle theme={theme} onChange={setTheme} companyAccent={COMPANY_STYLE.accent} darkContext={theme === "company"} />
+            <ThemeToggle theme={theme} onChange={setTheme} companyAccent={GREPTILE_DARK} darkContext={theme === "company"} />
           </div>
         </div>
       </header>

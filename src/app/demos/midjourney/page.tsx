@@ -3,7 +3,11 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import ThemeToggle, { MY_STYLE, type PageColors } from "@/components/ThemeToggle";
+import ThemeToggle, { MY_STYLE, CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
+import CompanyThemeStyle from "@/components/CompanyThemeStyle";
+import { DM_Sans } from "next/font/google";
+
+const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-brand" });
 
 const ParallaxViewer = dynamic(() => import("./ParallaxViewer"), { ssr: false });
 
@@ -24,6 +28,17 @@ const COMPANY_STYLE: PageColors = {
   headerBorder: "#2a2a2a",
   headerText: "#ffffff",
 };
+
+const COMPANY_THEME_CSS = `
+.company-theme {
+  --ct-bg: #0a0a0a; --ct-card-bg: #1a1a1a; --ct-card-border: #2a2a2a;
+  --ct-text: #ffffff; --ct-muted: #a0a0a0; --ct-dim: #606060;
+  --ct-accent: ${MJ_PINK}; --ct-accent-bg: ${MJ_PINK}18;
+  --ct-header-bg: #0a0a0a; --ct-header-border: #2a2a2a; --ct-header-text: #ffffff;
+  font-family: var(--font-brand, 'DM Sans', sans-serif);
+}
+.company-theme button, .company-theme input, .company-theme textarea { font-family: inherit; }
+`;
 
 const SAMPLE_PROMPT =
   "Misty mountain peaks shrouded in golden hour light, volumetric fog rolling through valleys, cinematic wide angle lens, ultra-realistic photography style, dramatic atmosphere, 8k resolution --ar 16:9 --v 6 --q 2";
@@ -97,7 +112,7 @@ export default function MidjourneyPage() {
   const resultsRef = useRef<HTMLDivElement>(null);
   const stepIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const C = theme === "my" ? MY_STYLE : COMPANY_STYLE;
+  const C = theme === "my" ? MY_STYLE : CSS_VAR_COLORS;
   const ACCENT = C.accent;
 
   useEffect(() => {
@@ -178,7 +193,8 @@ export default function MidjourneyPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: C.bg, color: C.text }}>
+    <div className={`min-h-screen${theme === "company" ? ` company-theme ${dmSans.variable}` : ""}`} style={{ backgroundColor: C.bg, color: C.text }}>
+      <CompanyThemeStyle active={theme === "company"} css={COMPANY_THEME_CSS} />
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <header

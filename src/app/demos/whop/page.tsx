@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import ThemeToggle, { MY_STYLE, CSS_VAR_COLORS } from "@/components/ThemeToggle";
+import CompanyThemeStyle from "@/components/CompanyThemeStyle";
 
 const SAMPLE_COPY = `Welcome to Alpha Signals Pro
 
@@ -46,9 +48,16 @@ const STAT_BADGE = (val: string, goodVals: string[]) => {
 };
 
 const PURPLE = "#7c3aed";
-const BG = "#0a0a0a";
-const CARD = "#111111";
-const BORDER = "#222222";
+
+
+const COMPANY_THEME_CSS = `
+.company-theme {
+  --ct-bg: #0a0a0a; --ct-card-bg: #111111; --ct-card-border: #222222;
+  --ct-text: #ffffff; --ct-muted: #9ca3af; --ct-dim: #6b7280;
+  --ct-accent: ${PURPLE}; --ct-accent-bg: ${PURPLE}15;
+  --ct-header-bg: #050505; --ct-header-border: #222222; --ct-header-text: #ffffff;
+}
+`;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -107,7 +116,7 @@ function CopyButton({ text, label = "Swipe Copy" }: { text: string; label?: stri
 
 // ── ScoreBar ──────────────────────────────────────────────────────────────────
 
-function ScoreBar({ score, animate }: { score: number; animate: boolean }) {
+function ScoreBar({ score, animate, trackColor }: { score: number; animate: boolean; trackColor: string }) {
   const [width, setWidth] = useState(0);
   const pct = (score / 10) * 100;
   const color = score >= 7 ? "#22c55e" : score >= 5 ? "#eab308" : "#ef4444";
@@ -121,7 +130,7 @@ function ScoreBar({ score, animate }: { score: number; animate: boolean }) {
 
   return (
     <div className="flex items-center gap-3">
-      <div className="flex-1 h-1.5 rounded-full" style={{ backgroundColor: "#222222" }}>
+      <div className="flex-1 h-1.5 rounded-full" style={{ backgroundColor: trackColor }}>
         <div
           className="h-full rounded-full"
           style={{
@@ -204,7 +213,7 @@ function AnimatedGrade({ grade }: { grade: string }) {
 
 // ── StrikethroughHeadline ─────────────────────────────────────────────────────
 
-function StrikethroughHeadline({ text, rewrite, reasoning }: { text: string; rewrite: string; reasoning: string }) {
+function StrikethroughHeadline({ text, rewrite, bg, border, textColor }: { text: string; rewrite: string; reasoning?: string; bg: string; border: string; textColor: string }) {
   const [strikeWidth, setStrikeWidth] = useState(0);
   const [showRewrite, setShowRewrite] = useState(false);
 
@@ -215,12 +224,12 @@ function StrikethroughHeadline({ text, rewrite, reasoning }: { text: string; rew
   }, []);
 
   return (
-    <div className="rounded-xl border" style={{ backgroundColor: "#0a0a0a", borderColor: BORDER, padding: "20px", marginBottom: "16px" }}>
+    <div className="rounded-xl border" style={{ backgroundColor: bg, borderColor: border, padding: "20px", marginBottom: "16px" }}>
       <div style={{ marginBottom: "16px" }}>
-        <p className="font-bold uppercase tracking-wide" style={{ color: "#4b5563", fontSize: "10px", marginBottom: "6px" }}>
+        <p className="font-bold uppercase tracking-wide" style={{ color: PURPLE, fontSize: "10px", marginBottom: "6px", opacity: 0.5 }}>
           Your headline
         </p>
-        <div className="relative inline-block" style={{ color: "#4b5563", fontSize: "13px", opacity: 0.7 }}>
+        <div className="relative inline-block" style={{ color: textColor, fontSize: "13px", opacity: 0.5 }}>
           {text}
           <div
             className="absolute left-0 top-1/2 h-px"
@@ -234,7 +243,7 @@ function StrikethroughHeadline({ text, rewrite, reasoning }: { text: string; rew
       </div>
       <div
         style={{
-          borderTop: `1px solid ${BORDER}`,
+          borderTop: `1px solid ${border}`,
           paddingTop: "16px",
           opacity: showRewrite ? 1 : 0,
           transition: "opacity 300ms ease-out",
@@ -243,7 +252,7 @@ function StrikethroughHeadline({ text, rewrite, reasoning }: { text: string; rew
         <p className="font-bold uppercase tracking-wide" style={{ color: PURPLE, fontSize: "10px", marginBottom: "8px" }}>
           The rewrite
         </p>
-        <p className="font-black leading-snug" style={{ fontSize: "20px" }}>{rewrite}</p>
+        <p className="font-black leading-snug" style={{ fontSize: "20px", color: textColor }}>{rewrite}</p>
       </div>
     </div>
   );
@@ -252,6 +261,7 @@ function StrikethroughHeadline({ text, rewrite, reasoning }: { text: string; rew
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function WhopPage() {
+  const [theme, setTheme] = useState<"my" | "company">("my");
   const [activeTab, setActiveTab] = useState<"paste" | "sample">("paste");
   const [pageCopy, setPageCopy] = useState("");
   const [niche, setNiche] = useState("");
@@ -266,6 +276,11 @@ export default function WhopPage() {
   const [barsAnimated, setBarsAnimated] = useState(false);
 
   const resultsRef = useRef<HTMLDivElement>(null);
+
+  const C = theme === "my" ? MY_STYLE : CSS_VAR_COLORS;
+  const BG = C.bg;
+  const CARD = C.cardBg;
+  const BORDER = C.cardBorder;
 
   function useSample() {
     setPageCopy(SAMPLE_COPY);
@@ -325,13 +340,14 @@ export default function WhopPage() {
   const canSubmit = pageCopy.trim().length > 20 && niche.trim().length > 0 && price.trim().length > 0;
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: BG, color: "#ffffff" }}>
+    <div className={`min-h-screen${theme === "company" ? " company-theme" : ""}`} style={{ backgroundColor: BG, color: C.text }}>
+      <CompanyThemeStyle active={theme === "company"} css={COMPANY_THEME_CSS} />
       {/* Header */}
-      <header className="px-6 py-5 border-b" style={{ borderColor: "#222222", backgroundColor: "#050505" }}>
+      <header className="px-6 py-5 border-b" style={{ borderColor: C.headerBorder, backgroundColor: C.headerBg }}>
         <div className="w-full max-w-[860px] mx-auto flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="flex items-center gap-3 mb-2 flex-wrap">
-              <h1 className="text-2xl font-black tracking-tight" style={{ color: "#ffffff" }}>Whop Page Roaster</h1>
+              <h1 className="text-2xl font-black tracking-tight" style={{ color: C.headerText }}>Whop Page Roaster</h1>
               <span
                 className="text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase tracking-widest"
                 style={{ borderColor: PURPLE + "60", color: PURPLE, backgroundColor: PURPLE + "15" }}
@@ -339,16 +355,19 @@ export default function WhopPage() {
                 Built for Whop creators
               </span>
             </div>
-            <p className="text-sm" style={{ color: "#9ca3af" }}>
+            <p className="text-sm" style={{ color: C.muted }}>
               Paste your product page. Get roasted. Ship better.
             </p>
           </div>
-          <span className="text-xs mt-1" style={{ color: "#6b7280" }}>
-            Demo by{" "}
-            <Link href="/" className="hover:text-gray-400 underline transition-colors" style={{ color: "#9ca3af" }}>
-              Armaan Kazi
-            </Link>
-          </span>
+          <div className="flex flex-col items-end gap-1.5">
+            <span className="text-xs mt-1" style={{ color: C.dim }}>
+              Demo by{" "}
+              <Link href="/" className="underline hover:opacity-70 transition-opacity" style={{ color: C.muted }}>
+                Armaan Kazi
+              </Link>
+            </span>
+            <ThemeToggle theme={theme} onChange={setTheme} companyAccent={PURPLE} darkContext={theme === "company"} />
+          </div>
         </div>
       </header>
 
@@ -357,32 +376,32 @@ export default function WhopPage() {
         {/* Back link */}
         <Link
           href="/demos"
-          className="text-xs transition-colors mb-8 inline-block hover:text-gray-400"
-          style={{ color: "#4b5563" }}
+          className="text-xs transition-colors mb-8 inline-block hover:opacity-70"
+          style={{ color: C.dim }}
         >
           &#8592; Back to Demos
         </Link>
 
         {/* Section A */}
         <section className="mb-10">
-          <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: "#6b7280" }}>
+          <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: C.dim }}>
             What Whop does today
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="rounded-xl border p-4" style={{ backgroundColor: "#111111", borderColor: BORDER }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: "#6b7280" }}>
+            <div className="rounded-xl border p-4" style={{ backgroundColor: CARD, borderColor: BORDER }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: C.dim }}>
                 Today: creator storefront
               </p>
               <div className="space-y-2">
                 {["Product page with title + description", "Pricing block", "Affiliate program setup", "Purchase button"].map(item => (
                   <div key={item} className="flex items-start gap-2">
-                    <span className="text-xs mt-0.5" style={{ color: "#4b5563" }}>&#x2022;</span>
-                    <span className="text-xs" style={{ color: "#9ca3af" }}>{item}</span>
+                    <span className="text-xs mt-0.5" style={{ color: C.dim }}>&#x2022;</span>
+                    <span className="text-xs" style={{ color: C.muted }}>{item}</span>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="rounded-xl border p-4" style={{ backgroundColor: "#111111", borderColor: PURPLE + "40" }}>
+            <div className="rounded-xl border p-4" style={{ backgroundColor: CARD, borderColor: PURPLE + "40" }}>
               <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: PURPLE }}>
                 With Page Roaster
               </p>
@@ -390,7 +409,7 @@ export default function WhopPage() {
                 {["Instant AI critique of your copy and pricing", "Specific headline, description, and pricing rewrites", "Conversion potential + trust score", "Affiliate pitch line suggestions"].map(item => (
                   <div key={item} className="flex items-start gap-2">
                     <span className="text-xs mt-0.5" style={{ color: PURPLE }}>✓</span>
-                    <span className="text-xs" style={{ color: "#e5e7eb" }}>{item}</span>
+                    <span className="text-xs" style={{ color: C.text }}>{item}</span>
                   </div>
                 ))}
               </div>
@@ -400,17 +419,17 @@ export default function WhopPage() {
 
         {/* Section B */}
         <section className="mb-10">
-          <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: "#6b7280" }}>
+          <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: C.dim }}>
             What this demo adds
           </p>
-          <p className="text-sm leading-relaxed" style={{ color: "#9ca3af" }}>
-            Whop gives creators the infrastructure to sell, but knowing <em style={{ color: "#e5e7eb" }}>why</em> a page isn&apos;t converting is still guesswork. This tool analyzes your page copy the way a conversion expert would: grading your headline, description, pricing framing, and affiliate structure, then writing specific alternatives you can actually use.
+          <p className="text-sm leading-relaxed" style={{ color: C.muted }}>
+            Whop gives creators the infrastructure to sell, but knowing <em style={{ color: C.text }}>why</em> a page isn&apos;t converting is still guesswork. This tool analyzes your page copy the way a conversion expert would: grading your headline, description, pricing framing, and affiliate structure, then writing specific alternatives you can actually use.
           </p>
         </section>
 
         {/* Section C */}
         <section className="mb-10">
-          <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: "#6b7280" }}>
+          <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: C.dim }}>
             Why it&apos;s better
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
@@ -428,22 +447,22 @@ export default function WhopPage() {
                 body: "Most conversion tools ignore affiliate programs entirely. This one evaluates your commission structure and generates pitch lines affiliates would actually use.",
               },
             ].map(card => (
-              <div key={card.title} className="rounded-xl border p-4" style={{ backgroundColor: "#111111", borderColor: BORDER }}>
-                <p className="text-xs font-bold mb-2" style={{ color: "#e5e7eb" }}>{card.title}</p>
-                <p className="text-xs leading-relaxed" style={{ color: "#6b7280" }}>{card.body}</p>
+              <div key={card.title} className="rounded-xl border p-4" style={{ backgroundColor: CARD, borderColor: BORDER }}>
+                <p className="text-xs font-bold mb-2" style={{ color: C.text }}>{card.title}</p>
+                <p className="text-xs leading-relaxed" style={{ color: C.dim }}>{card.body}</p>
               </div>
             ))}
           </div>
           <div className="rounded-xl border px-5 py-4" style={{ borderColor: PURPLE + "40", backgroundColor: PURPLE + "0d" }}>
             <p className="text-xs font-bold mb-1" style={{ color: PURPLE }}>Why This Is Different</p>
-            <p className="text-xs leading-relaxed" style={{ color: "#9ca3af" }}>
+            <p className="text-xs leading-relaxed" style={{ color: C.muted }}>
               Whop creators lose revenue not because their product is bad, but because their page doesn&apos;t communicate value clearly. This turns &ldquo;why isn&apos;t my page converting&rdquo; from a vague question into a specific, fixable list.
             </p>
           </div>
         </section>
 
         {/* Try it label */}
-        <p className="text-xs font-bold uppercase tracking-widest mb-6" style={{ color: "#6b7280" }}>
+        <p className="text-xs font-bold uppercase tracking-widest mb-6" style={{ color: C.dim }}>
           Try it
         </p>
 
@@ -458,7 +477,7 @@ export default function WhopPage() {
                   onClick={() => { setActiveTab(tab); if (tab === "sample") useSample(); }}
                   className="flex-1 py-3.5 text-sm font-bold transition-all"
                   style={{
-                    color: activeTab === tab ? PURPLE : "#6b7280",
+                    color: activeTab === tab ? PURPLE : C.dim,
                     borderBottom: activeTab === tab ? `2px solid ${PURPLE}` : "2px solid transparent",
                     backgroundColor: "transparent",
                   }}
@@ -470,7 +489,7 @@ export default function WhopPage() {
 
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
               <div>
-                <label className="block text-xs font-bold mb-2" style={{ color: "#6b7280" }}>
+                <label className="block text-xs font-bold mb-2" style={{ color: C.dim }}>
                   YOUR PAGE COPY
                 </label>
                 <textarea
@@ -479,7 +498,7 @@ export default function WhopPage() {
                   placeholder="Paste your Whop product page copy here: title, description, pricing, what's included, everything."
                   rows={10}
                   className="w-full px-4 py-3 text-sm rounded-xl border focus:outline-none resize-none transition-colors"
-                  style={{ backgroundColor: "#0a0a0a", borderColor: BORDER, color: "white" }}
+                  style={{ backgroundColor: BG, borderColor: BORDER, color: C.text }}
                   onFocus={e => (e.currentTarget.style.borderColor = PURPLE + "80")}
                   onBlur={e => (e.currentTarget.style.borderColor = BORDER)}
                 />
@@ -487,33 +506,33 @@ export default function WhopPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-bold mb-2" style={{ color: "#6b7280" }}>YOUR NICHE</label>
+                  <label className="block text-xs font-bold mb-2" style={{ color: C.dim }}>YOUR NICHE</label>
                   <input
                     type="text"
                     value={niche}
                     onChange={e => setNiche(e.target.value)}
                     placeholder="e.g. trading signals"
                     className="w-full px-3 py-2.5 text-sm rounded-lg border focus:outline-none transition-colors"
-                    style={{ backgroundColor: "#0a0a0a", borderColor: BORDER, color: "white" }}
+                    style={{ backgroundColor: BG, borderColor: BORDER, color: C.text }}
                     onFocus={e => (e.currentTarget.style.borderColor = PURPLE + "80")}
                     onBlur={e => (e.currentTarget.style.borderColor = BORDER)}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold mb-2" style={{ color: "#6b7280" }}>PRICE POINT</label>
+                  <label className="block text-xs font-bold mb-2" style={{ color: C.dim }}>PRICE POINT</label>
                   <input
                     type="text"
                     value={price}
                     onChange={e => setPrice(e.target.value)}
                     placeholder="e.g. $97/month"
                     className="w-full px-3 py-2.5 text-sm rounded-lg border focus:outline-none transition-colors"
-                    style={{ backgroundColor: "#0a0a0a", borderColor: BORDER, color: "white" }}
+                    style={{ backgroundColor: BG, borderColor: BORDER, color: C.text }}
                     onFocus={e => (e.currentTarget.style.borderColor = PURPLE + "80")}
                     onBlur={e => (e.currentTarget.style.borderColor = BORDER)}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold mb-2" style={{ color: "#6b7280" }}>AFFILIATE PROGRAM?</label>
+                  <label className="block text-xs font-bold mb-2" style={{ color: C.dim }}>AFFILIATE PROGRAM?</label>
                   <div className="flex rounded-lg border overflow-hidden" style={{ borderColor: BORDER }}>
                     {[true, false].map(val => (
                       <button
@@ -523,7 +542,7 @@ export default function WhopPage() {
                         className="flex-1 py-2.5 text-sm font-bold transition-all"
                         style={{
                           backgroundColor: hasAffiliate === val ? PURPLE : "transparent",
-                          color: hasAffiliate === val ? "white" : "#6b7280",
+                          color: hasAffiliate === val ? "white" : C.dim,
                         }}
                       >
                         {val ? "Yes" : "No"}
@@ -623,12 +642,12 @@ export default function WhopPage() {
                       <h3 className="font-black" style={{ fontSize: "15px", marginBottom: "10px" }}>
                         {dim.emoji} {dim.name}
                       </h3>
-                      <ScoreBar score={dim.score} animate={barsAnimated} />
+                      <ScoreBar score={dim.score} animate={barsAnimated} trackColor={BORDER} />
                     </div>
-                    <p className="leading-relaxed" style={{ color: "#9ca3af", fontSize: "14px", marginBottom: "16px", marginTop: "12px" }}>
+                    <p className="leading-relaxed" style={{ color: C.muted, fontSize: "14px", marginBottom: "16px", marginTop: "12px" }}>
                       {dim.roast}
                     </p>
-                    <div className="rounded-lg border" style={{ backgroundColor: "#0a0a0a", borderColor: BORDER, padding: "14px 16px" }}>
+                    <div className="rounded-lg border" style={{ backgroundColor: BG, borderColor: BORDER, padding: "14px 16px" }}>
                       <p className="font-bold uppercase tracking-wide" style={{ color: PURPLE, fontSize: "11px", marginBottom: "6px" }}>
                         The Fix
                       </p>
@@ -642,11 +661,11 @@ export default function WhopPage() {
             {/* 3. Rewrite Lab */}
             <div
               className="rounded-2xl border overflow-hidden"
-              style={{ backgroundColor: "#0d0d1a", borderColor: PURPLE + "40" }}
+              style={{ backgroundColor: CARD, borderColor: PURPLE + "40" }}
             >
               <div className="px-6 py-5 border-b" style={{ borderColor: PURPLE + "30" }}>
                 <h2 className="text-lg font-black tracking-tight">The Rewrite Lab</h2>
-                <p className="text-xs mt-1" style={{ color: "#6b7280" }}>
+                <p className="text-xs mt-1" style={{ color: C.dim }}>
                   What this page should actually say
                 </p>
               </div>
@@ -660,9 +679,11 @@ export default function WhopPage() {
                   <StrikethroughHeadline
                     text={result.headline_original}
                     rewrite={result.headline_rewrite}
-                    reasoning={result.headline_reasoning}
+                    bg={BG}
+                    border={BORDER}
+                    textColor={C.text}
                   />
-                  <p className="leading-relaxed" style={{ color: "#6b7280", fontSize: "13px" }}>
+                  <p className="leading-relaxed" style={{ color: C.dim, fontSize: "13px" }}>
                     {result.headline_reasoning}
                   </p>
                 </div>
@@ -672,10 +693,10 @@ export default function WhopPage() {
                   <p className="font-bold uppercase tracking-widest" style={{ color: PURPLE, fontSize: "11px", marginBottom: "20px" }}>
                     B. Description Rewrite
                   </p>
-                  <div className="rounded-xl border" style={{ backgroundColor: "#0a0a0a", borderColor: BORDER, padding: "20px", marginBottom: "16px" }}>
+                  <div className="rounded-xl border" style={{ backgroundColor: BG, borderColor: BORDER, padding: "20px", marginBottom: "16px" }}>
                     <p className="leading-relaxed whitespace-pre-wrap" style={{ color: "#e5e7eb", fontSize: "14px" }}>{result.description_rewrite}</p>
                   </div>
-                  <p className="leading-relaxed" style={{ color: "#6b7280", fontSize: "13px" }}>
+                  <p className="leading-relaxed" style={{ color: C.dim, fontSize: "13px" }}>
                     {result.description_reasoning}
                   </p>
                 </div>
@@ -687,11 +708,11 @@ export default function WhopPage() {
                   </p>
                   <div
                     className="rounded-xl border font-mono whitespace-pre-wrap leading-relaxed"
-                    style={{ backgroundColor: "#0a0a0a", borderColor: PURPLE + "50", color: "#d1d5db", padding: "20px", fontSize: "14px", marginBottom: "16px" }}
+                    style={{ backgroundColor: BG, borderColor: PURPLE + "50", color: C.text, padding: "20px", fontSize: "14px", marginBottom: "16px" }}
                   >
                     {result.pricing_rewrite}
                   </div>
-                  <p className="leading-relaxed" style={{ color: "#6b7280", fontSize: "13px" }}>
+                  <p className="leading-relaxed" style={{ color: C.dim, fontSize: "13px" }}>
                     {result.pricing_reasoning}
                   </p>
                 </div>
@@ -702,32 +723,32 @@ export default function WhopPage() {
             {hasAffiliate && (
               <div className="rounded-2xl border p-6" style={{ backgroundColor: CARD, borderColor: BORDER }}>
                 <h2 className="text-lg font-black mb-1 tracking-tight">Affiliate Intelligence</h2>
-                <p className="text-xs mb-5" style={{ color: "#6b7280" }}>
+                <p className="text-xs mb-5" style={{ color: C.dim }}>
                   Is your program actually shareable?
                 </p>
 
                 <div className="space-y-4 mb-6">
-                  <div className="rounded-lg p-4 border" style={{ backgroundColor: "#0a0a0a", borderColor: BORDER }}>
-                    <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: "#4b5563" }}>
+                  <div className="rounded-lg p-4 border" style={{ backgroundColor: BG, borderColor: BORDER }}>
+                    <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: C.dim }}>
                       Current Setup Assessment
                     </p>
-                    <p className="text-sm leading-relaxed" style={{ color: "#d1d5db" }}>{result.affiliate_assessment}</p>
+                    <p className="text-sm leading-relaxed" style={{ color: C.text }}>{result.affiliate_assessment}</p>
                   </div>
-                  <div className="rounded-lg p-4 border" style={{ backgroundColor: "#0a0a0a", borderColor: PURPLE + "40" }}>
+                  <div className="rounded-lg p-4 border" style={{ backgroundColor: BG, borderColor: PURPLE + "40" }}>
                     <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: PURPLE }}>
                       Recommended Commission Rate
                     </p>
-                    <p className="text-sm font-semibold" style={{ color: "#d1d5db" }}>{result.affiliate_commission_recommendation}</p>
+                    <p className="text-sm font-semibold" style={{ color: C.text }}>{result.affiliate_commission_recommendation}</p>
                   </div>
                 </div>
 
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: "#4b5563" }}>
+                  <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: C.dim }}>
                     Plug-and-Play Affiliate Pitch Lines
                   </p>
                   <div className="space-y-3">
                     {result.affiliate_pitch_lines.map((line, i) => (
-                      <div key={i} className="rounded-lg border" style={{ backgroundColor: "#0a0a0a", borderColor: BORDER, padding: "16px" }}>
+                      <div key={i} className="rounded-lg border" style={{ backgroundColor: BG, borderColor: BORDER, padding: "16px" }}>
                         <p className="leading-relaxed" style={{ color: "#d1d5db", fontSize: "14px", marginBottom: "12px" }}>
                           &ldquo;{line}&rdquo;
                         </p>
@@ -742,7 +763,7 @@ export default function WhopPage() {
             {/* 5. One Thing */}
             <div
               className="rounded-2xl border text-center"
-              style={{ backgroundColor: "#0d0d1a", borderColor: PURPLE + "40", padding: "32px 24px" }}
+              style={{ backgroundColor: CARD, borderColor: PURPLE + "40", padding: "32px 24px" }}
             >
               <p className="font-bold uppercase tracking-widest" style={{ color: "#4b5563", fontSize: "11px", marginBottom: "24px" }}>
                 The single highest-leverage thing you can do right now:
@@ -753,7 +774,7 @@ export default function WhopPage() {
               >
                 {result.one_thing}
               </p>
-              <p className="font-semibold" style={{ color: "#6b7280", fontSize: "14px", marginBottom: "16px" }}>
+              <p className="font-semibold" style={{ color: C.dim, fontSize: "14px", marginBottom: "16px" }}>
                 Ready to ship a better page?
               </p>
               <a
@@ -775,9 +796,9 @@ export default function WhopPage() {
               <button
                 onClick={reset}
                 className="text-sm transition-colors"
-                style={{ color: "#4b5563" }}
-                onMouseEnter={e => (e.currentTarget.style.color = "#9ca3af")}
-                onMouseLeave={e => (e.currentTarget.style.color = "#4b5563")}
+                style={{ color: C.dim }}
+                onMouseEnter={e => (e.currentTarget.style.color = PURPLE)}
+                onMouseLeave={e => (e.currentTarget.style.color = C.dim)}
               >
                 &#8592; Roast a different page
               </button>
@@ -788,7 +809,7 @@ export default function WhopPage() {
 
       {/* Footer */}
       <footer className="border-t px-6 py-6 text-center" style={{ borderColor: BORDER }}>
-        <p className="text-xs leading-relaxed" style={{ color: "#374151" }}>
+        <p className="text-xs leading-relaxed" style={{ color: C.dim }}>
           This roast is AI-generated and for educational purposes only. Results are illustrative.{" "}
           Built by{" "}
           <Link href="/" className="hover:text-gray-500 underline transition-colors">

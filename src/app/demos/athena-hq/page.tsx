@@ -2,7 +2,25 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
-import ThemeToggle, { MY_STYLE, type PageColors } from "@/components/ThemeToggle";
+import ThemeToggle, { MY_STYLE, CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
+import CompanyThemeStyle from "@/components/CompanyThemeStyle";
+import { DM_Sans } from "next/font/google";
+
+const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-brand" });
+
+const ATHENA_NAVY = "#1a2744";
+
+
+const COMPANY_THEME_CSS = `
+.company-theme {
+  --ct-bg: #f8fafc; --ct-card-bg: #ffffff; --ct-card-border: #e2e8f0;
+  --ct-text: ${ATHENA_NAVY}; --ct-muted: #64748b; --ct-dim: #94a3b8;
+  --ct-accent: ${ATHENA_NAVY}; --ct-accent-bg: rgba(26,39,68,0.06);
+  --ct-header-bg: ${ATHENA_NAVY}; --ct-header-border: #2a3754; --ct-header-text: #ffffff;
+  font-family: var(--font-brand, 'DM Sans', sans-serif);
+}
+.company-theme button, .company-theme input, .company-theme select, .company-theme textarea { font-family: inherit; }
+`;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -252,20 +270,7 @@ ${brief.key_talking_points.map((p, i) => `${i + 1}. ${p}`).join("\n")}`;
 
 export default function AthenaHQPage() {
   const [theme, setTheme] = useState<"my" | "company">("my");
-  const COMPANY_STYLE: PageColors = {
-    bg: "#f8fafc",
-    cardBg: "#ffffff",
-    cardBorder: "#e2e8f0",
-    text: "#1a2744",
-    muted: "#64748b",
-    dim: "#94a3b8",
-    accent: "#1a2744",
-    accentBg: "rgba(26,39,68,0.06)",
-    headerBg: "#1a2744",
-    headerBorder: "#2a3754",
-    headerText: "#ffffff",
-  };
-  const C = theme === "my" ? MY_STYLE : COMPANY_STYLE;
+  const C = theme === "my" ? MY_STYLE : CSS_VAR_COLORS;
   const NAVY = C.accent;
 
   const [form, setForm] = useState({
@@ -402,7 +407,8 @@ export default function AthenaHQPage() {
   const canSubmit = form.brand.trim().length > 0 && form.industry.trim().length > 0;
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: C.bg }}>
+    <div className={`min-h-screen${theme === "company" ? ` company-theme ${dmSans.variable}` : ""}`} style={{ backgroundColor: C.bg }}>
+      <CompanyThemeStyle active={theme === "company"} css={COMPANY_THEME_CSS} />
       {/* ── Header ── */}
       <header className="px-6 py-5 border-b" style={{ backgroundColor: C.headerBg, borderColor: C.headerBorder }}>
         <div className="max-w-5xl mx-auto flex items-start justify-between gap-4 flex-wrap">
@@ -431,7 +437,7 @@ export default function AthenaHQPage() {
                 Armaan Kazi
               </Link>
             </span>
-            <ThemeToggle theme={theme} onChange={setTheme} companyAccent={COMPANY_STYLE.accent} darkContext={theme === "company"} />
+            <ThemeToggle theme={theme} onChange={setTheme} companyAccent={ATHENA_NAVY} darkContext={theme === "company"} />
           </div>
         </div>
       </header>

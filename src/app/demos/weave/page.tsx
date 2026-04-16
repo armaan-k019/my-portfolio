@@ -2,7 +2,20 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
-import ThemeToggle, { MY_STYLE, type PageColors } from "@/components/ThemeToggle";
+import ThemeToggle, { MY_STYLE, CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
+import CompanyThemeStyle from "@/components/CompanyThemeStyle";
+
+const WEAVE_TEAL = "#00b5a3";
+
+
+const COMPANY_THEME_CSS = `
+.company-theme {
+  --ct-bg: #f0fafa; --ct-card-bg: #ffffff; --ct-card-border: #b2e8e4;
+  --ct-text: #1a1a1a; --ct-muted: #4b6b6b; --ct-dim: #6b8b8b;
+  --ct-accent: ${WEAVE_TEAL}; --ct-accent-bg: #e6f7f6;
+  --ct-header-bg: ${WEAVE_TEAL}; --ct-header-border: #00a090; --ct-header-text: #ffffff;
+}
+`;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -253,21 +266,7 @@ export default function WeavePage() {
 
   const [theme, setTheme] = useState<"my" | "company">("my");
 
-  const COMPANY_STYLE: PageColors = {
-    bg: "#f0fafa",
-    cardBg: "#ffffff",
-    cardBorder: "#b2e8e4",
-    text: "#1a1a1a",
-    muted: "#4b6b6b",
-    dim: "#6b8b8b",
-    accent: "#00b5a3",
-    accentBg: "#e6f7f6",
-    headerBg: "#00b5a3",
-    headerBorder: "#00a090",
-    headerText: "#ffffff",
-  };
-
-  const C = theme === "my" ? MY_STYLE : COMPANY_STYLE;
+  const C = theme === "my" ? MY_STYLE : CSS_VAR_COLORS;
   const TEAL = C.accent;
   const TEAL_DARK = C.accent;
   const TEAL_LIGHT = C.accentBg;
@@ -342,7 +341,8 @@ export default function WeavePage() {
   let globalIndex = 0;
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: C.bg }}>
+    <div className={`min-h-screen${theme === "company" ? " company-theme" : ""}`} style={{ backgroundColor: C.bg }}>
+      <CompanyThemeStyle active={theme === "company"} css={COMPANY_THEME_CSS} />
       {/* Header */}
       <header
         className="border-b px-6 py-4"
@@ -377,7 +377,7 @@ export default function WeavePage() {
             <ThemeToggle
               theme={theme}
               onChange={setTheme}
-              companyAccent={COMPANY_STYLE.accent}
+              companyAccent={WEAVE_TEAL}
               darkContext={false}
             />
           </div>

@@ -2,7 +2,26 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
-import ThemeToggle, { MY_STYLE, type PageColors } from "@/components/ThemeToggle";
+import ThemeToggle, { MY_STYLE, CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
+import CompanyThemeStyle from "@/components/CompanyThemeStyle";
+import { Space_Mono } from "next/font/google";
+
+const spaceMono = Space_Mono({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-brand" });
+
+const SIDESHIFT_ORANGE = "#f97316";
+
+
+const COMPANY_THEME_CSS = `
+.company-theme {
+  --ct-bg: #0f0f0f; --ct-card-bg: #1a1a1a; --ct-card-border: #2a2a2a;
+  --ct-text: #f1f1f1; --ct-muted: #9ca3af; --ct-dim: #6b7280;
+  --ct-accent: ${SIDESHIFT_ORANGE}; --ct-accent-bg: rgba(249,115,22,0.12);
+  --ct-header-bg: #0a0a0a; --ct-header-border: #2a2a2a; --ct-header-text: #f1f1f1;
+  font-family: var(--font-brand, 'Space Mono', monospace);
+}
+.company-theme .rounded-xl, .company-theme .rounded-lg, .company-theme .rounded-2xl { border-radius: 4px; }
+.company-theme button, .company-theme input, .company-theme select, .company-theme textarea { border-radius: 4px; font-family: inherit; }
+`;
 
 const PRIORITIES = ["Lowest Fees", "Fastest Confirmation", "Best Rate Certainty"] as const;
 type Priority = typeof PRIORITIES[number];
@@ -183,20 +202,7 @@ export default function SideShiftPage() {
 
   const [theme, setTheme] = useState<"my" | "company">("my");
 
-  const COMPANY_STYLE: PageColors = {
-    bg: "#0f0f0f",
-    cardBg: "#1a1a1a",
-    cardBorder: "#2a2a2a",
-    text: "#f1f1f1",
-    muted: "#9ca3af",
-    dim: "#6b7280",
-    accent: "#f97316",
-    accentBg: "rgba(249,115,22,0.12)",
-    headerBg: "#0a0a0a",
-    headerBorder: "#2a2a2a",
-    headerText: "#f1f1f1",
-  };
-  const C = theme === "my" ? MY_STYLE : COMPANY_STYLE;
+  const C = theme === "my" ? MY_STYLE : CSS_VAR_COLORS;
 
   const BG = C.bg;
   const CARD = C.cardBg;
@@ -273,7 +279,8 @@ export default function SideShiftPage() {
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: BG, color: TEXT }}>
+    <div className={`min-h-screen${theme === "company" ? ` company-theme ${spaceMono.variable}` : ""}`} style={{ backgroundColor: BG, color: TEXT }}>
+      <CompanyThemeStyle active={theme === "company"} css={COMPANY_THEME_CSS} />
 
       {/* ── Header ── */}
       <header
@@ -305,7 +312,7 @@ export default function SideShiftPage() {
                 Armaan Kazi
               </Link>
             </span>
-            <ThemeToggle theme={theme} onChange={setTheme} companyAccent={COMPANY_STYLE.accent} darkContext={theme === "company"} />
+            <ThemeToggle theme={theme} onChange={setTheme} companyAccent={SIDESHIFT_ORANGE} darkContext={theme === "company"} />
           </div>
         </div>
       </header>

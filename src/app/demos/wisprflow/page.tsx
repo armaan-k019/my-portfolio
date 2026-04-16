@@ -3,7 +3,33 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import ThemeToggle, { MY_STYLE, type PageColors } from "@/components/ThemeToggle";
+import ThemeToggle, { MY_STYLE, CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
+import CompanyThemeStyle from "@/components/CompanyThemeStyle";
+
+const WISPR_PURPLE = "#6C47FF";
+
+const COMPANY_STYLE: PageColors = {
+  bg: "#0f0f23",
+  cardBg: "#1a1a3e",
+  cardBorder: "#2a2a4e",
+  text: "#f1f1f1",
+  muted: "#a0a0c0",
+  dim: "#7070a0",
+  accent: WISPR_PURPLE,
+  accentBg: "rgba(108,71,255,0.15)",
+  headerBg: "#0f0f23",
+  headerBorder: "#2a2a4e",
+  headerText: "#f1f1f1",
+};
+
+const COMPANY_THEME_CSS = `
+.company-theme {
+  --ct-bg: #0f0f23; --ct-card-bg: #1a1a3e; --ct-card-border: #2a2a4e;
+  --ct-text: #f1f1f1; --ct-muted: #a0a0c0; --ct-dim: #7070a0;
+  --ct-accent: ${WISPR_PURPLE}; --ct-accent-bg: rgba(108,71,255,0.15);
+  --ct-header-bg: #0f0f23; --ct-header-border: #2a2a4e; --ct-header-text: #f1f1f1;
+}
+`;
 
 const WisprDemo = dynamic(
   () => import("./components/WisprDemo"),
@@ -32,24 +58,11 @@ const PIPELINE_ROWS = [
 export default function WisprFlowPage() {
   const [theme, setTheme] = useState<"my" | "company">("my");
 
-  const COMPANY_STYLE: PageColors = {
-    bg: "#0f0f23",
-    cardBg: "#1a1a3e",
-    cardBorder: "#2a2a4e",
-    text: "#f1f1f1",
-    muted: "#a0a0c0",
-    dim: "#7070a0",
-    accent: "#6C47FF",
-    accentBg: "rgba(108,71,255,0.15)",
-    headerBg: "#0f0f23",
-    headerBorder: "#2a2a4e",
-    headerText: "#f1f1f1",
-  };
-
-  const C = theme === "my" ? MY_STYLE : COMPANY_STYLE;
+  const C = theme === "my" ? MY_STYLE : CSS_VAR_COLORS;
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: C.bg }}>
+    <div className={`min-h-screen${theme === "company" ? " company-theme" : ""}`} style={{ backgroundColor: C.bg }}>
+      <CompanyThemeStyle active={theme === "company"} css={COMPANY_THEME_CSS} />
       {/* Mobile overlay */}
       <div className="sm:hidden fixed inset-0 z-50 bg-[#F5F0E8] flex items-center justify-center p-8">
         <div className="text-center max-w-xs">
@@ -86,22 +99,22 @@ export default function WisprFlowPage() {
                 Built for Wispr Flow
               </span>
             </div>
-            <p className="text-sm" style={{ color: theme === "my" ? C.muted : "#a0a0c0" }}>
+            <p className="text-sm" style={{ color: C.muted }}>
               Making voice dictation accessible through sign language, using only a webcam.
             </p>
           </div>
           <div className="flex flex-col items-end gap-1.5">
-            <span className="text-xs" style={{ color: theme === "my" ? C.dim : "#7070a0" }}>
+            <span className="text-xs" style={{ color: C.dim }}>
               Demo by{" "}
               <Link
                 href="/"
                 className="underline hover:opacity-70 transition-opacity"
-                style={{ color: theme === "my" ? C.muted : "#a0a0c0" }}
+                style={{ color: C.muted }}
               >
                 Armaan Kazi
               </Link>
             </span>
-            <ThemeToggle theme={theme} onChange={setTheme} companyAccent={COMPANY_STYLE.accent} darkContext={theme === "company"} />
+            <ThemeToggle theme={theme} onChange={setTheme} companyAccent={WISPR_PURPLE} darkContext={theme === "company"} />
           </div>
         </div>
       </header>
