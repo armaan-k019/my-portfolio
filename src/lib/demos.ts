@@ -32,6 +32,28 @@ export const demos: Record<string, DemoConfig> = {
     url: "/demos/mayo-dental",
   },
 
+  // ── Midjourney — prompt autopsy + 3D parallax viewer ──────────────────────
+  "midjourney": {
+    company: "Midjourney",
+    role: "Prompt Research",
+    accentColor: "#FF3366",
+    headline: "Prompt Autopsy + 3D Parallax",
+    pitch: "Paste any Midjourney prompt and image URL. Get a full token-by-token autopsy showing which words drove which visual choices, a reusable style DNA block, and a live 3D parallax scene reconstructed from your image.",
+    sections: [],
+    url: "/demos/midjourney",
+  },
+
+  // ── Erebor — de-banking risk scorer ──────────────────────────────────────
+  "erebor": {
+    company: "Erebor",
+    role: "Banking · Crypto · Risk Assessment",
+    accentColor: "#c9a84c",
+    headline: "De-banking Risk Scorer",
+    pitch: "Find out how likely your company is to lose banking access and which services are most at risk. Built for crypto, AI, defense, and innovation-economy companies.",
+    sections: [],
+    url: "/demos/erebor",
+  },
+
   // ── Example entry - test the full flow at /demos with password "demo123" ──
   "demo123": {
     company: "Acme Corp",

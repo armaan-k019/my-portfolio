@@ -93,6 +93,22 @@ const demoCards: DemoCard[] = [
     accentColor: "#00C389",
     url: "/demos/retell",
   },
+  {
+    slug: "midjourney",
+    company: "Midjourney",
+    headline: "Prompt Autopsy + 3D Parallax",
+    pitch: "Paste any Midjourney prompt and image URL. Get a full token-by-token autopsy, a reusable style DNA block, and a live 3D parallax scene reconstructed from your image.",
+    accentColor: "#FF3366",
+    url: "/demos/midjourney",
+  },
+  {
+    slug: "erebor",
+    company: "Erebor",
+    headline: "De-banking Risk Scorer",
+    pitch: "Find out how likely your company is to lose banking access and which services are most at risk. Built for crypto, AI, defense, and innovation-economy companies.",
+    accentColor: "#c9a84c",
+    url: "/demos/erebor",
+  },
 ];
 
 // ─── Password section ────────────────────────────────────────────────────────

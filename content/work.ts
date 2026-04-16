@@ -20,7 +20,7 @@ export const workEntries: WorkEntry[] = [
       "Designing the data pipeline for aggregating and synthesizing financial news into structured insights for internal strategy and product teams",
     ],
     link: "",
-    cardBg: "#1a1a1a",
+    cardBg: "#ffffff",
   },
   {
     name: "Shape Computation Lab",
@@ -59,7 +59,7 @@ export const workEntries: WorkEntry[] = [
       "Creating a replicable framework designed to serve as a long-term sustainability guide adaptable to labs and facilities beyond Georgia Tech",
     ],
     link: "",
-    cardBg: "#0a1628",
+    cardBg: "#ffffff",
   },
   {
     name: "NCR Voyix",
@@ -72,7 +72,7 @@ export const workEntries: WorkEntry[] = [
       "Collaborated with internal teams to translate model outputs into actionable planning recommendations for leadership",
     ],
     link: "",
-    cardBg: "#3d0066",
+    cardBg: "#ffffff",
   },
   {
     name: "Sweet Frog",
