@@ -475,83 +475,18 @@ export default function MidjourneyPage() {
           </p>
 
           <form onSubmit={handleAnalyze} className="space-y-3 mb-6">
-            <div>
-              <button
-                type="button"
-                onClick={loadSample}
-                className="px-3 py-1.5 rounded-full text-xs font-medium transition-all border"
-                style={{
-                  backgroundColor: "transparent",
-                  borderColor: C.cardBorder,
-                  color: C.muted,
-                }}
-              >
-                Load sample
-              </button>
+            <div className="rounded-xl border p-4" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
+              <p className="text-xs font-semibold mb-1" style={{ color: C.text }}>Mountain landscape</p>
+              <p className="text-xs font-mono leading-relaxed" style={{ color: C.muted }}>{SAMPLE.prompt}</p>
             </div>
             <div>
-              <label
-                className="block text-xs font-medium mb-1.5"
-                style={{ color: C.muted }}
-              >
-                Midjourney Prompt
-              </label>
-              <textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Paste the prompt you used in Midjourney..."
-                rows={3}
-                className="w-full px-3.5 py-2.5 text-sm rounded-xl resize-none focus:outline-none transition-colors"
-                style={{
-                  backgroundColor: C.cardBg,
-                  border: `1px solid ${C.cardBorder}`,
-                  color: C.text,
-                }}
-                onFocus={(e) =>
-                  (e.target.style.borderColor = C.accent + "66")
-                }
-                onBlur={(e) =>
-                  (e.target.style.borderColor = C.cardBorder)
-                }
-              />
-            </div>
-            <div>
-              <label
-                className="block text-xs font-medium mb-1.5"
-                style={{ color: C.muted }}
-              >
-                Image URL{" "}
-                <span style={{ color: C.dim }}>
-                  (direct image link — Unsplash, CDN, etc.)
-                </span>
-              </label>
-              <input
-                type="url"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://images.unsplash.com/photo-..."
-                className="w-full px-3.5 py-2.5 text-sm rounded-xl focus:outline-none transition-colors"
-                style={{
-                  backgroundColor: C.cardBg,
-                  border: `1px solid ${C.cardBorder}`,
-                  color: C.text,
-                }}
-                onFocus={(e) =>
-                  (e.target.style.borderColor = C.accent + "66")
-                }
-                onBlur={(e) =>
-                  (e.target.style.borderColor = C.cardBorder)
-                }
-              />
-            </div>
-            <div className="pt-1">
               <button
                 type="submit"
-                disabled={loading || !prompt.trim() || !imageUrl.trim()}
+                disabled={loading}
                 className="w-full px-4 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ backgroundColor: C.accent, color: "#ffffff" }}
               >
-                {loading ? "Running..." : "Analyze + View"}
+                {loading ? "Running..." : "Analyze + View in 3D"}
               </button>
             </div>
           </form>
