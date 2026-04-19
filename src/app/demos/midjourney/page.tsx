@@ -3,53 +3,19 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import ThemeToggle, { MY_STYLE, CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
-import CompanyThemeStyle from "@/components/CompanyThemeStyle";
-import { DM_Sans } from "next/font/google";
-
-const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-brand" });
+import { MY_STYLE } from "@/components/ThemeToggle";
 
 const ParallaxViewer = dynamic(() => import("./ParallaxViewer"), { ssr: false });
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const MJ_PINK = "#FF3366";
 
-const COMPANY_STYLE: PageColors = {
-  bg: "#0a0a0a",
-  cardBg: "#1a1a1a",
-  cardBorder: "#2a2a2a",
-  text: "#ffffff",
-  muted: "#a0a0a0",
-  dim: "#606060",
-  accent: MJ_PINK,
-  accentBg: MJ_PINK + "18",
-  headerBg: "#0a0a0a",
-  headerBorder: "#2a2a2a",
-  headerText: "#ffffff",
+const SAMPLE = {
+  imageUrl: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80",
+  prompt: "Misty mountain peaks shrouded in golden hour light, volumetric fog rolling through valleys, cinematic wide angle lens, ultra-realistic photography style, dramatic atmosphere, 8k resolution --ar 16:9 --v 6 --q 2",
 };
 
-const COMPANY_THEME_CSS = `
-.company-theme {
-  --ct-bg: #0a0a0a; --ct-card-bg: #1a1a1a; --ct-card-border: #2a2a2a;
-  --ct-text: #ffffff; --ct-muted: #a0a0a0; --ct-dim: #606060;
-  --ct-accent: ${MJ_PINK}; --ct-accent-bg: ${MJ_PINK}18;
-  --ct-header-bg: #0a0a0a; --ct-header-border: #2a2a2a; --ct-header-text: #ffffff;
-  font-family: var(--font-brand, 'DM Sans', sans-serif);
-}
-.company-theme button, .company-theme input, .company-theme textarea { font-family: inherit; }
-`;
-
-const SAMPLE_PROMPT =
-  "Misty mountain peaks shrouded in golden hour light, volumetric fog rolling through valleys, cinematic wide angle lens, ultra-realistic photography style, dramatic atmosphere, 8k resolution --ar 16:9 --v 6 --q 2";
-
-const SAMPLE_IMAGE_URL =
-  "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80";
-
 const LOADING_STEPS = [
-  "Fetching image...",
-  "Running depth estimation...",
-  "Reconstructing 3D geometry...",
   "Analyzing prompt tokens...",
   "Extracting style DNA...",
   "Generating rewrite...",
@@ -69,11 +35,12 @@ interface MidjourneyAnalysis {
   styleDNA: string;
   rewrite: string;
   summary: string;
+  coherenceScore: number;
+  coherenceLabel: "Incoherent" | "Conflicted" | "Functional" | "Cohesive" | "Masterful";
+  coherenceReason: string;
 }
 
 interface AnalysisResults {
-  depthMap: string;
-  originalImage: string;
   analysis: MidjourneyAnalysis;
 }
 
@@ -97,10 +64,43 @@ function impactBorder(impact: string) {
   return "rgba(34,197,94,0.4)";
 }
 
+function impactBarAnim(impact: string) {
+  if (impact === "High") return "barFill 0.4s ease-out forwards";
+  if (impact === "Medium") return "barFill 0.4s ease-out forwards";
+  return "barFill 0.4s ease-out forwards";
+}
+
+function impactBarWidth(impact: string) {
+  if (impact === "High") return "100%";
+  if (impact === "Medium") return "60%";
+  return "30%";
+}
+
+function impactWeightLabel(impact: string) {
+  if (impact === "High") return "High visual weight";
+  if (impact === "Medium") return "Medium visual weight";
+  return "Low visual weight";
+}
+
+function coherenceColor(score: number) {
+  if (score >= 70) return "#22c55e";
+  if (score >= 40) return "#f59e0b";
+  return "#ef4444";
+}
+
+function computeWordDiff(original: string, rewrite: string): { word: string; isNew: boolean }[] {
+  const origSet = new Set(
+    original.toLowerCase().split(/\s+/).map((w) => w.replace(/[^a-z0-9]/g, ""))
+  );
+  return rewrite.split(" ").map((word) => ({
+    word,
+    isNew: !origSet.has(word.toLowerCase().replace(/[^a-z0-9]/g, "")),
+  }));
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function MidjourneyPage() {
-  const [theme, setTheme] = useState<"my" | "company">("my");
   const [prompt, setPrompt] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -108,11 +108,15 @@ export default function MidjourneyPage() {
   const [results, setResults] = useState<AnalysisResults | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [showDepth, setShowDepth] = useState(false);
+  const [viewerDragging, setViewerDragging] = useState(false);
+  const [depthMapUrl, setDepthMapUrl] = useState<string | null>(null);
+  const [spatialOpen, setSpatialOpen] = useState(false);
 
   const resultsRef = useRef<HTMLDivElement>(null);
   const stepIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const C = theme === "my" ? MY_STYLE : CSS_VAR_COLORS;
+  const C = MY_STYLE;
   const ACCENT = C.accent;
 
   useEffect(() => {
@@ -122,11 +126,16 @@ export default function MidjourneyPage() {
   }, []);
 
   function loadSample() {
-    setPrompt(SAMPLE_PROMPT);
-    setImageUrl(SAMPLE_IMAGE_URL);
+    setPrompt(SAMPLE.prompt);
+    setImageUrl(SAMPLE.imageUrl);
     setResults(null);
     setError(null);
+    setDepthMapUrl(null);
+    setSpatialOpen(false);
   }
+
+  // Pre-populate with sample on mount
+  useEffect(() => { loadSample(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function copyToClipboard(text: string, key: string) {
     navigator.clipboard.writeText(text).catch(() => {});
@@ -142,41 +151,26 @@ export default function MidjourneyPage() {
     setResults(null);
     setError(null);
     setLoadingStep(0);
+    setDepthMapUrl(null);
+    setSpatialOpen(false);
 
     stepIntervalRef.current = setInterval(() => {
       setLoadingStep((s) => Math.min(s + 1, LOADING_STEPS.length - 1));
     }, 1800);
 
     try {
-      const [depthRes, analyzeRes] = await Promise.all([
-        fetch("/api/demos/midjourney/depth", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageUrl }),
-        }),
-        fetch("/api/demos/midjourney/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt }),
-        }),
-      ]);
-
-      const [depthData, analyzeData] = await Promise.all([
-        depthRes.json() as Promise<{ depthMap?: string; originalImage?: string; error?: string }>,
-        analyzeRes.json() as Promise<{ result?: MidjourneyAnalysis; error?: string }>,
-      ]);
-
-      if (depthData.error) throw new Error(depthData.error);
-      if (analyzeData.error) throw new Error(analyzeData.error);
-      if (!depthData.depthMap || !depthData.originalImage || !analyzeData.result) {
-        throw new Error("Incomplete response from one or both APIs.");
-      }
-
-      setResults({
-        depthMap: depthData.depthMap,
-        originalImage: depthData.originalImage,
-        analysis: analyzeData.result,
+      const analyzeRes = await fetch("/api/demos/midjourney/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
       });
+
+      const analyzeData = await analyzeRes.json() as { result?: MidjourneyAnalysis; error?: string };
+
+      if (analyzeData.error) throw new Error(analyzeData.error);
+      if (!analyzeData.result) throw new Error("Incomplete response from API.");
+
+      setResults({ analysis: analyzeData.result });
 
       setTimeout(() => {
         resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -193,8 +187,22 @@ export default function MidjourneyPage() {
   }
 
   return (
-    <div className={`min-h-screen${theme === "company" ? ` company-theme ${dmSans.variable}` : ""}`} style={{ backgroundColor: C.bg, color: C.text }}>
-      <CompanyThemeStyle active={theme === "company"} css={COMPANY_THEME_CSS} />
+    <div className="min-h-screen" style={{ backgroundColor: C.bg, color: C.text }}>
+      <style>{`
+        @keyframes kenBurns {
+          0%   { transform: scale(1.0) translate(0, 0); }
+          50%  { transform: scale(1.06) translate(-1%, -1%); }
+          100% { transform: scale(1.0) translate(0, 0); }
+        }
+        @keyframes barFill {
+          from { width: 0; }
+          to   { width: var(--bar-w); }
+        }
+        @keyframes coherenceFill {
+          from { width: 0; }
+          to   { width: var(--score-w); }
+        }
+      `}</style>
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <header
@@ -210,9 +218,9 @@ export default function MidjourneyPage() {
               <span
                 className="text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase tracking-widest"
                 style={{
-                  borderColor: MJ_PINK + "55",
-                  color: MJ_PINK,
-                  backgroundColor: MJ_PINK + "12",
+                  borderColor: C.accent + "55",
+                  color: C.accent,
+                  backgroundColor: C.accent + "12",
                 }}
               >
                 Built for Midjourney
@@ -233,12 +241,6 @@ export default function MidjourneyPage() {
                 Armaan Kazi
               </Link>
             </span>
-            <ThemeToggle
-              theme={theme}
-              onChange={setTheme}
-              companyAccent={MJ_PINK}
-              darkContext={theme === "company"}
-            />
           </div>
         </div>
       </header>
@@ -290,11 +292,11 @@ export default function MidjourneyPage() {
             </div>
             <div
               className="rounded-xl border p-5"
-              style={{ backgroundColor: C.cardBg, borderColor: MJ_PINK + "40" }}
+              style={{ backgroundColor: C.cardBg, borderColor: C.accent + "40" }}
             >
               <p
                 className="text-xs font-semibold uppercase tracking-widest mb-3"
-                style={{ color: MJ_PINK }}
+                style={{ color: C.accent }}
               >
                 With This Demo
               </p>
@@ -313,7 +315,7 @@ export default function MidjourneyPage() {
                   >
                     <span
                       className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: MJ_PINK }}
+                      style={{ backgroundColor: C.accent }}
                     />
                     {item}
                   </li>
@@ -343,7 +345,7 @@ export default function MidjourneyPage() {
                 </span>
                 <span
                   className="text-xs font-semibold uppercase tracking-widest"
-                  style={{ color: MJ_PINK }}
+                  style={{ color: C.accent }}
                 >
                   With Demo
                 </span>
@@ -376,7 +378,7 @@ export default function MidjourneyPage() {
                   <span className="text-xs pr-2" style={{ color: C.muted }}>
                     {today}
                   </span>
-                  <span className="text-xs font-medium pr-2" style={{ color: MJ_PINK }}>
+                  <span className="text-xs font-medium pr-2" style={{ color: C.accent }}>
                     {demo}
                   </span>
                 </div>
@@ -450,11 +452,11 @@ export default function MidjourneyPage() {
           <div
             className="rounded-xl border-l-4 px-6 py-5"
             style={{
-              backgroundColor: MJ_PINK + "0c",
-              borderLeftColor: MJ_PINK,
-              borderTop: `1px solid ${MJ_PINK}22`,
-              borderRight: `1px solid ${MJ_PINK}22`,
-              borderBottom: `1px solid ${MJ_PINK}22`,
+              backgroundColor: C.accent + "0c",
+              borderLeftColor: C.accent,
+              borderTop: `1px solid ${C.accent}22`,
+              borderRight: `1px solid ${C.accent}22`,
+              borderBottom: `1px solid ${C.accent}22`,
             }}
           >
             <p className="text-sm font-medium italic" style={{ color: C.text }}>
@@ -474,6 +476,20 @@ export default function MidjourneyPage() {
 
           <form onSubmit={handleAnalyze} className="space-y-3 mb-6">
             <div>
+              <button
+                type="button"
+                onClick={loadSample}
+                className="px-3 py-1.5 rounded-full text-xs font-medium transition-all border"
+                style={{
+                  backgroundColor: "transparent",
+                  borderColor: C.cardBorder,
+                  color: C.muted,
+                }}
+              >
+                Load sample
+              </button>
+            </div>
+            <div>
               <label
                 className="block text-xs font-medium mb-1.5"
                 style={{ color: C.muted }}
@@ -492,7 +508,7 @@ export default function MidjourneyPage() {
                   color: C.text,
                 }}
                 onFocus={(e) =>
-                  (e.target.style.borderColor = MJ_PINK + "66")
+                  (e.target.style.borderColor = C.accent + "66")
                 }
                 onBlur={(e) =>
                   (e.target.style.borderColor = C.cardBorder)
@@ -521,33 +537,19 @@ export default function MidjourneyPage() {
                   color: C.text,
                 }}
                 onFocus={(e) =>
-                  (e.target.style.borderColor = MJ_PINK + "66")
+                  (e.target.style.borderColor = C.accent + "66")
                 }
                 onBlur={(e) =>
                   (e.target.style.borderColor = C.cardBorder)
                 }
               />
             </div>
-            <div className="flex gap-2 pt-1">
-              <button
-                type="button"
-                onClick={loadSample}
-                className="px-4 py-2.5 rounded-xl text-sm font-medium transition-all border"
-                style={{
-                  backgroundColor: "transparent",
-                  borderColor: C.cardBorder,
-                  color: C.muted,
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.borderColor = C.muted)}
-                onMouseLeave={(e) => (e.currentTarget.style.borderColor = C.cardBorder)}
-              >
-                Load Sample
-              </button>
+            <div className="pt-1">
               <button
                 type="submit"
                 disabled={loading || !prompt.trim() || !imageUrl.trim()}
-                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ backgroundColor: MJ_PINK, color: "#ffffff" }}
+                className="w-full px-4 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ backgroundColor: C.accent, color: "#ffffff" }}
               >
                 {loading ? "Running..." : "Analyze + View"}
               </button>
@@ -562,7 +564,7 @@ export default function MidjourneyPage() {
             >
               <div
                 className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin"
-                style={{ borderColor: MJ_PINK, borderTopColor: "transparent" }}
+                style={{ borderColor: C.accent, borderTopColor: "transparent" }}
               />
               <p className="text-sm" style={{ color: C.muted }}>
                 {LOADING_STEPS[loadingStep]}
@@ -574,7 +576,7 @@ export default function MidjourneyPage() {
                     className="w-1.5 h-1.5 rounded-full transition-all duration-300"
                     style={{
                       backgroundColor:
-                        i <= loadingStep ? MJ_PINK : C.cardBorder,
+                        i <= loadingStep ? C.accent : C.cardBorder,
                     }}
                   />
                 ))}
@@ -598,180 +600,327 @@ export default function MidjourneyPage() {
 
           {/* Results */}
           {results && (
-            <div ref={resultsRef} className="scroll-mt-8">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div ref={resultsRef} className="scroll-mt-8 space-y-5">
 
-                {/* Left: 3D Viewer */}
+              {/* 3D Viewer — full width */}
+              <div
+                className="rounded-xl border overflow-hidden"
+                style={{ backgroundColor: C.bg, borderColor: C.cardBorder }}
+              >
                 <div
-                  className="rounded-xl border overflow-hidden"
-                  style={{ backgroundColor: "#080808", borderColor: C.cardBorder }}
+                  className="px-4 py-2.5 border-b flex items-center justify-between"
+                  style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}
                 >
-                  <div
-                    className="px-4 py-2.5 border-b flex items-center justify-between"
-                    style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}
+                  <span
+                    className="text-xs font-bold uppercase tracking-widest"
+                    style={{ color: C.accent }}
                   >
-                    <span
-                      className="text-xs font-bold uppercase tracking-widest"
-                      style={{ color: MJ_PINK }}
+                    3D Scene
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setShowDepth((v) => !v)}
+                      className="text-[10px] font-semibold px-2 py-1 rounded-md transition-all border"
+                      style={{
+                        backgroundColor: showDepth ? C.accent + "22" : "transparent",
+                        color: showDepth ? C.accent : C.dim,
+                        borderColor: showDepth ? C.accent + "44" : C.cardBorder,
+                      }}
                     >
-                      3D Scene
-                    </span>
+                      {showDepth ? "Show image" : "Show depth map"}
+                    </button>
                     <span className="text-[10px]" style={{ color: C.dim }}>
                       Click and drag to explore
                     </span>
                   </div>
-                  <div style={{ height: 340 }}>
-                    <ParallaxViewer
-                      imageDataUrl={results.originalImage}
-                      depthMapDataUrl={results.depthMap}
-                    />
+                </div>
+                <div
+                  style={{ height: 500, overflow: "hidden" }}
+                  onMouseDown={() => setViewerDragging(true)}
+                  onMouseUp={() => setViewerDragging(false)}
+                  onMouseLeave={() => setViewerDragging(false)}
+                  onTouchStart={() => setViewerDragging(true)}
+                  onTouchEnd={() => setViewerDragging(false)}
+                >
+                  <div
+                    className="w-full h-full"
+                    style={{ animation: viewerDragging ? "none" : "kenBurns 8s ease-in-out infinite" }}
+                  >
+                    <ParallaxViewer imageUrl={imageUrl} showDepth={showDepth} onDepthReady={setDepthMapUrl} />
                   </div>
                 </div>
+              </div>
 
-                {/* Right: Analysis */}
-                <div className="space-y-4">
+              {/* Spatial Analysis */}
+              <div
+                className="rounded-xl border overflow-hidden"
+                style={{ borderColor: C.cardBorder }}
+              >
+                <button
+                  onClick={() => setSpatialOpen((v) => !v)}
+                  className="w-full px-5 py-3 flex items-center justify-between transition-colors"
+                  style={{ backgroundColor: C.cardBg }}
+                >
+                  <span className="text-xs font-bold uppercase tracking-widest" style={{ color: C.dim }}>
+                    Spatial Analysis
+                  </span>
+                  <span className="text-xs" style={{ color: C.dim }}>
+                    {spatialOpen ? "Hide ↑" : "Show spatial analysis ↓"}
+                  </span>
+                </button>
+                <div
+                  style={{
+                    maxHeight: spatialOpen ? "600px" : "0",
+                    overflow: "hidden",
+                    transition: "max-height 0.3s ease",
+                    backgroundColor: C.cardBg,
+                  }}
+                >
+                  <div className="px-5 pb-5">
+                    {depthMapUrl ? (
+                      <>
+                        <div className="grid grid-cols-2 gap-3 pt-1">
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: C.dim }}>
+                              Original
+                            </p>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={imageUrl} alt="original" className="w-full rounded-lg object-cover" style={{ aspectRatio: "16/9" }} />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: C.dim }}>
+                              Depth Map
+                            </p>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={depthMapUrl} alt="depth map" className="w-full rounded-lg object-cover" style={{ aspectRatio: "16/9" }} />
+                          </div>
+                        </div>
+                        <p className="text-[10px] mt-3" style={{ color: C.dim }}>
+                          Depth computed in-browser using MiDaS neural network — no server calls
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-xs py-4" style={{ color: C.dim }}>
+                        Computing depth map...
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
 
-                  {/* Prompt Autopsy */}
-                  <div
-                    className="rounded-xl border p-5"
-                    style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}
-                  >
-                    <p
-                      className="text-xs font-bold uppercase tracking-widest mb-3"
-                      style={{ color: C.dim }}
+              {/* Prompt Autopsy */}
+              <div
+                className="rounded-xl border p-5"
+                style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}
+              >
+                <p
+                  className="text-xs font-bold uppercase tracking-widest mb-3"
+                  style={{ color: C.dim }}
+                >
+                  Prompt Autopsy
+                </p>
+                <div className="space-y-2">
+                  {results.analysis.autopsy.map((item, i) => (
+                    <div
+                      key={i}
+                      className="rounded-lg border px-3 py-2.5"
+                      style={{
+                        backgroundColor: impactBg(item.impact),
+                        borderColor: impactBorder(item.impact),
+                      }}
                     >
-                      Prompt Autopsy
-                    </p>
-                    <div className="space-y-2">
-                      {results.analysis.autopsy.map((item, i) => (
-                        <div
-                          key={i}
-                          className="rounded-lg border px-3 py-2.5"
+                      <div className="flex items-center gap-2 mb-1">
+                        <span
+                          className="font-mono text-xs font-semibold"
+                          style={{ color: C.text }}
+                        >
+                          {item.token}
+                        </span>
+                        <span
+                          className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
                           style={{
                             backgroundColor: impactBg(item.impact),
-                            borderColor: impactBorder(item.impact),
+                            color: impactColor(item.impact, ACCENT),
+                            border: `1px solid ${impactBorder(item.impact)}`,
                           }}
                         >
-                          <div className="flex items-center gap-2 mb-1">
-                            <span
-                              className="font-mono text-xs font-semibold"
-                              style={{ color: C.text }}
-                            >
-                              {item.token}
-                            </span>
-                            <span
-                              className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                              style={{
-                                backgroundColor: impactBg(item.impact),
-                                color: impactColor(item.impact, ACCENT),
-                                border: `1px solid ${impactBorder(item.impact)}`,
-                              }}
-                            >
-                              {item.impact}
-                            </span>
-                          </div>
-                          <p className="text-xs" style={{ color: C.muted }}>
-                            {item.effect}
-                          </p>
+                          {item.impact}
+                        </span>
+                      </div>
+                      <p className="text-xs" style={{ color: C.muted }}>
+                        {item.effect}
+                      </p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <div className="flex-1" style={{ height: 3, backgroundColor: "rgba(0,0,0,0.08)", borderRadius: 2, overflow: "hidden" }}>
+                          <div style={{
+                            height: "100%",
+                            borderRadius: 2,
+                            backgroundColor: impactColor(item.impact, ACCENT),
+                            animation: impactBarAnim(item.impact),
+                            ["--bar-w" as string]: impactBarWidth(item.impact),
+                          }} />
                         </div>
-                      ))}
+                        <span className="text-[10px] whitespace-nowrap" style={{ color: C.dim }}>
+                          {impactWeightLabel(item.impact)}
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  ))}
+                </div>
+              </div>
 
-                  {/* Style DNA */}
-                  <div
-                    className="rounded-xl border p-5"
-                    style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <p
-                        className="text-xs font-bold uppercase tracking-widest"
-                        style={{ color: C.dim }}
-                      >
-                        Style DNA
-                      </p>
-                      <button
-                        onClick={() => copyToClipboard(results.analysis.styleDNA, "dna")}
-                        className="text-[10px] font-semibold px-2 py-1 rounded-md transition-all"
-                        style={{
-                          backgroundColor: copied === "dna" ? MJ_PINK + "22" : C.bg,
-                          color: copied === "dna" ? MJ_PINK : C.dim,
-                          border: `1px solid ${copied === "dna" ? MJ_PINK + "44" : C.cardBorder}`,
-                        }}
-                      >
-                        {copied === "dna" ? "Copied!" : "Copy"}
-                      </button>
-                    </div>
-                    <div
-                      className="rounded-lg p-3 font-mono text-xs leading-relaxed"
-                      style={{
-                        backgroundColor: theme === "company" ? "#0a0a0a" : "#f3f4f6",
-                        color: theme === "company" ? MJ_PINK : "#374151",
-                        border: `1px solid ${C.cardBorder}`,
-                      }}
-                    >
-                      {results.analysis.styleDNA}
-                    </div>
-                  </div>
-
-                  {/* Rewritten Prompt */}
-                  <div
-                    className="rounded-xl border p-5"
-                    style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <p
-                        className="text-xs font-bold uppercase tracking-widest"
-                        style={{ color: C.dim }}
-                      >
-                        Rewritten Prompt
-                      </p>
-                      <button
-                        onClick={() =>
-                          copyToClipboard(results.analysis.rewrite, "rewrite")
-                        }
-                        className="text-[10px] font-semibold px-2 py-1 rounded-md transition-all"
-                        style={{
-                          backgroundColor:
-                            copied === "rewrite" ? MJ_PINK + "22" : C.bg,
-                          color: copied === "rewrite" ? MJ_PINK : C.dim,
-                          border: `1px solid ${copied === "rewrite" ? MJ_PINK + "44" : C.cardBorder}`,
-                        }}
-                      >
-                        {copied === "rewrite" ? "Copied!" : "Copy"}
-                      </button>
-                    </div>
-                    <div
-                      className="rounded-lg p-3 font-mono text-xs leading-relaxed"
-                      style={{
-                        backgroundColor: theme === "company" ? "#0a0a0a" : "#f3f4f6",
-                        color: theme === "company" ? "#e0e0e0" : "#374151",
-                        border: `1px solid ${C.cardBorder}`,
-                      }}
-                    >
-                      {results.analysis.rewrite}
-                    </div>
-                  </div>
-
-                  {/* Summary */}
-                  <div
-                    className="rounded-xl border px-5 py-4"
-                    style={{
-                      backgroundColor: MJ_PINK + "0a",
-                      borderColor: MJ_PINK + "30",
-                    }}
-                  >
-                    <p
-                      className="text-xs font-bold uppercase tracking-widest mb-2"
-                      style={{ color: MJ_PINK }}
-                    >
-                      Summary
+              {/* Style Coherence */}
+              <div
+                className="rounded-xl border p-5"
+                style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}
+              >
+                <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: C.dim }}>
+                  Style Coherence
+                </p>
+                <div className="flex items-center gap-4 mb-3">
+                  <span className="text-5xl font-black tabular-nums" style={{ color: coherenceColor(results.analysis.coherenceScore) }}>
+                    {results.analysis.coherenceScore}
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold mb-0.5" style={{ color: C.text }}>
+                      {results.analysis.coherenceLabel}
                     </p>
-                    <p className="text-sm leading-relaxed" style={{ color: C.muted }}>
-                      {results.analysis.summary}
+                    <p className="text-[10px] leading-snug" style={{ color: C.dim }}>
+                      How well your prompt tokens work together to produce a unified aesthetic
                     </p>
                   </div>
                 </div>
+                <div style={{ height: 4, backgroundColor: C.cardBorder, borderRadius: 2, overflow: "hidden", marginBottom: 10 }}>
+                  <div style={{
+                    height: "100%",
+                    borderRadius: 2,
+                    backgroundColor: coherenceColor(results.analysis.coherenceScore),
+                    animation: "coherenceFill 0.6s ease-out forwards",
+                    ["--score-w" as string]: `${results.analysis.coherenceScore}%`,
+                  }} />
+                </div>
+                <p className="text-xs" style={{ color: C.muted }}>
+                  {results.analysis.coherenceReason}
+                </p>
+              </div>
+
+              {/* Style DNA */}
+              <div
+                className="rounded-xl border p-5"
+                style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <p
+                    className="text-xs font-bold uppercase tracking-widest"
+                    style={{ color: C.dim }}
+                  >
+                    Style DNA
+                  </p>
+                  <button
+                    onClick={() => copyToClipboard(results.analysis.styleDNA, "dna")}
+                    className="text-[10px] font-semibold px-2 py-1 rounded-md transition-all"
+                    style={{
+                      backgroundColor: copied === "dna" ? C.accent + "22" : C.bg,
+                      color: copied === "dna" ? C.accent : C.dim,
+                      border: `1px solid ${copied === "dna" ? C.accent + "44" : C.cardBorder}`,
+                    }}
+                  >
+                    {copied === "dna" ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+                <div
+                  className="rounded-lg p-3 font-mono text-xs leading-relaxed"
+                  style={{
+                    backgroundColor: C.bg,
+                    color: C.text,
+                    border: `1px solid ${C.cardBorder}`,
+                  }}
+                >
+                  {results.analysis.styleDNA}
+                </div>
+              </div>
+
+              {/* Rewritten Prompt — diff view */}
+              <div
+                className="rounded-xl border p-5"
+                style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-bold uppercase tracking-widest" style={{ color: C.dim }}>
+                    Prompt Diff
+                  </p>
+                  <button
+                    onClick={() => copyToClipboard(results.analysis.rewrite, "rewrite")}
+                    className="text-[10px] font-semibold px-2 py-1 rounded-md transition-all"
+                    style={{
+                      backgroundColor: copied === "rewrite" ? C.accent + "22" : C.bg,
+                      color: copied === "rewrite" ? C.accent : C.dim,
+                      border: `1px solid ${copied === "rewrite" ? C.accent + "44" : C.cardBorder}`,
+                    }}
+                  >
+                    {copied === "rewrite" ? "Copied!" : "Copy improved"}
+                  </button>
+                </div>
+                {/* Original */}
+                <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: C.dim }}>
+                  Original
+                </p>
+                <div
+                  className="rounded-lg p-3 font-mono text-xs leading-relaxed mb-3"
+                  style={{
+                    backgroundColor: C.bg,
+                    color: C.muted,
+                    border: `1px solid ${C.cardBorder}`,
+                  }}
+                >
+                  {prompt}
+                </div>
+                {/* Improved with diff highlights */}
+                <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: C.accent }}>
+                  Improved
+                </p>
+                <div
+                  className="rounded-lg p-3 font-mono text-xs leading-relaxed"
+                  style={{
+                    backgroundColor: C.bg,
+                    border: `1px solid ${C.cardBorder}`,
+                  }}
+                >
+                  {computeWordDiff(prompt, results.analysis.rewrite).map((token, i) => (
+                    <span
+                      key={i}
+                      style={token.isNew ? {
+                        backgroundColor: C.accentBg,
+                        color: C.accent,
+                        borderRadius: 3,
+                        padding: "0 2px",
+                      } : {
+                        color: C.text,
+                      }}
+                    >
+                      {token.word}{" "}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Summary */}
+              <div
+                className="rounded-xl border px-5 py-4"
+                style={{
+                  backgroundColor: C.accent + "0a",
+                  borderColor: C.accent + "30",
+                }}
+              >
+                <p
+                  className="text-xs font-bold uppercase tracking-widest mb-2"
+                  style={{ color: C.accent }}
+                >
+                  Summary
+                </p>
+                <p className="text-sm leading-relaxed" style={{ color: C.muted }}>
+                  {results.analysis.summary}
+                </p>
               </div>
             </div>
           )}

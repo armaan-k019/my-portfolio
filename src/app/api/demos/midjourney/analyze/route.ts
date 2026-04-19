@@ -1,98 +1,37 @@
-export const maxDuration = 60;
+import { NextRequest, NextResponse } from 'next/server'
+import Anthropic from '@anthropic-ai/sdk'
 
-interface AutopsyToken {
-  token: string;
-  impact: "High" | "Medium" | "Low";
-  effect: string;
-}
+const client = new Anthropic()
 
-interface MidjourneyAnalysis {
-  autopsy: AutopsyToken[];
-  styleDNA: string;
-  rewrite: string;
-  summary: string;
-}
-
-const SYSTEM_PROMPT = `You are an expert Midjourney prompt analyst. The user will give you a Midjourney prompt. Analyze it and return a JSON object only — no markdown, no preamble, no explanation.
-
-Return this exact structure:
-{
-  "autopsy": [
-    {
-      "token": <the specific word or phrase from the prompt>,
-      "impact": <"High" | "Medium" | "Low">,
-      "effect": <what this token visually contributed — 1 sentence>
-    }
-  ],
-  "styleDNA": <a concise reusable style block — the distilled essence of this prompt's visual identity, ready to paste into a future prompt. Format as a comma-separated descriptor string, not a sentence>,
-  "rewrite": <an improved version of the original prompt — more specific, stronger tokens, closes the gap between what was described and what Midjourney likely rendered>,
-  "summary": <2-3 sentences explaining what this prompt did well and where it fell short>
-}
-
-Rules:
-- Identify 4-8 key tokens (individual words or short phrases that carry visual weight)
-- Rank by impact honestly — most prompts have 1-2 High, 2-3 Medium, rest Low
-- styleDNA should be short enough to append to any future prompt (under 80 chars)
-- rewrite should be meaningfully better, not just cosmetically different
-- Do not use em dashes anywhere in your response`;
-
-export async function POST(request: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await request.json() as { prompt?: string };
-    const { prompt } = body;
+    const { prompt } = await req.json()
+    if (!prompt) return NextResponse.json({ error: 'No prompt provided' }, { status: 400 })
 
-    if (!prompt?.trim()) {
-      return Response.json({ error: "No prompt provided." }, { status: 400 });
-    }
+    const message = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1500,
+      system: `You are an expert Midjourney prompt analyst. Analyze the prompt and return a JSON object only — no markdown, no preamble, no backticks.
 
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 55000);
+Return exactly this structure:
+{
+  "autopsy": [{"token": string, "impact": "High"|"Medium"|"Low", "effect": string}],
+  "styleDNA": string,
+  "rewrite": string,
+  "summary": string,
+  "coherenceScore": number (0-100 — SCORING GUIDE, be honest and critical: 0-20 Incoherent = tokens clash or contradict; 21-40 Conflicted = some tension, hard to execute consistently; 41-60 Functional = workable but generic or unfocused; 61-75 Cohesive = clear unified aesthetic, most good prompts land here; 76-88 Masterful = precise, intentional, every token earns its place; 89-100 reserve only for exceptionally rare, flawless prompts. Most prompts score 55-78. A score above 85 should be genuinely rare.),
+  "coherenceLabel": "Incoherent"|"Conflicted"|"Functional"|"Cohesive"|"Masterful",
+  "coherenceReason": string (one sentence explaining the score, be specific about what works or what clashes)
+}`,
+      messages: [{ role: 'user', content: prompt }],
+    })
 
-    const apiRes = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      signal: ctrl.signal,
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY ?? "",
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 2000,
-        system: SYSTEM_PROMPT,
-        messages: [
-          {
-            role: "user",
-            content: `Analyze this Midjourney prompt:\n\n${prompt}`,
-          },
-        ],
-      }),
-    });
+    const text = message.content.map((b: {type: string; text?: string}) => b.type === 'text' ? b.text : '').join('')
+    const clean = text.replace(/```json|```/g, '').trim()
+    const result = JSON.parse(clean)
 
-    clearTimeout(timer);
-
-    const raw = await apiRes.text();
-
-    if (!apiRes.ok) {
-      return Response.json(
-        { error: `Analysis API error ${apiRes.status}: ${raw.slice(0, 200)}` },
-        { status: 500 }
-      );
-    }
-
-    const anthropicData = JSON.parse(raw) as { content: { text: string }[] };
-    const text = anthropicData.content[0].text.replace(/```json|```/g, "").trim();
-    const start = text.indexOf("{");
-    const end = text.lastIndexOf("}") + 1;
-
-    if (start === -1 || end === 0) {
-      return Response.json({ error: "Analysis did not return valid JSON." }, { status: 500 });
-    }
-
-    const result = JSON.parse(text.slice(start, end)) as MidjourneyAnalysis;
-    return Response.json({ result });
+    return NextResponse.json({ result })
   } catch (err) {
-    console.error("[midjourney/analyze] error:", err);
-    return Response.json({ error: "Analysis failed. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }
