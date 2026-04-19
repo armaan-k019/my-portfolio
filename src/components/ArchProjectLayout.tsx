@@ -13,10 +13,20 @@ export interface ArchProjectContent {
   contextText: string;
   drawings: ArchImage[];
   finalThoughts: string;
-  posteriori?: {
+  posteriori: {
     text: string;
     images: [ArchImage, ArchImage];
   };
+}
+
+const PLACEHOLDER_TEXT = 'Lorem ipsum odor amet, consectetuer adipiscing elit. Dapibus facilisis volutpat viverra; nisl facilisi cubilia. Dis venenatis consequat duis condimentum commodo blandit per class. Enim facilisi lobortis auctor tristique penatibus pretium. Praesent massa pulvinar cras nascetur ad laoreet. Nisi augue malesuada sodales; bibendum cras feugiat lacinia consectetur.';
+
+function Placeholder({ text }: { text: string }) {
+  return <span className="italic text-brown-light/30">{text}</span>;
+}
+
+function SectionRule() {
+  return <hr className="border-tan/20 mb-14" />;
 }
 
 function ProjectImage({ src, caption, aspect = '4/3' }: { src: string; caption?: string; aspect?: string }) {
@@ -27,18 +37,26 @@ function ProjectImage({ src, caption, aspect = '4/3' }: { src: string; caption?:
         <img src={src} alt={caption ?? ''} className="w-full object-cover rounded-lg" />
       ) : (
         <div
-          className="w-full bg-tan/15 border border-tan/30 rounded-lg flex items-center justify-center"
+          className="w-full bg-tan/10 border border-tan/25 rounded-lg flex items-center justify-center"
           style={{ aspectRatio: aspect }}
         >
-          <span className="text-xs text-brown-light/30 italic">image</span>
+          <span className="text-xs text-brown-light/25 italic tracking-wide">image</span>
         </div>
       )}
-      {caption && (
-        <figcaption className="text-xs text-brown-light/60 mt-2 italic leading-relaxed">
-          {caption}
-        </figcaption>
+      {caption ? (
+        <figcaption className="text-xs text-brown-light/60 mt-2 italic leading-relaxed">{caption}</figcaption>
+      ) : (
+        <figcaption className="text-xs text-brown-light/25 mt-2 italic">caption</figcaption>
       )}
     </figure>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[10px] font-semibold tracking-widest uppercase text-terracotta mb-6">
+      {children}
+    </p>
   );
 }
 
@@ -47,48 +65,52 @@ export default function ArchProjectLayout({ content }: { content: ArchProjectCon
     <div className="max-w-3xl mx-auto px-6 py-16">
       <Link
         href="/#projects"
-        className="text-sm text-terracotta hover:text-terracotta-dark transition-colors mb-10 inline-block"
+        className="text-sm text-terracotta hover:text-terracotta-dark transition-colors mb-12 inline-block"
       >
         &larr; Back to projects
       </Link>
 
       {/* Header */}
-      <header className="mb-12">
-        <h1 className="text-3xl font-semibold text-darkblue tracking-tight mb-2">
+      <header className="mb-14">
+        <h1 className="text-4xl font-semibold text-darkblue tracking-tight mb-3">
           {content.title}
         </h1>
-        {content.meta && (
+        {content.meta ? (
           <p className="text-sm text-brown-light">{content.meta}</p>
+        ) : (
+          <p className="text-sm text-brown-light/30 italic">Studio · Term · Institution</p>
         )}
+        <div className="w-10 h-[2px] bg-terracotta mt-5" />
       </header>
 
-      {/* Priori */}
+      {/* A Priori */}
       <section className="mb-14">
-        <p className="text-[10px] font-semibold tracking-widest uppercase text-terracotta mb-4">
-          Priori
+        <SectionLabel>A Priori</SectionLabel>
+        <p className="text-base text-brown leading-relaxed">
+          {content.priori || <Placeholder text={PLACEHOLDER_TEXT} />}
         </p>
-        <p className="text-brown leading-relaxed">{content.priori}</p>
       </section>
 
-      {/* 2 site images */}
+      <SectionRule />
+
+      {/* Site */}
       <section className="mb-14">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <SectionLabel>Site</SectionLabel>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
           {content.siteImages.map((img, i) => (
             <ProjectImage key={i} src={img.src} caption={img.caption} aspect="4/3" />
           ))}
         </div>
+        <p className="text-sm text-brown-light leading-relaxed">
+          {content.contextText || <Placeholder text={PLACEHOLDER_TEXT} />}
+        </p>
       </section>
 
-      {/* Context */}
-      <section className="mb-14">
-        <p className="text-sm text-brown-light leading-relaxed">{content.contextText}</p>
-      </section>
+      <SectionRule />
 
       {/* Drawings */}
       <section className="mb-14">
-        <p className="text-[10px] font-semibold tracking-widest uppercase text-terracotta mb-6">
-          Drawings
-        </p>
+        <SectionLabel>Drawings</SectionLabel>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {content.drawings.map((img, i) => (
             <ProjectImage key={i} src={img.src} caption={img.caption} aspect="4/3" />
@@ -96,28 +118,30 @@ export default function ArchProjectLayout({ content }: { content: ArchProjectCon
         </div>
       </section>
 
-      {/* Final thoughts */}
-      <section className={content.posteriori ? "mb-14" : ""}>
-        <p className="text-[10px] font-semibold tracking-widest uppercase text-terracotta mb-4">
-          Final Thoughts
+      <SectionRule />
+
+      {/* Final Thoughts */}
+      <section className="mb-14">
+        <SectionLabel>Final Thoughts</SectionLabel>
+        <p className="text-base text-brown leading-relaxed">
+          {content.finalThoughts || <Placeholder text={PLACEHOLDER_TEXT} />}
         </p>
-        <p className="text-brown leading-relaxed">{content.finalThoughts}</p>
       </section>
 
-      {/* Posteriori */}
-      {content.posteriori && (
-        <section>
-          <p className="text-[10px] font-semibold tracking-widest uppercase text-terracotta mb-4">
-            A Posteriori
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
-            {content.posteriori.images.map((img, i) => (
-              <ProjectImage key={i} src={img.src} caption={img.caption} aspect="4/3" />
-            ))}
-          </div>
-          <p className="text-sm text-brown-light leading-relaxed">{content.posteriori.text}</p>
-        </section>
-      )}
+      <SectionRule />
+
+      {/* A Posteriori */}
+      <section>
+        <SectionLabel>A Posteriori</SectionLabel>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+          {content.posteriori.images.map((img, i) => (
+            <ProjectImage key={i} src={img.src} caption={img.caption} aspect="4/3" />
+          ))}
+        </div>
+        <p className="text-sm text-brown-light leading-relaxed">
+          {content.posteriori.text || <Placeholder text={PLACEHOLDER_TEXT} />}
+        </p>
+      </section>
     </div>
   );
 }

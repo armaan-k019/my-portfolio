@@ -9,7 +9,11 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "picsum.photos" },
     ],
   },
-  turbopack: {},
+  turbopack: {
+    resolveAlias: {
+      '@mediapipe/selfie_segmentation': './src/lib/mediapipe-stub.js',
+    },
+  },
   webpack: (config, { isServer }) => {
     config.experiments = { ...config.experiments, asyncWebAssembly: true };
     if (!isServer) {

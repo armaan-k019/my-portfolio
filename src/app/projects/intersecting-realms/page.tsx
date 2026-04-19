@@ -17,6 +17,13 @@ const content: ArchProjectContent = {
     { src: '', caption: '' },
   ],
   finalThoughts: '',
+  posteriori: {
+    text: '',
+    images: [
+      { src: '', caption: '' },
+      { src: '', caption: '' },
+    ],
+  },
 };
 
 export default function IntersectingRealmsPage() {
