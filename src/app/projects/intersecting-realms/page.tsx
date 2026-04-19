@@ -80,6 +80,8 @@ export default function IntersectingRealmsPage() {
           <ProjectImage src={`${BASE}/8.png`} caption="" />
           <ProjectImage src={`${BASE}/9.png`} caption="" />
           <ProjectImage src={`${BASE}/10.png`} caption="" />
+          <ProjectImage src={`${BASE}/11.png`} caption="" />
+          <ProjectImage src={`${BASE}/12.png`} caption="" />
         </div>
       </section>
     </div>
