@@ -13,6 +13,10 @@ export interface ArchProjectContent {
   contextText: string;
   drawings: ArchImage[];
   finalThoughts: string;
+  posteriori?: {
+    text: string;
+    images: [ArchImage, ArchImage];
+  };
 }
 
 function ProjectImage({ src, caption, aspect = '4/3' }: { src: string; caption?: string; aspect?: string }) {
@@ -93,12 +97,27 @@ export default function ArchProjectLayout({ content }: { content: ArchProjectCon
       </section>
 
       {/* Final thoughts */}
-      <section>
+      <section className={content.posteriori ? "mb-14" : ""}>
         <p className="text-[10px] font-semibold tracking-widest uppercase text-terracotta mb-4">
           Final Thoughts
         </p>
         <p className="text-brown leading-relaxed">{content.finalThoughts}</p>
       </section>
+
+      {/* Posteriori */}
+      {content.posteriori && (
+        <section>
+          <p className="text-[10px] font-semibold tracking-widest uppercase text-terracotta mb-4">
+            A Posteriori
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+            {content.posteriori.images.map((img, i) => (
+              <ProjectImage key={i} src={img.src} caption={img.caption} aspect="4/3" />
+            ))}
+          </div>
+          <p className="text-sm text-brown-light leading-relaxed">{content.posteriori.text}</p>
+        </section>
+      )}
     </div>
   );
 }

@@ -11,22 +11,10 @@ const wipProjects = [
     statusColor: "bg-sage/20 text-sage border-sage/30",
   },
   {
-    title: "Pavilion from Campus Waste: Campus Waste to Civic Architecture",
-    description: "A pavilion designed and fabricated entirely from materials recovered from Georgia Tech's waste stream. The project asks what civic infrastructure might look like if it began not with a budget, but with what already exists.",
-    status: "In Progress",
-    statusColor: "bg-darkblue/20 text-darkblue border-darkblue/30",
-  },
-  {
     title: "Climate-Responsive Architecture from Indigenous Materials",
     description: "An investigation into vernacular building systems in Africa that use locally sourced, indigenous materials to achieve climate responsiveness without mechanical systems. Grounded in the idea that the most sustainable architecture is often the oldest.",
     status: "In Progress",
     statusColor: "bg-sage/20 text-sage border-sage/30",
-  },
-  {
-    title: "Computer Vision Sign Language Video-to-Audio Translator",
-    description: "A computer vision pipeline that interprets American Sign Language from video input and synthesizes spoken audio output in real time. Aimed at reducing communication barriers in everyday environments without requiring specialized hardware.",
-    status: "In Progress",
-    statusColor: "bg-terracotta/20 text-terracotta border-terracotta/30",
   },
 ];
 

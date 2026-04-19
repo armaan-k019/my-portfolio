@@ -126,6 +126,18 @@ export default function ProjectsSection({ projects }: { projects: Project[] }) {
           ))}
         </AnimatePresence>
       </div>
+      <p className="mt-6 text-xs text-brown-light/60">
+        More on{" "}
+        <a
+          href="https://github.com/armaan-k019"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline underline-offset-2 hover:text-brown-light transition-colors"
+        >
+          GitHub
+        </a>
+        .
+      </p>
     </>
   );
 }

@@ -21,7 +21,7 @@ function isDark(hex?: string) {
   return (r * 299 + g * 587 + b * 114) / 1000 < 128;
 }
 
-function LogoWithFallback({ src, alt, dark }: { src: string; alt: string; dark?: boolean }) {
+function LogoWithFallback({ src, alt, dark, imageClassName }: { src: string; alt: string; dark?: boolean; imageClassName?: string }) {
   const [failed, setFailed] = useState(false);
 
   if (failed) {
@@ -38,7 +38,7 @@ function LogoWithFallback({ src, alt, dark }: { src: string; alt: string; dark?:
       alt={alt}
       width={160}
       height={100}
-      className="object-contain max-h-20 w-auto"
+      className={imageClassName ?? "object-contain max-h-20 w-auto"}
       onError={() => setFailed(true)}
     />
   );
@@ -66,7 +66,7 @@ export default function WorkSection() {
             >
               {/* Logo area */}
               <div className="flex-1 flex items-center justify-center p-5 min-h-[130px]">
-                <LogoWithFallback src={entry.logo} alt={entry.name} dark={dark} />
+                <LogoWithFallback src={entry.logo} alt={entry.name} dark={dark} imageClassName={entry.name === "Jeeves" ? "object-contain max-h-36 w-auto" : "object-contain max-h-20 w-auto"} />
               </div>
               {/* Company name */}
               <div className="px-3 py-3 text-center">

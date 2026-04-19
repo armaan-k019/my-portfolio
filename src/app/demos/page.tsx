@@ -64,7 +64,7 @@ const demoCards: DemoCard[] = [
   {
     slug: "wisprflow",
     company: "Wispr Flow",
-    headline: "Making voice dictation accessible to deaf & hard-of-hearing users",
+    headline: "ASL sign language to voice dictation",
     pitch: "TensorFlow.js hand-pose CV recognizes ASL signs from a webcam, converts them to words, and feeds that text stream into Wispr Flow with no microphone needed.",
     accentColor: "#6C47FF",
     url: "/demos/wisprflow",

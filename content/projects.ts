@@ -15,10 +15,10 @@ export interface Project {
 export const projects: Project[] = [
   {
     slug: "edo-commons",
-    title: "Edo",
+    title: "Guest People",
     category: "architecture",
-    blurb: "Adaptive reuse of the Quarry Yards in Atlanta, inspired by the Edo period of Japan.",
-    description: "A proposal for the adaptive reuse of the Quarry Yards site in Atlanta, inspired by the communal and ecological principles of Japan's Edo period. The project reimagines an underutilized industrial landscape as a mixed-use commons rooted in community ownership, ecological restoration, and shared infrastructure.",
+    blurb: "Precedent analysis in masonry construction through the lens of the Hakka Indenture Museum.",
+    description: "A precedent study examining masonry as a structural and cultural medium, centered on the Hakka Indenture Museum. The analysis traces how load-bearing masonry encodes collective memory and communal identity, drawing connections between material honesty and the histories of displaced and indentured peoples.",
     stack: [],
     status: "In Progress",
   },
@@ -67,15 +67,6 @@ export const projects: Project[] = [
     github: "https://github.com/armaan-k019/acoustic-form",
   },
   {
-    slug: "yield",
-    title: "Yield",
-    category: "cs",
-    blurb: "A live report card on your stock portfolio.",
-    description: "Input your stock holdings and get a real-time portfolio report card powered by live NYSE data and AI analysis. Grades your diversification, volatility profile, cap size mix, and day performance.",
-    stack: ["Next.js", "Polygon.io", "Claude API", "Recharts"],
-    github: "https://github.com/armaan-k019/yield",
-  },
-  {
     slug: "pulse",
     title: "Pulse",
     category: "cs",
@@ -87,19 +78,10 @@ export const projects: Project[] = [
   {
     slug: "carbon-lens",
     title: "Carbon Lens",
-    category: "intersection",
+    category: "cs",
     blurb: "Embodied carbon estimator for early-stage architectural design decisions.",
     description: "A material embodied carbon calculator for architects. Input material quantities and receive an embodied carbon estimate benchmarked against industry standards, a visual breakdown by material category, and AI-generated substitution recommendations to reduce the building's climate impact.",
     stack: ["Next.js", "Claude API", "ICE Database v3.0"],
     github: "https://github.com/armaan-k019/carbon-lens",
-  },
-  {
-    slug: "fine-print",
-    title: "Fine Print",
-    category: "cs",
-    blurb: "Paste any rule set or document and find every loophole in it.",
-    description: "An AI-powered tool that analyzes any rule-based text (game rules, contracts, legal documents, terms of service) and systematically identifies ambiguities, edge cases, and exploitable gaps. Part practical tool, part creative exercise in adversarial thinking.",
-    stack: ["Next.js", "Claude API"],
-    github: "https://github.com/armaan-k019/fine-print",
   },
 ];

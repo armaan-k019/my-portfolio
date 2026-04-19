@@ -83,13 +83,10 @@ export default function AboutSection() {
               My name is Armaan and I am a student at Georgia Tech, double majoring in Computer Science and Architecture with a certificate in Sustainable Architecture.
             </p>
             <p>
-              I like to build and design things that solve real world problems. Many of the projects I have created I have actually used for coursework, whether in Computer Science or Architecture. I don&apos;t quite know what I want to do yet, but I know I want to help out.
+              I build things because I care about people and the places they inhabit. That usually means architecture, sometimes code, often both. I&apos;m drawn to problems that sit at that intersection where designing something well and building something well are the same question.
             </p>
             <p>
               I also like to write and take pictures, alongside many other things.
-            </p>
-            <p>
-              Thanks for checking out my website!
             </p>
           </div>
           <div className="flex flex-wrap gap-2 mb-5">
@@ -106,7 +103,7 @@ export default function AboutSection() {
             </a>
             <button
               onClick={() => setFavOpen(true)}
-              className="text-sm font-medium text-terracotta hover:text-terracotta-dark transition-colors"
+              className="text-sm font-medium text-terracotta hover:text-terracotta-dark transition-colors cursor-pointer"
             >
               Favorites &rarr;
             </button>

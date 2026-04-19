@@ -78,14 +78,12 @@ export default function Navbar() {
       >
         <div className="max-w-5xl mx-auto px-6 flex items-center justify-between h-16">
           <Link href="/" className="flex items-center gap-3 shrink-0">
-            <div className="w-9 h-9 rounded border border-darkblue/25 flex items-center justify-center bg-darkblue/5 shrink-0">
-              <span
-                className="text-darkblue font-semibold text-sm select-none"
-                style={{ fontFamily: 'Georgia, "Times New Roman", serif', letterSpacing: '0.12em' }}
-              >
-                AK
-              </span>
-            </div>
+            <span
+              className="text-darkblue select-none leading-none"
+              style={{ fontFamily: 'var(--font-amiri), "Amiri", serif', fontSize: '1.6rem' }}
+            >
+              أك
+            </span>
             <div className="flex flex-col leading-tight">
               <span className="text-sm font-semibold text-darkblue tracking-wide">Armaan Kazi</span>
               <span className="hidden sm:block text-[11px] text-brown-light">Architecture + CS @ Georgia Tech · Sustainable Architecture Certificate</span>
