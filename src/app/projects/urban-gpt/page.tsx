@@ -566,6 +566,7 @@ export default function UrbanGPTPage() {
   const [zoningError, setZoningError] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("demographics");
+  const [layerRetrying, setLayerRetrying] = useState<Record<string, boolean>>({});
 
   const nominatimRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nominatimAbortRef = useRef<AbortController | null>(null);
@@ -755,6 +756,39 @@ export default function UrbanGPTPage() {
       .catch(() => { setZoningError("Zoning data unavailable."); setZoningLoading(false); });
   }, [result]);
 
+  const retryLayer = useCallback(async (categoryName: string) => {
+    if (!result) return;
+    setLayerRetrying(prev => ({ ...prev, [categoryName]: true }));
+    const rMeters = RADIUS_VALUES[currentRadiusIndexRef.current] * 1609.344;
+    try {
+      const res = await fetch(
+        `/api/urban-gpt/overpass?lat=${result.lat}&lng=${result.lng}&radius=${rMeters}&category=${categoryName}`
+      );
+      const data = await res.json() as { points: OverpassPoint[]; rateLimited: boolean; timeout: boolean };
+      const overpassKey = categoryName === "dining" ? "restaurants" : categoryName === "health" ? "hospitals" : categoryName;
+      setResult(prev => {
+        if (!prev) return prev;
+        const updatedTimedOut = (prev.overpass.timedOutCategories ?? []).filter(c => c !== categoryName);
+        const updatedRateLimited = (prev.overpass.rateLimitedCategories ?? []).filter(c => c !== categoryName);
+        if (data.timeout) updatedTimedOut.push(categoryName);
+        if (data.rateLimited) updatedRateLimited.push(categoryName);
+        return {
+          ...prev,
+          overpass: {
+            ...prev.overpass,
+            [overpassKey]: data.points,
+            timedOutCategories: updatedTimedOut.length > 0 ? updatedTimedOut : undefined,
+            rateLimitedCategories: updatedRateLimited.length > 0 ? updatedRateLimited : undefined,
+          },
+        };
+      });
+    } catch {
+      // leave existing timeout status unchanged
+    } finally {
+      setLayerRetrying(prev => ({ ...prev, [categoryName]: false }));
+    }
+  }, [result]);
+
   // ── Debounced re-analyze on radius change ──────────────────────────────────
 
   useEffect(() => {
@@ -919,7 +953,7 @@ export default function UrbanGPTPage() {
       <AnimatePresence>
         {result && !loading && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
-            {(result.overpassError || (result.overpass.timedOutCategories?.length ?? 0) > 0 || result.overpass.radiusCapped) && (
+            {(result.overpassError || (result.overpass.timedOutCategories?.length ?? 0) > 0 || (result.overpass.rateLimitedCategories?.length ?? 0) > 0 || result.overpass.radiusCapped) && (
               <div className="mb-4 p-3 rounded-lg bg-tan/10 border border-tan/30 text-xs text-brown-light space-y-1.5">
                 {(result.overpassError || (result.overpass.timedOutCategories?.length ?? 0) > 0) && (
                   <div className="flex items-start justify-between gap-3">
@@ -930,6 +964,13 @@ export default function UrbanGPTPage() {
                         : "OpenStreetMap data timed out. Amenity counts may be incomplete."}
                     </span>
                     <button onClick={handleAnalyze} className="shrink-0 text-xs font-medium text-darkblue underline hover:no-underline">Retry</button>
+                  </div>
+                )}
+                {(result.overpass.rateLimitedCategories?.length ?? 0) > 0 && (
+                  <div className="flex items-start justify-between gap-3">
+                    <span>
+                      ⚠ {result.overpass.rateLimitedCategories!.join(", ")} limited by free tier API (Overpass). Use the retry buttons per layer.
+                    </span>
                   </div>
                 )}
                 {result.overpass.radiusCapped && (
@@ -963,6 +1004,8 @@ export default function UrbanGPTPage() {
                         const count = result?.overpass[key as keyof typeof result.overpass] as OverpassPoint[] | undefined;
                         const countNum = Array.isArray(count) ? count.length : 0;
                         const timedOut = result?.overpass.timedOutCategories?.includes(categoryName);
+                        const rateLimited = result?.overpass.rateLimitedCategories?.includes(categoryName);
+                        const isRetrying = layerRetrying[categoryName];
                         return (
                           <label key={key} className="flex items-center gap-2 cursor-pointer">
                             <div className={`w-3 h-3 rounded-full shrink-0 ${layers[key] ? color : "bg-brown-light/20"} transition-colors`} />
@@ -970,8 +1013,24 @@ export default function UrbanGPTPage() {
                             {loading ? (
                               <span className="text-[9px] text-brown-light/40 animate-pulse">…</span>
                             ) : result ? (
-                              timedOut ? (
-                                <span className="text-[9px] text-tan/70 italic">timeout</span>
+                              isRetrying ? (
+                                <span className="text-[9px] text-brown-light/40 animate-pulse">…</span>
+                              ) : rateLimited ? (
+                                <span className="flex items-center gap-1">
+                                  <span className="text-[9px] text-amber-500/80 italic">free tier limit</span>
+                                  <button
+                                    onClick={e => { e.preventDefault(); retryLayer(categoryName); }}
+                                    className="text-[9px] text-terracotta underline hover:no-underline"
+                                  >retry</button>
+                                </span>
+                              ) : timedOut ? (
+                                <span className="flex items-center gap-1">
+                                  <span className="text-[9px] text-tan/70 italic">timeout</span>
+                                  <button
+                                    onClick={e => { e.preventDefault(); retryLayer(categoryName); }}
+                                    className="text-[9px] text-terracotta underline hover:no-underline"
+                                  >retry</button>
+                                </span>
                               ) : countNum === 0 ? (
                                 <span className="text-[9px] text-brown-light/40 italic">none</span>
                               ) : (

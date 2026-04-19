@@ -17,6 +17,7 @@ export interface OverpassData {
   hospitals: OverpassPoint[];
   bikeWayCount: number;
   timedOutCategories?: string[];
+  rateLimitedCategories?: string[];
   radiusCapped?: boolean;
 }
 
@@ -471,7 +472,7 @@ async function fetchOverpassData(
   });
 
   const makeQuery = (body: string) =>
-    `[out:json][timeout:8];\n(\n${body}\n);\nout center;`;
+    `[out:json][timeout:13];\n(\n${body}\n);\nout center;`;
 
   const queries: Record<string, string> = {
     transit: makeQuery(`
@@ -498,11 +499,21 @@ async function fetchOverpassData(
   node["amenity"="doctors"](around:${R},${lat},${lng});`),
   };
 
+  class RateLimitError extends Error {
+    constructor() { super('rate-limited'); }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async function runQuery(category: string, query: string): Promise<OverpassPoint[]> {
+    let sawRateLimit = false;
     for (const endpoint of OVERPASS_ENDPOINTS) {
       try {
-        const res = await fetchWithTimeout(endpoint, fetchOptions(query), 10000);
+        const res = await fetchWithTimeout(endpoint, fetchOptions(query), 15000);
+        if (res.status === 429) {
+          console.warn(`[urban-gpt] Overpass ${category}: rate limited (429)`);
+          sawRateLimit = true;
+          continue;
+        }
         if (!res.ok) {
           console.warn(`[urban-gpt] Overpass ${category}: HTTP ${res.status}`);
           continue;
@@ -530,6 +541,7 @@ async function fetchOverpassData(
         console.error(`[urban-gpt] Overpass ${category} @ ${endpoint}: ${(err as Error).message}`);
       }
     }
+    if (sawRateLimit) throw new RateLimitError();
     throw new Error(`All Overpass endpoints failed for ${category}`);
   }
 
@@ -542,11 +554,19 @@ async function fetchOverpassData(
   ]);
 
   const timedOutCategories: string[] = [];
+  const rateLimitedCategories: string[] = [];
   function getOrEmpty(
     res: PromiseSettledResult<OverpassPoint[]>,
     label: string
   ): OverpassPoint[] {
-    if (res.status === 'rejected') { timedOutCategories.push(label); return []; }
+    if (res.status === 'rejected') {
+      if (res.reason instanceof RateLimitError) {
+        rateLimitedCategories.push(label);
+      } else {
+        timedOutCategories.push(label);
+      }
+      return [];
+    }
     return res.value;
   }
 
@@ -560,9 +580,10 @@ async function fetchOverpassData(
     data: {
       transit, parks, restaurants, schools, hospitals, bikeWayCount: 0,
       ...(timedOutCategories.length > 0 && { timedOutCategories }),
+      ...(rateLimitedCategories.length > 0 && { rateLimitedCategories }),
       ...(radiusCapped && { radiusCapped }),
     },
-    error: timedOutCategories.length === 5,
+    error: timedOutCategories.length + rateLimitedCategories.length === 5,
   };
 }
 
