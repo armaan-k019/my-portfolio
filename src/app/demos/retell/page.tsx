@@ -2,24 +2,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import ThemeToggle, { MY_STYLE, CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
+import { CSS_VAR_COLORS } from "@/components/ThemeToggle";
 import CompanyThemeStyle from "@/components/CompanyThemeStyle";
 
 const RETELL_GREEN = "#00C389";
-
-const COMPANY_STYLE: PageColors = {
-  bg: "#0f0f1a",
-  cardBg: "#1a1a2e",
-  cardBorder: "#2a2a44",
-  text: "#ffffff",
-  muted: "#a0a0c0",
-  dim: "#606080",
-  accent: RETELL_GREEN,
-  accentBg: RETELL_GREEN + "14",
-  headerBg: "#0f0f1a",
-  headerBorder: "#2a2a44",
-  headerText: "#ffffff",
-};
 
 const COMPANY_THEME_CSS = `
 .company-theme {
@@ -182,7 +168,6 @@ function SlidingCard({
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function RetellPage() {
-  const [theme, setTheme] = useState<"my" | "company">("my");
   const [transcript, setTranscript] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<RetellAnalysis | null>(null);
@@ -190,7 +175,7 @@ export default function RetellPage() {
 
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  const C = theme === "my" ? MY_STYLE : CSS_VAR_COLORS;
+  const C = CSS_VAR_COLORS;
   const ACCENT = C.accent;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -220,8 +205,8 @@ export default function RetellPage() {
   }
 
   return (
-    <div className={`min-h-screen${theme === "company" ? " company-theme" : ""}`} style={{ backgroundColor: C.bg, color: C.text }}>
-      <CompanyThemeStyle active={theme === "company"} css={COMPANY_THEME_CSS} />
+    <div className="min-h-screen company-theme" style={{ backgroundColor: C.bg, color: C.text }}>
+      <CompanyThemeStyle active={true} css={COMPANY_THEME_CSS} />
 
       {/* Header */}
       <header
@@ -249,7 +234,7 @@ export default function RetellPage() {
               Find every moment your voice agent sounded robotic. Score the humanity. Get the rewrites.
             </p>
           </div>
-          <div className="flex flex-col items-end gap-1.5">
+          <div className="flex-shrink-0">
             <span className="text-xs" style={{ color: C.dim }}>
               Demo by{" "}
               <Link
@@ -260,12 +245,6 @@ export default function RetellPage() {
                 Armaan Kazi
               </Link>
             </span>
-            <ThemeToggle
-              theme={theme}
-              onChange={setTheme}
-              companyAccent={RETELL_GREEN}
-              darkContext={theme === "company"}
-            />
           </div>
         </div>
       </header>

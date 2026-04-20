@@ -631,7 +631,7 @@ export default function MidjourneyPage() {
                           </div>
                         </div>
                         <p className="text-[10px] mt-3" style={{ color: C.dim }}>
-                          Depth computed in-browser using MiDaS neural network — no server calls
+                          Depth computed in-browser using MiDaS neural network, no server calls
                         </p>
                       </>
                     ) : (

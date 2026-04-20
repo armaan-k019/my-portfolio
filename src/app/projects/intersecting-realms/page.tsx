@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 const BASE = '/projects/intersecting-realms';
 
-const PROSE = "max-w-3xl mx-auto px-6";
+const PROSE = "max-w-5xl mx-auto px-6";
 const WIDE  = "max-w-5xl mx-auto px-6";
 
 function Tile({ src, ratio }: { src: string; ratio: string }) {

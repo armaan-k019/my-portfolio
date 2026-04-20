@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import ThemeToggle, { MY_STYLE, CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
+import { CSS_VAR_COLORS } from "@/components/ThemeToggle";
 import CompanyThemeStyle from "@/components/CompanyThemeStyle";
 
 const RHO_ORANGE = "#e85d2f";
@@ -721,13 +721,12 @@ export default function DriftDetectionPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisError, setError] = useState<string | null>(null);
   const [analyzed, setAnalyzed]   = useState(false);
-  const [theme, setTheme]         = useState<"my" | "company">("my");
   const [scenario, setScenario]   = useState<"A" | "B">("A");
   const [txExpanded, setTxExpanded] = useState(false);
 
   const activeTransactions = scenario === "A" ? TRANSACTIONS : TRANSACTIONS_B;
 
-  const C = theme === "my" ? MY_STYLE : CSS_VAR_COLORS;
+  const C = CSS_VAR_COLORS;
 
   const PAGE_BG  = C.bg;
   const HEADING  = C.text;
@@ -827,8 +826,8 @@ export default function DriftDetectionPage() {
         }
       `}</style>
 
-      <CompanyThemeStyle active={theme === "company"} css={COMPANY_THEME_CSS} />
-      <div className={`min-h-screen${theme === "company" ? " company-theme" : ""}`} style={{ backgroundColor: PAGE_BG }}>
+      <CompanyThemeStyle active={true} css={COMPANY_THEME_CSS} />
+      <div className="min-h-screen company-theme" style={{ backgroundColor: PAGE_BG }}>
 
         {/* ── Header ────────────────────────────────────────────────────────── */}
         <header className="px-6 py-5 border-b" style={{ backgroundColor: C.headerBg, borderColor: C.headerBorder }}>
@@ -845,18 +844,17 @@ export default function DriftDetectionPage() {
                   Built for Rho
                 </span>
               </div>
-              <p className="text-sm" style={{ color: C.headerText !== "#ffffff" ? C.muted : "#9ca3af" }}>
+              <p className="text-sm" style={{ color: C.muted }}>
                 Surface slow-moving spend patterns your dashboard cannot see.
               </p>
             </div>
-            <div className="flex flex-col items-end gap-1.5">
+            <div className="flex-shrink-0">
               <span className="text-xs" style={{ color: C.dim }}>
                 Demo by{" "}
                 <Link href="/" className="underline hover:opacity-70 transition-opacity" style={{ color: C.muted }}>
                   Armaan Kazi
                 </Link>
               </span>
-              <ThemeToggle theme={theme} onChange={setTheme} companyAccent={RHO_ORANGE} darkContext={false} />
             </div>
           </div>
         </header>

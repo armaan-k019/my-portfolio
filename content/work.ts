@@ -60,6 +60,7 @@ export const workEntries: WorkEntry[] = [
     ],
     link: "",
     cardBg: "#ffffff",
+    type: "studentOrg",
   },
   {
     name: "NCR Voyix",

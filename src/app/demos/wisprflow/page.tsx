@@ -1,26 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import ThemeToggle, { MY_STYLE, CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
+import { CSS_VAR_COLORS } from "@/components/ThemeToggle";
 import CompanyThemeStyle from "@/components/CompanyThemeStyle";
 
 const WISPR_PURPLE = "#6C47FF";
-
-const COMPANY_STYLE: PageColors = {
-  bg: "#0f0f23",
-  cardBg: "#1a1a3e",
-  cardBorder: "#2a2a4e",
-  text: "#f1f1f1",
-  muted: "#a0a0c0",
-  dim: "#7070a0",
-  accent: WISPR_PURPLE,
-  accentBg: "rgba(108,71,255,0.15)",
-  headerBg: "#0f0f23",
-  headerBorder: "#2a2a4e",
-  headerText: "#f1f1f1",
-};
 
 const COMPANY_THEME_CSS = `
 .company-theme {
@@ -56,13 +41,11 @@ const PIPELINE_ROWS = [
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export default function WisprFlowPage() {
-  const [theme, setTheme] = useState<"my" | "company">("my");
-
-  const C = theme === "my" ? MY_STYLE : CSS_VAR_COLORS;
+  const C = CSS_VAR_COLORS;
 
   return (
-    <div className={`min-h-screen${theme === "company" ? " company-theme" : ""}`} style={{ backgroundColor: C.bg }}>
-      <CompanyThemeStyle active={theme === "company"} css={COMPANY_THEME_CSS} />
+    <div className="min-h-screen company-theme" style={{ backgroundColor: C.bg }}>
+      <CompanyThemeStyle active={true} css={COMPANY_THEME_CSS} />
       {/* Mobile overlay */}
       <div className="sm:hidden fixed inset-0 z-50 bg-[#F5F0E8] flex items-center justify-center p-8">
         <div className="text-center max-w-xs">
@@ -92,7 +75,7 @@ export default function WisprFlowPage() {
                 className="text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase tracking-widest"
                 style={{
                   borderColor: C.accent + "50",
-                  color: theme === "my" ? "#9ca3af" : C.accent,
+                  color: C.accent,
                   backgroundColor: C.accent + "12",
                 }}
               >
@@ -103,7 +86,7 @@ export default function WisprFlowPage() {
               Making voice dictation accessible through sign language, using only a webcam.
             </p>
           </div>
-          <div className="flex flex-col items-end gap-1.5">
+          <div className="flex-shrink-0">
             <span className="text-xs" style={{ color: C.dim }}>
               Demo by{" "}
               <Link
@@ -114,7 +97,6 @@ export default function WisprFlowPage() {
                 Armaan Kazi
               </Link>
             </span>
-            <ThemeToggle theme={theme} onChange={setTheme} companyAccent={WISPR_PURPLE} darkContext={theme === "company"} />
           </div>
         </div>
       </header>

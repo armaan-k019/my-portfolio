@@ -22,6 +22,14 @@ interface DemoCard {
 
 const demoCards: DemoCard[] = [
   {
+    slug: "revyl",
+    company: "Revyl",
+    headline: "Test the Tester",
+    pitch: "Paste any test and get an adversarial audit: confidence score, severity-ranked weaknesses with concrete bug examples, and a rewrite in Revyl's natural-language style.",
+    accentColor: "#3b82f6",
+    url: "/demos/revyl",
+  },
+  {
     slug: "rho",
     company: "Rho",
     headline: "Drift Detection",

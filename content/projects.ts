@@ -20,7 +20,6 @@ export const projects: Project[] = [
     blurb: "Precedent analysis in masonry construction through the lens of the Hakka Indenture Museum.",
     description: "A precedent study examining masonry as a structural and cultural medium, centered on the Hakka Indenture Museum. The analysis traces how load-bearing masonry encodes collective memory and communal identity, drawing connections between material honesty and the histories of displaced and indentured peoples.",
     stack: [],
-    status: "In Progress",
   },
   {
     slug: "intersecting-realms",
@@ -71,7 +70,7 @@ export const projects: Project[] = [
     title: "Pulse",
     category: "cs",
     blurb: "A live data portrait of Georgia Tech's campus.",
-    description: "A live data portrait of Georgia Tech's campus — bus locations, crowd density, dining wait times, and an AI assistant that helps you navigate your day.",
+    description: "A live data portrait of Georgia Tech's campus: bus locations, crowd density, dining wait times, and an AI assistant that helps you navigate your day.",
     stack: ["Next.js", "Google Maps", "TransLoc API", "Claude API"],
     github: "https://github.com/armaan-k019/pulse-gt",
   },

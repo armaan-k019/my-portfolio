@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import ThemeToggle, { MY_STYLE, CSS_VAR_COLORS } from "@/components/ThemeToggle";
+import { CSS_VAR_COLORS } from "@/components/ThemeToggle";
 import CompanyThemeStyle from "@/components/CompanyThemeStyle";
 
 const SAMPLE_COPY = `Welcome to Alpha Signals Pro
@@ -261,7 +261,6 @@ function StrikethroughHeadline({ text, rewrite, bg, border, textColor }: { text:
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function WhopPage() {
-  const [theme, setTheme] = useState<"my" | "company">("my");
   const [activeTab, setActiveTab] = useState<"paste" | "sample">("paste");
   const [pageCopy, setPageCopy] = useState("");
   const [niche, setNiche] = useState("");
@@ -277,7 +276,7 @@ export default function WhopPage() {
 
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  const C = theme === "my" ? MY_STYLE : CSS_VAR_COLORS;
+  const C = CSS_VAR_COLORS;
   const BG = C.bg;
   const CARD = C.cardBg;
   const BORDER = C.cardBorder;
@@ -340,8 +339,8 @@ export default function WhopPage() {
   const canSubmit = pageCopy.trim().length > 20 && niche.trim().length > 0 && price.trim().length > 0;
 
   return (
-    <div className={`min-h-screen${theme === "company" ? " company-theme" : ""}`} style={{ backgroundColor: BG, color: C.text }}>
-      <CompanyThemeStyle active={theme === "company"} css={COMPANY_THEME_CSS} />
+    <div className="min-h-screen company-theme" style={{ backgroundColor: BG, color: C.text }}>
+      <CompanyThemeStyle active={true} css={COMPANY_THEME_CSS} />
       {/* Header */}
       <header className="px-6 py-5 border-b" style={{ borderColor: C.headerBorder, backgroundColor: C.headerBg }}>
         <div className="w-full max-w-[860px] mx-auto flex items-start justify-between gap-4 flex-wrap">
@@ -359,14 +358,13 @@ export default function WhopPage() {
               Paste your product page. Get roasted. Ship better.
             </p>
           </div>
-          <div className="flex flex-col items-end gap-1.5">
+          <div className="flex-shrink-0">
             <span className="text-xs mt-1" style={{ color: C.dim }}>
               Demo by{" "}
               <Link href="/" className="underline hover:opacity-70 transition-opacity" style={{ color: C.muted }}>
                 Armaan Kazi
               </Link>
             </span>
-            <ThemeToggle theme={theme} onChange={setTheme} companyAccent={PURPLE} darkContext={theme === "company"} />
           </div>
         </div>
       </header>

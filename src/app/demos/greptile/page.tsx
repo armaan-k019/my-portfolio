@@ -2,27 +2,13 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import ThemeToggle, { MY_STYLE, CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
+import { CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
 import CompanyThemeStyle from "@/components/CompanyThemeStyle";
 import { JetBrains_Mono } from "next/font/google";
 
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-brand" });
 
 const GREPTILE_DARK = "#1a1a1a";
-
-const COMPANY_STYLE: PageColors = {
-  bg: "#ffffff",
-  cardBg: "#fafafa",
-  cardBorder: "#e5e7eb",
-  text: "#1a1a1a",
-  muted: "#6b7280",
-  dim: "#9ca3af",
-  accent: GREPTILE_DARK,
-  accentBg: "#f3f4f6",
-  headerBg: GREPTILE_DARK,
-  headerBorder: "#333333",
-  headerText: "#ffffff",
-};
 
 const COMPANY_THEME_CSS = `
 .company-theme {
@@ -232,14 +218,13 @@ export default function GreptilePage() {
   const [loadingStep, setLoadingStep] = useState(0);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [theme, setTheme] = useState<"my" | "company">("my");
 
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  const C = theme === "my" ? MY_STYLE : CSS_VAR_COLORS;
+  const C = CSS_VAR_COLORS;
 
-  const DARK_PANEL = theme === "my" ? "#1e2a1e" : "#1a1a1a";
-  const DARK_PANEL_BORDER = theme === "my" ? "#2d4a2d" : "#333333";
+  const DARK_PANEL = "#1a1a1a";
+  const DARK_PANEL_BORDER = "#333333";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -279,8 +264,8 @@ export default function GreptilePage() {
     : [];
 
   return (
-    <div className={`min-h-screen${theme === "company" ? ` company-theme ${jetbrainsMono.variable}` : ""}`} style={{ backgroundColor: C.bg, color: C.text }}>
-      <CompanyThemeStyle active={theme === "company"} css={COMPANY_THEME_CSS} />
+    <div className={`min-h-screen company-theme ${jetbrainsMono.variable}`} style={{ backgroundColor: C.bg, color: C.text }}>
+      <CompanyThemeStyle active={true} css={COMPANY_THEME_CSS} />
 
       {/* Header */}
       <header
@@ -295,23 +280,22 @@ export default function GreptilePage() {
               </h1>
               <span
                 className="text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase tracking-widest"
-                style={{ borderColor: C.accent + "60", color: C.headerText === "#ffffff" ? "#9ca3af" : C.accent, backgroundColor: C.accent + "15" }}
+                style={{ borderColor: C.accent + "60", color: "#9ca3af", backgroundColor: C.accent + "15" }}
               >
                 Built for Greptile
               </span>
             </div>
-            <p className="text-sm" style={{ color: C.headerText === "#ffffff" ? "#9ca3af" : C.muted }}>
+            <p className="text-sm" style={{ color: "#9ca3af" }}>
               Signal vs noise. Bugs your reviewers missed. Reviewer health scores.
             </p>
           </div>
-          <div className="flex flex-col items-end gap-1.5">
-            <span className="text-xs" style={{ color: C.headerText === "#ffffff" ? "#6b7280" : C.dim }}>
+          <div className="flex-shrink-0">
+            <span className="text-xs" style={{ color: "#6b7280" }}>
               Demo by{" "}
-              <Link href="/" className="underline hover:opacity-70 transition-opacity" style={{ color: C.headerText === "#ffffff" ? "#9ca3af" : C.muted }}>
+              <Link href="/" className="underline hover:opacity-70 transition-opacity" style={{ color: "#9ca3af" }}>
                 Armaan Kazi
               </Link>
             </span>
-            <ThemeToggle theme={theme} onChange={setTheme} companyAccent={GREPTILE_DARK} darkContext={theme === "company"} />
           </div>
         </div>
       </header>

@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
-import ThemeToggle, { MY_STYLE, CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
+import { CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
 import CompanyThemeStyle from "@/components/CompanyThemeStyle";
 import { DM_Sans } from "next/font/google";
 
@@ -269,8 +269,7 @@ ${brief.key_talking_points.map((p, i) => `${i + 1}. ${p}`).join("\n")}`;
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function AthenaHQPage() {
-  const [theme, setTheme] = useState<"my" | "company">("my");
-  const C = theme === "my" ? MY_STYLE : CSS_VAR_COLORS;
+  const C = CSS_VAR_COLORS;
   const NAVY = C.accent;
 
   const [form, setForm] = useState({
@@ -407,8 +406,8 @@ export default function AthenaHQPage() {
   const canSubmit = form.brand.trim().length > 0 && form.industry.trim().length > 0;
 
   return (
-    <div className={`min-h-screen${theme === "company" ? ` company-theme ${dmSans.variable}` : ""}`} style={{ backgroundColor: C.bg }}>
-      <CompanyThemeStyle active={theme === "company"} css={COMPANY_THEME_CSS} />
+    <div className={`min-h-screen company-theme ${dmSans.variable}`} style={{ backgroundColor: C.bg }}>
+      <CompanyThemeStyle active={true} css={COMPANY_THEME_CSS} />
       {/* ── Header ── */}
       <header className="px-6 py-5 border-b" style={{ backgroundColor: C.headerBg, borderColor: C.headerBorder }}>
         <div className="max-w-5xl mx-auto flex items-start justify-between gap-4 flex-wrap">
@@ -419,25 +418,24 @@ export default function AthenaHQPage() {
                 className="text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase tracking-widest"
                 style={{
                   borderColor: NAVY + "50",
-                  color: theme === "my" ? "#9ca3af" : NAVY,
+                  color: NAVY,
                   backgroundColor: NAVY + "12",
                 }}
               >
                 Built for AthenaHQ
               </span>
             </div>
-            <p className="text-sm" style={{ color: theme === "my" ? C.muted : "rgba(255,255,255,0.55)" }}>
+            <p className="text-sm" style={{ color: "rgba(255,255,255,0.55)" }}>
               GEO visibility, citation gaps, and content briefs in one pass.
             </p>
           </div>
-          <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-            <span className="text-xs" style={{ color: theme === "my" ? C.dim : "rgba(255,255,255,0.30)" }}>
+          <div className="flex-shrink-0">
+            <span className="text-xs" style={{ color: "rgba(255,255,255,0.30)" }}>
               Demo by{" "}
-              <Link href="/" className="underline transition-colors hover:opacity-80" style={{ color: theme === "my" ? C.muted : "rgba(255,255,255,0.55)" }}>
+              <Link href="/" className="underline transition-colors hover:opacity-80" style={{ color: "rgba(255,255,255,0.55)" }}>
                 Armaan Kazi
               </Link>
             </span>
-            <ThemeToggle theme={theme} onChange={setTheme} companyAccent={ATHENA_NAVY} darkContext={theme === "company"} />
           </div>
         </div>
       </header>

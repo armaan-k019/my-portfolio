@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
-import ThemeToggle, { MY_STYLE, CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
+import { CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
 import CompanyThemeStyle from "@/components/CompanyThemeStyle";
 import { Space_Mono } from "next/font/google";
 
@@ -200,9 +200,7 @@ export default function SideShiftPage() {
 
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  const [theme, setTheme] = useState<"my" | "company">("my");
-
-  const C = theme === "my" ? MY_STYLE : CSS_VAR_COLORS;
+  const C = CSS_VAR_COLORS;
 
   const BG = C.bg;
   const CARD = C.cardBg;
@@ -279,8 +277,8 @@ export default function SideShiftPage() {
   };
 
   return (
-    <div className={`min-h-screen${theme === "company" ? ` company-theme ${spaceMono.variable}` : ""}`} style={{ backgroundColor: BG, color: TEXT }}>
-      <CompanyThemeStyle active={theme === "company"} css={COMPANY_THEME_CSS} />
+    <div className={`min-h-screen company-theme ${spaceMono.variable}`} style={{ backgroundColor: BG, color: TEXT }}>
+      <CompanyThemeStyle active={true} css={COMPANY_THEME_CSS} />
 
       {/* ── Header ── */}
       <header
@@ -305,14 +303,13 @@ export default function SideShiftPage() {
               Find the optimal route for any crypto swap across 200+ assets.
             </p>
           </div>
-          <div className="flex flex-col items-end gap-1.5">
+          <div className="flex-shrink-0">
             <span className="text-xs mt-1" style={{ color: DIM }}>
               Demo by{" "}
               <Link href="/" className="underline transition-colors" style={{ color: MUTED }}>
                 Armaan Kazi
               </Link>
             </span>
-            <ThemeToggle theme={theme} onChange={setTheme} companyAccent={SIDESHIFT_ORANGE} darkContext={theme === "company"} />
           </div>
         </div>
       </header>

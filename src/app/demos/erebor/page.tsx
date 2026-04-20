@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
-import ThemeToggle, { MY_STYLE, type PageColors } from "@/components/ThemeToggle";
+import { type PageColors } from "@/components/ThemeToggle";
 
 // ── Company style constants ────────────────────────────────────────────────────
 
@@ -213,8 +213,7 @@ function Toggle({
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
 export default function EreborPage() {
-  const [theme, setTheme] = useState<"my" | "company">("my");
-  const C = theme === "my" ? MY_STYLE : EREBOR_STYLE;
+  const C = EREBOR_STYLE;
   const GOLD = C.accent;
 
   const [form, setForm] = useState({
@@ -287,7 +286,7 @@ export default function EreborPage() {
 
   // Shared input style
   const inputStyle: React.CSSProperties = {
-    backgroundColor: theme === "my" ? "#f9f8f6" : "#0d0d14",
+    backgroundColor: "#0d0d14",
     border: `1px solid ${C.cardBorder}`,
     color: C.text,
     borderRadius: 10,
@@ -327,19 +326,13 @@ export default function EreborPage() {
               Know your risk before your bank acts on it.
             </p>
           </div>
-          <div className="flex flex-col items-end gap-1.5">
+          <div className="flex-shrink-0">
             <span className="text-xs mt-1" style={{ color: C.dim }}>
               Demo by{" "}
               <Link href="/" className="underline transition-colors" style={{ color: C.muted }}>
                 Armaan Kazi
               </Link>
             </span>
-            <ThemeToggle
-              theme={theme}
-              onChange={setTheme}
-              companyAccent={EREBOR_STYLE.accent}
-              darkContext={theme === "company"}
-            />
           </div>
         </div>
       </header>
@@ -463,7 +456,7 @@ export default function EreborPage() {
             >
               <div
                 className="grid grid-cols-3 px-4 py-2.5"
-                style={{ backgroundColor: theme === "my" ? "#f3f0ec" : "#0d0d14", borderBottom: `1px solid ${C.cardBorder}` }}
+                style={{ backgroundColor: "#0d0d14", borderBottom: `1px solid ${C.cardBorder}` }}
               >
                 <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: C.dim }}></span>
                 <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: C.dim }}>Today</span>
@@ -479,7 +472,7 @@ export default function EreborPage() {
                   key={feature}
                   className="grid grid-cols-3 px-4 py-3"
                   style={{
-                    backgroundColor: i % 2 === 0 ? C.cardBg : (theme === "my" ? "#faf9f7" : "#0d0d14"),
+                    backgroundColor: i % 2 === 0 ? C.cardBg : ("#0d0d14"),
                     borderBottom: i < 3 ? `1px solid ${C.cardBorder}` : "none",
                   }}
                 >
@@ -594,7 +587,7 @@ export default function EreborPage() {
                       style={selectStyle}
                     >
                       {COMPANY_TYPES.map(t => (
-                        <option key={t} value={t} style={{ backgroundColor: theme === "my" ? "#fff" : "#111118" }}>{t}</option>
+                        <option key={t} value={t} style={{ backgroundColor: "#111118" }}>{t}</option>
                       ))}
                     </select>
                   </div>
@@ -608,7 +601,7 @@ export default function EreborPage() {
                       style={selectStyle}
                     >
                       {REVENUE_SOURCES.map(r => (
-                        <option key={r} value={r} style={{ backgroundColor: theme === "my" ? "#fff" : "#111118" }}>{r}</option>
+                        <option key={r} value={r} style={{ backgroundColor: "#111118" }}>{r}</option>
                       ))}
                     </select>
                   </div>
@@ -622,7 +615,7 @@ export default function EreborPage() {
                       style={selectStyle}
                     >
                       {REVENUE_RANGES.map(r => (
-                        <option key={r} value={r} style={{ backgroundColor: theme === "my" ? "#fff" : "#111118" }}>{r}</option>
+                        <option key={r} value={r} style={{ backgroundColor: "#111118" }}>{r}</option>
                       ))}
                     </select>
                   </div>
@@ -636,7 +629,7 @@ export default function EreborPage() {
                       style={selectStyle}
                     >
                       {JURISDICTIONS.map(j => (
-                        <option key={j} value={j} style={{ backgroundColor: theme === "my" ? "#fff" : "#111118" }}>{j}</option>
+                        <option key={j} value={j} style={{ backgroundColor: "#111118" }}>{j}</option>
                       ))}
                     </select>
                   </div>
@@ -646,7 +639,7 @@ export default function EreborPage() {
                 <div className="space-y-4">
                   <div
                     className="rounded-xl p-4 space-y-3"
-                    style={{ backgroundColor: theme === "my" ? "#f9f8f6" : "#0d0d14", border: `1px solid ${C.cardBorder}` }}
+                    style={{ backgroundColor: "#0d0d14", border: `1px solid ${C.cardBorder}` }}
                   >
                     <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: C.dim, letterSpacing: "0.12em" }}>
                       Business Characteristics
@@ -795,7 +788,7 @@ export default function EreborPage() {
                   <div
                     key={pill.label}
                     className="rounded-xl px-4 py-3"
-                    style={{ backgroundColor: theme === "my" ? "#f9f8f6" : "#0d0d14", border: `1px solid ${C.cardBorder}` }}
+                    style={{ backgroundColor: "#0d0d14", border: `1px solid ${C.cardBorder}` }}
                   >
                     <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: C.dim, letterSpacing: "0.12em" }}>
                       {pill.label}
@@ -879,7 +872,7 @@ export default function EreborPage() {
               {/* Header */}
               <div
                 className="grid grid-cols-2 px-5 py-3"
-                style={{ backgroundColor: theme === "my" ? "#f3f0ec" : "#0d0d14", borderBottom: `1px solid ${C.cardBorder}` }}
+                style={{ backgroundColor: "#0d0d14", borderBottom: `1px solid ${C.cardBorder}` }}
               >
                 <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: C.dim, letterSpacing: "0.12em" }}>
                   Banking Service
@@ -893,7 +886,7 @@ export default function EreborPage() {
                   key={item.service}
                   className="grid grid-cols-2 px-5 py-4 items-center"
                   style={{
-                    backgroundColor: i % 2 === 0 ? C.cardBg : (theme === "my" ? "#faf9f7" : "#0d0d14"),
+                    backgroundColor: i % 2 === 0 ? C.cardBg : ("#0d0d14"),
                     borderBottom: i < result.vulnerability_map.length - 1 ? `1px solid ${C.cardBorder}` : "none",
                   }}
                 >

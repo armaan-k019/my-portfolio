@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
-import ThemeToggle, { MY_STYLE, CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
+import { CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
 import CompanyThemeStyle from "@/components/CompanyThemeStyle";
 import { Merriweather } from "next/font/google";
 
@@ -149,9 +149,7 @@ export default function HarperPage() {
   const [error, setError] = useState<string | null>(null);
   const briefRef = useRef<HTMLDivElement>(null);
 
-  const [theme, setTheme] = useState<"my" | "company">("my");
-
-  const C = theme === "my" ? MY_STYLE : CSS_VAR_COLORS;
+  const C = CSS_VAR_COLORS;
   const NAVY = C.accent;
 
   function loadSample() {
@@ -226,8 +224,8 @@ export default function HarperPage() {
   const totalMax = sorted.reduce((sum, l) => sum + l.premium_max, 0);
 
   return (
-    <div className={`min-h-screen flex flex-col${theme === "company" ? ` company-theme ${merriweather.variable}` : ""}`} style={{ backgroundColor: C.bg }}>
-      <CompanyThemeStyle active={theme === "company"} css={COMPANY_THEME_CSS} />
+    <div className={`min-h-screen flex flex-col company-theme ${merriweather.variable}`} style={{ backgroundColor: C.bg }}>
+      <CompanyThemeStyle active={true} css={COMPANY_THEME_CSS} />
       {/* Header */}
       <header
         className="border-b px-6 py-5"
@@ -243,30 +241,24 @@ export default function HarperPage() {
                 className="text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase tracking-widest"
                 style={{
                   borderColor: NAVY + "50",
-                  color: theme === "my" ? "#9ca3af" : NAVY,
+                  color: NAVY,
                   backgroundColor: NAVY + "12",
                 }}
               >
                 Built for Harper
               </span>
             </div>
-            <p className="text-sm" style={{ color: theme === "my" ? C.muted : C.headerText + "99" }}>
+            <p className="text-sm" style={{ color: C.headerText + "99" }}>
               Commercial insurance coverage profiler for any business type.
             </p>
           </div>
-          <div className="flex flex-col items-end gap-1.5">
-            <span className="text-xs" style={{ color: theme === "my" ? C.dim : C.headerText + "80" }}>
+          <div>
+            <span className="text-xs" style={{ color: C.headerText + "80" }}>
               Demo by{" "}
-              <Link href="/" className="underline hover:opacity-70 transition-opacity" style={{ color: theme === "my" ? C.muted : C.headerText + "99" }}>
+              <Link href="/" className="underline hover:opacity-70 transition-opacity" style={{ color: C.headerText + "99" }}>
                 Armaan Kazi
               </Link>
             </span>
-            <ThemeToggle
-              theme={theme}
-              onChange={setTheme}
-              companyAccent={HARPER_NAVY}
-              darkContext={theme === "company"}
-            />
           </div>
         </div>
       </header>

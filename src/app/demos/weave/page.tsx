@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
-import ThemeToggle, { MY_STYLE, CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
+import { CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
 import CompanyThemeStyle from "@/components/CompanyThemeStyle";
 
 const WEAVE_TEAL = "#00b5a3";
@@ -264,9 +264,7 @@ export default function WeavePage() {
   const [error, setError] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  const [theme, setTheme] = useState<"my" | "company">("my");
-
-  const C = theme === "my" ? MY_STYLE : CSS_VAR_COLORS;
+  const C = CSS_VAR_COLORS;
   const TEAL = C.accent;
   const TEAL_DARK = C.accent;
   const TEAL_LIGHT = C.accentBg;
@@ -341,8 +339,8 @@ export default function WeavePage() {
   let globalIndex = 0;
 
   return (
-    <div className={`min-h-screen${theme === "company" ? " company-theme" : ""}`} style={{ backgroundColor: C.bg }}>
-      <CompanyThemeStyle active={theme === "company"} css={COMPANY_THEME_CSS} />
+    <div className="min-h-screen company-theme" style={{ backgroundColor: C.bg }}>
+      <CompanyThemeStyle active={true} css={COMPANY_THEME_CSS} />
       {/* Header */}
       <header
         className="border-b px-6 py-4"
@@ -367,19 +365,13 @@ export default function WeavePage() {
               No-shows cost the average healthcare practice $150,000+ per year. Weave's communication platform reduces no-show rates by up to 40% through automated multi-touch outreach. This tool generates the exact message sequences your practice should be sending, tailored to your specialty, patient profile, and appointment type.
             </p>
           </div>
-          <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+          <div className="flex-shrink-0">
             <span className="text-xs" style={{ color: C.headerText + "99" }}>
               Demo by{" "}
               <Link href="/" className="hover:underline transition-colors" style={{ color: C.headerText }}>
                 Armaan Kazi
               </Link>
             </span>
-            <ThemeToggle
-              theme={theme}
-              onChange={setTheme}
-              companyAccent={WEAVE_TEAL}
-              darkContext={false}
-            />
           </div>
         </div>
       </header>
