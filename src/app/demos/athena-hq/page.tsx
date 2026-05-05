@@ -8,18 +8,16 @@ import { DM_Sans } from "next/font/google";
 
 const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-brand" });
 
-const ATHENA_NAVY = "#1a2744";
+const ATHENA_NAVY = "#2d5a27";
 
 
 const COMPANY_THEME_CSS = `
 .company-theme {
-  --ct-bg: #f8fafc; --ct-card-bg: #ffffff; --ct-card-border: #e2e8f0;
-  --ct-text: ${ATHENA_NAVY}; --ct-muted: #64748b; --ct-dim: #94a3b8;
-  --ct-accent: ${ATHENA_NAVY}; --ct-accent-bg: rgba(26,39,68,0.06);
-  --ct-header-bg: ${ATHENA_NAVY}; --ct-header-border: #2a3754; --ct-header-text: #ffffff;
-  font-family: var(--font-brand, 'DM Sans', sans-serif);
+  --ct-bg: #f5f3ef; --ct-card-bg: #ffffff; --ct-card-border: #e5e0d8;
+  --ct-text: #1a1a1a; --ct-muted: #6b6b6b; --ct-dim: #9a8a7a;
+  --ct-accent: #2d5a27; --ct-accent-bg: #eef2ec;
+  --ct-header-bg: #ffffff; --ct-header-border: #e5e0d8; --ct-header-text: #1a1a1a;
 }
-.company-theme button, .company-theme input, .company-theme select, .company-theme textarea { font-family: inherit; }
 `;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -425,14 +423,14 @@ export default function AthenaHQPage() {
                 Built for AthenaHQ
               </span>
             </div>
-            <p className="text-sm" style={{ color: "rgba(255,255,255,0.55)" }}>
+            <p className="text-sm" style={{ color: C.muted }}>
               GEO visibility, citation gaps, and content briefs in one pass.
             </p>
           </div>
           <div className="flex-shrink-0">
-            <span className="text-xs" style={{ color: "rgba(255,255,255,0.30)" }}>
+            <span className="text-xs" style={{ color: C.dim }}>
               Demo by{" "}
-              <Link href="/" className="underline transition-colors hover:opacity-80" style={{ color: "rgba(255,255,255,0.55)" }}>
+              <Link href="/" className="underline transition-colors hover:opacity-80" style={{ color: C.muted }}>
                 Armaan Kazi
               </Link>
             </span>

@@ -8,19 +8,16 @@ import { Space_Mono } from "next/font/google";
 
 const spaceMono = Space_Mono({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-brand" });
 
-const SIDESHIFT_ORANGE = "#f97316";
+const SIDESHIFT_ORANGE = "#2d5a27";
 
 
 const COMPANY_THEME_CSS = `
 .company-theme {
-  --ct-bg: #0f0f0f; --ct-card-bg: #1a1a1a; --ct-card-border: #2a2a2a;
-  --ct-text: #f1f1f1; --ct-muted: #9ca3af; --ct-dim: #6b7280;
-  --ct-accent: ${SIDESHIFT_ORANGE}; --ct-accent-bg: rgba(249,115,22,0.12);
-  --ct-header-bg: #0a0a0a; --ct-header-border: #2a2a2a; --ct-header-text: #f1f1f1;
-  font-family: var(--font-brand, 'Space Mono', monospace);
+  --ct-bg: #f5f3ef; --ct-card-bg: #ffffff; --ct-card-border: #e5e0d8;
+  --ct-text: #1a1a1a; --ct-muted: #6b6b6b; --ct-dim: #9a8a7a;
+  --ct-accent: #2d5a27; --ct-accent-bg: #eef2ec;
+  --ct-header-bg: #ffffff; --ct-header-border: #e5e0d8; --ct-header-text: #1a1a1a;
 }
-.company-theme .rounded-xl, .company-theme .rounded-lg, .company-theme .rounded-2xl { border-radius: 4px; }
-.company-theme button, .company-theme input, .company-theme select, .company-theme textarea { border-radius: 4px; font-family: inherit; }
 `;
 
 const PRIORITIES = ["Lowest Fees", "Fastest Confirmation", "Best Rate Certainty"] as const;
@@ -169,7 +166,7 @@ function RouteCard({ route, c }: { route: RouteOption; c: PageColors }) {
       </p>
 
       {/* Why it works */}
-      <div className="rounded-xl px-3 py-2.5" style={{ backgroundColor: "#0f0f0f" }}>
+      <div className="rounded-xl px-3 py-2.5" style={{ backgroundColor: c.bg }}>
         <p className="text-xs leading-relaxed" style={{ color: c.muted }}>
           {route.why_it_works}
         </p>
@@ -266,7 +263,7 @@ export default function SideShiftPage() {
 
   // Input style helper
   const inputStyle: React.CSSProperties = {
-    backgroundColor: "#0f0f0f",
+    backgroundColor: C.cardBg,
     border: `1px solid ${BORDER}`,
     color: TEXT,
     borderRadius: 10,
@@ -410,7 +407,7 @@ export default function SideShiftPage() {
 
           {/* Comparison table */}
           <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
-            <div className="grid grid-cols-3 px-4 py-2.5" style={{ backgroundColor: "#0f0f0f", borderBottom: `1px solid ${BORDER}` }}>
+            <div className="grid grid-cols-3 px-4 py-2.5" style={{ backgroundColor: BG, borderBottom: `1px solid ${BORDER}` }}>
               <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: DIM }}>Feature</span>
               <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: DIM }}>Today</span>
               <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: ORANGE }}>With Route Optimizer</span>
@@ -426,7 +423,7 @@ export default function SideShiftPage() {
                 key={feature}
                 className="grid grid-cols-3 px-4 py-3"
                 style={{
-                  backgroundColor: i % 2 === 0 ? CARD : "#0f0f0f",
+                  backgroundColor: i % 2 === 0 ? CARD : BG,
                   borderBottom: i < 4 ? `1px solid ${BORDER}` : "none",
                 }}
               >
@@ -656,8 +653,8 @@ export default function SideShiftPage() {
 
         {/* ── Error ── */}
         {error && !loading && (
-          <div className="rounded-xl px-4 py-3 mb-8" style={{ backgroundColor: "#2a0f0f", border: "1px solid #ef444440" }}>
-            <p className="text-sm text-red-400">{error}</p>
+          <div className="rounded-xl px-4 py-3 mb-8" style={{ backgroundColor: "#fee2e2", border: "1px solid #ef444440" }}>
+            <p className="text-sm text-red-700">{error}</p>
             <button
               onClick={reset}
               className="text-xs mt-2 underline"
@@ -701,7 +698,7 @@ export default function SideShiftPage() {
                   <div
                     key={pill.label}
                     className="rounded-xl px-4 py-3"
-                    style={{ backgroundColor: "#0f0f0f", border: `1px solid ${BORDER}` }}
+                    style={{ backgroundColor: BG, border: `1px solid ${BORDER}` }}
                   >
                     <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: DIM }}>{pill.label}</p>
                     <p className="text-sm font-bold" style={{ color: ORANGE }}>{pill.value}</p>
@@ -732,7 +729,7 @@ export default function SideShiftPage() {
                     <div
                       className="grid px-4 py-2.5"
                       style={{
-                        backgroundColor: "#0f0f0f",
+                        backgroundColor: BG,
                         borderBottom: `1px solid ${BORDER}`,
                         gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr",
                       }}
@@ -749,7 +746,7 @@ export default function SideShiftPage() {
                         key={i}
                         className="grid px-4 py-3"
                         style={{
-                          backgroundColor: i % 2 === 0 ? CARD : "#0f0f0f",
+                          backgroundColor: i % 2 === 0 ? CARD : BG,
                           borderBottom: i < result.hop_breakdown.length - 1 ? `1px solid ${BORDER}` : "none",
                           gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr",
                         }}
@@ -805,13 +802,13 @@ export default function SideShiftPage() {
                 {result.rate_explainer}
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="rounded-xl p-3" style={{ backgroundColor: "#0f0f0f", border: `1px solid ${ORANGE}30` }}>
+                <div className="rounded-xl p-3" style={{ backgroundColor: BG, border: `1px solid ${ORANGE}30` }}>
                   <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: ORANGE }}>
                     Choose Fixed if...
                   </p>
                   <p className="text-xs leading-relaxed" style={{ color: MUTED }}>{result.fixed_if}</p>
                 </div>
-                <div className="rounded-xl p-3" style={{ backgroundColor: "#0f0f0f", border: `1px solid #22c55e30` }}>
+                <div className="rounded-xl p-3" style={{ backgroundColor: BG, border: `1px solid #22c55e30` }}>
                   <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: "#22c55e" }}>
                     Choose Variable if...
                   </p>

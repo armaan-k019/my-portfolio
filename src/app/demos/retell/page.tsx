@@ -5,14 +5,14 @@ import Link from "next/link";
 import { CSS_VAR_COLORS } from "@/components/ThemeToggle";
 import CompanyThemeStyle from "@/components/CompanyThemeStyle";
 
-const RETELL_GREEN = "#00C389";
+const RETELL_GREEN = "#2d5a27";
 
 const COMPANY_THEME_CSS = `
 .company-theme {
-  --ct-bg: #0f0f1a; --ct-card-bg: #1a1a2e; --ct-card-border: #2a2a44;
-  --ct-text: #ffffff; --ct-muted: #a0a0c0; --ct-dim: #606080;
-  --ct-accent: ${RETELL_GREEN}; --ct-accent-bg: ${RETELL_GREEN}14;
-  --ct-header-bg: #0f0f1a; --ct-header-border: #2a2a44; --ct-header-text: #ffffff;
+  --ct-bg: #f5f3ef; --ct-card-bg: #ffffff; --ct-card-border: #e5e0d8;
+  --ct-text: #1a1a1a; --ct-muted: #6b6b6b; --ct-dim: #9a8a7a;
+  --ct-accent: #2d5a27; --ct-accent-bg: #eef2ec;
+  --ct-header-bg: #ffffff; --ct-header-border: #e5e0d8; --ct-header-text: #1a1a1a;
 }
 `;
 

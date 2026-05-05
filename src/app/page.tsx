@@ -55,7 +55,7 @@ export default function Home() {
             <h2 className="text-xl font-semibold text-brown mb-1">Research &amp; Publications</h2>
             <div className="w-10 h-[3px] bg-terracotta mb-3" />
             <p className="text-sm text-brown-light mb-8">
-              Including work to be presented at the Computer-Aided Architectural Design Research in Asia (CAADRIA) conference and the Environmental Design Research Association (EDRA) conference.
+              Research submitted, accepted, and presented at leading architecture and design conferences.
             </p>
             <ResearchSection entries={researchEntries} />
           </SectionReveal>

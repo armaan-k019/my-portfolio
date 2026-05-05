@@ -5,15 +5,15 @@ import Link from "next/link";
 import { CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
 import CompanyThemeStyle from "@/components/CompanyThemeStyle";
 
-const WEAVE_TEAL = "#00b5a3";
+const WEAVE_TEAL = "#2d5a27";
 
 
 const COMPANY_THEME_CSS = `
 .company-theme {
-  --ct-bg: #f0fafa; --ct-card-bg: #ffffff; --ct-card-border: #b2e8e4;
-  --ct-text: #1a1a1a; --ct-muted: #4b6b6b; --ct-dim: #6b8b8b;
-  --ct-accent: ${WEAVE_TEAL}; --ct-accent-bg: #e6f7f6;
-  --ct-header-bg: ${WEAVE_TEAL}; --ct-header-border: #00a090; --ct-header-text: #ffffff;
+  --ct-bg: #f5f3ef; --ct-card-bg: #ffffff; --ct-card-border: #e5e0d8;
+  --ct-text: #1a1a1a; --ct-muted: #6b6b6b; --ct-dim: #9a8a7a;
+  --ct-accent: #2d5a27; --ct-accent-bg: #eef2ec;
+  --ct-header-bg: #ffffff; --ct-header-border: #e5e0d8; --ct-header-text: #1a1a1a;
 }
 `;
 

@@ -5,14 +5,14 @@ import Link from "next/link";
 import { CSS_VAR_COLORS } from "@/components/ThemeToggle";
 import CompanyThemeStyle from "@/components/CompanyThemeStyle";
 
-const WISPR_PURPLE = "#6C47FF";
+const WISPR_PURPLE = "#2d5a27";
 
 const COMPANY_THEME_CSS = `
 .company-theme {
-  --ct-bg: #0f0f23; --ct-card-bg: #1a1a3e; --ct-card-border: #2a2a4e;
-  --ct-text: #f1f1f1; --ct-muted: #a0a0c0; --ct-dim: #7070a0;
-  --ct-accent: ${WISPR_PURPLE}; --ct-accent-bg: rgba(108,71,255,0.15);
-  --ct-header-bg: #0f0f23; --ct-header-border: #2a2a4e; --ct-header-text: #f1f1f1;
+  --ct-bg: #f5f3ef; --ct-card-bg: #ffffff; --ct-card-border: #e5e0d8;
+  --ct-text: #1a1a1a; --ct-muted: #6b6b6b; --ct-dim: #9a8a7a;
+  --ct-accent: #2d5a27; --ct-accent-bg: #eef2ec;
+  --ct-header-bg: #ffffff; --ct-header-border: #e5e0d8; --ct-header-text: #1a1a1a;
 }
 `;
 
@@ -21,8 +21,8 @@ const WisprDemo = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="rounded-xl bg-[#0F0F0F] flex items-center justify-center py-20">
-        <p className="text-sm text-white/30">Initializing…</p>
+      <div className="rounded-xl bg-white border border-[#e5e0d8] flex items-center justify-center py-20">
+        <p className="text-sm text-[#9a8a7a]">Initializing…</p>
       </div>
     ),
   }
@@ -47,14 +47,14 @@ export default function WisprFlowPage() {
     <div className="min-h-screen company-theme" style={{ backgroundColor: C.bg }}>
       <CompanyThemeStyle active={true} css={COMPANY_THEME_CSS} />
       {/* Mobile overlay */}
-      <div className="sm:hidden fixed inset-0 z-50 bg-[#F5F0E8] flex items-center justify-center p-8">
+      <div className="sm:hidden fixed inset-0 z-50 flex items-center justify-center p-8" style={{ backgroundColor: C.bg }}>
         <div className="text-center max-w-xs">
           <div className="text-3xl mb-4">🖥️</div>
-          <h2 className="text-lg font-semibold text-[#2C1810] mb-2">Desktop recommended</h2>
-          <p className="text-sm text-[#9A8070] leading-relaxed">
+          <h2 className="text-lg font-semibold mb-2" style={{ color: C.text }}>Desktop recommended</h2>
+          <p className="text-sm leading-relaxed" style={{ color: C.muted }}>
             ASL Flow uses your webcam and a computer vision model that works best on a desktop or laptop with a larger screen.
           </p>
-          <Link href="/demos" className="mt-6 inline-block text-xs text-[#6C47FF] hover:underline">
+          <Link href="/demos" className="mt-6 inline-block text-xs hover:underline" style={{ color: C.accent }}>
             ← Back to demos
           </Link>
         </div>

@@ -28,6 +28,10 @@ export const MY_STYLE: PageColors = {
   headerText: "#1a1a1a",
 };
 
+// Demo pages reference `CSS_VAR_COLORS` for inline styling. The values route
+// through CSS variables (`--ct-*`) that each demo's <CompanyThemeStyle/> sets.
+// Non-Greptile demos point those variables at MY_STYLE so they render in the
+// portfolio's own scheme; Greptile keeps its company-specific values.
 export const CSS_VAR_COLORS: PageColors = {
   bg: "var(--ct-bg)",
   cardBg: "var(--ct-card-bg)",
@@ -41,54 +45,3 @@ export const CSS_VAR_COLORS: PageColors = {
   headerBorder: "var(--ct-header-border)",
   headerText: "var(--ct-header-text)",
 };
-
-interface ThemeToggleProps {
-  theme: "my" | "company";
-  onChange: (t: "my" | "company") => void;
-  companyAccent: string;
-  /** Pass true when the surrounding header/area has a dark background */
-  darkContext?: boolean;
-}
-
-export default function ThemeToggle({
-  theme,
-  onChange,
-  companyAccent,
-  darkContext = false,
-}: ThemeToggleProps) {
-  const labelColor = darkContext
-    ? (theme === "my" ? "#9a8a7a" : companyAccent + "99")
-    : (theme === "my" ? "#9a8a7a" : companyAccent + "bb");
-
-  const wrapperBg = theme === "my"
-    ? (darkContext ? "#2a2a2a" : "#ede9e3")
-    : companyAccent + "22";
-
-  const activeColor = theme === "my" ? "#2d5a27" : companyAccent;
-
-  return (
-    <div className="flex items-center gap-1.5 flex-shrink-0">
-      <span className="text-[10px] font-medium" style={{ color: labelColor }}>
-        View as:
-      </span>
-      <div
-        className="flex rounded-lg p-0.5"
-        style={{ backgroundColor: wrapperBg }}
-      >
-        {(["my", "company"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => onChange(t)}
-            className="text-[10px] font-semibold px-2 py-1 rounded-md transition-all"
-            style={{
-              backgroundColor: theme === t ? activeColor : "transparent",
-              color: theme === t ? "#ffffff" : labelColor,
-            }}
-          >
-            {t === "my" ? "My Style" : "Company Style"}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}

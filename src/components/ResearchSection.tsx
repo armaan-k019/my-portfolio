@@ -41,9 +41,6 @@ export default function ResearchSection({ entries }: { entries: ResearchEntry[] 
                     <h3 className="font-medium text-darkblue">{entry.title}</h3>
                     {entry.category && <CategoryTag category={entry.category as Category} />}
                   </div>
-                  {entry.venue && (
-                    <p className="text-xs text-terracotta font-semibold mb-1">{entry.venue}</p>
-                  )}
                   {entry.status && (
                     <p className="text-xs text-brown-light mb-1">{entry.status}</p>
                   )}
@@ -68,9 +65,6 @@ export default function ResearchSection({ entries }: { entries: ResearchEntry[] 
           <div>
             <div className="bg-darkblue -mx-6 -mt-6 px-6 py-4 rounded-t-xl mb-5">
               <h3 className="text-lg font-semibold text-white leading-snug">{selected.title}</h3>
-              {selected.venue && (
-                <p className="text-sm text-white/70 mt-1">{selected.venue}</p>
-              )}
               {selected.status && (
                 <p className="text-xs text-terracotta mt-1">{selected.status}</p>
               )}
@@ -134,9 +128,6 @@ export default function ResearchSection({ entries }: { entries: ResearchEntry[] 
             {selected.footer && (
               <div className="border-t border-tan/30 pt-4 mt-4">
                 <p className="text-xs text-brown-light italic">{selected.footer}</p>
-                {selected.conferenceDates && (
-                  <p className="text-xs text-brown-light mt-1">{selected.conferenceDates}</p>
-                )}
               </div>
             )}
           </div>

@@ -8,19 +8,16 @@ import { Merriweather } from "next/font/google";
 
 const merriweather = Merriweather({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-brand" });
 
-const HARPER_NAVY = "#0f1f3d";
+const HARPER_NAVY = "#2d5a27";
 
 
 const COMPANY_THEME_CSS = `
 .company-theme {
-  --ct-bg: #ffffff; --ct-card-bg: #ffffff; --ct-card-border: rgba(15,31,61,0.15);
-  --ct-text: ${HARPER_NAVY}; --ct-muted: #4b6080; --ct-dim: #8a9abc;
-  --ct-accent: ${HARPER_NAVY}; --ct-accent-bg: rgba(15,31,61,0.06);
-  --ct-header-bg: ${HARPER_NAVY}; --ct-header-border: #1a2f5a; --ct-header-text: #ffffff;
-  font-family: var(--font-brand, 'Merriweather', serif);
+  --ct-bg: #f5f3ef; --ct-card-bg: #ffffff; --ct-card-border: #e5e0d8;
+  --ct-text: #1a1a1a; --ct-muted: #6b6b6b; --ct-dim: #9a8a7a;
+  --ct-accent: #2d5a27; --ct-accent-bg: #eef2ec;
+  --ct-header-bg: #ffffff; --ct-header-border: #e5e0d8; --ct-header-text: #1a1a1a;
 }
-.company-theme h1, .company-theme h2, .company-theme h3, .company-theme h4 { font-family: var(--font-brand, 'Merriweather', serif); }
-.company-theme button, .company-theme input, .company-theme select, .company-theme textarea { font-family: inherit; }
 `;
 
 interface CoverageLine {

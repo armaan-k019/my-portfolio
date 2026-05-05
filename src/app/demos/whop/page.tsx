@@ -47,15 +47,15 @@ const STAT_BADGE = (val: string, goodVals: string[]) => {
     : "bg-red-950 text-red-400 border border-red-800";
 };
 
-const PURPLE = "#7c3aed";
+const PURPLE = "#2d5a27";
 
 
 const COMPANY_THEME_CSS = `
 .company-theme {
-  --ct-bg: #0a0a0a; --ct-card-bg: #111111; --ct-card-border: #222222;
-  --ct-text: #ffffff; --ct-muted: #9ca3af; --ct-dim: #6b7280;
-  --ct-accent: ${PURPLE}; --ct-accent-bg: ${PURPLE}15;
-  --ct-header-bg: #050505; --ct-header-border: #222222; --ct-header-text: #ffffff;
+  --ct-bg: #f5f3ef; --ct-card-bg: #ffffff; --ct-card-border: #e5e0d8;
+  --ct-text: #1a1a1a; --ct-muted: #6b6b6b; --ct-dim: #9a8a7a;
+  --ct-accent: #2d5a27; --ct-accent-bg: #eef2ec;
+  --ct-header-bg: #ffffff; --ct-header-border: #e5e0d8; --ct-header-text: #1a1a1a;
 }
 `;
 
@@ -106,7 +106,7 @@ function CopyButton({ text, label = "Swipe Copy" }: { text: string; label?: stri
       style={{
         borderColor: copied ? "#22c55e" : PURPLE,
         color: copied ? "#22c55e" : PURPLE,
-        backgroundColor: copied ? "#052e16" : "transparent",
+        backgroundColor: copied ? "#dcfce7" : "transparent",
       }}
     >
       {copied ? "✓ Copied" : label}

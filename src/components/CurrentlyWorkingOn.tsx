@@ -25,21 +25,27 @@ export default function CurrentlyWorkingOn() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="w-full bg-darkblue rounded-xl px-5 py-3.5 mb-8 flex items-center justify-between gap-4 hover:brightness-110 transition-all cursor-pointer group"
+        className="w-full bg-terracotta rounded-2xl px-7 py-5 mb-8 flex items-center justify-between gap-4 shadow-md hover:shadow-xl hover:-translate-y-0.5 hover:bg-terracotta-dark transition-all duration-200 cursor-pointer group ring-1 ring-terracotta/30 hover:ring-terracotta/60"
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           {/* Pulse dot */}
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-terracotta opacity-75" />
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-terracotta" />
+          <span className="relative flex h-3 w-3 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-tan opacity-90" />
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-tan" />
           </span>
-          <span className="text-sm font-semibold text-white">Currently Working On</span>
+          <div className="text-left">
+            <span className="block text-base md:text-lg font-semibold text-white leading-tight">Currently Working On</span>
+            <span className="block text-xs text-white/70 mt-0.5 sm:hidden">Tap to view</span>
+            <span className="hidden sm:block text-xs text-white/75 mt-0.5">
+              A gallery on Sweet Auburn, a pavilion from waste.
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-white/60 hidden sm:inline">
-            A gallery on Sweet Auburn, a pavilion from waste.
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="hidden md:inline text-xs font-medium text-white/85 group-hover:text-white transition-colors">
+            View details
           </span>
-          <svg className="w-4 h-4 text-white/50 group-hover:text-white/80 transition-colors" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          <svg className="w-5 h-5 text-white/80 group-hover:text-white group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>
         </div>
@@ -47,11 +53,11 @@ export default function CurrentlyWorkingOn() {
 
       <Modal open={open} onClose={() => setOpen(false)}>
         <div>
-          <div className="bg-darkblue -mx-6 -mt-6 px-6 py-4 rounded-t-xl mb-5">
+          <div className="bg-terracotta -mx-6 -mt-6 px-6 py-4 rounded-t-xl mb-5">
             <div className="flex items-center gap-3">
               <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-terracotta opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-terracotta" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-tan opacity-90" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-tan" />
               </span>
               <h3 className="text-lg font-semibold text-white">Currently Working On</h3>
             </div>

@@ -26,7 +26,7 @@ export default function Carousel() {
 
   useEffect(() => {
     if (paused) return;
-    const timer = setInterval(next, 5000);
+    const timer = setInterval(next, 7000);
     return () => clearInterval(timer);
   }, [paused, next]);
 

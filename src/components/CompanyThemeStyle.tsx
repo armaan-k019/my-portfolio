@@ -1,11 +1,9 @@
-"use client";
-
 interface Props {
-  active: boolean;
-  css: string;
+  active?: boolean;
+  css?: string;
 }
 
 export default function CompanyThemeStyle({ active, css }: Props) {
-  if (!active) return null;
+  if (!active || !css) return null;
   return <style dangerouslySetInnerHTML={{ __html: css }} />;
 }

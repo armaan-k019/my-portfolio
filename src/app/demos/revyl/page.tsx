@@ -8,20 +8,16 @@ import { JetBrains_Mono } from "next/font/google";
 
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-brand" });
 
-const REVYL_ACCENT = "#3b82f6";
-const REVYL_BG = "#0d0d0d";
+const REVYL_ACCENT = "#2d5a27";
+const REVYL_BG = "#f5f3ef";
 
 const COMPANY_THEME_CSS = `
 .company-theme {
-  --ct-bg: ${REVYL_BG}; --ct-card-bg: #151515; --ct-card-border: #2a2a2a;
-  --ct-text: #e8e8e8; --ct-muted: #888888; --ct-dim: #555555;
-  --ct-accent: ${REVYL_ACCENT}; --ct-accent-bg: #3b82f615;
-  --ct-header-bg: #0a0a0a; --ct-header-border: #1e1e1e; --ct-header-text: #ffffff;
-  font-family: var(--font-brand, 'JetBrains Mono', monospace);
+  --ct-bg: #f5f3ef; --ct-card-bg: #ffffff; --ct-card-border: #e5e0d8;
+  --ct-text: #1a1a1a; --ct-muted: #6b6b6b; --ct-dim: #9a8a7a;
+  --ct-accent: #2d5a27; --ct-accent-bg: #eef2ec;
+  --ct-header-bg: #ffffff; --ct-header-border: #e5e0d8; --ct-header-text: #1a1a1a;
 }
-.company-theme .rounded-xl, .company-theme .rounded-lg,
-.company-theme .rounded-2xl, .company-theme .rounded-full { border-radius: 3px; }
-.company-theme button, .company-theme input, .company-theme textarea { border-radius: 3px; font-family: inherit; }
 `;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -532,13 +528,13 @@ export default function RevylPage() {
               <p className="text-xs mb-4" style={{ color: C.dim }}>
                 Revyl natural-language style. Explicit assertions at every step.
               </p>
-              <div className="border overflow-hidden" style={{ backgroundColor: "#0a0a0a", borderColor: "#2a2a2a" }}>
-                <div className="px-4 py-2 border-b flex items-center gap-2" style={{ borderColor: "#1e1e1e" }}>
+              <div className="border overflow-hidden rounded-lg" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
+                <div className="px-4 py-2 border-b flex items-center gap-2" style={{ borderColor: C.cardBorder }}>
                   <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: REVYL_ACCENT }}>
                     revyl
                   </span>
                 </div>
-                <pre className="px-5 py-4 text-sm font-mono whitespace-pre-wrap leading-relaxed" style={{ color: "#e8e8e8" }}>
+                <pre className="px-5 py-4 text-sm font-mono whitespace-pre-wrap leading-relaxed" style={{ color: C.text }}>
                   {result.rewrite}
                 </pre>
               </div>

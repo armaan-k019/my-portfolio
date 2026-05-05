@@ -16,9 +16,10 @@ interface DemoCard {
   company: string;
   headline: string;
   pitch: string;
-  accentColor: string;
   url: string;
 }
+
+const ACCENT = "#2d5a27";
 
 const demoCards: DemoCard[] = [
   {
@@ -26,7 +27,6 @@ const demoCards: DemoCard[] = [
     company: "Revyl",
     headline: "Test the Tester",
     pitch: "Paste any test and get an adversarial audit: confidence score, severity-ranked weaknesses with concrete bug examples, and a rewrite in Revyl's natural-language style.",
-    accentColor: "#3b82f6",
     url: "/demos/revyl",
   },
   {
@@ -34,7 +34,6 @@ const demoCards: DemoCard[] = [
     company: "Rho",
     headline: "Drift Detection",
     pitch: "Spend anomaly detection for finance teams.",
-    accentColor: "#CC4729",
     url: "/demos/rho",
   },
   {
@@ -42,7 +41,6 @@ const demoCards: DemoCard[] = [
     company: "AthenaHQ",
     headline: "GEO Visibility Checker",
     pitch: "Track how your brand appears in AI-generated search responses across industry prompts and get actionable recommendations to improve your AI search presence.",
-    accentColor: "#1a2744",
     url: "/demos/athena-hq",
   },
   {
@@ -50,7 +48,6 @@ const demoCards: DemoCard[] = [
     company: "Weave",
     headline: "No-Show Recovery Sequencer",
     pitch: "Generate a complete multi-touch patient recovery sequence with actual SMS and email copy for every touchpoint before and after a missed appointment.",
-    accentColor: "#00B5A3",
     url: "/demos/weave",
   },
   {
@@ -58,7 +55,6 @@ const demoCards: DemoCard[] = [
     company: "Whop",
     headline: "Page Roaster",
     pitch: "Paste your Whop product page and get a brutally honest AI critique of your copy, pricing, conversion strategy, and affiliate setup, with specific rewrites.",
-    accentColor: "#7c3aed",
     url: "/demos/whop",
   },
   {
@@ -66,7 +62,6 @@ const demoCards: DemoCard[] = [
     company: "SideShift.ai",
     headline: "Swap Route Optimizer",
     pitch: "Find the optimal multi-hop route for any crypto swap, minimizing fees, confirmation time, and slippage across 200+ assets.",
-    accentColor: "#f97316",
     url: "/demos/sideshift",
   },
   {
@@ -74,7 +69,6 @@ const demoCards: DemoCard[] = [
     company: "Wispr Flow",
     headline: "ASL sign language to voice dictation",
     pitch: "TensorFlow.js hand-pose CV recognizes ASL signs from a webcam, converts them to words, and feeds that text stream into Wispr Flow with no microphone needed.",
-    accentColor: "#6C47FF",
     url: "/demos/wisprflow",
   },
   {
@@ -82,7 +76,6 @@ const demoCards: DemoCard[] = [
     company: "Greptile",
     headline: "PR Review Auditor",
     pitch: "Paste a GitHub PR URL and see which review comments are signal, which are noise, and which bugs the human reviewers missed entirely.",
-    accentColor: "#1a1a1a",
     url: "/demos/greptile",
   },
   {
@@ -90,7 +83,6 @@ const demoCards: DemoCard[] = [
     company: "Harper Insurance",
     headline: "Business Coverage Profiler",
     pitch: "Enter your business profile and get a structured commercial insurance recommendation: coverage lines, priority tiers, premium estimates, and gap analysis.",
-    accentColor: "#0f1f3d",
     url: "/demos/harper",
   },
   {
@@ -98,7 +90,6 @@ const demoCards: DemoCard[] = [
     company: "Retell",
     headline: "Uncanny Valley Detector",
     pitch: "Paste a voice agent transcript and get a full humanity audit: every robotic moment flagged, scored, and rewritten.",
-    accentColor: "#00C389",
     url: "/demos/retell",
   },
   {
@@ -106,7 +97,6 @@ const demoCards: DemoCard[] = [
     company: "Midjourney",
     headline: "Prompt Autopsy + 3D Parallax",
     pitch: "Paste any Midjourney prompt and image URL. Get a full token-by-token autopsy, a reusable style DNA block, and a live 3D parallax scene reconstructed from your image.",
-    accentColor: "#FF3366",
     url: "/demos/midjourney",
   },
   {
@@ -114,7 +104,6 @@ const demoCards: DemoCard[] = [
     company: "Erebor",
     headline: "De-banking Risk Scorer",
     pitch: "Find out how likely your company is to lose banking access and which services are most at risk. Built for crypto, AI, defense, and innovation-economy companies.",
-    accentColor: "#c9a84c",
     url: "/demos/erebor",
   },
 ];
@@ -225,8 +214,8 @@ export default function DemosPage() {
                   <div
                     className="bg-white rounded-xl p-5 shadow-sm hover:shadow-md border-l-4 hover:-translate-y-1 transition-all duration-200 h-full"
                     style={{
-                      borderLeftColor: hovered === demo.slug ? demo.accentColor : "transparent",
-                      backgroundColor: hovered === demo.slug ? demo.accentColor + "06" : "white",
+                      borderLeftColor: hovered === demo.slug ? ACCENT : "transparent",
+                      backgroundColor: hovered === demo.slug ? ACCENT + "0d" : "white",
                     }}
                   >
                     <h3 className="font-medium text-brown mb-1">{demo.company}</h3>

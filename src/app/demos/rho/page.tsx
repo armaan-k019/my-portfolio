@@ -5,15 +5,15 @@ import Link from "next/link";
 import { CSS_VAR_COLORS } from "@/components/ThemeToggle";
 import CompanyThemeStyle from "@/components/CompanyThemeStyle";
 
-const RHO_ORANGE = "#e85d2f";
+const RHO_ORANGE = "#2d5a27";
 
 
 const COMPANY_THEME_CSS = `
 .company-theme {
-  --ct-bg: #fafaf9; --ct-card-bg: #ffffff; --ct-card-border: rgba(44,24,16,0.10);
-  --ct-text: #2C1810; --ct-muted: #6B5244; --ct-dim: #9A8070;
-  --ct-accent: ${RHO_ORANGE}; --ct-accent-bg: rgba(232,93,47,0.08);
-  --ct-header-bg: #ffffff; --ct-header-border: rgba(44,24,16,0.10); --ct-header-text: #2C1810;
+  --ct-bg: #f5f3ef; --ct-card-bg: #ffffff; --ct-card-border: #e5e0d8;
+  --ct-text: #1a1a1a; --ct-muted: #6b6b6b; --ct-dim: #9a8a7a;
+  --ct-accent: #2d5a27; --ct-accent-bg: #eef2ec;
+  --ct-header-bg: #ffffff; --ct-header-border: #e5e0d8; --ct-header-text: #1a1a1a;
 }
 `;
 
