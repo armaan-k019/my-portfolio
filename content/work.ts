@@ -13,7 +13,7 @@ export const workEntries: WorkEntry[] = [
   {
     name: "Jeeves",
     logo: "/logos/jeeves.png",
-    role: "AI Research Intern",
+    role: "AI Engineering Intern",
     dates: "Sep 2025 – Present",
     bullets: [
       "Building an interactive competitive intelligence agent used across internal teams to autonomously monitor competitor pricing, product changes, and market activity throughout North and South American fintech spaces, at a Y Combinator-backed global fintech startup valued at $2.5 billion",

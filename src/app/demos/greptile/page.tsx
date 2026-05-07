@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
 import CompanyThemeStyle from "@/components/CompanyThemeStyle";
 import { JetBrains_Mono } from "next/font/google";
+import Iteration2 from "./Iteration2";
 
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-brand" });
 
@@ -774,6 +775,8 @@ export default function GreptilePage() {
           </div>
         )}
       </div>
+
+      <Iteration2 />
 
       {/* Footer */}
       <footer className="border-t px-6 py-6 text-center mt-8" style={{ borderColor: C.cardBorder }}>
