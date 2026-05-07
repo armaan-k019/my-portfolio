@@ -458,6 +458,7 @@ export default function Iteration2() {
   const [result, setResult] = useState<Iteration2Result | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [degraded, setDegraded] = useState(false);
+  const [greptileStatus, setGreptileStatus] = useState<{ ok: boolean; reason: string; message?: string } | null>(null);
 
   const resultsRef = useRef<HTMLDivElement>(null);
 
@@ -466,6 +467,7 @@ export default function Iteration2() {
     setError(null);
     setStep(0);
     setDegraded(false);
+    setGreptileStatus(null);
   }
 
   async function animateSteps(stepsToShow: number) {
@@ -522,12 +524,14 @@ export default function Iteration2() {
         result?: Iteration2Result;
         error?: string;
         degraded?: boolean;
+        greptileStatus?: { ok: boolean; reason: string; message?: string } | null;
         trackerStatus?: { ok: boolean; ticketsScanned: number; project?: string } | null;
       };
       clearInterval(stepTimer);
       if (!res.ok || json.error) throw new Error(json.error ?? `HTTP ${res.status}`);
       setResult(json.result!);
       setDegraded(!!json.degraded);
+      setGreptileStatus(json.greptileStatus ?? null);
       setTrackerStatus(json.trackerStatus ?? null);
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
     } catch (err) {
@@ -841,21 +845,37 @@ export default function Iteration2() {
                     {tracker === "linear" ? "Linear" : "Jira"} connected. {trackerStatus.ticketsScanned.toLocaleString()} tickets scanned
                   </span>
                 )}
-                {result.codebaseFindings.length > 0 ? (
-                  <span
-                    className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full border whitespace-nowrap"
-                    style={{ color: SIGNAL, backgroundColor: SIGNAL + "12", borderColor: SIGNAL + "40" }}
-                  >
-                    Greptile connected. {result.codebaseFindings.length} codebase finding{result.codebaseFindings.length === 1 ? "" : "s"}
-                  </span>
-                ) : (
-                  <span
-                    className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full border whitespace-nowrap"
-                    style={{ color: HIGH, backgroundColor: HIGH + "12", borderColor: HIGH + "40" }}
-                  >
-                    Greptile content unavailable
-                  </span>
-                )}
+                {(() => {
+                  // Priority: explicit skip message > populated findings > generic unavailable.
+                  if (greptileStatus?.message) {
+                    return (
+                      <span
+                        className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full border whitespace-normal max-w-md"
+                        style={{ color: HIGH, backgroundColor: HIGH + "12", borderColor: HIGH + "40" }}
+                      >
+                        {greptileStatus.message}
+                      </span>
+                    );
+                  }
+                  if (result.codebaseFindings.length > 0) {
+                    return (
+                      <span
+                        className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full border whitespace-nowrap"
+                        style={{ color: SIGNAL, backgroundColor: SIGNAL + "12", borderColor: SIGNAL + "40" }}
+                      >
+                        Greptile connected. {result.codebaseFindings.length} codebase finding{result.codebaseFindings.length === 1 ? "" : "s"}
+                      </span>
+                    );
+                  }
+                  return (
+                    <span
+                      className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full border whitespace-nowrap"
+                      style={{ color: HIGH, backgroundColor: HIGH + "12", borderColor: HIGH + "40" }}
+                    >
+                      Greptile content unavailable
+                    </span>
+                  );
+                })()}
               </div>
               <button
                 onClick={resetAll}
@@ -911,7 +931,7 @@ export default function Iteration2() {
                     ${result.roi.remediationCostUSD.toLocaleString()}
                   </p>
                   <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: C.dim }}>
-                    Remediation cost
+                    Remediation cost{result.roi.source === "real" ? "" : " (estimated)"}
                   </p>
                 </div>
               </div>

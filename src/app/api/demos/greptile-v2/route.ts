@@ -2,7 +2,6 @@ import {
   fetchJiraTickets,
   fetchLinearTickets,
   correlateTickets,
-  PRIORITY_COST,
   type JiraCreds,
   type LinearCreds,
   type CorrelatedTicket,
@@ -28,6 +27,7 @@ interface CommentRow {
   adjusted: Cls;
   reason: string;
   severity: Sev;
+  confidence: number;
 }
 interface Archetype { label: string; pct: number }
 interface ReviewerDNA {
@@ -90,15 +90,33 @@ async function ghFetch<T>(url: string, label = ""): Promise<{ data: T; status: n
 
 // ── Greptile (best-effort, falls back to Anthropic-only on failure) ──────────
 
-async function tryGreptileIndex(repo: string): Promise<{ ok: boolean; reason?: string }> {
+// Repos larger than this (in KB, from GitHub's repo metadata) are skipped
+// rather than waiting for Greptile to time out. ~100 MB covers typical
+// monorepos like facebook/react (~250 MB) and vercel/next.js (~400 MB).
+const LARGE_REPO_KB = 100_000;
+const INDEX_TIMEOUT_MS = 30_000;
+const QUERY_TIMEOUT_MS = 25_000;
+
+interface GreptileStatus {
+  ok: boolean;
+  reason: "ok" | "no_key" | "no_github_token" | "large_repo" | "indexing_in_progress" | "index_error" | "query_error" | "timeout" | "no_content";
+  message?: string;
+  httpStatus?: number;
+  rawPreview?: string;
+}
+
+async function tryGreptileIndex(
+  repo: string,
+  branch: string
+): Promise<GreptileStatus> {
   const key = process.env.GREPTILE_API_KEY;
   const ghToken = process.env.GITHUB_TOKEN;
   if (!key) return { ok: false, reason: "no_key" };
   if (!ghToken) return { ok: false, reason: "no_github_token" };
 
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), INDEX_TIMEOUT_MS);
   try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 8000);
     const res = await fetch("https://api.greptile.com/v2/repositories", {
       method: "POST",
       signal: ctrl.signal,
@@ -107,26 +125,62 @@ async function tryGreptileIndex(repo: string): Promise<{ ok: boolean; reason?: s
         "X-GitHub-Token": ghToken,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ remote: "github", repository: repo, branch: "main" }),
+      body: JSON.stringify({ remote: "github", repository: repo, branch }),
     });
     clearTimeout(timer);
-    if (!res.ok) return { ok: false, reason: `index_${res.status}` };
-    return { ok: true };
+
+    const raw = await res.text();
+    const preview = raw.slice(0, 500);
+    console.log(`[greptile-v2] greptile INDEX -> ${res.status}; ct=${res.headers.get("content-type") ?? "?"}; preview=${preview}`);
+
+    if (!res.ok) {
+      return { ok: false, reason: "index_error", httpStatus: res.status, rawPreview: preview };
+    }
+    // Greptile returns 200 with a status field. Possible statuses:
+    // "submitted", "cloning", "processing", "completed". Only "completed"
+    // means the index is queryable now.
+    let parsed: { status?: string; remote?: string } = {};
+    try { parsed = JSON.parse(raw) as { status?: string }; } catch {}
+    if (parsed.status && parsed.status !== "completed") {
+      return {
+        ok: false,
+        reason: "indexing_in_progress",
+        message: "Greptile is still indexing this repo. Try again in a minute.",
+        httpStatus: res.status,
+        rawPreview: preview,
+      };
+    }
+    return { ok: true, reason: "ok", httpStatus: res.status, rawPreview: preview };
   } catch (err) {
-    return { ok: false, reason: err instanceof Error ? err.name : "index_error" };
+    clearTimeout(timer);
+    const isAbort = err instanceof Error && (err.name === "AbortError" || err.name === "TimeoutError");
+    if (isAbort) {
+      return {
+        ok: false,
+        reason: "timeout",
+        message: "Codebase indexing skipped for large repos. Analysis based on diff context only.",
+      };
+    }
+    console.log("[greptile-v2] greptile INDEX threw:", err);
+    return { ok: false, reason: "index_error", message: err instanceof Error ? err.message : String(err) };
   }
 }
 
-interface GreptileQueryResult { content?: string; sources?: unknown[] }
+interface GreptileQueryResult { content?: string; message?: string; sources?: unknown[] }
 
-async function greptileQuery(repo: string, question: string): Promise<GreptileQueryResult | null> {
+async function greptileQuery(
+  repo: string,
+  branch: string,
+  question: string
+): Promise<{ status: GreptileStatus; result: GreptileQueryResult | null }> {
   const key = process.env.GREPTILE_API_KEY;
   const ghToken = process.env.GITHUB_TOKEN;
-  if (!key || !ghToken) return null;
+  if (!key) return { status: { ok: false, reason: "no_key" }, result: null };
+  if (!ghToken) return { status: { ok: false, reason: "no_github_token" }, result: null };
 
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), QUERY_TIMEOUT_MS);
   try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 12000);
     const res = await fetch("https://api.greptile.com/v2/query", {
       method: "POST",
       signal: ctrl.signal,
@@ -137,15 +191,50 @@ async function greptileQuery(repo: string, question: string): Promise<GreptileQu
       },
       body: JSON.stringify({
         messages: [{ role: "user", content: question }],
-        repositories: [{ remote: "github", repository: repo, branch: "main" }],
+        repositories: [{ remote: "github", repository: repo, branch }],
         sessionId: `pr-audit-${Date.now()}`,
       }),
     });
     clearTimeout(timer);
-    if (!res.ok) return null;
-    return (await res.json()) as GreptileQueryResult;
-  } catch {
-    return null;
+
+    const raw = await res.text();
+    const preview = raw.slice(0, 500);
+    console.log(`[greptile-v2] greptile QUERY -> ${res.status}; ct=${res.headers.get("content-type") ?? "?"}; preview=${preview}`);
+
+    if (!res.ok) {
+      return {
+        status: { ok: false, reason: "query_error", httpStatus: res.status, rawPreview: preview },
+        result: null,
+      };
+    }
+    let parsed: GreptileQueryResult = {};
+    try { parsed = JSON.parse(raw) as GreptileQueryResult; } catch {}
+    const content = parsed.content ?? parsed.message ?? "";
+    if (!content.trim()) {
+      return {
+        status: { ok: false, reason: "no_content", httpStatus: res.status, rawPreview: preview },
+        result: null,
+      };
+    }
+    return { status: { ok: true, reason: "ok", httpStatus: res.status }, result: { ...parsed, content } };
+  } catch (err) {
+    clearTimeout(timer);
+    const isAbort = err instanceof Error && (err.name === "AbortError" || err.name === "TimeoutError");
+    if (isAbort) {
+      return {
+        status: {
+          ok: false,
+          reason: "timeout",
+          message: "Codebase indexing skipped for large repos. Analysis based on diff context only.",
+        },
+        result: null,
+      };
+    }
+    console.log("[greptile-v2] greptile QUERY threw:", err);
+    return {
+      status: { ok: false, reason: "query_error", message: err instanceof Error ? err.message : String(err) },
+      result: null,
+    };
   }
 }
 
@@ -187,7 +276,7 @@ ${args.reviewContext.slice(0, 1000)}
 CODEBASE CONTEXT NOTES (from codebase index, may be empty):
 ${args.greptileNotes.slice(0, 2000) || "(no codebase index notes available; reason about likely conventions from the diff alone)"}
 
-Score every review comment twice. The "original" score is the generic signal/noise read. The "adjusted" score factors in codebase conventions: a comment is Noise if it fights an established convention, Context if it is technically right but cosmetically inconsistent with the rest of the codebase, Signal if it is right and aligned, Neutral if it is praise or a question.
+Score every review comment twice. The "original" score is the generic signal/noise read. The "adjusted" score factors in codebase conventions: a comment is Noise if it fights an established convention, Context if it is technically right but cosmetically inconsistent with the rest of the codebase, Signal if it is right and aligned, Neutral if it is praise or a question. Also produce a "confidence" between 0 and 1 reflecting how sure you are about the adjusted classification (1 = fully certain, 0.5 = could go either way, 0 = pure guess).
 
 Then cluster every reviewer's comments into 3 to 5 concern archetypes (e.g. "Security and Auth", "Performance", "Style and Formatting", "Readability", "Consistency"). Score each reviewer 0 to 100 on codebase knowledge based on how well their comments reflect actual codebase patterns.
 
@@ -200,7 +289,8 @@ Return EXACTLY this JSON shape:
       "original": "Signal" | "Noise" | "Neutral",
       "adjusted": "Signal" | "Noise" | "Context" | "Neutral",
       "reason": string (1-2 sentences citing codebase context if relevant, no em dashes),
-      "severity": "Critical" | "High" | "Medium" | "Low" | "None"
+      "severity": "Critical" | "High" | "Medium" | "Low" | "None",
+      "confidence": number between 0 and 1
     }
   ],
   "reviewerDNA": [
@@ -254,6 +344,17 @@ Return EXACTLY this JSON shape:
   const end = text.lastIndexOf("}") + 1;
   if (start === -1 || end === 0) throw new Error("Analysis did not return valid JSON.");
   const analysis = JSON.parse(text.slice(start, end)) as Omit<AnthropicAnalysis, "datasetCount">;
+
+  // Normalize confidence: clamp to [0,1]; backfill from the adjusted label if
+  // the model omitted the field. Signal/Noise/Context are decisive (0.85),
+  // Neutral is intrinsically uncertain (0.5).
+  analysis.comments = (analysis.comments ?? []).map(c => {
+    const raw = typeof c.confidence === "number" ? c.confidence : NaN;
+    const fallback = c.adjusted === "Neutral" ? 0.5 : 0.85;
+    const conf = Number.isFinite(raw) ? Math.min(1, Math.max(0, raw)) : fallback;
+    return { ...c, confidence: conf };
+  });
+
   return { ...analysis, datasetCount: null };
 }
 
@@ -326,11 +427,12 @@ export async function POST(request: Request) {
       return Response.json({ error: `GitHub API error ${prRes.status}.` }, { status: 500 });
     }
 
-    const [filesRes, reviewsRes, commentsRes, issueCommentsRes] = await Promise.all([
+    const [filesRes, reviewsRes, commentsRes, issueCommentsRes, repoInfoRes] = await Promise.all([
       ghFetch<GitHubFile[]>(`${base}/files`, "files"),
       ghFetch<GitHubReview[]>(`${base}/reviews`, "reviews"),
       ghFetch<GitHubComment[]>(`${base}/comments`, "inline-comments"),
       ghFetch<GitHubIssueComment[]>(`${issueBase}/comments`, "issue-comments"),
+      ghFetch<{ size?: number; default_branch?: string }>(`https://api.github.com/repos/${repoPath}`, "repo-info"),
     ]);
 
     const pr = prRes.data;
@@ -381,20 +483,44 @@ export async function POST(request: Request) {
       .map(r => `REVIEW (${r.user.login}, ${r.state}): ${r.body}`)
       .join("\n\n");
 
-    // Greptile (best-effort)
+    // ── Greptile (best-effort with size pre-check + better diagnostics) ─────
+    const repoSizeKB = repoInfoRes.data?.size ?? 0;
+    const defaultBranch = repoInfoRes.data?.default_branch ?? "main";
+    console.log(`[greptile-v2] repo info: size=${repoSizeKB} KB, default_branch=${defaultBranch}`);
+
     let greptileNotes = "";
-    let degraded = true;
-    const indexRes = await tryGreptileIndex(repoPath);
-    if (indexRes.ok) {
-      const q = await greptileQuery(
-        repoPath,
-        `Summarize codebase conventions relevant to this PR: ${pr.title}. Files changed: ${files.map(f => f.filename).slice(0, 10).join(", ")}. Highlight any naming conventions, repeated patterns, or systemic gaps relevant to the review comments.`
-      );
-      if (q?.content) {
-        greptileNotes = q.content;
-        degraded = false;
+    let greptileStatus: GreptileStatus;
+
+    if (repoSizeKB > LARGE_REPO_KB) {
+      greptileStatus = {
+        ok: false,
+        reason: "large_repo",
+        message: "Codebase indexing skipped for large repos. Analysis based on diff context only.",
+      };
+      console.log(`[greptile-v2] skipping Greptile: repo size ${repoSizeKB} KB exceeds ${LARGE_REPO_KB} KB threshold`);
+    } else {
+      const indexStatus = await tryGreptileIndex(repoPath, defaultBranch);
+      if (!indexStatus.ok) {
+        greptileStatus = indexStatus;
+      } else {
+        const { status: queryStatus, result } = await greptileQuery(
+          repoPath,
+          defaultBranch,
+          `Summarize codebase conventions relevant to this PR: ${pr.title}. Files changed: ${files.map(f => f.filename).slice(0, 10).join(", ")}. Highlight any naming conventions, repeated patterns, or systemic gaps relevant to the review comments.`
+        );
+        if (queryStatus.ok && result?.content) {
+          greptileNotes = result.content;
+          greptileStatus = { ok: true, reason: "ok" };
+        } else {
+          greptileStatus = queryStatus;
+        }
       }
     }
+
+    // `degraded` is the legacy flag the client used to display a fallback pill.
+    // Kept for backwards compatibility; the canonical signal is `greptileStatus`.
+    const degraded = !greptileStatus.ok;
+    console.log("[greptile-v2] greptileStatus:", greptileStatus);
 
     // Anthropic analysis
     const analysis = await runAnalysis({ pr, diffContext, commentContext, reviewContext, greptileNotes });
@@ -405,6 +531,7 @@ export async function POST(request: Request) {
     const supabaseRows: AnalyzedComment[] = analysis.comments.map(c => ({
       comment_text: c.summary,
       label: c.adjusted.toLowerCase() as CommentLabel,
+      confidence: c.confidence,
       reviewer: c.reviewer,
       original_label: c.original.toLowerCase(),
       greptile_adjusted: c.adjusted !== c.original,
@@ -440,31 +567,56 @@ export async function POST(request: Request) {
       return Response.json({ error: msg }, { status: 502 });
     }
 
-    // ROI computation
-    const noiseCount = analysis.comments.filter(c => c.adjusted === "Noise").length;
-    const noiseMinutes = noiseCount * 10;
-    const missedCritical = analysis.comments.filter(c => c.adjusted === "Signal" && c.severity === "Critical").length;
+    // ── ROI computation ──────────────────────────────────────────────────────
+    // Industry-standard estimated costs per severity tier. Every dollar amount
+    // produced here is an estimate unless a bug tracker is connected and
+    // returned correlated tickets.
+    const COST_CRITICAL = 5000;
+    const COST_MEDIUM = 1000;
+    const COST_LOW = 200;
+    const NOISE_MIN_PER_COMMENT = 10;
+
+    const allComments = analysis.comments;
+    const noiseCount = allComments.filter(c => c.adjusted === "Noise").length;
+    const criticalCount = allComments.filter(c => c.adjusted === "Signal" && c.severity === "Critical").length;
+    const mediumCount = allComments.filter(c => c.adjusted === "Signal" && c.severity === "Medium").length;
+    const lowCount = allComments.filter(c => c.adjusted === "Signal" && c.severity === "Low").length;
+
+    let noiseMinutes = noiseCount * NOISE_MIN_PER_COMMENT;
+    let estimatedRemediation =
+      criticalCount * COST_CRITICAL +
+      mediumCount * COST_MEDIUM +
+      lowCount * COST_LOW;
+
+    // Floor: if there are any comments at all, never show $0 or 0 minutes. This
+    // keeps the ROI card meaningful even when the analysis surfaces only High
+    // severity signals (no severity bracket the spec explicitly priced) or
+    // pure-style chatter.
+    if (allComments.length > 0) {
+      if (noiseMinutes === 0) noiseMinutes = NOISE_MIN_PER_COMMENT;
+      if (estimatedRemediation === 0) estimatedRemediation = COST_LOW;
+    }
 
     const realRemediation = bugTickets.reduce((s, t) => s + t.costUSD, 0);
-    const estimatedRemediation = missedCritical * PRIORITY_COST.P1 + Math.max(0, analysis.comments.filter(c => c.adjusted === "Signal" && c.severity === "High").length) * PRIORITY_COST.P2;
-
-    const isReal = !!trackerStatus?.ok;
-    const noCorrelation = isReal && bugTickets.length === 0;
+    const isReal = !!trackerStatus?.ok && bugTickets.length > 0;
+    const noCorrelation = !!trackerStatus?.ok && bugTickets.length === 0;
+    const remediationCostUSD = isReal ? realRemediation : estimatedRemediation;
+    const sourceLabel = isReal ? "" : " (estimated)";
 
     const roi = {
       topLine: noCorrelation
         ? `No production bugs filed against the files this PR touched in the 30 days after merge.`
         : isReal
-        ? `${trackerStatus!.ticketsScanned} tickets scanned. ${bugTickets.length} correlated to this PR. Review process cost the team $${realRemediation.toLocaleString()}.`
-        : `This review left ${noiseMinutes} minutes on noise and surfaced ${missedCritical} critical issue${missedCritical === 1 ? "" : "s"} that would typically reach production.`,
+        ? `${trackerStatus!.ticketsScanned} tickets scanned. ${bugTickets.length} correlated to this PR. Real review process cost: $${realRemediation.toLocaleString()}.`
+        : `This review left ${noiseMinutes} minutes on noise and surfaced ${criticalCount} critical issue${criticalCount === 1 ? "" : "s"}. Estimated remediation if those had been missed: $${estimatedRemediation.toLocaleString()}.`,
       noiseMinutes,
-      missedCritical,
+      missedCritical: criticalCount,
       bugsToProduction: bugTickets.length,
-      remediationCostUSD: isReal ? realRemediation : estimatedRemediation,
+      remediationCostUSD,
       totalHours: +(noiseMinutes / 60).toFixed(2),
       bottomLine: noCorrelation
         ? `Clean review. Your reviewers are catching what matters in this part of the codebase.`
-        : `This PR review process cost the team an estimated ${(noiseMinutes / 60).toFixed(2)} hours and $${(isReal ? realRemediation : estimatedRemediation).toLocaleString()} in bug remediation.`,
+        : `This PR review process cost the team an estimated ${(noiseMinutes / 60).toFixed(2)} hours and $${remediationCostUSD.toLocaleString()}${sourceLabel} in bug remediation.`,
       source: noCorrelation ? "no_correlation" : isReal ? "real" : "estimated",
       ticketsScanned: trackerStatus?.ticketsScanned,
       projectKey: trackerStatus?.project,
@@ -492,7 +644,7 @@ export async function POST(request: Request) {
       contributedThisSession: analysis.comments.length,
     };
 
-    return Response.json({ result, degraded, trackerStatus });
+    return Response.json({ result, degraded, greptileStatus, trackerStatus });
   } catch (err) {
     console.error("[greptile-v2] error:", err);
     const msg = err instanceof Error ? err.message : "Analysis failed.";
