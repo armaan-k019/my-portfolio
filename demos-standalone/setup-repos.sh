@@ -19,6 +19,9 @@ DEMOS=(
   "sideshift-route-optimizer"
   "wisprflow-asl"
   "erebor-debanking-scorer"
+  "revyl-test-auditor"
+  "retell-humanity-detector"
+  "greptile-pr-auditor"
 )
 
 mkdir -p "$DST_BASE"

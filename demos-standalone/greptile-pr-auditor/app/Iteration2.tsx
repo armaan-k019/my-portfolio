@@ -1,7 +1,34 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
+
+interface PageColors {
+  bg: string;
+  cardBg: string;
+  cardBorder: string;
+  text: string;
+  muted: string;
+  dim: string;
+  accent: string;
+  accentBg: string;
+  headerBg: string;
+  headerBorder: string;
+  headerText: string;
+}
+
+const CSS_VAR_COLORS: PageColors = {
+  bg: "var(--ct-bg)",
+  cardBg: "var(--ct-card-bg)",
+  cardBorder: "var(--ct-card-border)",
+  text: "var(--ct-text)",
+  muted: "var(--ct-muted)",
+  dim: "var(--ct-dim)",
+  accent: "var(--ct-accent)",
+  accentBg: "var(--ct-accent-bg)",
+  headerBg: "var(--ct-header-bg)",
+  headerBorder: "var(--ct-header-border)",
+  headerText: "var(--ct-header-text)",
+};
 
 const SIGNAL = "#16a34a";
 const NOISE = "#dc2626";
@@ -484,7 +511,7 @@ export default function Iteration2() {
     // Fetch the live dataset count in parallel with the loading animation.
     // If Supabase isn't configured the endpoint returns { count: null } and
     // the progress bar in the dashboard is hidden.
-    const countPromise = fetch("/api/demos/greptile-v2/dataset-count")
+    const countPromise = fetch("https://armaankazi.com/api/demos/greptile-v2/dataset-count")
       .then(r => r.json() as Promise<{ count: number | null }>)
       .then(d => d.count)
       .catch(() => null);
@@ -515,7 +542,7 @@ export default function Iteration2() {
       if (tracker === "jira") payload.jira = jiraCreds;
       if (tracker === "linear") payload.linear = linearCreds;
 
-      const res = await fetch("/api/demos/greptile-v2", {
+      const res = await fetch("https://armaankazi.com/api/demos/greptile-v2", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

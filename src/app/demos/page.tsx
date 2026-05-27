@@ -23,13 +23,6 @@ const ACCENT = "#2d5a27";
 
 const demoCards: DemoCard[] = [
   {
-    slug: "revyl",
-    company: "Revyl",
-    headline: "Test the Tester",
-    pitch: "Paste any test and get an adversarial audit: confidence score, severity-ranked weaknesses with concrete bug examples, and a rewrite in Revyl's natural-language style.",
-    url: "/demos/revyl",
-  },
-  {
     slug: "rho",
     company: "Rho",
     headline: "Drift Detection",
@@ -42,13 +35,6 @@ const demoCards: DemoCard[] = [
     headline: "GEO Visibility Checker",
     pitch: "Track how your brand appears in AI-generated search responses across industry prompts and get actionable recommendations to improve your AI search presence.",
     url: "/demos/athena-hq",
-  },
-  {
-    slug: "weave",
-    company: "Weave",
-    headline: "No-Show Recovery Sequencer",
-    pitch: "Generate a complete multi-touch patient recovery sequence with actual SMS and email copy for every touchpoint before and after a missed appointment.",
-    url: "/demos/weave",
   },
   {
     slug: "whop",
@@ -72,39 +58,11 @@ const demoCards: DemoCard[] = [
     url: "/demos/wisprflow",
   },
   {
-    slug: "greptile",
-    company: "Greptile",
-    headline: "PR Review Auditor",
-    pitch: "Paste a GitHub PR URL and see which review comments are signal, which are noise, and which bugs the human reviewers missed entirely.",
-    url: "/demos/greptile",
-  },
-  {
-    slug: "harper",
-    company: "Harper Insurance",
-    headline: "Business Coverage Profiler",
-    pitch: "Enter your business profile and get a structured commercial insurance recommendation: coverage lines, priority tiers, premium estimates, and gap analysis.",
-    url: "/demos/harper",
-  },
-  {
-    slug: "retell",
-    company: "Retell",
-    headline: "Uncanny Valley Detector",
-    pitch: "Paste a voice agent transcript and get a full humanity audit: every robotic moment flagged, scored, and rewritten.",
-    url: "/demos/retell",
-  },
-  {
     slug: "midjourney",
     company: "Midjourney",
     headline: "Prompt Autopsy + 3D Parallax",
     pitch: "Paste any Midjourney prompt and image URL. Get a full token-by-token autopsy, a reusable style DNA block, and a live 3D parallax scene reconstructed from your image.",
     url: "/demos/midjourney",
-  },
-  {
-    slug: "erebor",
-    company: "Erebor",
-    headline: "De-banking Risk Scorer",
-    pitch: "Find out how likely your company is to lose banking access and which services are most at risk. Built for crypto, AI, defense, and innovation-economy companies.",
-    url: "/demos/erebor",
   },
 ];
 

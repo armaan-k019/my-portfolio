@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { ASL_GESTURES } from "./aslGestures";
+import { classifyLandmarks } from "./landmarkClassifier";
 import CalibrationModal from "./CalibrationModal";
 import CustomGestureModal from "./CustomGestureModal";
 import PhraseLibrary from "./PhraseLibrary";
@@ -633,10 +634,19 @@ export default function WisprDemo() {
               disambiguated = personal.disambiguated;
               candidates    = personal.candidates ?? null;
             } else {
-              const result = estimator.estimate(landmarks, CONFIDENCE_THRESHOLD);
-              if (result.gestures.length > 0) {
-                letter = result.gestures[0].name as string;
-                conf   = Math.round((result.gestures[0].score as number / 10) * 100);
+              // Landmark-based classifier runs before fingerpose: it uses the
+              // full 21-point landmark geometry to disambiguate letters that
+              // fingerpose can't tell apart (closed-fist family, U/V/R, etc.).
+              const landmarkMatch = classifyLandmarks(landmarks as [number, number, number][]);
+              if (landmarkMatch && landmarkMatch.confidence >= 70) {
+                letter = landmarkMatch.letter;
+                conf   = landmarkMatch.confidence;
+              } else {
+                const result = estimator.estimate(landmarks, CONFIDENCE_THRESHOLD);
+                if (result.gestures.length > 0) {
+                  letter = result.gestures[0].name as string;
+                  conf   = Math.round((result.gestures[0].score as number / 10) * 100);
+                }
               }
             }
           }

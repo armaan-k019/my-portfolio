@@ -1,11 +1,41 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import Link from "next/link";
-import { CSS_VAR_COLORS, type PageColors } from "@/components/ThemeToggle";
-import CompanyThemeStyle from "@/components/CompanyThemeStyle";
 import { JetBrains_Mono } from "next/font/google";
 import Iteration2 from "./Iteration2";
+
+interface PageColors {
+  bg: string;
+  cardBg: string;
+  cardBorder: string;
+  text: string;
+  muted: string;
+  dim: string;
+  accent: string;
+  accentBg: string;
+  headerBg: string;
+  headerBorder: string;
+  headerText: string;
+}
+
+const CSS_VAR_COLORS: PageColors = {
+  bg: "var(--ct-bg)",
+  cardBg: "var(--ct-card-bg)",
+  cardBorder: "var(--ct-card-border)",
+  text: "var(--ct-text)",
+  muted: "var(--ct-muted)",
+  dim: "var(--ct-dim)",
+  accent: "var(--ct-accent)",
+  accentBg: "var(--ct-accent-bg)",
+  headerBg: "var(--ct-header-bg)",
+  headerBorder: "var(--ct-header-border)",
+  headerText: "var(--ct-header-text)",
+};
+
+function CompanyThemeStyle({ active, css }: { active?: boolean; css?: string }) {
+  if (!active || !css) return null;
+  return <style dangerouslySetInnerHTML={{ __html: css }} />;
+}
 
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-brand" });
 
@@ -241,7 +271,7 @@ export default function GreptilePage() {
     }
 
     try {
-      const res = await fetch("/api/demos/greptile", {
+      const res = await fetch("https://armaankazi.com/api/demos/greptile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prUrl }),
@@ -293,9 +323,9 @@ export default function GreptilePage() {
           <div className="flex-shrink-0">
             <span className="text-xs" style={{ color: "#6b7280" }}>
               Demo by{" "}
-              <Link href="/" className="underline hover:opacity-70 transition-opacity" style={{ color: "#9ca3af" }}>
+              <a href="https://armaankazi.com" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-70 transition-opacity" style={{ color: "#9ca3af" }}>
                 Armaan Kazi
-              </Link>
+              </a>
             </span>
           </div>
         </div>
@@ -304,13 +334,15 @@ export default function GreptilePage() {
       <div className="w-full max-w-[900px] mx-auto px-6 py-10">
 
         {/* Back link */}
-        <Link
-          href="/demos"
+        <a
+          href="https://armaankazi.com/demos"
+          target="_blank"
+          rel="noopener noreferrer"
           className="text-xs transition-colors mb-8 inline-block hover:opacity-70"
           style={{ color: C.muted }}
         >
           &#8592; Back to Demos
-        </Link>
+        </a>
 
         {/* SECTION A */}
         <section className="mb-10">
@@ -785,9 +817,9 @@ export default function GreptilePage() {
         </p>
         <p className="text-xs" style={{ color: C.dim }}>
           Built by{" "}
-          <Link href="/" className="underline hover:opacity-70 transition-opacity">
+          <a href="https://armaankazi.com" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-70 transition-opacity">
             Armaan Kazi
-          </Link>
+          </a>
           . Not affiliated with Greptile.
         </p>
       </footer>
