@@ -3,9 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import Modal from "./Modal";
-import CategoryTag from "./CategoryTag";
 import type { ResearchEntry } from "@/lib/mdx";
-import type { Category } from "../../content/projects";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
@@ -39,7 +37,6 @@ export default function ResearchSection({ entries }: { entries: ResearchEntry[] 
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <h3 className="font-medium text-darkblue">{entry.title}</h3>
-                    {entry.category && <CategoryTag category={entry.category as Category} />}
                   </div>
                   {entry.status && (
                     <p className="text-xs text-brown-light mb-1">{entry.status}</p>

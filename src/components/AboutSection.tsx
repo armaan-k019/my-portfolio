@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import Carousel from "./Carousel";
 import Modal from "./Modal";
+
+const ROLE_WORDS = ["student", "researcher", "architect", "computer scientist", "engineer"];
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
@@ -57,6 +59,15 @@ const favColumns = [
 
 export default function AboutSection() {
   const [favOpen, setFavOpen] = useState(false);
+  const [roleIdx, setRoleIdx] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setRoleIdx(i => (i + 1) % ROLE_WORDS.length), 3400);
+    return () => clearInterval(t);
+  }, []);
+
+  const currentRole = ROLE_WORDS[roleIdx];
+  const article = /^[aeiou]/i.test(currentRole) ? "an" : "a";
 
   return (
     <section id="about" className="max-w-5xl mx-auto px-6 pt-20 pb-14">
@@ -80,7 +91,30 @@ export default function AboutSection() {
           </p>
           <div className="text-brown-light leading-relaxed space-y-3 mb-5">
             <p>
-              My name is Armaan and I am a student at Georgia Tech, double majoring in Computer Science and Architecture with a certificate in Sustainable Architecture.
+              My name is Armaan and I am{" "}
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={currentRole}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.75, ease: "easeOut" }}
+                  className="inline-block"
+                >
+                  {article}{" "}
+                  <span
+                    className="font-bold tracking-tight"
+                    style={{
+                      color: "#15803D",
+                      borderBottom: "2px solid #15803D",
+                      paddingBottom: "1px",
+                    }}
+                  >
+                    {currentRole}
+                  </span>
+                </motion.span>
+              </AnimatePresence>
+              {" "}at Georgia Tech, double majoring in Computer Science and Architecture with a certificate in Sustainable Architecture.
             </p>
             <p>
               I build things because I care about people and the places they inhabit. That usually means architecture, sometimes code, often both. I&apos;m drawn to problems that sit at that intersection where designing something well and building something well are the same question.

@@ -13,11 +13,12 @@ export const workEntries: WorkEntry[] = [
   {
     name: "Jeeves",
     logo: "/logos/jeeves.png",
-    role: "AI Engineering Intern",
-    dates: "Sep 2025 – Present",
+    role: "AI Research Engineering Intern",
+    dates: "Sep 2025 – May 2026",
     bullets: [
       "Building an interactive competitive intelligence agent used across internal teams to autonomously monitor competitor pricing, product changes, and market activity throughout North and South American fintech spaces, at a Y Combinator-backed global fintech startup valued at $2.5 billion",
-      "Designing the data pipeline for aggregating and synthesizing financial news into structured insights for internal strategy and product teams",
+      "Driving the firm's AI-first transformation as a research intern, working directly with the research team to identify and prototype the highest-leverage opportunities for embedding AI across one of the most forward-thinking international fintechs",
+      "Reclaiming engineering and operator hours through prompt engineering, hypothesis-driven experimentation, model fine-tuning, and improving transcription pipelines for internal AI services",
     ],
     link: "",
     cardBg: "#ffffff",
@@ -39,7 +40,7 @@ export const workEntries: WorkEntry[] = [
     name: "A.G. Rhodes Nursing Home",
     logo: "/logos/ag-rhodes.png",
     role: "Evidence Based Designer",
-    dates: "Aug 2025 – Present",
+    dates: "Aug 2025 – Jun 2026",
     bullets: [
       "Conducting evidence-based research on the cognitive and emotional benefits of horticulture therapy for elderly nursing home residents",
       "Designing a dedicated therapeutic horticulture space optimized for sensory engagement, accessibility, and measurable resident wellbeing outcomes",
@@ -52,7 +53,7 @@ export const workEntries: WorkEntry[] = [
     name: "Electrify GT",
     logo: "/logos/electrify-gt.png",
     role: "Project Lead",
-    dates: "Sep 2025 – Present",
+    dates: "Sep 2025 – May 2026",
     bullets: [
       "Leading development of a Green Labs documentation standard, establishing guidelines for sustainable operational practices across Georgia Tech's campus buildings and research facilities",
       "Coordinating with campus stakeholders to identify high-impact areas for energy reduction, waste management, and material efficiency",
@@ -90,8 +91,8 @@ export const workEntries: WorkEntry[] = [
   {
     name: "AIAS",
     logo: "/logos/aias.png",
-    role: "Executive Board",
-    dates: "October 2024 – Present",
+    role: "Liaison (1st yr) → Secretary (2nd yr)",
+    dates: "Aug 2024 – May 2026",
     bullets: [
       "Represent studio interests in executive board meetings, contributing to strategic decisions that align organizational initiatives with design and academic objectives",
       "Coordinate and streamline communication channels between leadership and stakeholders, supporting the execution of AIAS events and initiatives",

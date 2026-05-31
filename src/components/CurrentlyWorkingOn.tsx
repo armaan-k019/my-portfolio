@@ -5,12 +5,6 @@ import Modal from "./Modal";
 
 const wipProjects = [
   {
-    title: "Art Gallery on Sweet Auburn, Atlanta",
-    description: "A proposed gallery space on Sweet Auburn Avenue designed to engage with Atlanta's historic cultural corridor. The project explores how architecture can serve as both archive and activation, holding memory while inviting new community.",
-    status: "In Progress",
-    statusColor: "bg-sage/20 text-sage border-sage/30",
-  },
-  {
     title: "Climate-Responsive Architecture from Indigenous Materials",
     description: "An investigation into vernacular building systems in Africa that use locally sourced, indigenous materials to achieve climate responsiveness without mechanical systems. Grounded in the idea that the most sustainable architecture is often the oldest.",
     status: "In Progress",
@@ -37,7 +31,7 @@ export default function CurrentlyWorkingOn() {
             <span className="block text-base md:text-lg font-semibold text-white leading-tight">Currently Working On</span>
             <span className="block text-xs text-white/70 mt-0.5 sm:hidden">Tap to view</span>
             <span className="hidden sm:block text-xs text-white/75 mt-0.5">
-              A gallery on Sweet Auburn, a pavilion from waste.
+              Climate-responsive architecture from indigenous materials.
             </span>
           </div>
         </div>
