@@ -70,9 +70,9 @@ export default function Navbar() {
   return (
     <>
       <nav
-        className="sticky top-0 z-50 backdrop-blur-md border-b"
+        className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md border-b"
         style={{
-          backgroundColor: "#FFFFFF",
+          backgroundColor: "rgba(255, 255, 255, 0.92)",
           borderBottomColor: "rgba(45, 90, 39, 0.12)",
         }}
       >

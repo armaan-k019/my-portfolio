@@ -4,6 +4,7 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import IsometricBackground from "@/components/IsometricBackground";
+import DrawingAwareScope from "@/components/DrawingAwareScope";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -34,11 +35,13 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} ${amiri.variable} antialiased`}>
       <body className="min-h-screen flex flex-col font-sans relative">
         <IsometricBackground />
-        <div className="relative z-10 flex flex-col min-h-screen">
-          <Navbar />
-          <main className="flex-1">{children}</main>
-          <Footer />
-        </div>
+        <DrawingAwareScope>
+          <div className="relative z-10 flex flex-col min-h-screen">
+            <Navbar />
+            <main className="flex-1 pt-16">{children}</main>
+            <Footer />
+          </div>
+        </DrawingAwareScope>
       </body>
     </html>
   );
