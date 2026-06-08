@@ -15,13 +15,9 @@ export default function ResearchSection({ entries }: { entries: ResearchEntry[] 
 
   return (
     <>
-      <div className="space-y-5">
+      <div className="space-y-4">
         {entries.map((entry, i) => {
-          const hoverClass = entry.category === "cs"
-            ? "hover:border-l-terracotta hover:bg-terracotta/5"
-            : entry.category === "intersection"
-            ? "hover:border-l-darkblue hover:bg-darkblue/5"
-            : "hover:border-l-sage hover:bg-sage/5";
+          const accent = entry.category === "cs" ? "#2D5A27" : entry.category === "intersection" ? "#1E3A5F" : "#4A7A44";
           return (
             <motion.button
               key={entry.slug}
@@ -29,28 +25,28 @@ export default function ResearchSection({ entries }: { entries: ResearchEntry[] 
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, margin: "-80px" }}
-              transition={{ duration: 0.5, delay: i * 0.1, ease: "easeOut" }}
+              transition={{ duration: 0.6, delay: i * 0.08, ease: [0.16, 1, 0.3, 1] }}
               onClick={() => setSelected(entry)}
-              className={`block w-full text-left bg-white rounded-xl p-5 shadow-sm hover:shadow-md border-l-4 border-l-transparent transition-all duration-200 ${hoverClass}`}
+              className="group card card-hover block w-full text-left p-5 overflow-hidden"
             >
+              <span
+                className="absolute left-0 top-0 h-full w-[3px] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                style={{ backgroundColor: accent }}
+              />
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <h3 className="font-medium text-darkblue">{entry.title}</h3>
-                  </div>
+                  <h3 className="font-display text-lg font-semibold text-darkblue leading-snug mb-1">{entry.title}</h3>
                   {entry.status && (
-                    <p className="text-xs text-brown-light mb-1">{entry.status}</p>
+                    <p className="meta text-terracotta/80 mb-1.5">{entry.status}</p>
                   )}
-                  <p className="text-sm text-brown-light line-clamp-2">{entry.preview}</p>
+                  <p className="text-[13px] text-brown-light line-clamp-2 leading-relaxed">{entry.preview}</p>
                 </div>
-                <div className="flex flex-col items-end gap-2 shrink-0">
-                  <span className="text-xs text-brown-light whitespace-nowrap">
-                    {entry.date === "Ongoing" ? "Ongoing" : new Date(entry.date).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "short",
-                    })}
-                  </span>
-                </div>
+                <span className="meta whitespace-nowrap shrink-0 mt-1">
+                  {entry.date === "Ongoing" ? "Ongoing" : new Date(entry.date).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "short",
+                  })}
+                </span>
               </div>
             </motion.button>
           );
@@ -60,10 +56,10 @@ export default function ResearchSection({ entries }: { entries: ResearchEntry[] 
       <Modal open={!!selected} onClose={() => setSelected(null)}>
         {selected && (
           <div>
-            <div className="bg-darkblue -mx-6 -mt-6 px-6 py-4 rounded-t-xl mb-5">
-              <h3 className="text-lg font-semibold text-white leading-snug">{selected.title}</h3>
+            <div className="bg-darkblue -mx-6 -mt-6 px-6 py-5 rounded-t-2xl mb-5">
+              <h3 className="font-display text-xl font-semibold text-white leading-snug">{selected.title}</h3>
               {selected.status && (
-                <p className="text-xs text-terracotta mt-1">{selected.status}</p>
+                <p className="text-[11px] uppercase tracking-wide text-tan-light mt-1.5">{selected.status}</p>
               )}
             </div>
 

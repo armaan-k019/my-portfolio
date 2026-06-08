@@ -54,16 +54,25 @@ export default function ContactSection() {
   }
 
   return (
-    <section id="contact" className="max-w-5xl mx-auto px-6 py-20">
+    <section id="contact" className="max-w-5xl mx-auto px-6 py-24 md:py-28">
       {/* ─── Let's talk ─────────────────────────────────────────────────────── */}
       <div className="text-center mb-16">
+        <motion.p
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.5 }}
+          className="eyebrow mb-4"
+        >
+          Get in touch
+        </motion.p>
         <motion.h2
           variants={fadeUp}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className="text-2xl font-semibold text-terracotta mb-3"
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          className="font-display text-4xl md:text-5xl font-semibold text-ink mb-4"
         >
           Let&apos;s talk.
         </motion.h2>
@@ -118,9 +127,9 @@ export default function ContactSection() {
         whileInView="visible"
         viewport={{ once: true, margin: "-80px" }}
         transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
-        className="pt-12"
+        className="card p-7 md:p-8 max-w-2xl mx-auto"
       >
-        <h3 className="text-lg font-semibold text-brown mb-1">Leave feedback</h3>
+        <h3 className="font-display text-2xl font-semibold text-ink mb-1">Leave feedback</h3>
         <p className="text-sm text-brown-light mb-6">
           Spotted a bug, have a feature idea, or want to suggest an improvement to one of the projects? Let me know.
         </p>
@@ -138,7 +147,7 @@ export default function ContactSection() {
                 <select
                   value={project}
                   onChange={(e) => setProject(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-tan/50 bg-white text-brown focus:outline-none focus:border-terracotta transition-colors"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-tan/50 bg-white text-brown focus:outline-none focus:border-terracotta focus:ring-2 focus:ring-terracotta/15 transition-all"
                 >
                   <option value="">Select a project…</option>
                   {PROJECT_OPTIONS.map((p) => (
@@ -157,7 +166,7 @@ export default function ContactSection() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="if you'd like a reply"
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-tan/50 bg-white text-brown placeholder:text-brown-light/40 focus:outline-none focus:border-terracotta transition-colors"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-tan/50 bg-white text-brown placeholder:text-brown-light/40 focus:outline-none focus:border-terracotta focus:ring-2 focus:ring-terracotta/15 transition-all"
                 />
               </div>
             </div>
@@ -171,7 +180,7 @@ export default function ContactSection() {
                 required
                 rows={4}
                 placeholder="Describe the issue, feature request, or suggestion…"
-                className="w-full px-3 py-2 text-sm rounded-lg border border-tan/50 bg-white text-brown placeholder:text-brown-light/40 focus:outline-none focus:border-terracotta transition-colors resize-none"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-tan/50 bg-white text-brown placeholder:text-brown-light/40 focus:outline-none focus:border-terracotta focus:ring-2 focus:ring-terracotta/15 transition-all resize-none"
               />
             </div>
 

@@ -1,9 +1,11 @@
 @import "tailwindcss";
 
 @theme inline {
+  /* ── Palette (architectural: paper, ink, deep green, tan) ───────────────── */
   --color-cream: #F4F6F2;
   --color-cream-dark: #EFF2EC;
   --color-cream-warm: #EFF2EC;
+  --color-paper: #FBFCFA;
   --color-terracotta: #2D5A27;
   --color-terracotta-dark: #1A3A16;
   --color-terracotta-light: #5A8A52;
@@ -15,64 +17,224 @@
   --color-tan-light: #E0C08A;
   --color-brown: #1A2A1A;
   --color-brown-light: #4A6B4A;
+  --color-ink: #16241A;
+  --color-line: rgba(45, 90, 39, 0.10);
+
+  /* ── Type ───────────────────────────────────────────────────────────────── */
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-fraunces), "Fraunces", "Iowan Old Style", Georgia, serif;
+  --font-mono: var(--font-plex-mono), "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+}
+
+/* ── Design primitives ────────────────────────────────────────────────────── */
+:root {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-soft: cubic-bezier(0.22, 0.7, 0.21, 1);
+  --shadow-card: 0 1px 2px rgba(26, 42, 26, 0.04), 0 10px 30px -16px rgba(26, 42, 26, 0.14);
+  --shadow-card-hover: 0 2px 6px rgba(26, 42, 26, 0.06), 0 22px 48px -20px rgba(26, 42, 26, 0.22);
+  --shadow-float: 0 30px 60px -24px rgba(26, 42, 26, 0.28);
 }
 
 html {
   scroll-behavior: smooth;
 }
 
+/* Lenis smooth-scroll */
+html.lenis,
+html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-stopped { overflow: hidden; }
+
 body {
   background-color: var(--color-cream);
+  /* Faint paper grade so the t-SNE field behind never reads as flat. */
+  background-image:
+    radial-gradient(120% 80% at 50% -10%, rgba(255, 255, 255, 0.55), transparent 60%),
+    linear-gradient(180deg, #F6F8F4 0%, var(--color-cream) 38%, #EEF2EA 100%);
+  background-attachment: fixed;
   color: var(--color-brown);
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "kern", "liga", "calt", "cv05", "ss01";
 }
 
-/* MDX prose styling */
-.prose {
-  max-width: 65ch;
-  line-height: 1.75;
+.tnum { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+::selection {
+  background: rgba(45, 90, 39, 0.16);
+  color: var(--color-ink);
 }
-.prose h1 { font-size: 1.875rem; font-weight: 700; margin-top: 2rem; margin-bottom: 1rem; color: var(--color-darkblue); }
-.prose h2 { font-size: 1.5rem; font-weight: 600; margin-top: 1.75rem; margin-bottom: 0.75rem; color: var(--color-darkblue); }
-.prose h3 { font-size: 1.25rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.5rem; color: var(--color-darkblue); }
-.prose p { margin-bottom: 1.25rem; }
-.prose ul, .prose ol { margin-bottom: 1.25rem; padding-left: 1.5rem; }
+
+/* Custom cursor active → hide the native one (desktop, motion-on only) */
+body.cursor-none,
+body.cursor-none * {
+  cursor: none !important;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-terracotta);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* ── Editorial type helpers ──────────────────────────────────────────────── */
+.font-display {
+  font-family: var(--font-serif);
+  font-optical-sizing: auto;
+  letter-spacing: -0.015em;
+}
+.font-mono { font-family: var(--font-mono); }
+
+/* Fluid display sizes — dramatic, smooth across viewports. */
+.display-xl { font-size: clamp(3.25rem, 11vw, 8rem); line-height: 0.9; letter-spacing: -0.04em; }
+.display-lg { font-size: clamp(2.5rem, 6vw, 4.5rem); line-height: 0.98; letter-spacing: -0.03em; }
+.display-md { font-size: clamp(2rem, 4vw, 3rem); line-height: 1.04; letter-spacing: -0.02em; }
+
+/* Metadata layer — monospace, tracked, technical. */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-terracotta);
+}
+.meta {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  color: var(--color-brown-light);
+  font-variant-numeric: tabular-nums;
+}
+/* Coordinate readout — the atlas's native unit of measure. */
+.coord {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-terracotta);
+}
+
+/* Thin ruled divider with a tipped accent — replaces chunky bars. */
+.rule {
+  height: 1px;
+  border: 0;
+  background: linear-gradient(90deg, var(--color-terracotta) 0 28px, var(--color-line) 28px 100%);
+}
+
+.hairline {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-line) 12%, var(--color-line) 88%, transparent);
+}
+
+/* Drafting rule — full-width hairline capped with end-ticks, like a sheet. */
+.tick-rule {
+  position: relative;
+  height: 1px;
+  background: var(--color-line);
+}
+.tick-rule::before,
+.tick-rule::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  width: 1px;
+  height: 7px;
+  background: var(--color-terracotta);
+  opacity: 0.6;
+}
+.tick-rule::before { left: 0; }
+.tick-rule::after { right: 0; }
+
+/* ── Paper card ──────────────────────────────────────────────────────────── */
+.card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.74);
+  backdrop-filter: blur(10px) saturate(1.05);
+  -webkit-backdrop-filter: blur(10px) saturate(1.05);
+  border: 1px solid rgba(45, 90, 39, 0.09);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.45s var(--ease-out-expo),
+    box-shadow 0.45s var(--ease-out-expo),
+    border-color 0.45s var(--ease-out-expo);
+}
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-card-hover);
+  border-color: rgba(45, 90, 39, 0.2);
+}
+
+/* Reveal animation primitive (used by SectionReveal / staggered children) */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(18px); filter: blur(6px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+/* Kinetic marquee */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.marquee-track { animation: marquee 34s linear infinite; }
+.group:hover .marquee-track { animation-play-state: paused; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+
+/* ── MDX prose styling (editorial) ───────────────────────────────────────── */
+.prose {
+  max-width: 68ch;
+  line-height: 1.78;
+  color: var(--color-brown-light);
+  font-size: 1.0625rem;
+}
+.prose h1 { font-family: var(--font-serif); font-size: 2.25rem; font-weight: 600; letter-spacing: -0.02em; margin-top: 2.25rem; margin-bottom: 1rem; color: var(--color-ink); line-height: 1.12; }
+.prose h2 { font-family: var(--font-serif); font-size: 1.6rem; font-weight: 600; letter-spacing: -0.015em; margin-top: 2rem; margin-bottom: 0.75rem; color: var(--color-darkblue); line-height: 1.2; }
+.prose h3 { font-family: var(--font-serif); font-size: 1.3rem; font-weight: 600; margin-top: 1.6rem; margin-bottom: 0.5rem; color: var(--color-darkblue); }
+.prose p { margin-bottom: 1.3rem; }
+.prose ul, .prose ol { margin-bottom: 1.3rem; padding-left: 1.5rem; }
 .prose ul { list-style-type: disc; }
 .prose ol { list-style-type: decimal; }
-.prose li { margin-bottom: 0.375rem; }
-.prose a { color: var(--color-terracotta); text-decoration: underline; }
-.prose a:hover { color: var(--color-terracotta-dark); }
+.prose li { margin-bottom: 0.4rem; }
+.prose li::marker { color: var(--color-terracotta-light); }
+.prose a {
+  color: var(--color-terracotta);
+  text-decoration: underline;
+  text-decoration-color: rgba(45, 90, 39, 0.3);
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.2s, color 0.2s;
+}
+.prose a:hover { color: var(--color-terracotta-dark); text-decoration-color: currentColor; }
+.prose strong { color: var(--color-ink); font-weight: 650; }
 .prose blockquote {
-  border-left: 3px solid var(--color-tan);
-  padding-left: 1rem;
+  border-left: 2px solid var(--color-tan);
+  padding-left: 1.15rem;
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
   font-style: italic;
   color: var(--color-brown-light);
-  margin-bottom: 1.25rem;
+  margin: 1.6rem 0;
 }
 .prose code {
   background: var(--color-cream-dark);
   padding: 0.125rem 0.375rem;
   border-radius: 0.25rem;
-  font-size: 0.875em;
+  font-size: 0.85em;
 }
 .prose pre {
-  background: var(--color-darkblue);
+  background: #14233a;
   color: var(--color-cream);
-  padding: 1rem;
-  border-radius: 0.5rem;
+  padding: 1.1rem 1.25rem;
+  border-radius: 0.75rem;
   overflow-x: auto;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.3rem;
+  box-shadow: var(--shadow-card);
 }
-.prose pre code {
-  background: transparent;
-  padding: 0;
-}
-.prose img {
-  border-radius: 0.5rem;
-  margin: 1.5rem 0;
-}
-.prose hr {
-  border-color: var(--color-tan-light);
-  margin: 2rem 0;
-}
+.prose pre code { background: transparent; padding: 0; }
+.prose img { border-radius: 0.75rem; margin: 1.75rem 0; box-shadow: var(--shadow-card); }
+.prose hr { border: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--color-tan-light), transparent); margin: 2.5rem 0; }

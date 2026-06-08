@@ -4,12 +4,10 @@ import AboutSection from "@/components/AboutSection";
 import ProjectsSection from "@/components/ProjectsSection";
 import ContactSection from "@/components/ContactSection";
 import ResearchSection from "@/components/ResearchSection";
+import SheetHeader from "@/components/SheetHeader";
+import Marquee from "@/components/Marquee";
 import { projects } from "../../content/projects";
 import { getResearchEntries } from "@/lib/mdx";
-
-function SectionDivider() {
-  return <div className="h-px bg-[#D8E6D8]/60" />;
-}
 
 export default function Home() {
   const allProjects = projects;
@@ -17,57 +15,49 @@ export default function Home() {
 
   return (
     <div>
-      {/* About (merged Hero + About) - base cream */}
+      {/* About (merged Hero + About) */}
       <AboutSection />
 
-      <SectionDivider />
+      <Marquee />
 
-      {/* Work - subtle green tint */}
-      <section id="work" className="py-14" style={{ backgroundColor: "rgba(45, 90, 39, 0.03)" }}>
+      {/* Work */}
+      <section id="work" className="py-20 md:py-24" style={{ backgroundColor: "rgba(45, 90, 39, 0.025)" }}>
         <div className="max-w-5xl mx-auto px-6">
           <SectionReveal>
-            <h2 className="text-xl font-semibold text-brown mb-1">Experience</h2>
-            <div className="w-10 h-[3px] bg-terracotta mb-8" />
+            <SheetHeader index="01" eyebrow="Where I've worked" title="Experience" coord="33.7756°N 84.3963°W" />
             <WorkSection />
           </SectionReveal>
         </div>
       </section>
 
-      <SectionDivider />
-
-      {/* Projects - very subtle green tint */}
-      <section id="projects" className="py-14" style={{ backgroundColor: "rgba(45, 90, 39, 0.02)" }}>
+      {/* Projects */}
+      <section id="projects" className="py-20 md:py-24">
         <div className="max-w-5xl mx-auto px-6">
           <SectionReveal>
-            <h2 className="text-xl font-semibold text-brown mb-1">Projects</h2>
-            <div className="w-10 h-[3px] bg-terracotta mb-8" />
+            <SheetHeader index="02" eyebrow="Things I've built" title="Selected Projects" coord="33.7490°N 84.3880°W" />
             <ProjectsSection projects={allProjects} />
           </SectionReveal>
         </div>
       </section>
 
-      <SectionDivider />
-
-      {/* Research - very subtle green tint */}
-      <section id="research" className="py-14" style={{ backgroundColor: "rgba(45, 90, 39, 0.03)" }}>
+      {/* Research */}
+      <section id="research" className="py-20 md:py-24" style={{ backgroundColor: "rgba(45, 90, 39, 0.025)" }}>
         <div className="max-w-5xl mx-auto px-6">
           <SectionReveal>
-            <h2 className="text-xl font-semibold text-brown mb-1">Research &amp; Publications</h2>
-            <div className="w-10 h-[3px] bg-terracotta mb-3" />
-            <p className="text-sm text-brown-light mb-8">
-              Research submitted, accepted, and presented at leading architecture and design conferences.
-            </p>
+            <SheetHeader
+              index="03"
+              eyebrow="Peer-reviewed work"
+              title="Research & Publications"
+              sub="Research submitted, accepted, and presented at leading architecture and design conferences."
+              coord="33.7701°N 84.3876°W"
+            />
             <ResearchSection entries={researchEntries} />
           </SectionReveal>
         </div>
       </section>
 
-      <SectionDivider />
-
-      {/* Contact - transparent so isometric background shows through */}
-      <div style={{ background: "transparent" }}>
-        <ContactSection />
-      </div>
+      {/* Contact */}
+      <ContactSection />
     </div>
   );
 }

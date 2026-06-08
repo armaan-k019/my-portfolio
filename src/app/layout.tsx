@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
-import { Inter, Amiri } from "next/font/google";
+import { Inter, Amiri, Fraunces, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import IsometricBackground from "@/components/IsometricBackground";
 import DrawingAwareScope from "@/components/DrawingAwareScope";
+import IntroOverlay from "@/components/IntroOverlay";
+import CustomCursor from "@/components/CustomCursor";
+import ScrollProgress from "@/components/ScrollProgress";
+import AtlasFrame from "@/components/AtlasFrame";
+import SmoothScroll from "@/components/SmoothScroll";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -15,6 +20,21 @@ const amiri = Amiri({
   subsets: ["arabic"],
   weight: ["400", "700"],
   variable: "--font-amiri",
+});
+
+// Editorial display serif for headings — optical sizing on, weights we use.
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
+  variable: "--font-fraunces",
+});
+
+// Technical monospace for the metadata layer — indices, labels, coordinates.
+const plexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-plex-mono",
 });
 
 export const metadata: Metadata = {
@@ -32,9 +52,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${amiri.variable} antialiased`}>
+    <html lang="en" className={`${inter.variable} ${amiri.variable} ${fraunces.variable} ${plexMono.variable} antialiased`}>
       <body className="min-h-screen flex flex-col font-sans relative">
+        <SmoothScroll />
         <IsometricBackground />
+        <AtlasFrame />
+        <IntroOverlay />
+        <CustomCursor />
+        <ScrollProgress />
         <DrawingAwareScope>
           <div className="relative z-10 flex flex-col min-h-screen">
             <Navbar />

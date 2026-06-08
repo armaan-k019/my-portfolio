@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import Carousel from "./Carousel";
 import Modal from "./Modal";
+import Magnetic from "./Magnetic";
+import DecodeText from "./DecodeText";
 
 const ROLE_WORDS = ["student", "researcher", "architect", "computer scientist", "engineer"];
 
@@ -60,6 +62,9 @@ const favColumns = [
 export default function AboutSection() {
   const [favOpen, setFavOpen] = useState(false);
   const [roleIdx, setRoleIdx] = useState(0);
+  const heroRef = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
+  const carouselY = useTransform(scrollYProgress, [0, 1], [0, 90]);
 
   useEffect(() => {
     const t = setInterval(() => setRoleIdx(i => (i + 1) % ROLE_WORDS.length), 3400);
@@ -70,25 +75,41 @@ export default function AboutSection() {
   const article = /^[aeiou]/i.test(currentRole) ? "an" : "a";
 
   return (
-    <section id="about" className="max-w-5xl mx-auto px-6 pt-20 pb-14">
-      <div className="grid grid-cols-1 md:grid-cols-[47fr_53fr] gap-10">
+    <section ref={heroRef} id="about" className="max-w-5xl mx-auto px-6 pt-16 md:pt-24 pb-16">
+      <div className="grid grid-cols-1 md:grid-cols-[47fr_53fr] gap-12 items-center">
         {/* Left column - Bio */}
         <motion.div
           variants={fadeUp}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
         >
-          <p className="text-xs font-semibold tracking-widest uppercase text-terracotta mb-3">
-            About
-          </p>
-          <h1 className="text-3xl md:text-4xl font-semibold text-darkblue tracking-tight mb-2">
-            Armaan Kazi
+          <div className="flex items-center gap-3 mb-5 flex-wrap">
+            <span className="meta text-terracotta">BASECAMP</span>
+            <span className="w-1 h-1 rotate-45 bg-terracotta/40" />
+            <span className="eyebrow">Architecture &times; Computer Science</span>
+            <span className="coord text-brown-light/45">33.7490°N 84.3880°W</span>
+          </div>
+          <h1 className="font-display display-lg font-semibold text-ink mb-5">
+            {["Armaan", "Kazi"].map((word, i) => (
+              <span key={word} className="block overflow-hidden pb-[0.08em]">
+                <motion.span
+                  className="block"
+                  initial={{ y: "115%" }}
+                  animate={{ y: 0 }}
+                  transition={{ duration: 0.95, delay: 0.15 + i * 0.12, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  {word}
+                </motion.span>
+              </span>
+            ))}
           </h1>
-          <p className="text-brown-light text-base md:text-lg mb-5">
-            Architecture + CS @ Georgia Tech
-          </p>
+          <DecodeText
+            text="Building at the intersection of design & code."
+            delay={1100}
+            className="block font-mono text-[15px] md:text-base text-brown-light mb-6 tracking-tight"
+          />
           <div className="text-brown-light leading-relaxed space-y-3 mb-5">
             <p>
               My name is Armaan and I am{" "}
@@ -123,24 +144,35 @@ export default function AboutSection() {
               I also like to write and take pictures, alongside many other things.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2 mb-5">
-            <span className="text-xs px-3 py-1 rounded-full bg-[#F0F5F0] text-brown-light border border-[#D8E6D8]">
+          <div className="flex flex-wrap gap-2 mb-7">
+            <span className="text-xs px-3 py-1.5 rounded-full bg-white/60 backdrop-blur text-brown-light border border-[#D8E6D8]">
               📍 Atlanta, GA
             </span>
-            <span className="text-xs px-3 py-1 rounded-full bg-[#F0F5F0] text-brown-light border border-[#D8E6D8]">
+            <span className="text-xs px-3 py-1.5 rounded-full bg-white/60 backdrop-blur text-brown-light border border-[#D8E6D8]">
               🎓 Georgia Tech &apos;27
             </span>
           </div>
-          <div className="flex items-center gap-4">
-            <a href="#contact" className="text-sm font-medium text-terracotta hover:text-terracotta-dark transition-colors">
-              Get in touch &rarr;
-            </a>
-            <button
-              onClick={() => setFavOpen(true)}
-              className="text-sm font-medium text-terracotta hover:text-terracotta-dark transition-colors cursor-pointer"
-            >
-              Favorites &rarr;
-            </button>
+          <div className="flex items-center gap-3">
+            <Magnetic>
+              <a
+                href="#contact"
+                data-cursor
+                className="group inline-flex items-center gap-1.5 text-sm font-medium px-5 py-2.5 rounded-full bg-terracotta text-white shadow-sm hover:bg-terracotta-dark hover:shadow-md transition-all"
+              >
+                Get in touch
+                <span className="transition-transform group-hover:translate-x-0.5">&rarr;</span>
+              </a>
+            </Magnetic>
+            <Magnetic>
+              <button
+                onClick={() => setFavOpen(true)}
+                data-cursor
+                className="group inline-flex items-center gap-1.5 text-sm font-medium px-5 py-2.5 rounded-full border border-terracotta/30 text-terracotta hover:bg-terracotta/5 transition-all cursor-pointer"
+              >
+                Favorites
+                <span className="transition-transform group-hover:translate-x-0.5">&rarr;</span>
+              </button>
+            </Magnetic>
           </div>
         </motion.div>
 
@@ -153,21 +185,21 @@ export default function AboutSection() {
           transition={{ duration: 0.5, delay: 0.15, ease: "easeOut" }}
           className="flex items-center justify-center"
         >
-          <div className="w-full">
+          <motion.div className="w-full" style={{ y: carouselY }}>
             <Carousel />
-          </div>
+          </motion.div>
         </motion.div>
       </div>
 
       {/* Favorites modal */}
       <Modal open={favOpen} onClose={() => setFavOpen(false)} panelClassName="max-w-3xl">
-        <h2 className="text-xl font-semibold text-brown mb-1">Favorites</h2>
-        <div className="w-10 h-[3px] bg-terracotta mb-6" />
+        <h2 className="font-display text-2xl font-semibold text-ink mb-1">Favorites</h2>
+        <hr className="rule mb-6 mt-2" />
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {favColumns.map((col) => (
             <div
               key={col.label}
-              className="bg-[#F7FAF7] rounded-xl border border-[#D8E6D8] p-4 shadow-sm"
+              className="card p-4"
             >
               <p className="text-lg mb-1">{col.emoji}</p>
               <p className={`text-sm font-semibold ${col.labelColor} mb-3`}>{col.label}</p>

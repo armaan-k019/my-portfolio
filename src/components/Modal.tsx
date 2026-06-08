@@ -43,11 +43,13 @@ export default function Modal({ open, onClose, children, panelClassName }: Modal
     if (open) {
       document.addEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "hidden";
+      window.__lenis?.stop();
       setTimeout(() => dialogRef.current?.focus(), 50);
     }
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
+      window.__lenis?.start();
     };
   }, [open, handleKeyDown]);
 
@@ -59,7 +61,7 @@ export default function Modal({ open, onClose, children, panelClassName }: Modal
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/30"
+            className="absolute inset-0 bg-[#16241A]/40 backdrop-blur-[3px]"
             onClick={onClose}
           />
           <motion.div
@@ -67,11 +69,12 @@ export default function Modal({ open, onClose, children, panelClassName }: Modal
             tabIndex={-1}
             role="dialog"
             aria-modal="true"
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            initial={{ opacity: 0, scale: 0.97, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ duration: 0.2 }}
-            className={`relative bg-cream rounded-xl shadow-xl w-full max-h-[85vh] overflow-y-auto outline-none ${panelClassName ?? "max-w-lg"}`}
+            exit={{ opacity: 0, scale: 0.97, y: 12 }}
+            transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+            style={{ boxShadow: "var(--shadow-float)" }}
+            className={`relative bg-paper rounded-2xl border border-black/[0.06] w-full max-h-[85vh] overflow-y-auto outline-none ${panelClassName ?? "max-w-lg"}`}
           >
             <button
               onClick={onClose}

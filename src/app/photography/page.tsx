@@ -50,7 +50,8 @@ function Lightbox({
   // Prevent scroll on body
   useEffect(() => {
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = ""; };
+    window.__lenis?.stop();
+    return () => { document.body.style.overflow = ""; window.__lenis?.start(); };
   }, []);
 
   return (
@@ -213,9 +214,10 @@ export default function PhotographyPage() {
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="max-w-7xl mx-auto px-6 pt-12 pb-6">
-        <h1 className="text-2xl font-semibold text-[#1A2A1A] mb-1">Photography</h1>
-        <p className="text-sm text-[#4A6B4A]">
-          Travel photography: {DESTINATIONS.length} destinations, {PHOTOS.length} photos.
+        <p className="eyebrow mb-3">Field survey</p>
+        <h1 className="font-display display-lg font-semibold text-ink mb-3">Photography</h1>
+        <p className="meta">
+          {DESTINATIONS.length} STATIONS &middot; {PHOTOS.length} PLATES &middot; SURVEYED ON FOOT
         </p>
       </div>
 
@@ -225,7 +227,7 @@ export default function PhotographyPage() {
           {/* All pill */}
           <button
             onClick={() => handleFilterChange("All")}
-            className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
+            className={`font-mono text-[11px] tracking-wide uppercase px-3 py-1.5 rounded-full border transition-all ${
               activeFilter === "All"
                 ? "bg-[#2D5A27] text-white border-[#2D5A27] shadow-sm"
                 : "bg-transparent text-[#4A6B4A] border-[#D8E6D8] hover:border-[#2D5A27] hover:text-[#2D5A27]"
@@ -238,7 +240,7 @@ export default function PhotographyPage() {
             <button
               key={dest.name}
               onClick={() => handleFilterChange(dest.name)}
-              className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
+              className={`font-mono text-[11px] tracking-wide uppercase px-3 py-1.5 rounded-full border transition-all ${
                 activeFilter === dest.name
                   ? "bg-[#2D5A27] text-white border-[#2D5A27] shadow-sm"
                   : "bg-transparent text-[#4A6B4A] border-[#D8E6D8] hover:border-[#2D5A27] hover:text-[#2D5A27]"

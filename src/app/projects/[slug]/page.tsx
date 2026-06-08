@@ -28,8 +28,8 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
       </Link>
       <article>
         <header className="mb-8">
-          <div className="flex items-center gap-3 mb-2 flex-wrap">
-            <h1 className="text-2xl font-semibold text-darkblue">{project.title}</h1>
+          <div className="flex items-center gap-3 mb-3 flex-wrap">
+            <h1 className="font-display display-md font-semibold text-ink">{project.title}</h1>
             <CategoryTag category={project.category} />
             <span
               className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${

@@ -27,15 +27,16 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
         &larr; Back to blog
       </Link>
       <article>
-        <header className="mb-8">
-          <h1 className="text-2xl font-semibold text-darkblue mb-2">{post.title}</h1>
-          <time className="text-sm text-brown-light">
+        <header className="mb-10">
+          <h1 className="font-display display-md font-semibold text-ink mb-3">{post.title}</h1>
+          <time className="meta">
             {new Date(post.date).toLocaleDateString("en-US", {
               year: "numeric",
               month: "long",
               day: "numeric",
             })}
           </time>
+          <hr className="hairline mt-6" />
         </header>
         <div className="prose">
           <MDXRemote source={post.content} />

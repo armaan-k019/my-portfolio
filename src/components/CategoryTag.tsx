@@ -28,7 +28,7 @@ export default function CategoryTag({ category }: { category: Category }) {
   const config = categoryConfig[category];
   return (
     <span
-      className={`inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full border ${config.bg} ${config.text} ${config.border}`}
+      className={`inline-flex items-center font-mono text-[10px] font-medium tracking-wider uppercase px-2 py-0.5 rounded-full border ${config.bg} ${config.text} ${config.border}`}
     >
       {config.label}
     </span>

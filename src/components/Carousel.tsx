@@ -42,7 +42,7 @@ export default function Carousel() {
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <div className="relative w-full h-[280px] md:h-[500px] rounded-xl overflow-hidden">
+      <div className="relative w-full h-[280px] md:h-[500px] rounded-2xl overflow-hidden border border-black/5" style={{ boxShadow: "var(--shadow-card)" }}>
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
             key={current}
@@ -90,8 +90,8 @@ export default function Carousel() {
           <button
             key={i}
             onClick={() => { setDirection(i > current ? 1 : -1); setCurrent(i); }}
-            className={`w-2 h-2 rounded-full transition-colors ${
-              i === current ? "bg-terracotta" : "bg-tan"
+            className={`h-1.5 rounded-full transition-all duration-300 ${
+              i === current ? "w-5 bg-terracotta" : "w-1.5 bg-tan hover:bg-tan-light"
             }`}
             aria-label={`Go to photo ${i + 1}`}
           />

@@ -7,9 +7,11 @@ export default function BlogPage() {
   const posts = getBlogPosts();
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-16">
-      <h1 className="text-2xl font-semibold text-brown mb-1">Blog</h1>
-      <div className="w-10 h-0.5 bg-terracotta mb-10" />
+    <div className="max-w-3xl mx-auto px-6 pt-12 pb-20">
+      <p className="eyebrow mb-3">Writing</p>
+      <h1 className="font-display display-lg font-semibold text-ink mb-4">Blog</h1>
+      <p className="text-brown-light max-w-xl mb-8">Essays on architecture, computation, and the space between them.</p>
+      <div className="tick-rule mb-10" />
       <BlogList posts={posts} />
     </div>
   );

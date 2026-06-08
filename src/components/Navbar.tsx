@@ -53,11 +53,11 @@ export default function Navbar() {
     return () => { document.body.style.overflow = ""; };
   }, [mobileOpen]);
 
-  const navLinkClass = (id: string) =>
-    `text-sm transition-colors ${
-      activeSection === id && isHome
-        ? "text-terracotta font-semibold"
-        : "text-brown-light hover:text-terracotta"
+  const navLinkClass = (active: boolean) =>
+    `relative font-mono text-[11px] tracking-[0.1em] uppercase transition-colors after:absolute after:-bottom-1.5 after:left-0 after:h-px after:bg-terracotta after:transition-all after:duration-300 ${
+      active
+        ? "text-terracotta after:w-full"
+        : "text-brown-light hover:text-terracotta after:w-0 hover:after:w-full"
     }`;
 
   const handleSectionClick = (id: string) => {
@@ -70,23 +70,25 @@ export default function Navbar() {
   return (
     <>
       <nav
-        className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md border-b"
+        className="fixed top-0 left-0 right-0 z-50 border-b"
         style={{
-          backgroundColor: "rgba(255, 255, 255, 0.92)",
-          borderBottomColor: "rgba(45, 90, 39, 0.12)",
+          backgroundColor: "rgba(246, 248, 244, 0.72)",
+          backdropFilter: "blur(14px) saturate(1.1)",
+          WebkitBackdropFilter: "blur(14px) saturate(1.1)",
+          borderBottomColor: "rgba(45, 90, 39, 0.1)",
         }}
       >
         <div className="max-w-5xl mx-auto px-6 flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-3 shrink-0">
+          <Link href="/" className="group flex items-center gap-3 shrink-0">
             <span
-              className="text-darkblue select-none leading-none"
-              style={{ fontFamily: 'var(--font-amiri), "Amiri", serif', fontSize: '1.6rem' }}
+              className="text-darkblue select-none leading-none transition-transform duration-300 group-hover:scale-105"
+              style={{ fontFamily: 'var(--font-amiri), "Amiri", serif', fontSize: '1.65rem' }}
             >
               أك
             </span>
             <div className="flex flex-col leading-tight">
-              <span className="text-sm font-semibold text-darkblue tracking-wide">Armaan Kazi</span>
-              <span className="hidden sm:block text-[11px] text-brown-light">Architecture + CS @ Georgia Tech · Sustainable Architecture Certificate</span>
+              <span className="font-display text-[15px] font-semibold text-darkblue tracking-tight">Armaan Kazi</span>
+              <span className="hidden sm:block font-mono text-[10px] tracking-wide uppercase text-brown-light/80">Architecture + CS · Georgia Tech · Sustainable Arch. Cert.</span>
             </div>
           </Link>
 
@@ -96,24 +98,20 @@ export default function Navbar() {
               <a
                 key={s.id}
                 href={isHome ? `#${s.id}` : `/#${s.id}`}
-                className={navLinkClass(s.id)}
+                className={navLinkClass(activeSection === s.id && isHome)}
               >
                 {s.label}
               </a>
             ))}
 
             {/* Vertical separator */}
-            <div className="w-px h-[18px] bg-sage/40" />
+            <div className="w-px h-[18px] bg-sage/30" />
 
             {pages.map((p) => (
               <Link
                 key={p.href}
                 href={p.href}
-                className={`text-sm transition-colors ${
-                  pathname.startsWith(p.href)
-                    ? "text-terracotta font-semibold"
-                    : "text-brown-light hover:text-terracotta"
-                }`}
+                className={navLinkClass(pathname.startsWith(p.href))}
               >
                 {p.label}
               </Link>

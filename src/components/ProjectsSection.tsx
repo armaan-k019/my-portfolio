@@ -18,13 +18,11 @@ const filters: { label: string; value: Category | "all" }[] = [
   { label: "CS \u00d7 Architecture", value: "intersection" },
 ];
 
-function getHoverBorderClass(category: Category) {
-  switch (category) {
-    case "cs": return "hover:border-l-terracotta hover:bg-terracotta/5";
-    case "architecture": return "hover:border-l-sage hover:bg-sage/5";
-    case "intersection": return "hover:border-l-darkblue hover:bg-darkblue/5";
-  }
-}
+const ACCENT: Record<Category, string> = {
+  cs: "#2D5A27",
+  architecture: "#4A7A44",
+  intersection: "#1E3A5F",
+};
 
 export default function ProjectsSection({ projects }: { projects: Project[] }) {
   const [activeFilter, setActiveFilter] = useState<Category | "all">("all");
@@ -40,7 +38,7 @@ export default function ProjectsSection({ projects }: { projects: Project[] }) {
           <button
             key={f.value}
             onClick={() => setActiveFilter(f.value)}
-            className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
+            className={`font-mono text-[11px] tracking-wide uppercase px-3 py-1.5 rounded-full border transition-all ${
               activeFilter === f.value
                 ? f.value === "cs"
                   ? "bg-terracotta text-white border-terracotta shadow-sm"
@@ -70,18 +68,23 @@ export default function ProjectsSection({ projects }: { projects: Project[] }) {
               transition={{ duration: 0.5, delay: i * 0.08, ease: "easeOut" }}
               className="relative h-full"
             >
-              <Link href={`/projects/${project.slug}`} className="block h-full">
+              <Link href={`/projects/${project.slug}`} className="group block h-full">
                 <div
-                  className={`bg-white rounded-xl p-5 shadow-sm hover:shadow-md border-l-4 border-l-transparent hover:-translate-y-1 transition-all duration-200 h-full ${getHoverBorderClass(project.category)} ${project.github ? 'pb-8' : ''}`}
+                  className={`card card-hover p-5 h-full overflow-hidden ${project.github ? 'pb-8' : ''}`}
                 >
-                  <div className="flex items-start justify-between mb-1">
-                    <h3 className="font-medium text-brown">{project.title}</h3>
+                  {/* category accent edge */}
+                  <span
+                    className="absolute left-0 top-0 h-full w-[3px] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                    style={{ backgroundColor: ACCENT[project.category] }}
+                  />
+                  <div className="flex items-start justify-between gap-2 mb-1.5">
+                    <h3 className="font-display text-lg font-semibold text-ink leading-snug">{project.title}</h3>
                     <CategoryTag category={project.category} />
                   </div>
-                  <p className="text-xs text-brown-light mb-3 line-clamp-2">{project.blurb}</p>
+                  <p className="text-[13px] text-brown-light mb-3 line-clamp-2 leading-relaxed">{project.blurb}</p>
                   {project.status && (
                     <span
-                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                      className={`font-mono text-[10px] tracking-wider uppercase px-2 py-0.5 rounded-full border ${
                         project.status === "Coming Soon"
                           ? "bg-tan/20 text-tan border-tan/40"
                           : "bg-sage/20 text-sage border-sage/40"

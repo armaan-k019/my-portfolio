@@ -136,8 +136,6 @@ function PrivateSection() {
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function DemosPage() {
-  const [hovered, setHovered] = useState<string | null>(null);
-
   return (
     <div className="min-h-screen">
       <div className="max-w-4xl mx-auto px-6 py-16">
@@ -148,10 +146,12 @@ export default function DemosPage() {
           &larr; Back to portfolio
         </Link>
 
-        <h1 className="text-2xl font-semibold text-darkblue mb-3">Demos</h1>
-        <p className="text-sm text-brown-light leading-relaxed max-w-xl mb-10">
+        <p className="eyebrow mb-3">Build logs</p>
+        <h1 className="font-display display-lg font-semibold text-ink mb-4">Demos</h1>
+        <p className="text-sm text-brown-light leading-relaxed max-w-xl mb-2">
           Company-specific projects, each built around one problem I wanted to dig into.
         </p>
+        <div className="tick-rule mb-10 mt-6" />
 
         <div className="grid md:grid-cols-3 gap-4">
           <AnimatePresence mode="popLayout">
@@ -164,20 +164,16 @@ export default function DemosPage() {
                 whileInView="visible"
                 viewport={{ once: true, margin: "-80px" }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.5, delay: i * 0.06, ease: "easeOut" }}
-                onMouseEnter={() => setHovered(demo.slug)}
-                onMouseLeave={() => setHovered(null)}
+                transition={{ duration: 0.6, delay: i * 0.06, ease: [0.16, 1, 0.3, 1] }}
               >
-                <Link href={demo.url} className="block h-full">
-                  <div
-                    className="bg-white rounded-xl p-5 shadow-sm hover:shadow-md border-l-4 hover:-translate-y-1 transition-all duration-200 h-full"
-                    style={{
-                      borderLeftColor: hovered === demo.slug ? ACCENT : "transparent",
-                      backgroundColor: hovered === demo.slug ? ACCENT + "0d" : "white",
-                    }}
-                  >
-                    <h3 className="font-medium text-brown mb-1">{demo.company}</h3>
-                    <p className="text-xs text-brown-light leading-relaxed">{demo.headline}</p>
+                <Link href={demo.url} className="group block h-full">
+                  <div className="card card-hover p-5 h-full overflow-hidden">
+                    <span
+                      className="absolute left-0 top-0 h-full w-[3px] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                      style={{ backgroundColor: ACCENT }}
+                    />
+                    <h3 className="font-display text-lg font-semibold text-ink mb-1">{demo.company}</h3>
+                    <p className="text-[13px] text-brown-light leading-relaxed">{demo.headline}</p>
                   </div>
                 </Link>
               </motion.div>
