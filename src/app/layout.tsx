@@ -3,10 +3,10 @@ import { Inter, Amiri, Fraunces, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import IsometricBackground from "@/components/IsometricBackground";
 import DrawingAwareScope from "@/components/DrawingAwareScope";
 import CustomCursor from "@/components/CustomCursor";
 import AtlasFrame from "@/components/AtlasFrame";
-import IsometricBackground from "@/components/IsometricBackground";
 
 const inter = Inter({
   subsets: ["latin"],
