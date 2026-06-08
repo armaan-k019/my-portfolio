@@ -1,15 +1,9 @@
-// The atlas's persistent chrome: a survey margin (graticule rulers + crop
+// The atlas persistent chrome: a survey margin (graticule rulers + crop
 // marks), a compass rose, the region legend keying the latent key-map, and a
-// paper grain. Static — no client JS. This is what makes every screen read as
+// paper grain. Static, no client JS. This is what makes every screen read as
 // one page of a single bound atlas.
 
-export const REGIONS = [
-  { label: "DESIGN", color: "45,90,39" },
-  { label: "ARCHITECTURE", color: "74,122,68" },
-  { label: "RESEARCH", color: "30,58,95" },
-  { label: "PHOTOGRAPHY", color: "176,132,80" },
-  { label: "SYSTEMS", color: "92,138,84" },
-];
+import { REGIONS, REGION_ORDER } from "@/lib/latent-atlas";
 
 const GRAIN =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E\")";
@@ -41,26 +35,29 @@ export default function AtlasFrame() {
         className="fixed inset-0 z-[1] pointer-events-none"
         style={{ backgroundImage: GRAIN, opacity: 0.05, mixBlendMode: "multiply" }}
       />
-      {/* survey margin — graticule rulers on the vertical edges */}
+      {/* survey margin: graticule rulers on the vertical edges */}
       <div aria-hidden className="fixed left-0 top-0 bottom-0 w-1.5 z-20 hidden md:block pointer-events-none" style={{ backgroundImage: TICKS, opacity: 0.5 }} />
       <div aria-hidden className="fixed right-0 top-0 bottom-0 w-1.5 z-20 hidden md:block pointer-events-none" style={{ backgroundImage: TICKS, opacity: 0.5 }} />
 
       <Compass />
 
-      {/* region legend — keys the latent map */}
+      {/* region legend: keys the latent map. Glyph plus color, dual encoded. */}
       <div className="fixed bottom-5 left-6 z-30 hidden lg:flex flex-col gap-1" aria-hidden>
         <span className="meta text-brown-light/60 mb-0.5">LEGEND</span>
-        {REGIONS.map((r) => (
-          <span key={r.label} className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rotate-45" style={{ backgroundColor: `rgb(${r.color})` }} />
-            <span className="coord text-brown-light/70">{r.label}</span>
-          </span>
-        ))}
+        {REGION_ORDER.map((id) => {
+          const r = REGIONS[id];
+          return (
+            <span key={r.id} className="flex items-center gap-1.5">
+              <span className="coord" style={{ color: `rgb(${r.color})` }}>{r.glyph}</span>
+              <span className="coord text-brown-light/70">{r.id}</span>
+            </span>
+          );
+        })}
       </div>
 
       {/* sheet caption */}
       <span className="meta fixed bottom-5 right-6 z-30 hidden md:block opacity-60" aria-hidden>
-        ATLAS &mdash; 33.7490&deg;N 84.3880&deg;W
+        ATLAS &middot; 33.7490&deg;N 84.3880&deg;W
       </span>
     </>
   );

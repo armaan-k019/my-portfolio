@@ -50,8 +50,7 @@ function Lightbox({
   // Prevent scroll on body
   useEffect(() => {
     document.body.style.overflow = "hidden";
-    window.__lenis?.stop();
-    return () => { document.body.style.overflow = ""; window.__lenis?.start(); };
+    return () => { document.body.style.overflow = ""; };
   }, []);
 
   return (

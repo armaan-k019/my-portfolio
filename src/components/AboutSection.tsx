@@ -1,11 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import Carousel from "./Carousel";
 import Modal from "./Modal";
-import Magnetic from "./Magnetic";
-import DecodeText from "./DecodeText";
 
 const ROLE_WORDS = ["student", "researcher", "architect", "computer scientist", "engineer"];
 
@@ -62,9 +60,6 @@ const favColumns = [
 export default function AboutSection() {
   const [favOpen, setFavOpen] = useState(false);
   const [roleIdx, setRoleIdx] = useState(0);
-  const heroRef = useRef<HTMLElement>(null);
-  const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
-  const carouselY = useTransform(scrollYProgress, [0, 1], [0, 90]);
 
   useEffect(() => {
     const t = setInterval(() => setRoleIdx(i => (i + 1) % ROLE_WORDS.length), 3400);
@@ -75,7 +70,7 @@ export default function AboutSection() {
   const article = /^[aeiou]/i.test(currentRole) ? "an" : "a";
 
   return (
-    <section ref={heroRef} id="about" className="max-w-5xl mx-auto px-6 pt-16 md:pt-24 pb-16">
+    <section id="about" className="max-w-5xl mx-auto px-6 pt-16 md:pt-24 pb-16">
       <div className="grid grid-cols-1 md:grid-cols-[47fr_53fr] gap-12 items-center">
         {/* Left column - Bio */}
         <motion.div
@@ -105,11 +100,9 @@ export default function AboutSection() {
               </span>
             ))}
           </h1>
-          <DecodeText
-            text="Building at the intersection of design & code."
-            delay={1100}
-            className="block font-mono text-[15px] md:text-base text-brown-light mb-6 tracking-tight"
-          />
+          <p className="font-mono text-[15px] md:text-base text-brown-light mb-6 tracking-tight">
+            Building at the intersection of design and code.
+          </p>
           <div className="text-brown-light leading-relaxed space-y-3 mb-5">
             <p>
               My name is Armaan and I am{" "}
@@ -153,26 +146,22 @@ export default function AboutSection() {
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <Magnetic>
-              <a
-                href="#contact"
-                data-cursor
-                className="group inline-flex items-center gap-1.5 text-sm font-medium px-5 py-2.5 rounded-full bg-terracotta text-white shadow-sm hover:bg-terracotta-dark hover:shadow-md transition-all"
-              >
-                Get in touch
-                <span className="transition-transform group-hover:translate-x-0.5">&rarr;</span>
-              </a>
-            </Magnetic>
-            <Magnetic>
-              <button
-                onClick={() => setFavOpen(true)}
-                data-cursor
-                className="group inline-flex items-center gap-1.5 text-sm font-medium px-5 py-2.5 rounded-full border border-terracotta/30 text-terracotta hover:bg-terracotta/5 transition-all cursor-pointer"
-              >
-                Favorites
-                <span className="transition-transform group-hover:translate-x-0.5">&rarr;</span>
-              </button>
-            </Magnetic>
+            <a
+              href="#contact"
+              data-cursor
+              className="group inline-flex items-center gap-1.5 text-sm font-medium px-5 py-2.5 rounded-full bg-terracotta text-white shadow-sm hover:bg-terracotta-dark hover:shadow-md transition-all"
+            >
+              Get in touch
+              <span className="transition-transform group-hover:translate-x-0.5">&rarr;</span>
+            </a>
+            <button
+              onClick={() => setFavOpen(true)}
+              data-cursor
+              className="group inline-flex items-center gap-1.5 text-sm font-medium px-5 py-2.5 rounded-full border border-terracotta/30 text-terracotta hover:bg-terracotta/5 transition-all cursor-pointer"
+            >
+              Favorites
+              <span className="transition-transform group-hover:translate-x-0.5">&rarr;</span>
+            </button>
           </div>
         </motion.div>
 
@@ -185,9 +174,9 @@ export default function AboutSection() {
           transition={{ duration: 0.5, delay: 0.15, ease: "easeOut" }}
           className="flex items-center justify-center"
         >
-          <motion.div className="w-full" style={{ y: carouselY }}>
+          <div className="w-full">
             <Carousel />
-          </motion.div>
+          </div>
         </motion.div>
       </div>
 

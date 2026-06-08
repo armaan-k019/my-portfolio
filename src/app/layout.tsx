@@ -5,11 +5,8 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import IsometricBackground from "@/components/IsometricBackground";
 import DrawingAwareScope from "@/components/DrawingAwareScope";
-import IntroOverlay from "@/components/IntroOverlay";
 import CustomCursor from "@/components/CustomCursor";
-import ScrollProgress from "@/components/ScrollProgress";
 import AtlasFrame from "@/components/AtlasFrame";
-import SmoothScroll from "@/components/SmoothScroll";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -22,7 +19,7 @@ const amiri = Amiri({
   variable: "--font-amiri",
 });
 
-// Editorial display serif for headings — optical sizing on, weights we use.
+// Editorial display serif for headings. Optical sizing on, weights we use.
 const fraunces = Fraunces({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
@@ -30,7 +27,7 @@ const fraunces = Fraunces({
   variable: "--font-fraunces",
 });
 
-// Technical monospace for the metadata layer — indices, labels, coordinates.
+// Technical monospace for the metadata layer: indices, labels, coordinates.
 const plexMono = IBM_Plex_Mono({
   subsets: ["latin"],
   weight: ["400", "500"],
@@ -54,12 +51,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${amiri.variable} ${fraunces.variable} ${plexMono.variable} antialiased`}>
       <body className="min-h-screen flex flex-col font-sans relative">
-        <SmoothScroll />
         <IsometricBackground />
         <AtlasFrame />
-        <IntroOverlay />
         <CustomCursor />
-        <ScrollProgress />
         <DrawingAwareScope>
           <div className="relative z-10 flex flex-col min-h-screen">
             <Navbar />

@@ -29,27 +29,27 @@ export interface Region {
 
 export const REGIONS: Record<RegionId, Region> = {
   DESIGN: {
-    id: "DESIGN", name: "Design", color: "45,90,39", glyph: "◆",
+    id: "DESIGN", name: "Design", color: "184,134,42", glyph: "◆",
     note: "Where design and computation meet.",
     center: { x: 0.36, y: 0.42 }, labelPos: { x: 0.36, y: 0.30 },
   },
   ARCHITECTURE: {
-    id: "ARCHITECTURE", name: "Architecture", color: "74,122,68", glyph: "▲",
+    id: "ARCHITECTURE", name: "Architecture", color: "44,62,80", glyph: "▲",
     note: "Built space, material, and memory.",
     center: { x: 0.24, y: 0.70 }, labelPos: { x: 0.24, y: 0.58 },
   },
   RESEARCH: {
-    id: "RESEARCH", name: "Research", color: "30,58,95", glyph: "■",
+    id: "RESEARCH", name: "Research", color: "62,86,65", glyph: "■",
     note: "Peer reviewed and in progress inquiry.",
     center: { x: 0.52, y: 0.18 }, labelPos: { x: 0.52, y: 0.07 },
   },
   SYSTEMS: {
-    id: "SYSTEMS", name: "Systems", color: "92,138,84", glyph: "●",
+    id: "SYSTEMS", name: "Systems", color: "160,82,45", glyph: "●",
     note: "Software, data, and machine learning.",
     center: { x: 0.74, y: 0.44 }, labelPos: { x: 0.74, y: 0.32 },
   },
   FIELD: {
-    id: "FIELD", name: "Field", color: "176,132,80", glyph: "✦",
+    id: "FIELD", name: "Field", color: "45,95,93", glyph: "✦",
     note: "Surveyed on foot. Photography and expeditions.",
     center: { x: 0.72, y: 0.78 }, labelPos: { x: 0.72, y: 0.90 },
   },

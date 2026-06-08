@@ -5,7 +5,6 @@ import ProjectsSection from "@/components/ProjectsSection";
 import ContactSection from "@/components/ContactSection";
 import ResearchSection from "@/components/ResearchSection";
 import SheetHeader from "@/components/SheetHeader";
-import Marquee from "@/components/Marquee";
 import { projects } from "../../content/projects";
 import { getResearchEntries } from "@/lib/mdx";
 
@@ -17,8 +16,6 @@ export default function Home() {
     <div>
       {/* About (merged Hero + About) */}
       <AboutSection />
-
-      <Marquee />
 
       {/* Work */}
       <section id="work" className="py-20 md:py-24" style={{ backgroundColor: "rgba(45, 90, 39, 0.025)" }}>

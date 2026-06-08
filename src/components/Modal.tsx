@@ -43,13 +43,11 @@ export default function Modal({ open, onClose, children, panelClassName }: Modal
     if (open) {
       document.addEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "hidden";
-      window.__lenis?.stop();
       setTimeout(() => dialogRef.current?.focus(), 50);
     }
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
-      window.__lenis?.start();
     };
   }, [open, handleKeyDown]);
 
