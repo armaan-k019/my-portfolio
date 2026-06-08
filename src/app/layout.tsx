@@ -6,7 +6,7 @@ import Footer from "@/components/Footer";
 import DrawingAwareScope from "@/components/DrawingAwareScope";
 import CustomCursor from "@/components/CustomCursor";
 import AtlasFrame from "@/components/AtlasFrame";
-import AtlasMount from "@/components/atlas/AtlasMount";
+import IsometricBackground from "@/components/IsometricBackground";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -51,7 +51,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${amiri.variable} ${fraunces.variable} ${plexMono.variable} antialiased`}>
       <body className="min-h-screen flex flex-col font-sans relative">
-        <AtlasMount />
+        <IsometricBackground />
         <AtlasFrame />
         <CustomCursor />
         <DrawingAwareScope>
