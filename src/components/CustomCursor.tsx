@@ -66,8 +66,8 @@ export default function CustomCursor() {
         ref={ringRef}
         className="fixed top-0 left-0 rounded-full"
         style={{
-          width: hovering ? 46 : 26,
-          height: hovering ? 46 : 26,
+          width: hovering ? 30 : 16,
+          height: hovering ? 30 : 16,
           border: `1px solid ${ink}`,
           background: hovering ? "rgba(45,90,39,0.05)" : "transparent",
           transition: "width 0.25s var(--ease-out-expo), height 0.25s var(--ease-out-expo), background 0.25s",
@@ -75,12 +75,12 @@ export default function CustomCursor() {
       />
       {/* precise crosshair reticle */}
       <div ref={reticleRef} className="fixed top-0 left-0">
-        <svg width="44" height="44" viewBox="-22 -22 44 44" style={{ overflow: "visible" }}>
-          <line x1="-21" y1="0" x2="-7" y2="0" stroke={ink} strokeWidth="1" />
-          <line x1="7" y1="0" x2="21" y2="0" stroke={ink} strokeWidth="1" />
-          <line x1="0" y1="-21" x2="0" y2="-7" stroke={ink} strokeWidth="1" />
-          <line x1="0" y1="7" x2="0" y2="21" stroke={ink} strokeWidth="1" />
-          <circle cx="0" cy="0" r="1.4" fill={ink} />
+        <svg width="28" height="28" viewBox="-14 -14 28 28" style={{ overflow: "visible" }}>
+          <line x1="-13" y1="0" x2="-5" y2="0" stroke={ink} strokeWidth="1" />
+          <line x1="5" y1="0" x2="13" y2="0" stroke={ink} strokeWidth="1" />
+          <line x1="0" y1="-13" x2="0" y2="-5" stroke={ink} strokeWidth="1" />
+          <line x1="0" y1="5" x2="0" y2="13" stroke={ink} strokeWidth="1" />
+          <circle cx="0" cy="0" r="1.2" fill={ink} />
         </svg>
       </div>
       {/* live coordinate readout */}
