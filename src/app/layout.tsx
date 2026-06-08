@@ -3,10 +3,10 @@ import { Inter, Amiri, Fraunces, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import IsometricBackground from "@/components/IsometricBackground";
 import DrawingAwareScope from "@/components/DrawingAwareScope";
 import CustomCursor from "@/components/CustomCursor";
 import AtlasFrame from "@/components/AtlasFrame";
+import AtlasMount from "@/components/atlas/AtlasMount";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -51,7 +51,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${amiri.variable} ${fraunces.variable} ${plexMono.variable} antialiased`}>
       <body className="min-h-screen flex flex-col font-sans relative">
-        <IsometricBackground />
+        <AtlasMount />
         <AtlasFrame />
         <CustomCursor />
         <DrawingAwareScope>
