@@ -232,3 +232,18 @@ body.cursor-none * {
 .prose pre code { background: transparent; padding: 0; }
 .prose img { border-radius: 0.75rem; margin: 1.75rem 0; box-shadow: var(--shadow-card); }
 .prose hr { border: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--color-tan-light), transparent); margin: 2.5rem 0; }
+
+/* ── Trajectory demo dots (Part Two) ──────────────────────────────────────── */
+/* Designed dot: soft border, light shadow, smooth hover lift. transform-box so
+   the SVG scale pivots on the dot itself, not the canvas origin. */
+.traj-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.16s var(--ease-soft), filter 0.16s ease;
+  filter: drop-shadow(0 1px 1.5px rgba(26, 42, 26, 0.28));
+  cursor: pointer;
+}
+.traj-dot:hover {
+  transform: scale(1.22);
+  filter: drop-shadow(0 2px 4px rgba(26, 42, 26, 0.36));
+}

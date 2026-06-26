@@ -25,8 +25,8 @@ const demoCards: DemoCard[] = [
   {
     slug: "rho",
     company: "Rho",
-    headline: "Drift Detection",
-    pitch: "Spend anomaly detection for finance teams.",
+    headline: "Drift Detection + Candidate Trajectory",
+    pitch: "Two builds for Rho: spend anomaly detection for finance teams, and a hiring lens that plots candidates by trajectory and audits their claims against corroborating evidence.",
     url: "/demos/rho",
   },
   {

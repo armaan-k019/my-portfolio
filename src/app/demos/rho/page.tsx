@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { CSS_VAR_COLORS } from "@/components/ThemeToggle";
 import CompanyThemeStyle from "@/components/CompanyThemeStyle";
+import TrajectoryDemo from "./trajectory/TrajectoryDemo";
 
 const RHO_ORANGE = "#2d5a27";
 
@@ -723,6 +724,7 @@ export default function DriftDetectionPage() {
   const [analyzed, setAnalyzed]   = useState(false);
   const [scenario, setScenario]   = useState<"A" | "B">("A");
   const [txExpanded, setTxExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState<"drift" | "trajectory">("drift");
 
   const activeTransactions = scenario === "A" ? TRANSACTIONS : TRANSACTIONS_B;
 
@@ -870,6 +872,30 @@ export default function DriftDetectionPage() {
             ← Back to Demos
           </Link>
 
+          {/* ── Demo tabs ────────────────────────────────────────────────── */}
+          <div className="flex gap-1 mb-8 border-b" style={{ borderColor: C.cardBorder }}>
+            {([
+              { key: "drift", label: "Drift Detection" },
+              { key: "trajectory", label: "Candidate Trajectory" },
+            ] as const).map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className="text-sm font-semibold px-4 py-2.5 -mb-px border-b-2 transition-colors"
+                style={{
+                  borderColor: activeTab === tab.key ? C.accent : "transparent",
+                  color: activeTab === tab.key ? C.headerText : C.dim,
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {activeTab === "trajectory" && <TrajectoryDemo />}
+
+          {activeTab === "drift" && (
+          <>
           {/* ── Section 1: What this is ──────────────────────────────────── */}
           <section className="mb-10">
             <h2 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: LABEL }}>
@@ -1396,6 +1422,8 @@ export default function DriftDetectionPage() {
             {/* Benchmark comparison */}
             {!analyzing && signals.length > 0 && <BenchmarkTable scenario={scenario} />}
           </section>
+          </>
+          )}
 
         </div>
       </div>

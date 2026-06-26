@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 
 // A surveyor's reticle: a precise crosshair at the exact point, a lagging
-// registration ring, and a live lat/long readout — so the pointer is an
-// instrument of the atlas, not a decoration. Desktop + motion-on only.
+// registration ring, and a live lat/long readout, so the pointer is an
+// instrument of the atlas, not a decoration. Desktop and motion-on only.
 export default function CustomCursor() {
   const ringRef = useRef<HTMLDivElement>(null);
   const reticleRef = useRef<HTMLDivElement>(null);
@@ -17,6 +17,9 @@ export default function CustomCursor() {
     const fine = window.matchMedia?.("(pointer: fine)").matches;
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     if (!fine || reduce) return;
+    // Enable only after mount so the server render (null) and client agree; this
+    // intentional post-mount setState avoids a hydration mismatch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setEnabled(true);
     document.body.classList.add("cursor-none");
 
@@ -60,31 +63,39 @@ export default function CustomCursor() {
   const ink = "rgba(45,90,39,0.7)";
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-[110]" style={{ opacity: visible ? 1 : 0, transition: "opacity 0.3s" }}>
-      {/* lagging registration ring */}
-      <div
-        ref={ringRef}
-        className="fixed top-0 left-0 rounded-full"
-        style={{
-          width: hovering ? 30 : 16,
-          height: hovering ? 30 : 16,
-          border: `1px solid ${ink}`,
-          background: hovering ? "rgba(45,90,39,0.05)" : "transparent",
-          transition: "width 0.25s var(--ease-out-expo), height 0.25s var(--ease-out-expo), background 0.25s",
-        }}
-      />
-      {/* precise crosshair reticle */}
-      <div ref={reticleRef} className="fixed top-0 left-0">
-        <svg width="28" height="28" viewBox="-14 -14 28 28" style={{ overflow: "visible" }}>
-          <line x1="-13" y1="0" x2="-5" y2="0" stroke={ink} strokeWidth="1" />
-          <line x1="5" y1="0" x2="13" y2="0" stroke={ink} strokeWidth="1" />
-          <line x1="0" y1="-13" x2="0" y2="-5" stroke={ink} strokeWidth="1" />
-          <line x1="0" y1="5" x2="0" y2="13" stroke={ink} strokeWidth="1" />
-          <circle cx="0" cy="0" r="1.2" fill={ink} />
-        </svg>
+    <>
+      {/* The coordinate readout lives on a low layer (below the nav at z-50 and
+          below page content) so it never bleeds on top of the navigation,
+          toggles, or the chart. It only peeks through over the bare background. */}
+      <div className="pointer-events-none fixed inset-0 z-[1]" style={{ opacity: visible ? 1 : 0, transition: "opacity 0.3s" }}>
+        <div ref={coordRef} className="fixed top-0 left-0 coord whitespace-nowrap" style={{ opacity: hovering ? 0.95 : 0.55 }} />
       </div>
-      {/* live coordinate readout */}
-      <div ref={coordRef} className="fixed top-0 left-0 coord whitespace-nowrap" style={{ opacity: hovering ? 0.95 : 0.55 }} />
-    </div>
+
+      {/* The reticle itself stays on top so the cursor is always visible. */}
+      <div className="pointer-events-none fixed inset-0 z-[110]" style={{ opacity: visible ? 1 : 0, transition: "opacity 0.3s" }}>
+        {/* lagging registration ring */}
+        <div
+          ref={ringRef}
+          className="fixed top-0 left-0 rounded-full"
+          style={{
+            width: hovering ? 15 : 9,
+            height: hovering ? 15 : 9,
+            border: `1px solid ${ink}`,
+            background: hovering ? "rgba(45,90,39,0.05)" : "transparent",
+            transition: "width 0.25s var(--ease-out-expo), height 0.25s var(--ease-out-expo), background 0.25s",
+          }}
+        />
+        {/* precise crosshair reticle */}
+        <div ref={reticleRef} className="fixed top-0 left-0">
+          <svg width="18" height="18" viewBox="-9 -9 18 18" style={{ overflow: "visible" }}>
+            <line x1="-8" y1="0" x2="-3" y2="0" stroke={ink} strokeWidth="1" />
+            <line x1="3" y1="0" x2="8" y2="0" stroke={ink} strokeWidth="1" />
+            <line x1="0" y1="-8" x2="0" y2="-3" stroke={ink} strokeWidth="1" />
+            <line x1="0" y1="3" x2="0" y2="8" stroke={ink} strokeWidth="1" />
+            <circle cx="0" cy="0" r="1" fill={ink} />
+          </svg>
+        </div>
+      </div>
+    </>
   );
 }
