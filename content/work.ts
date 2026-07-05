@@ -11,6 +11,17 @@ export interface WorkEntry {
 
 export const workEntries: WorkEntry[] = [
   {
+    name: "Rho",
+    logo: "/logos/rho.png",
+    role: "Engineering Intern",
+    dates: "2026 – Present",
+    bullets: [
+      "Current role. More details to come.",
+    ],
+    link: "",
+    cardBg: "#ffffff",
+  },
+  {
     name: "Jeeves",
     logo: "/logos/jeeves.png",
     role: "AI Research Engineering Intern",
