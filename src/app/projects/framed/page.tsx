@@ -88,7 +88,7 @@ export default function FramedPage() {
             alt="Merged plan combining the Guggenheim, PAMM, and Steven Holl's Winter House"
           />
           <NativeTile
-            src={`${BASE}/parti-03-ai-bricolage.png`}
+            src={`${BASE}/parti-03-ai-bricolage.jpg`}
             alt="AI bricolage drawing"
           />
           <NativeTile
@@ -149,16 +149,16 @@ export default function FramedPage() {
       {/* Row 5 — two landscape renders — WIDE */}
       <div className={`${WIDE} mb-10`}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Tile src={`${BASE}/render-01.png`} alt="Exterior render, evening" ratio="3/2" />
-          <Tile src={`${BASE}/render-03.png`} alt="Interior render, gallery" ratio="3/2" />
+          <Tile src={`${BASE}/render-01.jpg`} alt="Exterior render, evening" ratio="3/2" />
+          <Tile src={`${BASE}/render-03.jpg`} alt="Interior render, gallery" ratio="3/2" />
         </div>
       </div>
 
       {/* Row 6 — two landscape renders — WIDE */}
       <div className={WIDE}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Tile src={`${BASE}/render-04.png`} alt="Interior render, artist studio" ratio="3/2" />
-          <Tile src={`${BASE}/render-06.png`} alt="Exterior render, skyline" ratio="3/2" />
+          <Tile src={`${BASE}/render-04.jpg`} alt="Interior render, artist studio" ratio="3/2" />
+          <Tile src={`${BASE}/render-06.jpg`} alt="Exterior render, skyline" ratio="3/2" />
         </div>
       </div>
 
