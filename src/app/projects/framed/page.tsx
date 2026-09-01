@@ -66,7 +66,17 @@ export default function FramedPage() {
         </header>
       </div>
 
-      {/* TODO: project description paragraph goes here (no prior copy exists in the repo). */}
+      <Prose>
+        Framed is an experimental architecture project designed to reconcile Atlanta&rsquo;s dual
+        identity as the City in a Forest and the Gate City. Situated in the historic Sweet Auburn
+        district, the design utilizes verticality to shift spatial hierarchy and user perspective as
+        the building rises. The circulation follows a relatively cyclical pattern as one goes up,
+        facilitating continuous movement and providing an experience of the gallery. A tessellated
+        building envelope modulates lighting and visual apertures, providing the frame of the
+        artwork, or of Atlanta itself, creating a dialogue between the site&rsquo;s heritage and its
+        future. The project serves as a reflective environment that honors the legacy of Old Atlanta
+        while providing a framework for the new.
+      </Prose>
 
       <div className={`${PROSE} mb-6`}>
         <SectionLabel>A Priori</SectionLabel>
