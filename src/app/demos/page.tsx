@@ -30,13 +30,6 @@ const demoCards: DemoCard[] = [
     url: "/demos/rho",
   },
   {
-    slug: "athena-hq",
-    company: "AthenaHQ",
-    headline: "GEO Visibility Checker",
-    pitch: "Track how your brand appears in AI-generated search responses across industry prompts and get actionable recommendations to improve your AI search presence.",
-    url: "/demos/athena-hq",
-  },
-  {
     slug: "whop",
     company: "Whop",
     headline: "Page Roaster",
