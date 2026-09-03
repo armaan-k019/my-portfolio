@@ -160,11 +160,20 @@ export default function DemosPage() {
                 transition={{ duration: 0.6, delay: i * 0.06, ease: [0.16, 1, 0.3, 1] }}
               >
                 <Link href={demo.url} className="group block h-full">
-                  <div className="card card-hover p-5 h-full overflow-hidden">
+                  <div
+                    className={`card card-hover p-5 h-full overflow-hidden ${
+                      demo.slug === "rho" ? "ring-1 ring-terracotta/45" : ""
+                    }`}
+                  >
                     <span
                       className="absolute left-0 top-0 h-full w-[3px] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                       style={{ backgroundColor: ACCENT }}
                     />
+                    {demo.slug === "rho" && (
+                      <span className="coord absolute right-4 top-4 rounded-full border border-terracotta/40 bg-terracotta/10 px-2 py-0.5">
+                        This Demo Worked!
+                      </span>
+                    )}
                     <h3 className="font-display text-lg font-semibold text-ink mb-1">{demo.company}</h3>
                     <p className="text-[13px] text-brown-light leading-relaxed">{demo.headline}</p>
                   </div>
