@@ -95,7 +95,6 @@ const RAW: RawLocation[] = [
 
   // -- Demos (company field stations) ---------------------------------------
   { id: "rho", title: "Drift Detection", type: "demo", region: "SYSTEMS", route: "/demos/rho", date: "2026.01" },
-  { id: "athena-hq", title: "GEO Visibility Checker", type: "demo", region: "SYSTEMS", route: "/demos/athena-hq", date: "2026.02" },
   { id: "whop", title: "Page Roaster", type: "demo", region: "SYSTEMS", route: "/demos/whop", date: "2026.02" },
   { id: "sideshift", title: "Swap Route Optimizer", type: "demo", region: "SYSTEMS", route: "/demos/sideshift", date: "2026.03" },
   { id: "wisprflow", title: "ASL to Voice", type: "demo", region: "SYSTEMS", route: "/demos/wisprflow", secondary: ["DESIGN"], date: "2026.03" },

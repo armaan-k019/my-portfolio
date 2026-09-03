@@ -109,7 +109,7 @@ function HopPath({ hops, c }: { hops: string[]; c: PageColors }) {
 function RouteCard({ route, c }: { route: RouteOption; c: PageColors }) {
   return (
     <div
-      className="rounded-2xl p-5 flex flex-col gap-4 transition-all"
+      className="rounded-xl p-5 flex flex-col gap-4 transition-all"
       style={{
         backgroundColor: c.cardBg,
         border: route.is_recommended
@@ -282,7 +282,7 @@ export default function SideShiftPage() {
         className="px-6 py-5 border-b"
         style={{ borderColor: C.headerBorder, backgroundColor: C.headerBg }}
       >
-        <div className="max-w-4xl mx-auto flex items-start justify-between gap-4 flex-wrap">
+        <div className="max-w-3xl mx-auto flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="flex items-center gap-3 mb-2 flex-wrap">
               <span className="text-2xl font-black tracking-tight" style={{ color: C.headerText }}>
@@ -311,7 +311,7 @@ export default function SideShiftPage() {
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-6 py-10">
+      <div className="max-w-3xl mx-auto px-6 py-10">
 
         {/* ── Back link ── */}
         <Link
@@ -494,7 +494,7 @@ export default function SideShiftPage() {
         {/* ── Input Form ── */}
         {!result && (
           <div
-            className="rounded-2xl p-6 mb-8"
+            className="rounded-xl p-6 mb-8"
             style={{ backgroundColor: CARD, border: `1px solid ${BORDER}` }}
           >
             <div className="flex items-center justify-between mb-6">
@@ -622,7 +622,7 @@ export default function SideShiftPage() {
         {/* ── Loading ── */}
         {loading && (
           <div
-            className="rounded-2xl p-8 mb-8 flex flex-col items-center"
+            className="rounded-xl p-8 mb-8 flex flex-col items-center"
             style={{ backgroundColor: CARD, border: `1px solid ${BORDER}` }}
           >
             <div
@@ -672,7 +672,7 @@ export default function SideShiftPage() {
           <div ref={resultsRef}>
             {/* ── 1. Recommendation Banner ── */}
             <div
-              className="rounded-2xl p-6 mb-6"
+              className="rounded-xl p-6 mb-6"
               style={{
                 backgroundColor: ORANGE + "12",
                 border: `1px solid ${ORANGE}50`,
@@ -792,7 +792,7 @@ export default function SideShiftPage() {
 
             {/* ── 4. Rate Type Explainer ── */}
             <div
-              className="rounded-2xl p-5 mb-8"
+              className="rounded-xl p-5 mb-8"
               style={{ backgroundColor: CARD, border: `1px solid ${BORDER}` }}
             >
               <h2 className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: DIM }}>
@@ -819,7 +819,7 @@ export default function SideShiftPage() {
 
             {/* ── 5. SideShift CTA ── */}
             <div
-              className="rounded-2xl p-6 mb-8 text-center"
+              className="rounded-xl p-6 mb-8 text-center"
               style={{ backgroundColor: CARD, border: `1px solid ${BORDER}` }}
             >
               <p className="font-bold text-lg mb-2" style={{ color: TEXT }}>

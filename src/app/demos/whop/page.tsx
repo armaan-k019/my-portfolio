@@ -343,7 +343,7 @@ export default function WhopPage() {
       <CompanyThemeStyle active={true} css={COMPANY_THEME_CSS} />
       {/* Header */}
       <header className="px-6 py-5 border-b" style={{ borderColor: C.headerBorder, backgroundColor: C.headerBg }}>
-        <div className="w-full max-w-[860px] mx-auto flex items-start justify-between gap-4 flex-wrap">
+        <div className="w-full max-w-3xl mx-auto flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="flex items-center gap-3 mb-2 flex-wrap">
               <h1 className="text-2xl font-black tracking-tight" style={{ color: C.headerText }}>Whop Page Roaster</h1>
@@ -369,7 +369,7 @@ export default function WhopPage() {
         </div>
       </header>
 
-      <div className="w-full max-w-[860px] mx-auto px-6 py-10" style={{ minWidth: 0 }}>
+      <div className="w-full max-w-3xl mx-auto px-6 py-10" style={{ minWidth: 0 }}>
 
         {/* Back link */}
         <Link
@@ -466,7 +466,7 @@ export default function WhopPage() {
 
         {/* Input form */}
         {!result && (
-          <div className="rounded-2xl border mb-8" style={{ backgroundColor: CARD, borderColor: BORDER }}>
+          <div className="rounded-xl border mb-8" style={{ backgroundColor: CARD, borderColor: BORDER }}>
             {/* Tabs */}
             <div className="flex border-b" style={{ borderColor: BORDER }}>
               {(["paste", "sample"] as const).map(tab => (
@@ -564,7 +564,7 @@ export default function WhopPage() {
 
         {/* Loading */}
         {loading && (
-          <div className="rounded-2xl border p-8 mb-8" style={{ backgroundColor: CARD, borderColor: BORDER }}>
+          <div className="rounded-xl border p-8 mb-8" style={{ backgroundColor: CARD, borderColor: BORDER }}>
             <div className="space-y-2">
               {shownLines.map(i => (
                 <TypewriterLine
@@ -591,7 +591,7 @@ export default function WhopPage() {
 
             {/* 1. Overall Grade */}
             <div
-              className="rounded-2xl border text-center px-6 py-10 sm:px-8 sm:py-12"
+              className="rounded-xl border text-center px-6 py-10 sm:px-8 sm:py-12"
               style={{ backgroundColor: CARD, borderColor: BORDER }}
             >
               <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "#4b5563", marginBottom: "20px" }}>
@@ -658,7 +658,7 @@ export default function WhopPage() {
 
             {/* 3. Rewrite Lab */}
             <div
-              className="rounded-2xl border overflow-hidden"
+              className="rounded-xl border overflow-hidden"
               style={{ backgroundColor: CARD, borderColor: PURPLE + "40" }}
             >
               <div className="px-6 py-5 border-b" style={{ borderColor: PURPLE + "30" }}>
@@ -719,7 +719,7 @@ export default function WhopPage() {
 
             {/* 4. Affiliate Intelligence */}
             {hasAffiliate && (
-              <div className="rounded-2xl border p-6" style={{ backgroundColor: CARD, borderColor: BORDER }}>
+              <div className="rounded-xl border p-6" style={{ backgroundColor: CARD, borderColor: BORDER }}>
                 <h2 className="text-lg font-black mb-1 tracking-tight">Affiliate Intelligence</h2>
                 <p className="text-xs mb-5" style={{ color: C.dim }}>
                   Is your program actually shareable?
@@ -760,7 +760,7 @@ export default function WhopPage() {
 
             {/* 5. One Thing */}
             <div
-              className="rounded-2xl border text-center"
+              className="rounded-xl border text-center"
               style={{ backgroundColor: CARD, borderColor: PURPLE + "40", padding: "32px 24px" }}
             >
               <p className="font-bold uppercase tracking-widest" style={{ color: "#4b5563", fontSize: "11px", marginBottom: "24px" }}>
