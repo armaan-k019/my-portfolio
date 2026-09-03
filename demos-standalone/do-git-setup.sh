@@ -17,7 +17,6 @@ DST_BASE="$HOME/demos-standalone"
 declare -A MESSAGES
 MESSAGES[rho-drift-detection]="Initial commit: Rho Drift Detection -- built for Rho Technologies"
 MESSAGES[corgi-model-risk-monitor]="Initial commit: AI Model Risk Monitor -- built for Corgi Insurance"
-MESSAGES[athenahq-geo-intelligence]="Initial commit: GEO Visibility Checker -- built for AthenaHQ"
 MESSAGES[harper-coverage-profiler]="Initial commit: Business Coverage Profiler -- built for Harper Insurance"
 MESSAGES[whop-page-roaster]="Initial commit: Page Roaster -- built for Whop"
 MESSAGES[weave-noshow-sequencer]="Initial commit: No-Show Recovery Sequencer -- built for Weave"
@@ -28,7 +27,6 @@ MESSAGES[erebor-debanking-scorer]="Initial commit: De-banking Risk Scorer -- bui
 DEMOS=(
   rho-drift-detection
   corgi-model-risk-monitor
-  athenahq-geo-intelligence
   harper-coverage-profiler
   whop-page-roaster
   weave-noshow-sequencer

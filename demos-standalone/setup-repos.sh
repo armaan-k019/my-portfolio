@@ -12,7 +12,6 @@ GH="/opt/homebrew/bin/gh"
 DEMOS=(
   "rho-drift-detection"
   "corgi-model-risk-monitor"
-  "athenahq-geo-intelligence"
   "harper-coverage-profiler"
   "whop-page-roaster"
   "weave-noshow-sequencer"
