@@ -13,9 +13,9 @@ const LOW = "#65a30d";
 const NONE_COLOR = "#9ca3af";
 const BLUE = "#2563eb";
 const PURPLE = "#7c3aed";
-const DARK_PANEL = "#1a1a1a";
-const DARK_PANEL_BORDER = "#333333";
-const DARK_PANEL_INNER = "#111111";
+const PANEL = "#ffffff";
+const PANEL_BORDER = "#e5e0d8";
+const PANEL_INNER = "#f5f3ef";
 
 const SEVERITY_COLOR: Record<string, string> = {
   Critical: CRITICAL, High: HIGH, Medium: MEDIUM, Low: LOW, None: NONE_COLOR,
@@ -429,7 +429,7 @@ function Tip({ children, label, C }: { children: React.ReactNode; label: string;
       {open && (
         <span
           className="absolute z-20 left-1/2 -translate-x-1/2 top-full mt-2 w-64 text-[11px] leading-relaxed p-3 rounded-lg border shadow-lg"
-          style={{ backgroundColor: DARK_PANEL, color: "#e5e7eb", borderColor: DARK_PANEL_BORDER }}
+          style={{ backgroundColor: PANEL, color: "#1a1a1a", borderColor: PANEL_BORDER }}
         >
           {children}
         </span>
@@ -549,7 +549,7 @@ export default function Iteration2() {
   return (
     <>
       {/* Divider */}
-      <div className="w-full max-w-[900px] mx-auto px-6 mt-20 mb-12">
+      <div className="w-full max-w-3xl mx-auto px-6 mt-20 mb-12">
         <div className="flex items-center gap-4 mb-6">
           <div className="flex-1 h-px" style={{ backgroundColor: C.cardBorder }} />
           <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: C.dim }}>
@@ -565,7 +565,7 @@ export default function Iteration2() {
         </p>
       </div>
 
-      <div className="w-full max-w-[900px] mx-auto px-6 pb-10">
+      <div className="w-full max-w-3xl mx-auto px-6 pb-10">
 
         {/* NARRATIVE: matches Iteration 1 SECTION A format */}
         <section className="mb-10">
@@ -642,7 +642,7 @@ export default function Iteration2() {
 
         {/* TOOL: input form */}
         {!result && (
-          <div className="rounded-2xl border mb-8" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
+          <div className="rounded-xl border mb-8" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
             {mode === "live" ? (
               <form onSubmit={runLive} className="p-6 space-y-5">
                 <div>
@@ -808,7 +808,7 @@ export default function Iteration2() {
 
         {/* Loading */}
         {loading && (
-          <div className="rounded-2xl border p-8 mb-8" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
+          <div className="rounded-xl border p-8 mb-8" style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}>
             <div className="space-y-2">
               {visibleLoadingSteps.slice(0, step + 1).map((s, i) => (
                 <p
@@ -888,7 +888,7 @@ export default function Iteration2() {
 
             {/* 1. ROI HEADER CARD */}
             <div
-              className="rounded-2xl p-6"
+              className="rounded-xl p-6"
               style={{
                 backgroundColor: C.accentBg,
                 border: `1px solid ${C.accent}40`,
@@ -1072,9 +1072,9 @@ export default function Iteration2() {
             </div>
 
             {/* 4. CODEBASE GROUNDING PANEL (dark) */}
-            <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: DARK_PANEL }}>
-              <div className="px-6 py-5 border-b" style={{ borderColor: DARK_PANEL_BORDER }}>
-                <h2 className="text-lg font-black tracking-tight text-white">Codebase Grounding</h2>
+            <div className="rounded-xl border overflow-hidden shadow-sm" style={{ backgroundColor: PANEL, borderColor: PANEL_BORDER }}>
+              <div className="px-6 py-5 border-b" style={{ borderColor: PANEL_BORDER }}>
+                <h2 className="text-lg font-black tracking-tight" style={{ color: C.text }}>Codebase Grounding</h2>
                 <p className="text-xs mt-1" style={{ color: "#9ca3af" }}>
                   What the codebase index found. Cross referenced against every human comment.
                 </p>
@@ -1084,11 +1084,11 @@ export default function Iteration2() {
                   <div
                     key={i}
                     className="rounded-xl border p-4 flex items-start gap-3 flex-wrap"
-                    style={{ backgroundColor: DARK_PANEL_INNER, borderColor: DARK_PANEL_BORDER }}
+                    style={{ backgroundColor: PANEL_INNER, borderColor: PANEL_BORDER }}
                   >
                     <StatusPill status={f.status} />
                     <div className="flex-1 min-w-[200px]">
-                      <p className="text-sm leading-relaxed text-gray-200">{f.text}</p>
+                      <p className="text-sm leading-relaxed" style={{ color: C.text }}>{f.text}</p>
                       {f.attribution && (
                         <p className="text-[10px] mt-1" style={{ color: "#6b7280" }}>
                           flagged by {f.attribution}
