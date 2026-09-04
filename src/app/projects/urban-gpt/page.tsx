@@ -349,7 +349,7 @@ function FloodPanel({
         />
         <StatCard
           label="Nearby Zone Types"
-          value={uniqueNearbyZones.length > 0 ? uniqueNearbyZones.join(", ") : "—"}
+          value={uniqueNearbyZones.length > 0 ? uniqueNearbyZones.join(", ") : "none"}
           sub="within 0.05° radius"
         />
       </div>
@@ -843,24 +843,45 @@ export default function UrbanGPTPage() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-16">
-      <Link href="/#projects" className="text-sm text-terracotta hover:text-terracotta-dark transition-colors mb-8 inline-block">
-        &larr; Back to projects
-      </Link>
+    <div className="py-16">
 
-      {/* Header */}
-      <header className="max-w-2xl mb-10">
-        <div className="flex items-center gap-3 mb-2 flex-wrap">
-          <h1 className="text-2xl font-semibold text-darkblue">UrbanGPT</h1>
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-darkblue/10 text-darkblue border-darkblue/30">
-            CS × Architecture
-          </span>
+      {/* Case study shell, patterned on /projects/framed */}
+      <div className="max-w-3xl mx-auto px-6">
+        <Link
+          href="/#projects"
+          className="text-sm text-terracotta hover:text-terracotta-dark transition-colors mb-12 inline-block"
+        >
+          &larr; Back to projects
+        </Link>
+
+        <header className="mb-14">
+          <h1 className="text-4xl font-semibold text-darkblue tracking-tight mb-3">UrbanGPT</h1>
+          <p className="text-sm text-brown-light">April 2026 &middot; Personal Project &middot; Next.js &middot; Leaflet &middot; Claude</p>
+          <div className="w-10 h-[2px] bg-terracotta mt-5" />
+        </header>
+
+        <div className="space-y-6 mb-14">
+          <p className="text-base text-brown leading-relaxed">
+            UrbanGPT is a site analysis tool for architects and urban designers. Enter a US address, set a study radius, and get a dashboard of demographics, transit, amenities, environmental risk, and design implications for that site.
+          </p>
+          <p className="text-base text-brown leading-relaxed">
+            The problem it addresses is time. Early design decisions depend on site context that lives in a dozen places. Median income and population are in the Census. Transit stops and amenities are in OpenStreetMap. Flood zones belong to FEMA. Heat exposure is a weather question. Each source has its own query pattern, and gathering them by hand is slow enough that it often does not happen before the first sketch. UrbanGPT pulls them into a single request triggered by an address.
+          </p>
+          <p className="text-base text-brown leading-relaxed">
+            The front end is Next.js with a Leaflet map on OpenStreetMap tiles and a radius control from half a mile to fifty miles, or the kilometer equivalent. Address lookup runs through OpenStreetMap&rsquo;s Nominatim. Server side API routes then query the Overpass API for amenities and transit, the Census Bureau&rsquo;s ACS five year estimates for median household income and population (tables B19013 and B01003, located through the Census geocoder), FEMA&rsquo;s flood hazard layer, and Open-Meteo for temperature. Claude writes a three part design implications section from the result: a summary, an interpretation of each data point, and specific recommendations. Every API key stays on the server.
+          </p>
+          <p className="text-base text-brown leading-relaxed">
+            Most of the work went into the things that fail. The map started on Google Maps and moved to Leaflet mid build after API key domain restrictions and cost made production unreliable. Vercel&rsquo;s serverless functions returned 504s once five external calls ran in sequence, so the orchestration route now runs with a sixty second limit and the calls run in parallel. Any of those five sources can still time out, which meant rewriting the Claude prompt to reason from whatever data actually arrived rather than assuming a complete set.
+          </p>
+          <p className="text-base text-brown leading-relaxed">
+            Built in April 2026 as a personal project at the intersection of computer science and architecture. Today the free data backends (Overpass, Census, FEMA, Open-Meteo) return live results. The Claude generated design implications are offline pending an API key rotation. Everything else works end to end, and the tool is below.
+          </p>
         </div>
-        <p className="text-brown-light leading-relaxed">
-          Enter any US address to get a data dashboard on its urban context including demographics, transit
-          access, amenity density, and AI-generated design implications.
-        </p>
-      </header>
+
+        <p className="text-sm font-semibold tracking-widest uppercase text-terracotta mb-6">The tool</p>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-6">
 
       {/* Input */}
       <div className="max-w-2xl rounded-xl border border-tan/30 bg-white/40 p-5 mb-8">
@@ -1325,6 +1346,7 @@ export default function UrbanGPTPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 }

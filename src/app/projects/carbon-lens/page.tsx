@@ -150,24 +150,24 @@ function BreakdownChart({ rows }: { rows: MaterialRow[] }) {
         const color = CATEGORY_COLORS[cat] ?? "#888";
         return (
           <div key={cat} className="flex items-center gap-3 text-xs">
-            <span className="w-24 shrink-0 text-[#4A6B4A] text-right truncate">{cat}</span>
+            <span className="w-24 shrink-0 text-brown-light text-right truncate">{cat}</span>
             <div className="flex-1 flex items-center" style={{ minHeight: 20 }}>
               {isNeg ? (
                 <div className="flex items-center justify-end" style={{ width: BAR_MAX }}>
-                  <span className="text-[10px] text-emerald-600 mr-1.5 font-medium">🌿 {fmtCarbon(val)}</span>
+                  <span className="text-[10px] text-terracotta mr-1.5 font-medium">🌿 {fmtCarbon(val)}</span>
                   <div style={{ width: pct, height: 14, backgroundColor: color, borderRadius: 3, opacity: 0.85 }} />
                 </div>
               ) : (
                 <div className="flex items-center">
                   <div style={{ width: pct, height: 14, backgroundColor: color, borderRadius: 3, opacity: 0.85 }} />
-                  <span className="text-[10px] text-[#4A6B4A] ml-1.5">{fmtCarbon(val)}</span>
+                  <span className="text-[10px] text-brown-light ml-1.5">{fmtCarbon(val)}</span>
                 </div>
               )}
             </div>
           </div>
         );
       })}
-      <div className="flex items-center gap-3 text-[10px] text-[#7A9B7A] mt-2 border-t border-[#D8E6D8] pt-2">
+      <div className="flex items-center gap-3 text-[10px] text-brown-light/70 mt-2 border-t border-tan/30 pt-2">
         <span className="w-24 shrink-0 text-right">← carbon stored</span>
         <span className="flex-1">carbon emitted →</span>
       </div>
@@ -180,7 +180,7 @@ function BreakdownChart({ rows }: { rows: MaterialRow[] }) {
 function BenchmarkGauge({ perM2, buildingType }: { perM2: number | null; buildingType: string }) {
   if (!perM2 || !buildingType || !BENCHMARKS[buildingType]) {
     return (
-      <p className="text-xs text-[#7A9B7A] italic">
+      <p className="text-xs text-brown-light/70 italic">
         Enter gross floor area and select a building type to see benchmark comparison.
       </p>
     );
@@ -209,12 +209,12 @@ function BenchmarkGauge({ perM2, buildingType }: { perM2: number | null; buildin
         })}
         {/* needle */}
         <div
-          className="absolute top-0 bottom-0 w-0.5 bg-[#1A2A1A]"
+          className="absolute top-0 bottom-0 w-0.5 bg-brown"
           style={{ left: `${pct}%`, transition: "left 0.5s" }}
         />
       </div>
       {/* Labels */}
-      <div className="flex justify-between text-[9px] text-[#7A9B7A]">
+      <div className="flex justify-between text-[9px] text-brown-light/70">
         {tiers.map((t, i) => <span key={i}>{t.label}</span>)}
       </div>
       {/* Rating */}
@@ -222,8 +222,8 @@ function BenchmarkGauge({ perM2, buildingType }: { perM2: number | null; buildin
         <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: rating.color }} />
         <span className="text-xs font-medium" style={{ color: rating.color }}>{rating.label}</span>
       </div>
-      <p className="text-[10px] text-[#7A9B7A]">
-        Your project: <strong className="text-[#1A2A1A]">{fmtNum(perM2)} kgCO₂e/m²</strong>
+      <p className="text-[10px] text-brown-light/70">
+        Your project: <strong className="text-brown">{fmtNum(perM2)} kgCO₂e/m²</strong>
         {" "}· Benchmarks for {BUILDING_TYPES.find(t => t.value === buildingType)?.label ?? buildingType} buildings
       </p>
     </div>
@@ -272,45 +272,45 @@ function SwapSuggestions({ rows, onSwap }: {
   }, [rows]);
 
   if (swaps.length === 0 && optimized.length === 0) return (
-    <p className="text-xs text-[#7A9B7A] italic">No substitution opportunities identified for current materials.</p>
+    <p className="text-xs text-brown-light/70 italic">No substitution opportunities identified for current materials.</p>
   );
 
   return (
     <div className="space-y-4">
       {swaps.length === 0 && (
-        <p className="text-xs text-[#7A9B7A] italic">No further substitution opportunities. All materials are at their lowest available carbon intensity.</p>
+        <p className="text-xs text-brown-light/70 italic">No further substitution opportunities. All materials are at their lowest available carbon intensity.</p>
       )}
       <div className="space-y-2">
       {swaps.slice(0, 6).map((s, i) => (
-        <div key={i} className="rounded-xl border border-[#D8E6D8] bg-white/60 p-3 space-y-2">
+        <div key={i} className="rounded-xl border border-tan/30 bg-white/60 p-3 space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div className="space-y-0.5 flex-1 min-w-0">
-              <p className="text-[10px] text-[#7A9B7A] uppercase tracking-wide font-medium">Current</p>
-              <p className="text-xs text-[#1A2A1A] font-medium truncate">{s.currentName}</p>
-              <p className="text-[10px] text-[#7A9B7A]">{s.currentIntensity.toLocaleString()} kgCO₂e/{CARBON_DATA[rows.find(r => r.id === s.rowId)?.materialKey ?? ""]?.unit}</p>
+              <p className="text-[10px] text-brown-light/70 uppercase tracking-wide font-medium">Current</p>
+              <p className="text-xs text-brown font-medium truncate">{s.currentName}</p>
+              <p className="text-[10px] text-brown-light/70">{s.currentIntensity.toLocaleString()} kgCO₂e/{CARBON_DATA[rows.find(r => r.id === s.rowId)?.materialKey ?? ""]?.unit}</p>
             </div>
-            <div className="text-[#7A9B7A] text-sm mt-3">→</div>
+            <div className="text-brown-light/70 text-sm mt-3">→</div>
             <div className="space-y-0.5 flex-1 min-w-0 text-right">
-              <p className="text-[10px] text-emerald-600 uppercase tracking-wide font-medium">Alternative</p>
-              <p className="text-xs text-[#1A2A1A] font-medium truncate">{s.altName}</p>
-              <p className="text-[10px] text-emerald-600">{s.altIntensity.toLocaleString()} kgCO₂e/{CARBON_DATA[s.altKey]?.unit}</p>
+              <p className="text-[10px] text-terracotta uppercase tracking-wide font-medium">Alternative</p>
+              <p className="text-xs text-brown font-medium truncate">{s.altName}</p>
+              <p className="text-[10px] text-terracotta">{s.altIntensity.toLocaleString()} kgCO₂e/{CARBON_DATA[s.altKey]?.unit}</p>
             </div>
           </div>
-          <div className="flex items-center justify-between border-t border-[#D8E6D8] pt-2">
+          <div className="flex items-center justify-between border-t border-tan/30 pt-2">
             {s.altIntensity < 0 ? (
-              <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
+              <span className="text-[10px] text-terracotta-dark font-semibold flex items-center gap-1">
                 🌿 Carbon positive swap
-                {s.qty > 0 && <span className="text-emerald-600 font-normal">· {fmtCarbon(s.totalSaving)} total</span>}
+                {s.qty > 0 && <span className="text-terracotta font-normal">· {fmtCarbon(s.totalSaving)} total</span>}
               </span>
             ) : (
-              <span className="text-[10px] text-emerald-700 font-semibold">
+              <span className="text-[10px] text-terracotta-dark font-semibold">
                 Save {s.savingPct.toFixed(0)}%
                 {s.qty > 0 && ` · ${fmtCarbon(s.totalSaving)} total`}
               </span>
             )}
             <button
               onClick={() => onSwap(s.rowId, s.altKey)}
-              className="text-[10px] px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors font-medium"
+              className="text-[10px] px-2.5 py-1 rounded-lg bg-terracotta/5 text-terracotta-dark border border-terracotta/30 hover:bg-terracotta/10 transition-colors font-medium"
             >
               Apply swap
             </button>
@@ -321,21 +321,21 @@ function SwapSuggestions({ rows, onSwap }: {
 
       {optimized.length > 0 && (
         <div className="mt-2">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-[#7A9B7A] mb-2">Already optimized</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-brown-light/70 mb-2">Already optimized</p>
           <div className="space-y-1.5">
             {optimized.map((m, i) => (
-              <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-emerald-50/60 border border-emerald-100">
-                <span className="text-emerald-600 text-sm leading-none">✓</span>
+              <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-terracotta/5 border border-tan/30">
+                <span className="text-terracotta text-sm leading-none">✓</span>
                 <div className="flex-1 min-w-0">
-                  <span className="text-xs text-[#1A2A1A] font-medium">{m.name}</span>
-                  <span className="text-[10px] text-emerald-600 ml-1.5">(lowest carbon option in category)</span>
+                  <span className="text-xs text-brown font-medium">{m.name}</span>
+                  <span className="text-[10px] text-terracotta ml-1.5">(lowest carbon option in category)</span>
                 </div>
               </div>
             ))}
           </div>
-          <p className="text-[10px] text-[#7A9B7A] mt-2">
-            <strong className="text-[#4A6B4A]">{optimized.length}</strong> of{" "}
-            <strong className="text-[#4A6B4A]">{rows.length}</strong> materials are already at their lowest available carbon intensity
+          <p className="text-[10px] text-brown-light/70 mt-2">
+            <strong className="text-brown-light">{optimized.length}</strong> of{" "}
+            <strong className="text-brown-light">{rows.length}</strong> materials are already at their lowest available carbon intensity
           </p>
         </div>
       )}
@@ -395,12 +395,12 @@ function AIReport({ text }: { text: string }) {
         const bodyHtml = renderSectionBody(bodyRaw);
         return (
           <div key={i}>
-            {i > 0 && <div className="border-t border-[#D8E6D8] mb-4" />}
+            {i > 0 && <div className="border-t border-tan/30 mb-4" />}
             {heading && (
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-[#7A9B7A] mb-2">{heading}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-brown-light/70 mb-2">{heading}</p>
             )}
             <div
-              className="text-xs text-[#1A2A1A] leading-relaxed report-body"
+              className="text-xs text-brown leading-relaxed report-body"
               dangerouslySetInnerHTML={{ __html: bodyHtml }}
             />
           </div>
@@ -545,118 +545,121 @@ export default function CarbonLensPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen">
+    <div className="py-16">
       <style>{`
         .report-body p { margin-bottom: 0.5rem; }
         .report-body p:last-child { margin-bottom: 0; }
         .report-body ul { list-style: disc; padding-left: 1.25rem; margin-bottom: 0.5rem; }
         .report-body li { margin-bottom: 0.25rem; }
-        .report-body strong { font-weight: 600; color: #1A2A1A; }
+        .report-body strong { font-weight: 600; color: var(--color-brown); }
       `}</style>
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="border-b border-[#1A2A1A]/[0.08] bg-white/60 backdrop-blur-sm sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center gap-4">
-          <Link href="/#projects" className="text-xs text-[#7A9B7A] hover:text-[#4A6B4A] transition-colors shrink-0">
-            ← Back
-          </Link>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-lg font-semibold text-[#1A2A1A] leading-tight">Carbon Lens</h1>
-              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-darkblue/10 text-darkblue border border-darkblue/20 uppercase tracking-wide shrink-0">
-                CS × Architecture
-              </span>
-            </div>
-            <p className="text-xs text-[#7A9B7A] mt-0.5">Embodied carbon estimator for early-stage architectural design</p>
-          </div>
+      {/* Case study shell, patterned on /projects/framed */}
+      <div className="max-w-3xl mx-auto px-6">
+        <Link
+          href="/#projects"
+          className="text-sm text-terracotta hover:text-terracotta-dark transition-colors mb-12 inline-block"
+        >
+          &larr; Back to projects
+        </Link>
+
+        <header className="mb-14">
+          <h1 className="text-4xl font-semibold text-darkblue tracking-tight mb-3">Carbon Lens</h1>
+          <p className="text-sm text-brown-light">April 2026 &middot; Personal Project &middot; Next.js &middot; ICE Database v3.0 &middot; Claude</p>
+          <div className="w-10 h-[2px] bg-terracotta mt-5" />
+        </header>
+
+        <div className="space-y-6 mb-14">
+          <p className="text-base text-brown leading-relaxed">
+            Carbon Lens is an embodied carbon calculator for architects. Enter a building&rsquo;s material quantities and get an embodied carbon estimate, a benchmark comparison for the building type, and substitution recommendations for lower carbon alternatives.
+          </p>
+          <p className="text-base text-brown leading-relaxed">
+            Embodied carbon is the greenhouse gas emitted in manufacturing, transporting, and installing building materials. It accounts for 20 to 50 percent of a building&rsquo;s lifetime carbon footprint and it is locked in the day construction finishes. The moment with the most leverage over it is early design, when structure and envelope are still open choices, and that is exactly when architects have the fewest tools for it. Certified assessment software exists, but it is not something you open in the middle of a schematic conversation.
+          </p>
+          <p className="text-base text-brown leading-relaxed">
+            Material quantities go in by category: concrete, steel, timber, masonry, glass, insulation, and others. Each maps to a carbon intensity from the ICE Database v3.0, hardcoded into the app rather than fetched, because the values do not change per request and the core calculation should never depend on an external service. The total comes back in kgCO2e, and with a gross floor area and building type it is scored against typical benchmarks. Each material also carries a short list of categorized alternatives with their carbon deltas. Claude reads the material list and those pre filtered alternatives and writes specific substitution recommendations: recycled structural steel at a fifth of the carbon of virgin steel, high GGBS concrete, cork insulation that stores more carbon than its production emits.
+          </p>
+          <p className="text-base text-brown leading-relaxed">
+            Two lessons. A hardcoded reference dataset is the right call for anything that should not need a runtime call; the calculator has no external dependency and cannot go down. And the useful tension in the AI layer was context sizing: Claude makes sharper recommendations from a pre filtered set of candidate alternatives per material than from the whole database at once.
+          </p>
+          <p className="text-base text-brown leading-relaxed">
+            Built in April 2026 as a personal project, alongside the Sustainable Architecture certificate work at Georgia Tech. The calculator runs entirely from the hardcoded ICE dataset and works today. The AI substitution recommendations are pending an API key rotation.
+          </p>
+          <p className="text-sm text-brown-light leading-relaxed">
+            Data from the ICE Database v3.0 (University of Bath, 2019). Results are estimates for comparative design decisions, not certified assessments.
+          </p>
+        </div>
+
+        <p className="text-sm font-semibold tracking-widest uppercase text-terracotta mb-6">The tool</p>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-6 space-y-8">
+
+        <div className="flex justify-end">
           <button
             onClick={exportCSV}
-            className="shrink-0 text-xs px-3 py-1.5 rounded-lg border border-[#D8E6D8] text-[#4A6B4A] hover:border-[#2D5A27] hover:text-[#2D5A27] transition-colors bg-white/80"
+            className="text-xs px-3 py-1.5 rounded-lg border border-tan/30 text-brown-light hover:border-terracotta hover:text-terracotta transition-colors bg-white/80"
           >
             Export CSV
           </button>
         </div>
-      </div>
-
-      <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
-
-        {/* ── Info banner ────────────────────────────────────────────────────── */}
-        <div className="bg-white/80 rounded-xl border border-[#D8E6D8] shadow-sm p-5 grid md:grid-cols-2 gap-6">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#7A9B7A] mb-2">What is embodied carbon?</p>
-            <p className="text-xs text-[#4A6B4A] leading-relaxed">
-              Embodied carbon refers to the greenhouse gas emissions produced during the manufacture, transport, and installation
-              of building materials, before the building is ever occupied. It typically accounts for 20-50% of a building&apos;s
-              lifetime carbon footprint and is locked in at the point of construction. Making smarter material choices early
-              in design is the highest-leverage moment for reducing a building&apos;s climate impact.
-            </p>
-          </div>
-          <div className="border-l border-[#D8E6D8] pl-6">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#7A9B7A] mb-2">Data source</p>
-            <p className="text-xs text-[#4A6B4A] leading-relaxed">
-              Carbon intensities from the <strong className="text-[#1A2A1A]">ICE Database v3.0</strong> (Inventory of Carbon
-              and Energy, University of Bath), the industry standard reference for embodied carbon in construction materials.
-              Results are estimates for comparative design decisions, not certified assessments.
-            </p>
-          </div>
-        </div>
 
         {/* ── Project info ───────────────────────────────────────────────────── */}
-        <section className="bg-white/80 rounded-xl border border-[#D8E6D8] shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#D8E6D8]">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#7A9B7A]">Project Information</p>
+        <section className="bg-white/80 rounded-xl border border-tan/30 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-tan/30">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-brown-light/70">Project Information</p>
           </div>
           <div className="p-5 grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="lg:col-span-2">
-              <label className="block text-[10px] font-medium text-[#7A9B7A] uppercase tracking-wide mb-1">Project Name</label>
+              <label className="block text-[10px] font-medium text-brown-light/70 uppercase tracking-wide mb-1">Project Name</label>
               <input
                 type="text"
                 placeholder="e.g. Riverside Housing Block"
                 value={projectInfo.name}
                 onChange={e => setProjectInfo(p => ({ ...p, name: e.target.value }))}
-                className="w-full px-3 py-2 text-xs border border-[#D8E6D8] rounded-lg focus:outline-none focus:border-[#2D5A27] bg-white text-[#1A2A1A] placeholder:text-[#7A9B7A]"
+                className="w-full px-3 py-2 text-xs border border-tan/30 rounded-lg focus:outline-none focus:border-terracotta bg-white text-brown placeholder:text-brown-light/50"
               />
             </div>
             <div>
-              <label className="block text-[10px] font-medium text-[#7A9B7A] uppercase tracking-wide mb-1">Building Type</label>
+              <label className="block text-[10px] font-medium text-brown-light/70 uppercase tracking-wide mb-1">Building Type</label>
               <select
                 value={projectInfo.buildingType}
                 onChange={e => setProjectInfo(p => ({ ...p, buildingType: e.target.value }))}
-                className="w-full px-3 py-2 text-xs border border-[#D8E6D8] rounded-lg focus:outline-none focus:border-[#2D5A27] bg-white text-[#1A2A1A]"
+                className="w-full px-3 py-2 text-xs border border-tan/30 rounded-lg focus:outline-none focus:border-terracotta bg-white text-brown"
               >
                 {BUILDING_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-[10px] font-medium text-[#7A9B7A] uppercase tracking-wide mb-1">Gross Floor Area (m²)</label>
+              <label className="block text-[10px] font-medium text-brown-light/70 uppercase tracking-wide mb-1">Gross Floor Area (m²)</label>
               <input
                 type="number"
                 placeholder="e.g. 2500"
                 value={projectInfo.gfa}
                 onChange={e => setProjectInfo(p => ({ ...p, gfa: e.target.value }))}
-                className="w-full px-3 py-2 text-xs border border-[#D8E6D8] rounded-lg focus:outline-none focus:border-[#2D5A27] bg-white text-[#1A2A1A] placeholder:text-[#7A9B7A]"
+                className="w-full px-3 py-2 text-xs border border-tan/30 rounded-lg focus:outline-none focus:border-terracotta bg-white text-brown placeholder:text-brown-light/50"
               />
             </div>
             <div>
-              <label className="block text-[10px] font-medium text-[#7A9B7A] uppercase tracking-wide mb-1">Location</label>
+              <label className="block text-[10px] font-medium text-brown-light/70 uppercase tracking-wide mb-1">Location</label>
               <input
                 type="text"
                 placeholder="e.g. London, UK"
                 value={projectInfo.location}
                 onChange={e => setProjectInfo(p => ({ ...p, location: e.target.value }))}
-                className="w-full px-3 py-2 text-xs border border-[#D8E6D8] rounded-lg focus:outline-none focus:border-[#2D5A27] bg-white text-[#1A2A1A] placeholder:text-[#7A9B7A]"
+                className="w-full px-3 py-2 text-xs border border-tan/30 rounded-lg focus:outline-none focus:border-terracotta bg-white text-brown placeholder:text-brown-light/50"
               />
             </div>
           </div>
         </section>
 
         {/* ── Material input table ──────────────────────────────────────────── */}
-        <section className="bg-white/80 rounded-xl border border-[#D8E6D8] shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#D8E6D8] flex items-center justify-between">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#7A9B7A]">Material Schedule</p>
+        <section className="bg-white/80 rounded-xl border border-tan/30 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-tan/30 flex items-center justify-between">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-brown-light/70">Material Schedule</p>
             <button
               onClick={addRow}
-              className="text-[10px] px-3 py-1 rounded-lg bg-[#2D5A27]/10 text-[#2D5A27] font-medium hover:bg-[#2D5A27]/20 transition-colors border border-[#2D5A27]/20"
+              className="text-[10px] px-3 py-1 rounded-lg bg-terracotta/10 text-terracotta font-medium hover:bg-terracotta/20 transition-colors border border-terracotta/20"
             >
               + Add material
             </button>
@@ -666,28 +669,28 @@ export default function CarbonLensPage() {
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-[#D8E6D8] bg-[#FFFFFF]/50">
-                  <th className="text-left px-5 py-3 text-[10px] font-semibold uppercase tracking-wide text-[#7A9B7A] w-72">Material</th>
-                  <th className="text-left px-3 py-3 text-[10px] font-semibold uppercase tracking-wide text-[#7A9B7A] w-28">Quantity</th>
-                  <th className="text-left px-3 py-3 text-[10px] font-semibold uppercase tracking-wide text-[#7A9B7A] w-16">Unit</th>
-                  <th className="text-left px-3 py-3 text-[10px] font-semibold uppercase tracking-wide text-[#7A9B7A] w-36">kgCO₂e / unit</th>
-                  <th className="text-right px-5 py-3 text-[10px] font-semibold uppercase tracking-wide text-[#7A9B7A]">Total kgCO₂e</th>
+                <tr className="border-b border-tan/30 bg-white/50">
+                  <th className="text-left px-5 py-3 text-[10px] font-semibold uppercase tracking-wide text-brown-light/70 w-72">Material</th>
+                  <th className="text-left px-3 py-3 text-[10px] font-semibold uppercase tracking-wide text-brown-light/70 w-28">Quantity</th>
+                  <th className="text-left px-3 py-3 text-[10px] font-semibold uppercase tracking-wide text-brown-light/70 w-16">Unit</th>
+                  <th className="text-left px-3 py-3 text-[10px] font-semibold uppercase tracking-wide text-brown-light/70 w-36">kgCO₂e / unit</th>
+                  <th className="text-right px-5 py-3 text-[10px] font-semibold uppercase tracking-wide text-brown-light/70">Total kgCO₂e</th>
                   <th className="w-10" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#D8E6D8]/60">
+              <tbody className="divide-y divide-tan/30">
                 {rows.map((row, i) => {
                   const mat = CARBON_DATA[row.materialKey];
                   const lineTotal = byRow[i] ?? 0;
                   const isNeg = lineTotal < 0;
                   const hasQty = (parseFloat(row.quantity) || 0) > 0;
                   return (
-                    <tr key={row.id} className="hover:bg-[#FFFFFF]/30 transition-colors group">
+                    <tr key={row.id} className="hover:bg-white/30 transition-colors group">
                       <td className="px-5 py-3">
                         <select
                           value={row.materialKey}
                           onChange={e => updateRow(row.id, "materialKey", e.target.value)}
-                          className="w-full text-xs border-0 focus:outline-none bg-transparent text-[#1A2A1A] cursor-pointer"
+                          className="w-full text-xs border-0 focus:outline-none bg-transparent text-brown cursor-pointer"
                         >
                           {Object.entries(MATERIAL_GROUPS).map(([cat, items]) => (
                             <optgroup key={cat} label={cat}>
@@ -697,7 +700,7 @@ export default function CarbonLensPage() {
                             </optgroup>
                           ))}
                         </select>
-                        {mat && <p className="text-[10px] text-[#7A9B7A] mt-0.5 leading-tight">{mat.description}</p>}
+                        {mat && <p className="text-[10px] text-brown-light/70 mt-0.5 leading-tight">{mat.description}</p>}
                       </td>
                       <td className="px-3 py-3">
                         <input
@@ -707,29 +710,29 @@ export default function CarbonLensPage() {
                           placeholder="0"
                           value={row.quantity}
                           onChange={e => updateRow(row.id, "quantity", e.target.value)}
-                          className="w-24 px-2 py-1 text-xs border border-[#D8E6D8] rounded focus:outline-none focus:border-[#2D5A27] bg-white text-[#1A2A1A] placeholder:text-[#7A9B7A]"
+                          className="w-24 px-2 py-1 text-xs border border-tan/30 rounded focus:outline-none focus:border-terracotta bg-white text-brown placeholder:text-brown-light/50"
                         />
                       </td>
-                      <td className="px-3 py-3 text-[#7A9B7A]">{mat?.unit}</td>
+                      <td className="px-3 py-3 text-brown-light/70">{mat?.unit}</td>
                       <td className="px-3 py-3">
-                        <span className={`font-mono text-[11px] ${mat && mat.kgCO2e_per_unit < 0 ? "text-emerald-600" : "text-[#4A6B4A]"}`}>
+                        <span className={`font-mono text-[11px] ${mat && mat.kgCO2e_per_unit < 0 ? "text-terracotta" : "text-brown-light"}`}>
                           {mat && mat.kgCO2e_per_unit < 0 && "🌿 "}
                           {mat?.kgCO2e_per_unit.toLocaleString()}
                         </span>
                       </td>
                       <td className="px-5 py-3 text-right">
                         {hasQty ? (
-                          <span className={`font-mono text-xs font-medium ${isNeg ? "text-emerald-600" : "text-[#1A2A1A]"}`}>
+                          <span className={`font-mono text-xs font-medium ${isNeg ? "text-terracotta" : "text-brown"}`}>
                             {isNeg && "🌿 "}{fmtCarbon(lineTotal)}
                           </span>
                         ) : (
-                          <span className="text-[#7A9B7A] text-[10px]">—</span>
+                          <span className="text-brown-light/70 text-[10px]">-</span>
                         )}
                       </td>
                       <td className="pr-3">
                         <button
                           onClick={() => removeRow(row.id)}
-                          className="opacity-0 group-hover:opacity-100 text-[#7A9B7A] hover:text-red-500 transition-all text-base leading-none"
+                          className="opacity-0 group-hover:opacity-100 text-brown-light/70 hover:text-red-500 transition-all text-base leading-none"
                         >
                           ×
                         </button>
@@ -742,7 +745,7 @@ export default function CarbonLensPage() {
           </div>
 
           {/* Mobile cards */}
-          <div className="md:hidden divide-y divide-[#D8E6D8]/60">
+          <div className="md:hidden divide-y divide-tan/30">
             {rows.map((row, i) => {
               const mat = CARBON_DATA[row.materialKey];
               const lineTotal = byRow[i] ?? 0;
@@ -753,7 +756,7 @@ export default function CarbonLensPage() {
                     <select
                       value={row.materialKey}
                       onChange={e => updateRow(row.id, "materialKey", e.target.value)}
-                      className="flex-1 text-xs border border-[#D8E6D8] rounded-lg px-2 py-1.5 focus:outline-none focus:border-[#2D5A27] bg-white text-[#1A2A1A]"
+                      className="flex-1 text-xs border border-tan/30 rounded-lg px-2 py-1.5 focus:outline-none focus:border-terracotta bg-white text-brown"
                     >
                       {Object.entries(MATERIAL_GROUPS).map(([cat, items]) => (
                         <optgroup key={cat} label={cat}>
@@ -761,19 +764,19 @@ export default function CarbonLensPage() {
                         </optgroup>
                       ))}
                     </select>
-                    <button onClick={() => removeRow(row.id)} className="text-[#7A9B7A] hover:text-red-500 transition-colors shrink-0">×</button>
+                    <button onClick={() => removeRow(row.id)} className="text-brown-light/70 hover:text-red-500 transition-colors shrink-0">×</button>
                   </div>
                   <div className="flex items-center gap-3">
                     <input
                       type="number" min="0" step="any" placeholder="0"
                       value={row.quantity}
                       onChange={e => updateRow(row.id, "quantity", e.target.value)}
-                      className="w-28 px-2 py-1 text-xs border border-[#D8E6D8] rounded focus:outline-none focus:border-[#2D5A27] bg-white text-[#1A2A1A]"
+                      className="w-28 px-2 py-1 text-xs border border-tan/30 rounded focus:outline-none focus:border-terracotta bg-white text-brown"
                     />
-                    <span className="text-[10px] text-[#7A9B7A]">{mat?.unit}</span>
+                    <span className="text-[10px] text-brown-light/70">{mat?.unit}</span>
                     <span className="ml-auto text-xs font-medium font-mono">
-                      <span className={isNeg ? "text-emerald-600" : "text-[#1A2A1A]"}>
-                        {(parseFloat(row.quantity) || 0) > 0 ? fmtCarbon(lineTotal) : "—"}
+                      <span className={isNeg ? "text-terracotta" : "text-brown"}>
+                        {(parseFloat(row.quantity) || 0) > 0 ? fmtCarbon(lineTotal) : "-"}
                       </span>
                     </span>
                   </div>
@@ -783,18 +786,18 @@ export default function CarbonLensPage() {
           </div>
 
           {/* Totals footer */}
-          <div className="border-t border-[#D8E6D8] px-5 py-4 bg-[#FFFFFF]/40 space-y-3">
+          <div className="border-t border-tan/30 px-5 py-4 bg-white/40 space-y-3">
             <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
               <div>
-                <p className="text-[10px] text-[#7A9B7A] uppercase tracking-wide font-medium">Total Embodied Carbon</p>
-                <p className={`text-xl font-semibold mt-0.5 ${totalCarbon < 0 ? "text-emerald-600" : "text-[#1A2A1A]"}`}>
+                <p className="text-[10px] text-brown-light/70 uppercase tracking-wide font-medium">Total Embodied Carbon</p>
+                <p className={`text-xl font-semibold mt-0.5 ${totalCarbon < 0 ? "text-terracotta" : "text-brown"}`}>
                   {totalCarbon < 0 && "🌿 "}{fmtCarbon(totalCarbon)}
                 </p>
               </div>
               {perM2 !== null && (
                 <div>
-                  <p className="text-[10px] text-[#7A9B7A] uppercase tracking-wide font-medium">Per m²</p>
-                  <p className={`text-xl font-semibold mt-0.5 ${perM2 < 0 ? "text-emerald-600" : "text-[#1A2A1A]"}`}>
+                  <p className="text-[10px] text-brown-light/70 uppercase tracking-wide font-medium">Per m²</p>
+                  <p className={`text-xl font-semibold mt-0.5 ${perM2 < 0 ? "text-terracotta" : "text-brown"}`}>
                     {fmtNum(perM2)} kgCO₂e/m²
                   </p>
                 </div>
@@ -802,7 +805,7 @@ export default function CarbonLensPage() {
             </div>
             {totalCarbon !== 0 && (
               totalCarbon < 0 ? (
-                <p className="text-[10px] text-emerald-700">
+                <p className="text-[10px] text-terracotta-dark">
                   This building stores carbon equivalent to&nbsp;
                   <strong>{flights} transatlantic flights</strong>
                   &nbsp;or&nbsp;
@@ -810,11 +813,11 @@ export default function CarbonLensPage() {
                   &nbsp;of average car driving being offset
                 </p>
               ) : (
-                <p className="text-[10px] text-[#7A9B7A]">
+                <p className="text-[10px] text-brown-light/70">
                   Equivalent to&nbsp;
-                  <strong className="text-[#4A6B4A]">{flights} transatlantic flights</strong>
+                  <strong className="text-brown-light">{flights} transatlantic flights</strong>
                   &nbsp;or&nbsp;
-                  <strong className="text-[#4A6B4A]">{carYears} years</strong>
+                  <strong className="text-brown-light">{carYears} years</strong>
                   &nbsp;of average car driving
                 </p>
               )
@@ -826,13 +829,13 @@ export default function CarbonLensPage() {
         <div className="grid lg:grid-cols-2 gap-6">
 
           {/* Carbon breakdown chart */}
-          <div className="bg-white/80 rounded-xl border border-[#D8E6D8] shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-[#D8E6D8]">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-[#7A9B7A]">Carbon by Category</p>
+          <div className="bg-white/80 rounded-xl border border-tan/30 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-tan/30">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-brown-light/70">Carbon by Category</p>
             </div>
             <div className="p-5">
               {rows.every(r => !parseFloat(r.quantity)) ? (
-                <p className="text-xs text-[#7A9B7A] italic">Enter material quantities above to see the breakdown.</p>
+                <p className="text-xs text-brown-light/70 italic">Enter material quantities above to see the breakdown.</p>
               ) : (
                 <BreakdownChart rows={rows} />
               )}
@@ -840,9 +843,9 @@ export default function CarbonLensPage() {
           </div>
 
           {/* Benchmark comparison */}
-          <div className="bg-white/80 rounded-xl border border-[#D8E6D8] shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-[#D8E6D8]">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-[#7A9B7A]">Benchmark Comparison</p>
+          <div className="bg-white/80 rounded-xl border border-tan/30 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-tan/30">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-brown-light/70">Benchmark Comparison</p>
             </div>
             <div className="p-5">
               <BenchmarkGauge perM2={perM2} buildingType={projectInfo.buildingType} />
@@ -851,10 +854,10 @@ export default function CarbonLensPage() {
         </div>
 
         {/* ── Swap suggestions ──────────────────────────────────────────────── */}
-        <section className="bg-white/80 rounded-xl border border-[#D8E6D8] shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#D8E6D8]">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#7A9B7A]">Material Substitution Opportunities</p>
-            <p className="text-[10px] text-[#7A9B7A] mt-0.5">Ranked by potential carbon saving, biggest wins first</p>
+        <section className="bg-white/80 rounded-xl border border-tan/30 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-tan/30">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-brown-light/70">Material Substitution Opportunities</p>
+            <p className="text-[10px] text-brown-light/70 mt-0.5">Ranked by potential carbon saving, biggest wins first</p>
           </div>
           <div className="p-5">
             <SwapSuggestions rows={rows} onSwap={applySwap} />
@@ -862,17 +865,17 @@ export default function CarbonLensPage() {
         </section>
 
         {/* ── AI report ─────────────────────────────────────────────────────── */}
-        <section ref={reportSectionRef} className="bg-white/80 rounded-xl border border-[#D8E6D8] shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#D8E6D8] flex items-center justify-between gap-3 flex-wrap">
+        <section ref={reportSectionRef} className="bg-white/80 rounded-xl border border-tan/30 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-tan/30 flex items-center justify-between gap-3 flex-wrap">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-[#7A9B7A]">AI Consultant Report</p>
-              <p className="text-[10px] text-[#7A9B7A] mt-0.5">Expert recommendations generated by Claude</p>
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-brown-light/70">AI Consultant Report</p>
+              <p className="text-[10px] text-brown-light/70 mt-0.5">Expert recommendations generated by Claude</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               {aiReport && (
                 <button
                   onClick={copyReport}
-                  className="text-xs px-3 py-2 rounded-lg border border-[#D8E6D8] text-[#4A6B4A] hover:border-[#2D5A27] hover:text-[#2D5A27] transition-colors bg-white/80"
+                  className="text-xs px-3 py-2 rounded-lg border border-tan/30 text-brown-light hover:border-terracotta hover:text-terracotta transition-colors bg-white/80"
                 >
                   {copied ? "Copied!" : "Copy report"}
                 </button>
@@ -880,7 +883,7 @@ export default function CarbonLensPage() {
               <button
                 onClick={generateReport}
                 disabled={aiLoading || rows.every(r => !parseFloat(r.quantity))}
-                className="text-xs px-4 py-2 rounded-lg bg-[#2D5A27] text-white font-medium hover:bg-[#1A3A16] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="text-xs px-4 py-2 rounded-lg bg-terracotta text-white font-medium hover:bg-terracotta-dark disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 {aiLoading ? "Generating…" : "Generate Report"}
               </button>
@@ -888,13 +891,13 @@ export default function CarbonLensPage() {
           </div>
           <div className="p-5">
             {!aiReport && !aiLoading && !aiError && (
-              <p className="text-xs text-[#7A9B7A] italic">
+              <p className="text-xs text-brown-light/70 italic">
                 Enter your material quantities and click &quot;Generate Report&quot; for AI-powered substitution recommendations and industry context.
               </p>
             )}
             {aiLoading && (
-              <div className="flex items-center gap-2 text-xs text-[#7A9B7A]">
-                <span className="w-3 h-3 rounded-full border-2 border-[#2D5A27]/30 border-t-[#2D5A27] animate-spin" />
+              <div className="flex items-center gap-2 text-xs text-brown-light/70">
+                <span className="w-3 h-3 rounded-full border-2 border-terracotta/30 border-t-terracotta animate-spin" />
                 Consulting embodied carbon database…
               </div>
             )}
@@ -902,7 +905,7 @@ export default function CarbonLensPage() {
             {aiReport && (
               <div>
                 <AIReport text={aiReport} />
-                <p className="text-[10px] text-[#7A9B7A]/60 text-right mt-4">Generated by Claude (Anthropic)</p>
+                <p className="text-[10px] text-brown-light/60 text-right mt-4">Generated by Claude (Anthropic)</p>
               </div>
             )}
           </div>
@@ -910,7 +913,7 @@ export default function CarbonLensPage() {
 
         {/* ── Legend ────────────────────────────────────────────────────────── */}
         <div className="pb-8">
-          <p className="text-[10px] text-[#7A9B7A]/70 leading-relaxed text-center max-w-2xl mx-auto">
+          <p className="text-[10px] text-brown-light/60 leading-relaxed text-center max-w-2xl mx-auto">
             Carbon intensities sourced from the ICE Database v3.0, University of Bath.
             Negative values (🌿) indicate carbon-storing materials where the biogenic carbon sequestered during tree growth
             exceeds production emissions. Results are for comparative design guidance only and should not be used for
