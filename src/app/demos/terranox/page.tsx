@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import Link from "next/link";
 import { CSS_VAR_COLORS } from "@/components/ThemeToggle";
 import CompanyThemeStyle from "@/components/CompanyThemeStyle";
@@ -253,8 +253,8 @@ export default function TerranoxPage() {
                     <span key={c} className="text-[10px] font-mono text-center" style={{ color: LABEL }}>{c}</span>
                   ))}
                   {Array.from({ length: GRID }).map((_, r) => (
-                    <>
-                      <span key={`r${r}`} className="text-[10px] font-mono flex items-center justify-center" style={{ color: LABEL }}>{r + 1}</span>
+                    <Fragment key={`row-${r}`}>
+                      <span className="text-[10px] font-mono flex items-center justify-center" style={{ color: LABEL }}>{r + 1}</span>
                       {Array.from({ length: GRID }).map((_, c) => {
                         const id = cellId(r, c);
                         const st = cells[id] ?? "unknown";
@@ -277,7 +277,7 @@ export default function TerranoxPage() {
                           </button>
                         );
                       })}
-                    </>
+                    </Fragment>
                   ))}
                 </div>
               </div>
