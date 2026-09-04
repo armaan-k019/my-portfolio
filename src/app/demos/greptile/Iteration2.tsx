@@ -548,24 +548,7 @@ export default function Iteration2() {
 
   return (
     <>
-      {/* Divider */}
-      <div className="w-full max-w-3xl mx-auto px-6 mt-20 mb-12">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="flex-1 h-px" style={{ backgroundColor: C.cardBorder }} />
-          <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: C.dim }}>
-            Iteration 2
-          </span>
-          <div className="flex-1 h-px" style={{ backgroundColor: C.cardBorder }} />
-        </div>
-        <h2 className="text-3xl font-black tracking-tight text-center mb-3" style={{ color: C.text }}>
-          Taking It Further
-        </h2>
-        <p className="text-sm text-center max-w-xl mx-auto" style={{ color: C.muted }}>
-          What PR Review Auditor becomes with codebase intelligence.
-        </p>
-      </div>
-
-      <div className="w-full max-w-3xl mx-auto px-6 pb-10">
+      <div>
 
         {/* NARRATIVE: matches Iteration 1 SECTION A format */}
         <section className="mb-10">
