@@ -295,8 +295,12 @@ export function bestMove(state: GameState, allowed: SurveyKind[]): Candidate | n
 }
 
 // What a discovery is worth to the campaign, in dollars. A hole is drilled
-// when prospectivity clears drill cost over this value. Set by simulation.
-export const DISCOVERY_VALUE = 1_136_364;
+// when prospectivity clears drill cost over this value, so 30 percent here.
+// Simulation over 100 seeds: at 22 percent the engine wins more often by
+// drilling every warm cell directly, but that skips confirmation entirely and
+// teaches the wrong lesson. From 28 to 50 percent behaviour is identical:
+// magnetics, then geochem to confirm, then the hole.
+export const DISCOVERY_VALUE = 833_333;
 export const DRILL_THRESHOLD = SURVEYS.drill.cost / DISCOVERY_VALUE;
 // Exponent on (prospectivity / prior) when weighting a cell's information gain.
 export const PROSPECTIVITY_WEIGHT = 1;
