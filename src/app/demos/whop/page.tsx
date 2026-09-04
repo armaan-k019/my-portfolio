@@ -69,8 +69,21 @@ interface RoastDimension {
   fix: string;
 }
 
+type Grade = "A" | "B" | "C" | "D" | "F";
+
+interface GradedField {
+  grade: Grade;
+  rationale: string;
+}
+
 interface RoastResult {
-  overall_grade: "A" | "B" | "C" | "D" | "F";
+  inferred_category: string;
+  category_note: string;
+  headline_grade: GradedField;
+  description_grade: GradedField;
+  pricing_grade: GradedField;
+  affiliate_pitch: string;
+  overall_grade: Grade;
   one_liner: string;
   conversion_potential: "Low" | "Medium" | "High";
   trust_score: "Low" | "Medium" | "High";
@@ -589,18 +602,34 @@ export default function WhopPage() {
         {result && !loading && (
           <div ref={resultsRef} className="space-y-6">
 
+            {/* 0. Category context */}
+            <div className="rounded-xl border p-5" style={{ backgroundColor: CARD, borderColor: PURPLE + "40" }}>
+              <div className="flex items-center gap-3 flex-wrap mb-3">
+                <p className="text-xs font-bold uppercase tracking-widest" style={{ color: C.dim }}>
+                  Competing in
+                </p>
+                <span
+                  className="text-xs font-bold px-3 py-1 rounded-full uppercase tracking-widest"
+                  style={{ backgroundColor: PURPLE, color: "#fff" }}
+                >
+                  {result.inferred_category}
+                </span>
+              </div>
+              <p className="text-sm leading-relaxed" style={{ color: C.text }}>{result.category_note}</p>
+            </div>
+
             {/* 1. Overall Grade */}
             <div
               className="rounded-xl border text-center px-6 py-10 sm:px-8 sm:py-12"
               style={{ backgroundColor: CARD, borderColor: BORDER }}
             >
-              <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "#4b5563", marginBottom: "20px" }}>
+              <p className="text-xs font-bold uppercase tracking-widest" style={{ color: C.dim, marginBottom: "20px" }}>
                 Overall Roast Score
               </p>
               <div style={{ marginBottom: "28px" }}>
                 <AnimatedGrade grade={result.overall_grade} />
               </div>
-              <p className="font-semibold max-w-xl mx-auto leading-relaxed" style={{ color: "#e5e7eb", fontSize: "16px", marginBottom: "32px" }}>
+              <p className="font-semibold max-w-xl mx-auto leading-relaxed" style={{ color: C.text, fontSize: "16px", marginBottom: "32px" }}>
                 &ldquo;{result.one_liner}&rdquo;
               </p>
               <div className="flex items-center justify-center gap-4 flex-wrap">
@@ -613,6 +642,29 @@ export default function WhopPage() {
                 <span className={`font-bold rounded-full ${STAT_BADGE(result.affiliate_ready, ["Yes"])}`} style={{ fontSize: "13px", padding: "8px 16px" }}>
                   Affiliate Ready: {result.affiliate_ready}
                 </span>
+              </div>
+            </div>
+
+            {/* 1b. Grades against the category */}
+            <div>
+              <h2 className="text-lg font-black mb-1 tracking-tight">Graded against the category</h2>
+              <p className="text-xs mb-4" style={{ color: C.dim }}>
+                How each block performs versus what {result.inferred_category} buyers look for
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {([
+                  ["Headline", result.headline_grade],
+                  ["Description", result.description_grade],
+                  ["Pricing", result.pricing_grade],
+                ] as const).map(([label, field]) => (
+                  <div key={label} className="rounded-xl border p-5" style={{ backgroundColor: CARD, borderColor: BORDER }}>
+                    <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: C.dim }}>{label}</p>
+                    <p className="text-5xl font-black leading-none mb-3" style={{ color: GRADE_COLOR[field.grade] ?? C.text }}>
+                      {field.grade}
+                    </p>
+                    <p className="text-xs leading-relaxed" style={{ color: C.muted }}>{field.rationale}</p>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -649,7 +701,7 @@ export default function WhopPage() {
                       <p className="font-bold uppercase tracking-wide" style={{ color: PURPLE, fontSize: "11px", marginBottom: "6px" }}>
                         The Fix
                       </p>
-                      <p className="leading-relaxed" style={{ color: "#d1d5db", fontSize: "14px" }}>{dim.fix}</p>
+                      <p className="leading-relaxed" style={{ color: C.text, fontSize: "14px" }}>{dim.fix}</p>
                     </div>
                   </div>
                 ))}
@@ -691,8 +743,11 @@ export default function WhopPage() {
                   <p className="font-bold uppercase tracking-widest" style={{ color: PURPLE, fontSize: "11px", marginBottom: "20px" }}>
                     B. Description Rewrite
                   </p>
-                  <div className="rounded-xl border" style={{ backgroundColor: BG, borderColor: BORDER, padding: "20px", marginBottom: "16px" }}>
-                    <p className="leading-relaxed whitespace-pre-wrap" style={{ color: "#e5e7eb", fontSize: "14px" }}>{result.description_rewrite}</p>
+                  <div
+                    className="rounded-xl border font-mono whitespace-pre-wrap leading-relaxed"
+                    style={{ backgroundColor: BG, borderColor: PURPLE + "50", color: C.text, padding: "20px", fontSize: "14px", marginBottom: "16px" }}
+                  >
+                    {result.description_rewrite}
                   </div>
                   <p className="leading-relaxed" style={{ color: C.dim, fontSize: "13px" }}>
                     {result.description_reasoning}
@@ -747,7 +802,7 @@ export default function WhopPage() {
                   <div className="space-y-3">
                     {result.affiliate_pitch_lines.map((line, i) => (
                       <div key={i} className="rounded-lg border" style={{ backgroundColor: BG, borderColor: BORDER, padding: "16px" }}>
-                        <p className="leading-relaxed" style={{ color: "#d1d5db", fontSize: "14px", marginBottom: "12px" }}>
+                        <p className="leading-relaxed" style={{ color: C.text, fontSize: "14px", marginBottom: "12px" }}>
                           &ldquo;{line}&rdquo;
                         </p>
                         <CopyButton text={line} />
@@ -758,12 +813,23 @@ export default function WhopPage() {
               </div>
             )}
 
+            {/* 4b. How an affiliate would sell this */}
+            <div className="rounded-xl border p-6" style={{ backgroundColor: CARD, borderColor: BORDER }}>
+              <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: C.dim }}>
+                How someone would sell this for you
+              </p>
+              <p className="text-base leading-relaxed font-semibold mb-4" style={{ color: C.text }}>
+                &ldquo;{result.affiliate_pitch}&rdquo;
+              </p>
+              <CopyButton text={result.affiliate_pitch} label="Copy pitch" />
+            </div>
+
             {/* 5. One Thing */}
             <div
               className="rounded-xl border text-center"
               style={{ backgroundColor: CARD, borderColor: PURPLE + "40", padding: "32px 24px" }}
             >
-              <p className="font-bold uppercase tracking-widest" style={{ color: "#4b5563", fontSize: "11px", marginBottom: "24px" }}>
+              <p className="font-bold uppercase tracking-widest" style={{ color: C.dim, fontSize: "11px", marginBottom: "24px" }}>
                 The single highest-leverage thing you can do right now:
               </p>
               <p
@@ -784,7 +850,7 @@ export default function WhopPage() {
               >
                 Open Whop &rarr;
               </a>
-              <p style={{ color: "#374151", fontSize: "13px", marginTop: "16px" }}>
+              <p style={{ color: C.dim, fontSize: "13px", marginTop: "16px" }}>
                 Whop takes 3% on sales. No monthly fees. 100K+ creators.
               </p>
             </div>

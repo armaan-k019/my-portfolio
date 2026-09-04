@@ -30,7 +30,17 @@ interface AutopsyToken {
   effect: string;
 }
 
+interface PromptChange {
+  kind: "removed" | "added" | "replaced" | "reordered" | "parameter";
+  from: string;
+  to: string;
+  why: string;
+  principle: string;
+}
+
 interface MidjourneyAnalysis {
+  changes?: PromptChange[];
+  expectedShift?: string;
   autopsy: AutopsyToken[];
   styleDNA: string;
   rewrite: string;
@@ -45,6 +55,14 @@ interface AnalysisResults {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+const CHANGE_COLOR: Record<PromptChange["kind"], string> = {
+  removed: "#ef4444",
+  added: "#22c55e",
+  replaced: "#eab308",
+  reordered: "#3b82f6",
+  parameter: "#a855f7",
+};
 
 function impactColor(impact: string, accent: string) {
   if (impact === "High") return "#ef4444";
@@ -537,7 +555,7 @@ export default function MidjourneyPage() {
           {results && (
             <div ref={resultsRef} className="scroll-mt-8 space-y-5">
 
-              {/* 3D Viewer — full width */}
+              {/* 3D Viewer, full width */}
               <div
                 className="rounded-xl border overflow-hidden"
                 style={{ backgroundColor: C.bg, borderColor: C.cardBorder }}
@@ -775,7 +793,7 @@ export default function MidjourneyPage() {
                 </div>
               </div>
 
-              {/* Rewritten Prompt — diff view */}
+              {/* Rewritten Prompt, diff view */}
               <div
                 className="rounded-xl border p-5"
                 style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}
@@ -838,6 +856,66 @@ export default function MidjourneyPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Why the rewrite works: change log */}
+              {results.analysis.changes && results.analysis.changes.length > 0 && (
+                <div
+                  className="rounded-xl border p-5"
+                  style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}
+                >
+                  <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: C.dim }}>
+                    Why this works
+                  </p>
+                  <p className="text-xs mb-4" style={{ color: C.muted }}>
+                    Each edit in the rewrite, what it changes in the image, and the rule behind it
+                  </p>
+                  <div className="space-y-3">
+                    {results.analysis.changes.map((ch, i) => (
+                      <div
+                        key={i}
+                        className="rounded-lg p-3"
+                        style={{ backgroundColor: C.bg, border: `1px solid ${C.cardBorder}` }}
+                      >
+                        <div className="flex items-center gap-2 flex-wrap mb-2">
+                          <span
+                            className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest"
+                            style={{ color: CHANGE_COLOR[ch.kind], backgroundColor: CHANGE_COLOR[ch.kind] + "18" }}
+                          >
+                            {ch.kind}
+                          </span>
+                          <span className="text-[10px] font-semibold" style={{ color: C.dim }}>
+                            {ch.principle}
+                          </span>
+                        </div>
+                        <div className="font-mono text-xs leading-relaxed mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                          {ch.from && (
+                            <span style={{ color: C.muted, textDecoration: "line-through" }}>{ch.from}</span>
+                          )}
+                          {ch.from && ch.to && <span style={{ color: C.dim }}>&rarr;</span>}
+                          {ch.to && (
+                            <span
+                              style={{ backgroundColor: C.accentBg, color: C.accent, borderRadius: 3, padding: "0 4px" }}
+                            >
+                              {ch.to}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs leading-relaxed" style={{ color: C.text }}>{ch.why}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {results.analysis.expectedShift && (
+                    <div className="mt-4 pt-4 border-t" style={{ borderColor: C.cardBorder }}>
+                      <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: C.accent }}>
+                        Expected shift in the image
+                      </p>
+                      <p className="text-sm leading-relaxed" style={{ color: C.muted }}>
+                        {results.analysis.expectedShift}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Summary */}
               <div

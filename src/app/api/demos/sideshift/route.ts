@@ -71,8 +71,36 @@ Return ONLY this JSON object, no markdown, no code blocks:
   ],
   "fixed_if": "complete this: Choose Fixed if...",
   "variable_if": "complete this: Choose Variable if...",
-  "rate_explainer": "2-3 sentences explaining the Fixed vs Variable tradeoff for this specific swap amount and asset pair"
-}`;
+  "rate_explainer": "2-3 sentences explaining the Fixed vs Variable tradeoff for this specific swap amount and asset pair",
+  "risk_profile": {
+    "overall": "Low" or "Medium" or "High",
+    "overall_reason": "one sentence on what drives the overall risk level for this specific swap",
+    "factors": [
+      {
+        "name": "Volatility exposure",
+        "score": 0-10 where 10 is highest risk,
+        "detail": "how much the quoted amount could move during the recommended route's confirmation window, with a rough percentage band grounded in the assets' typical volatility. Note if a Fixed rate removes this."
+      },
+      {
+        "name": "Chain reliability",
+        "score": 0-10,
+        "detail": "congestion, fee spikes, or reorg risk on the chains in the recommended route, and whether a slow chain in the path makes a Fixed quote more likely to expire"
+      },
+      {
+        "name": "Operational pitfalls",
+        "score": 0-10,
+        "detail": "the mistakes that lose funds on this specific pair: destination tag or memo requirements (XRP, XLM, ATOM, EOS), wrong network sends (ERC20 vs BEP20 vs Solana), token contract confusion, dust or minimum limits, or none if the pair is clean"
+      }
+    ],
+    "watch_outs": [
+      "one concrete thing to check before sending, specific to this pair and route",
+      "a second concrete thing to check",
+      "a third if warranted, otherwise omit"
+    ]
+  }
+}
+
+Ground the risk profile in real asset behavior: BTC and ETH are lower volatility than most altcoins; XMR, SOL, and DOGE swing more; stablecoins carry near zero volatility risk but their own network choice risk; XRP, XLM, ATOM, and EOS require destination tags or memos; a Fixed rate transfers volatility risk to the platform but the quote expires, so a slow deposit chain raises the chance of a refund at variable rate. The watch_outs must be operational and checkable, not generic advice.`;
 
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 55000);
@@ -87,9 +115,10 @@ Return ONLY this JSON object, no markdown, no code blocks:
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 2000,
+        max_tokens: 2600,
+        temperature: 0.2,
         system:
-          "You are an expert in cryptocurrency markets, cross-chain swap routing, and DeFi fee structures. You have deep knowledge of spread costs, network confirmation times, and liquidity across Bitcoin, Ethereum, Monero, Solana, and other major chains. You give specific, grounded analysis. Respond with ONLY valid JSON, no markdown, no code blocks.",
+          "You are a swap routing analyst for SideShift.ai, a non-custodial crypto exchange where users swap between chains with no account and no funds held on the platform. Your job is to find the cheapest and safest path for a specific pair and amount, and to tell the user what could go wrong before they send, because on a non-custodial swap there is no support desk that can reverse a mistake. You have deep, current knowledge of spread costs, network confirmation times, liquidity across Bitcoin, Ethereum, Monero, Solana, Litecoin, and the major altcoins, and the operational traps on each chain: destination tags, memos, wrong network sends, contract confusion, and minimum limits. You give specific, numeric, grounded analysis and never pad with generic warnings. Rules: do not use em dashes anywhere in your output, use commas, periods, or colons instead. Respond with ONLY valid JSON, no markdown, no code blocks.",
         messages: [{ role: "user", content: prompt }],
       }),
     });
