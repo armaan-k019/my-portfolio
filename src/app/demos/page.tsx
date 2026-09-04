@@ -23,6 +23,27 @@ const ACCENT = "#2d5a27";
 
 const demoCards: DemoCard[] = [
   {
+    slug: "terranox",
+    company: "Terranox",
+    headline: "Prospect: an exploration decision game",
+    pitch: "Hunt hidden uranium deposits on a claim block with a fixed budget, then ask Terranox for the single best next move and the reasoning behind it.",
+    url: "/demos/terranox",
+  },
+  {
+    slug: "world-labs",
+    company: "World Labs",
+    headline: "Ekphrasis: words to walkable worlds",
+    pitch: "Pick a passage, get a spatial DNA reading, and see a 3D world generated from that reading with every major choice annotated.",
+    url: "/demos/world-labs",
+  },
+  {
+    slug: "illoca",
+    company: "Illoca",
+    headline: "The Precedent Interpreter",
+    pitch: "Describe a project and get three precedent buildings, what to steal from each, and a first bubble diagram to start from.",
+    url: "/demos/illoca",
+  },
+  {
     slug: "rho",
     company: "Rho",
     headline: "Drift Detection + Candidate Trajectory",
