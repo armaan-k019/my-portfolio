@@ -66,15 +66,6 @@ export const projects: Project[] = [
     github: "https://github.com/armaan-k019/acoustic-form",
   },
   {
-    slug: "pulse",
-    title: "Pulse",
-    category: "cs",
-    blurb: "A live data portrait of Georgia Tech's campus.",
-    description: "A live data portrait of Georgia Tech's campus: bus locations, crowd density, dining wait times, and an AI assistant that helps you navigate your day.",
-    stack: ["Next.js", "Google Maps", "TransLoc API", "Claude API"],
-    github: "https://github.com/armaan-k019/pulse-gt",
-  },
-  {
     slug: "carbon-lens",
     title: "Carbon Lens",
     category: "cs",
