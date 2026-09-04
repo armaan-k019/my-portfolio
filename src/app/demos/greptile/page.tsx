@@ -208,6 +208,7 @@ export default function GreptilePage() {
   const [prUrl, setPrUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
+  const [activeTab, setActiveTab] = useState<"audit" | "grounding">("audit");
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -301,6 +302,30 @@ export default function GreptilePage() {
           &#8592; Back to Demos
         </Link>
 
+        {/* Demo tabs */}
+        <div className="flex gap-1 mb-8 border-b" style={{ borderColor: C.cardBorder }}>
+          {([
+            { key: "audit", label: "Review Audit" },
+            { key: "grounding", label: "Codebase Grounding" },
+          ] as const).map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className="text-sm font-semibold px-4 py-2.5 -mb-px border-b-2 transition-colors"
+              style={{
+                borderColor: activeTab === tab.key ? C.accent : "transparent",
+                color: activeTab === tab.key ? C.headerText : C.dim,
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === "grounding" && <Iteration2 />}
+
+        {activeTab === "audit" && (
+        <>
         {/* SECTION A */}
         <section className="mb-10">
           <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: C.dim }}>
@@ -768,9 +793,9 @@ export default function GreptilePage() {
 
           </div>
         )}
+        </>
+        )}
       </div>
-
-      <Iteration2 />
 
       {/* Footer */}
       <footer className="border-t px-6 py-6 text-center mt-8" style={{ borderColor: C.cardBorder }}>
