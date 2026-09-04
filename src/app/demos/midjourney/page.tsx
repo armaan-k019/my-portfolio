@@ -555,7 +555,7 @@ export default function MidjourneyPage() {
           {results && (
             <div ref={resultsRef} className="scroll-mt-8 space-y-5">
 
-              {/* 3D Viewer — full width */}
+              {/* 3D Viewer, full width */}
               <div
                 className="rounded-xl border overflow-hidden"
                 style={{ backgroundColor: C.bg, borderColor: C.cardBorder }}
@@ -793,7 +793,7 @@ export default function MidjourneyPage() {
                 </div>
               </div>
 
-              {/* Rewritten Prompt — diff view */}
+              {/* Rewritten Prompt, diff view */}
               <div
                 className="rounded-xl border p-5"
                 style={{ backgroundColor: C.cardBg, borderColor: C.cardBorder }}
