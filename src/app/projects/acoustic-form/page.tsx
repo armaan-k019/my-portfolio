@@ -78,44 +78,44 @@ function HowToUsePanel() {
   ];
 
   return (
-    <div className="bg-white/80 rounded-xl border border-[#D8E6D8] shadow-sm">
+    <div className="bg-white/80 rounded-xl border border-tan/30 shadow-sm">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#FFFFFF]/60 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-white/60 transition-colors"
       >
-        <span className="font-semibold text-xs text-[#1A2A1A]">How to use</span>
-        <span className="text-[#7A9B7A] text-xs">{open ? '−' : '+'}</span>
+        <span className="font-semibold text-xs text-brown">How to use</span>
+        <span className="text-brown-light/70 text-xs">{open ? '−' : '+'}</span>
       </button>
 
       {open && (
-        <div className="px-4 pb-4 space-y-4 border-t border-[#D8E6D8]">
+        <div className="px-4 pb-4 space-y-4 border-t border-tan/30">
           <ol className="space-y-3 mt-3">
             {steps.map((s, i) => (
               <li key={i} className="flex gap-2.5">
-                <span className="shrink-0 w-4 h-4 rounded-full bg-[#FF6B35]/15 text-[#FF6B35] text-[9px] font-bold flex items-center justify-center mt-0.5">
+                <span className="shrink-0 w-4 h-4 rounded-full bg-terracotta/15 text-terracotta text-[9px] font-bold flex items-center justify-center mt-0.5">
                   {i + 1}
                 </span>
                 <div>
-                  <p className="text-xs font-medium text-[#1A2A1A] leading-snug">{s.label}</p>
-                  <p className="text-[11px] text-[#4A6B4A] leading-relaxed mt-0.5">{s.detail}</p>
+                  <p className="text-xs font-medium text-brown leading-snug">{s.label}</p>
+                  <p className="text-[11px] text-brown-light leading-relaxed mt-0.5">{s.detail}</p>
                 </div>
               </li>
             ))}
           </ol>
 
-          <div className="border-t border-[#D8E6D8] pt-3">
-            <p className="text-[10px] font-semibold text-[#7A9B7A] uppercase tracking-wider mb-2">Viewport controls</p>
+          <div className="border-t border-tan/30 pt-3">
+            <p className="text-[10px] font-semibold text-brown-light/70 uppercase tracking-wider mb-2">Viewport controls</p>
             <div className="space-y-1">
               {controls.map(c => (
                 <div key={c.key} className="flex items-center justify-between">
-                  <span className="text-[11px] font-mono bg-[#FFFFFF] text-[#1A2A1A] px-1.5 py-0.5 rounded">{c.key}</span>
-                  <span className="text-[11px] text-[#4A6B4A]">{c.action}</span>
+                  <span className="text-[11px] font-mono bg-white text-brown px-1.5 py-0.5 rounded">{c.key}</span>
+                  <span className="text-[11px] text-brown-light">{c.action}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          <p className="text-[10px] text-[#7A9B7A] italic border-t border-[#D8E6D8] pt-3">
+          <p className="text-[10px] text-brown-light/70 italic border-t border-tan/30 pt-3">
             Calculations use Sabine&rsquo;s formula. Results are indicative only and not a substitute for professional acoustic analysis.
           </p>
         </div>
@@ -130,35 +130,35 @@ function HowItWorksPanel() {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="bg-white/80 rounded-xl border border-[#D8E6D8] shadow-sm">
+    <div className="bg-white/80 rounded-xl border border-tan/30 shadow-sm">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#FFFFFF]/60 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-white/60 transition-colors"
       >
-        <span className="font-semibold text-xs text-[#1A2A1A]">How it works</span>
-        <span className="text-[#7A9B7A] text-xs">{open ? '−' : '+'}</span>
+        <span className="font-semibold text-xs text-brown">How it works</span>
+        <span className="text-brown-light/70 text-xs">{open ? '−' : '+'}</span>
       </button>
 
       {open && (
-        <div className="px-4 pb-4 space-y-4 border-t border-[#D8E6D8] mt-0">
+        <div className="px-4 pb-4 space-y-4 border-t border-tan/30 mt-0">
           {/* Sabine's Formula */}
           <div className="mt-3">
-            <p className="text-xs font-semibold text-[#1A2A1A] mb-1">Sabine&apos;s Formula</p>
-            <div className="bg-[#FFFFFF] rounded-lg px-3 py-2 mb-2 text-center">
-              <span className="text-xs font-mono text-[#1A2A1A]">RT60 = 0.161 &times; V / A</span>
+            <p className="text-xs font-semibold text-brown mb-1">Sabine&apos;s Formula</p>
+            <div className="bg-white rounded-lg px-3 py-2 mb-2 text-center">
+              <span className="text-xs font-mono text-brown">RT60 = 0.161 &times; V / A</span>
             </div>
-            <p className="text-[11px] text-[#4A6B4A] leading-relaxed">
-              <strong className="text-[#1A2A1A]">V</strong> is the room volume in m³.{' '}
-              <strong className="text-[#1A2A1A]">A</strong> is the total acoustic absorption in sabins (m²),
+            <p className="text-[11px] text-brown-light leading-relaxed">
+              <strong className="text-brown">V</strong> is the room volume in m³.{' '}
+              <strong className="text-brown">A</strong> is the total acoustic absorption in sabins (m²),
               calculated as the sum of each surface&apos;s area multiplied by its absorption coefficient α.
               The constant 0.161 comes from the speed of sound (343 m/s) and the natural logarithm of 10⁶.
             </p>
           </div>
 
           {/* Absorption coefficient */}
-          <div className="border-t border-[#D8E6D8] pt-3">
-            <p className="text-xs font-semibold text-[#1A2A1A] mb-1">Absorption Coefficient (α)</p>
-            <p className="text-[11px] text-[#4A6B4A] leading-relaxed">
+          <div className="border-t border-tan/30 pt-3">
+            <p className="text-xs font-semibold text-brown mb-1">Absorption Coefficient (α)</p>
+            <p className="text-[11px] text-brown-light leading-relaxed">
               α ranges from 0 (perfect reflector, e.g. bare concrete α ≈ 0.02) to 1 (perfect absorber, e.g.
               acoustic foam α ≈ 0.95). Each material has a different α at each octave band - carpet absorbs
               more at high frequencies, while concrete absorbs almost nothing across the spectrum.
@@ -166,9 +166,9 @@ function HowItWorksPanel() {
           </div>
 
           {/* Octave bands */}
-          <div className="border-t border-[#D8E6D8] pt-3">
-            <p className="text-xs font-semibold text-[#1A2A1A] mb-1">Octave Band Analysis</p>
-            <p className="text-[11px] text-[#4A6B4A] leading-relaxed">
+          <div className="border-t border-tan/30 pt-3">
+            <p className="text-xs font-semibold text-brown mb-1">Octave Band Analysis</p>
+            <p className="text-[11px] text-brown-light leading-relaxed">
               RT60 is calculated separately at six octave bands: 125, 250, 500, 1k, 2k, and 4k Hz.
               Each band uses that material&apos;s α value at that frequency, giving a frequency-dependent
               reverberation profile. Speech intelligibility is most sensitive to the 500 Hz – 2 kHz range.
@@ -176,9 +176,9 @@ function HowItWorksPanel() {
           </div>
 
           {/* Ray casting */}
-          <div className="border-t border-[#D8E6D8] pt-3">
-            <p className="text-xs font-semibold text-[#1A2A1A] mb-1">Ray Casting</p>
-            <p className="text-[11px] text-[#4A6B4A] leading-relaxed">
+          <div className="border-t border-tan/30 pt-3">
+            <p className="text-xs font-semibold text-brown mb-1">Ray Casting</p>
+            <p className="text-[11px] text-brown-light leading-relaxed">
               Sound rays are emitted in a uniform spherical pattern from each source using the Fibonacci
               sphere algorithm. Each ray is traced through the room, reflecting off the nearest triangle
               face using the law of reflection (angle of incidence = angle of reflection). The number of
@@ -187,9 +187,9 @@ function HowItWorksPanel() {
           </div>
 
           {/* Early reflections */}
-          <div className="border-t border-[#D8E6D8] pt-3">
-            <p className="text-xs font-semibold text-[#1A2A1A] mb-1">Early Reflections</p>
-            <p className="text-[11px] text-[#4A6B4A] leading-relaxed">
+          <div className="border-t border-tan/30 pt-3">
+            <p className="text-xs font-semibold text-brown mb-1">Early Reflections</p>
+            <p className="text-[11px] text-brown-light leading-relaxed">
               Early reflections are sound paths that reach the listener within ~50ms of the direct sound.
               They reinforce spatial impression and perceived room size. A high early reflection count
               with a long RT60 can indicate a reverberant, diffuse space - common in concert halls and
@@ -319,23 +319,58 @@ export default function AcousticFormPage() {
     `Sources: ${sourcePositions.length}. Receivers: ${receiverPoints.length}.`;
 
   return (
-    <div className="h-screen bg-[#FFFFFF] flex flex-col overflow-hidden">
+    <div className="py-16">
 
-      {/* ─── Mobile message ──────────────────────────────────────────────────── */}
-      <div className="lg:hidden flex flex-col items-center justify-center h-full px-8 text-center gap-4">
-        <div className="w-12 h-12 rounded-full bg-[#FF6B35]/10 flex items-center justify-center">
-          <svg className="w-6 h-6 text-[#FF6B35]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25A2.25 2.25 0 015.25 3h13.5A2.25 2.25 0 0121 5.25z" />
-          </svg>
-        </div>
-        <h2 className="text-xl font-semibold text-[#1A2A1A]">Desktop required</h2>
-        <p className="text-sm text-[#4A6B4A] max-w-xs leading-relaxed">
-          Acoustic Form uses a three-panel layout with a 3D viewport. Please open it on a laptop or desktop for the full experience.
-        </p>
-        <Link href="/#projects" className="mt-2 text-sm text-[#FF6B35] hover:text-[#e55e2b] transition-colors">
+      {/* Case study shell, patterned on /projects/framed */}
+      <div className="max-w-3xl mx-auto px-6">
+        <Link
+          href="/#projects"
+          className="text-sm text-terracotta hover:text-terracotta-dark transition-colors mb-12 inline-block"
+        >
           &larr; Back to projects
         </Link>
+
+        <header className="mb-14">
+          <h1 className="text-4xl font-semibold text-darkblue tracking-tight mb-3">Acoustic Form</h1>
+          <p className="text-sm text-brown-light">April 2026 &middot; Personal Project &middot; Next.js &middot; Three.js &middot; Claude &middot; Desktop only</p>
+          <div className="w-10 h-[2px] bg-terracotta mt-5" />
+        </header>
+
+        <div className="space-y-6 mb-14">
+          <p className="text-base text-brown leading-relaxed">
+            Acoustic Form is a browser based structural acoustics visualizer. It renders a three dimensional interior, lets you assign materials to its surfaces, runs an acoustic simulation against that geometry, and can generate a new interior from a written architectural description.
+          </p>
+          <p className="text-base text-brown leading-relaxed">
+            Understanding how a room&rsquo;s form shapes its sound normally requires tools like Odeon or EASE and an acoustic engineer to run them. Most architects never get that feedback during early design, which is the only point at which it would change the shape of the room. Acoustic Form tries to make the relationship between form and sound legible to a non specialist by putting the simulation next to the model and letting the form itself be prompted.
+          </p>
+          <p className="text-base text-brown leading-relaxed">
+            Three.js renders a default room of roughly 10 by 8 by 4 units. A materials panel assigns surfaces to walls, floor, and ceiling, and the simulation recomputes against the current geometry and assignments. A structure generator accepts an architectural description and returns a matching form scaled into the default room&rsquo;s bounding box; Claude does the generation. Eight presets ship with it (Ziggurat, Eiffel Tower, Castle, Cathedral, Pyramid, Pagoda, Colosseum, Lighthouse), and each one is a full description rather than a name. The Cathedral preset reads:
+          </p>
+          <blockquote className="border-l-2 border-terracotta pl-5 text-sm text-brown-light leading-relaxed italic">
+            &ldquo;A Gothic cathedral nave interior 40 meters long, 18 meters wide, and 28 meters tall at the vault crown. Pointed stone ribbed vaulting overhead, thick stone columns dividing the nave from side aisles, large stained glass clerestory windows, a stone floor, and an apse at the east end. Extremely long reverberation time expected due to hard parallel surfaces and height.&rdquo;
+          </blockquote>
+          <p className="text-base text-brown leading-relaxed">
+            Two things came out of building it. Enriching the presets from bare names to descriptions like that one dramatically improved the generated forms, which is a plain lesson about giving a generative model real spatial context to work from. And scale constraints matter more than expected: a generated structure has to land near the default room&rsquo;s size or the acoustic simulation loses coherence.
+          </p>
+          <p className="text-base text-brown leading-relaxed">
+            Built in April 2026 as a personal project exploring computational design and acoustic experience. It is currently dormant and not actively maintained. The tool is desktop only; the 3D interactions do not translate to touch reliably, so phones and tablets see a notice instead. AI structure generation is offline pending an API key rotation. There are no screenshots or recorded walkthrough of it yet, which this page does not paper over.
+          </p>
+        </div>
+
+        <p className="text-sm font-semibold tracking-widest uppercase text-terracotta mb-4">The tool</p>
+        <p className="text-sm text-brown-light leading-relaxed mb-6">
+          Desktop required. The viewer below runs in a desktop browser with the 3D room, materials, and simulation working; structure generation is disabled until the key rotation. Live demo pending capture of session assets; contact for a walkthrough.
+        </p>
       </div>
+
+      <div className="lg:hidden max-w-3xl mx-auto px-6">
+        <div className="rounded-lg border border-tan/25 bg-white/60 px-5 py-4 text-sm text-brown-light leading-relaxed">
+          Acoustic Form uses a three panel layout with a 3D viewport and needs a laptop or desktop. Open this page on a larger screen to use it.
+        </div>
+      </div>
+
+      <div className="hidden lg:flex flex-col h-[85vh] max-w-7xl mx-auto px-6">
+       <div className="flex-1 min-h-0 flex flex-col rounded-lg border border-tan/25 bg-white overflow-hidden">
 
       {/* ─── Three-column layout (desktop only) ─────────────────────────────── */}
       <div className="hidden lg:flex flex-1 min-h-0 max-w-screen-2xl w-full mx-auto p-4 gap-4">
@@ -343,50 +378,34 @@ export default function AcousticFormPage() {
         {/* Left - title + how to use + shape input */}
         <aside className="w-72 flex-shrink-0 overflow-y-auto min-h-0 flex flex-col gap-3 pb-4">
 
-          <div>
-            <Link
-              href="/#projects"
-              className="text-xs text-terracotta hover:text-terracotta-dark transition-colors mb-3 inline-block"
-            >
-              &larr; Back to projects
-            </Link>
-            <div className="flex items-center gap-2 mb-0.5">
-              <h1 className="text-lg font-semibold text-darkblue leading-tight">Acoustic Form</h1>
-              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#FF6B35]/15 text-[#FF6B35] border border-[#FF6B35]/30 uppercase tracking-wide">
-                Beta
-              </span>
-            </div>
-            <p className="text-xs text-[#4A6B4A]">Early-stage acoustic simulation for architects</p>
-          </div>
-
           <HowToUsePanel />
 
           <HowItWorksPanel />
 
           {/* Structure Generator panel */}
-          <div className="bg-white/80 rounded-xl border border-[#D8E6D8] shadow-sm">
+          <div className="bg-white/80 rounded-xl border border-tan/30 shadow-sm">
             <button
               onClick={() => setStructureOpen(o => !o)}
-              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#FFFFFF]/60 transition-colors focus:outline-none"
+              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-white/60 transition-colors focus:outline-none"
             >
-              <span className="font-semibold text-xs text-[#1A2A1A]">Generate Preformed Structure</span>
-              <span className="text-[#7A9B7A] text-xs">{structureOpen ? '−' : '+'}</span>
+              <span className="font-semibold text-xs text-brown">Generate Preformed Structure</span>
+              <span className="text-brown-light/70 text-xs">{structureOpen ? '−' : '+'}</span>
             </button>
 
             {structureOpen && (
-              <div className="px-4 pb-4 space-y-3 border-t border-[#D8E6D8] pt-3">
+              <div className="px-4 pb-4 space-y-3 border-t border-tan/30 pt-3">
                 <div className="flex flex-col gap-2">
                   <textarea
                     value={structureInput}
                     onChange={e => setStructureInput(e.target.value)}
                     placeholder="e.g. ziggurat, Eiffel Tower, castle... or paste a detailed description"
                     rows={4}
-                    className="w-full px-2 py-1.5 text-xs border border-[#D8E6D8] rounded-lg focus:outline-none focus:border-[#FF6B35] bg-white text-[#1A2A1A] placeholder:text-[#7A9B7A] resize-y leading-relaxed"
+                    className="w-full px-2 py-1.5 text-xs border border-tan/30 rounded-lg focus:outline-none focus:border-terracotta bg-white text-brown placeholder:text-brown-light/70 resize-y leading-relaxed"
                   />
                   <button
                     onClick={() => generateStructure(structureInput)}
                     disabled={structureGenerating || !structureInput.trim()}
-                    className="self-end px-3 py-1.5 text-xs rounded-lg bg-[#FF6B35]/10 text-[#FF6B35] font-medium hover:bg-[#FF6B35]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none"
+                    className="self-end px-3 py-1.5 text-xs rounded-lg bg-terracotta/10 text-terracotta font-medium hover:bg-terracotta/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none"
                   >
                     {structureGenerating ? "..." : "Generate"}
                   </button>
@@ -406,33 +425,33 @@ export default function AcousticFormPage() {
                       key={label}
                       onClick={() => setStructureInput(description)}
                       disabled={structureGenerating}
-                      className="text-[10px] px-2 py-0.5 rounded-full border border-[#D8E6D8] text-[#4A6B4A] hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors disabled:opacity-40 focus:outline-none"
+                      className="text-[10px] px-2 py-0.5 rounded-full border border-tan/30 text-brown-light hover:border-terracotta hover:text-terracotta transition-colors disabled:opacity-40 focus:outline-none"
                     >
                       {label}
                     </button>
                   ))}
                 </div>
                 {structureGenerating && (
-                  <p className="text-[11px] text-[#7A9B7A] italic">Interpreting structure...</p>
+                  <p className="text-[11px] text-brown-light/70 italic">Interpreting structure...</p>
                 )}
                 {structureError && (
                   <p className="text-[11px] text-red-500">{structureError}</p>
                 )}
                 {structureData && !structureGenerating && (
-                  <div className="space-y-1 pt-1 border-t border-[#D8E6D8]">
-                    <p className="text-xs font-semibold text-[#1A2A1A]">{structureName}</p>
-                    <p className="text-[11px] text-[#4A6B4A]">{structureDescription}</p>
-                    <p className="text-[10px] text-[#7A9B7A]">Built from {structureComponentCount} primitives</p>
+                  <div className="space-y-1 pt-1 border-t border-tan/30">
+                    <p className="text-xs font-semibold text-brown">{structureName}</p>
+                    <p className="text-[11px] text-brown-light">{structureDescription}</p>
+                    <p className="text-[10px] text-brown-light/70">Built from {structureComponentCount} primitives</p>
                     <div className="flex gap-2 pt-1">
                       <button
                         onClick={() => generateStructure(structureName)}
-                        className="text-[10px] px-2 py-1 rounded bg-[#FF6B35]/10 text-[#FF6B35] font-medium hover:bg-[#FF6B35]/20 transition-colors focus:outline-none"
+                        className="text-[10px] px-2 py-1 rounded bg-terracotta/10 text-terracotta font-medium hover:bg-terracotta/20 transition-colors focus:outline-none"
                       >
                         Regenerate
                       </button>
                       <button
                         onClick={() => { setStructureData(null); setStructureName(""); setStructureDescription(""); setStructureError(""); }}
-                        className="text-[10px] px-2 py-1 rounded bg-[#FFFFFF] text-[#4A6B4A] hover:bg-[#EDE8DE] transition-colors focus:outline-none"
+                        className="text-[10px] px-2 py-1 rounded bg-white text-brown-light hover:bg-tan/20 transition-colors focus:outline-none"
                       >
                         Reset to default room
                       </button>
@@ -456,7 +475,7 @@ export default function AcousticFormPage() {
         </aside>
 
         {/* Center - Three.js canvas */}
-        <main className="flex-1 min-w-0 min-h-0 rounded-xl overflow-hidden border border-[#D8E6D8] shadow-sm">
+        <main className="flex-1 min-w-0 min-h-0 rounded-xl overflow-hidden border border-tan/30 shadow-sm">
           <ThreeCanvas
             roomShape={roomShape}
             sourcePositions={sourcePositions}
@@ -479,89 +498,89 @@ export default function AcousticFormPage() {
           />
 
           {/* ─── Sources ──────────────────────────────────────────────────────── */}
-          <div className="bg-white/80 rounded-xl border border-[#D8E6D8] shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#D8E6D8]">
-              <h3 className="font-semibold text-xs text-[#1A2A1A]">Sound Sources</h3>
+          <div className="bg-white/80 rounded-xl border border-tan/30 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-tan/30">
+              <h3 className="font-semibold text-xs text-brown">Sound Sources</h3>
               <button
                 onClick={addSource}
                 disabled={sourcePositions.length >= 3}
-                className="text-[10px] px-2 py-0.5 rounded bg-[#FF6B35]/10 text-[#FF6B35] font-medium hover:bg-[#FF6B35]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="text-[10px] px-2 py-0.5 rounded bg-terracotta/10 text-terracotta font-medium hover:bg-terracotta/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 + Add
               </button>
             </div>
             <div className="px-4 py-3 space-y-2">
               {sourcePositions.map((src, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs text-[#1A2A1A]">
-                  <span className="w-3.5 h-3.5 rounded-full bg-[#FF6B35] shrink-0" />
+                <div key={i} className="flex items-center gap-2 text-xs text-brown">
+                  <span className="w-3.5 h-3.5 rounded-full bg-terracotta shrink-0" />
                   <span className="flex-1 font-medium">S{i + 1}</span>
-                  <span className="text-[10px] text-[#7A9B7A] tabular-nums">
+                  <span className="text-[10px] text-brown-light/70 tabular-nums">
                     {src.x.toFixed(1)}, {src.y.toFixed(1)}, {src.z.toFixed(1)}
                   </span>
                   {i > 0 && (
-                    <button onClick={() => removeSource(i)} className="text-[#7A9B7A] hover:text-red-500 transition-colors leading-none">×</button>
+                    <button onClick={() => removeSource(i)} className="text-brown-light/70 hover:text-red-500 transition-colors leading-none">×</button>
                   )}
                 </div>
               ))}
-              <p className="text-[10px] text-[#7A9B7A] pt-1">Drag orange spheres in the 3D view. Max 3.</p>
+              <p className="text-[10px] text-brown-light/70 pt-1">Drag orange spheres in the 3D view. Max 3.</p>
             </div>
           </div>
 
           {/* ─── Receivers ────────────────────────────────────────────────────── */}
-          <div className="bg-white/80 rounded-xl border border-[#D8E6D8] shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#D8E6D8]">
-              <h3 className="font-semibold text-xs text-[#1A2A1A]">Receiver Points</h3>
+          <div className="bg-white/80 rounded-xl border border-tan/30 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-tan/30">
+              <h3 className="font-semibold text-xs text-brown">Receiver Points</h3>
               <button
                 onClick={addReceiver}
                 disabled={receiverPoints.length >= 5}
-                className="text-[10px] px-2 py-0.5 rounded bg-[#1E3A5F]/10 text-[#1E3A5F] font-medium hover:bg-[#1E3A5F]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="text-[10px] px-2 py-0.5 rounded bg-darkblue/10 text-darkblue font-medium hover:bg-darkblue/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 + Add
               </button>
             </div>
             <div className="px-4 py-3 space-y-2">
               {receiverPoints.length === 0 && (
-                <p className="text-[10px] text-[#7A9B7A] italic">No receivers added.</p>
+                <p className="text-[10px] text-brown-light/70 italic">No receivers added.</p>
               )}
               {receiverPoints.map((rp, i) => (
                 <div key={rp.id} className="space-y-1.5">
-                  <div className="flex items-center gap-2 text-xs text-[#1A2A1A]">
+                  <div className="flex items-center gap-2 text-xs text-brown">
                     <span
                       className="w-3 h-3 rounded-full shrink-0"
                       style={{ backgroundColor: ['#34d399','#60a5fa','#f472b6','#a78bfa','#fb923c'][i] }}
                     />
                     <span className="flex-1 font-medium">{rp.label}</span>
-                    <span className="text-[10px] text-[#7A9B7A] tabular-nums">
+                    <span className="text-[10px] text-brown-light/70 tabular-nums">
                       {rp.position.x.toFixed(1)}, {rp.position.y.toFixed(1)}, {rp.position.z.toFixed(1)}
                     </span>
                     <button
                       onClick={() => editingReceiverId === rp.id ? setEditingReceiverId(null) : startEditReceiver(rp)}
-                      className="text-[#7A9B7A] hover:text-[#FF6B35] transition-colors text-[10px]"
+                      className="text-brown-light/70 hover:text-terracotta transition-colors text-[10px]"
                       title="Edit position"
                     >
                       ✎
                     </button>
-                    <button onClick={() => removeReceiver(rp.id)} className="text-[#7A9B7A] hover:text-red-500 transition-colors leading-none">×</button>
+                    <button onClick={() => removeReceiver(rp.id)} className="text-brown-light/70 hover:text-red-500 transition-colors leading-none">×</button>
                   </div>
                   {editingReceiverId === rp.id && (
                     <div className="pl-5 space-y-1.5">
                       <div className="grid grid-cols-3 gap-1">
                         {(['x', 'y', 'z'] as const).map(axis => (
                           <div key={axis} className="flex flex-col gap-0.5">
-                            <label className="text-[9px] uppercase text-[#7A9B7A] font-medium">{axis}</label>
+                            <label className="text-[9px] uppercase text-brown-light/70 font-medium">{axis}</label>
                             <input
                               type="number"
                               step="0.1"
                               value={editPos[axis]}
                               onChange={e => setEditPos(p => ({ ...p, [axis]: parseFloat(e.target.value) || 0 }))}
-                              className="w-full px-1.5 py-1 text-[11px] border border-[#D8E6D8] rounded focus:outline-none focus:border-[#FF6B35] bg-white text-[#1A2A1A]"
+                              className="w-full px-1.5 py-1 text-[11px] border border-tan/30 rounded focus:outline-none focus:border-terracotta bg-white text-brown"
                             />
                           </div>
                         ))}
                       </div>
                       <button
                         onClick={confirmEditReceiver}
-                        className="w-full py-1 text-[10px] rounded bg-[#FF6B35]/10 text-[#FF6B35] font-medium hover:bg-[#FF6B35]/20 transition-colors"
+                        className="w-full py-1 text-[10px] rounded bg-terracotta/10 text-terracotta font-medium hover:bg-terracotta/20 transition-colors"
                       >
                         Apply
                       </button>
@@ -569,7 +588,7 @@ export default function AcousticFormPage() {
                   )}
                 </div>
               ))}
-              <p className="text-[10px] text-[#7A9B7A] pt-1">Coloured spheres in 3D view. Max 5.</p>
+              <p className="text-[10px] text-brown-light/70 pt-1">Coloured spheres in 3D view. Max 5.</p>
             </div>
           </div>
 
@@ -580,6 +599,8 @@ export default function AcousticFormPage() {
             materialVersion={materialVersion}
           />
         </aside>
+      </div>
+       </div>
       </div>
     </div>
   );
