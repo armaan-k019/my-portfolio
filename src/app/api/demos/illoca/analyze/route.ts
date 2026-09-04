@@ -1,12 +1,31 @@
 export const maxDuration = 30;
 
+import { PRECEDENTS, type PrecedentEntry } from "@/app/demos/illoca/precedents";
+
 interface Precedent {
+  id: string;
   name: string;
   architect: string;
-  year: string;
+  year: number;
   location: string;
   why: string;
   steal: string;
+  worksDoesntWork: string;
+}
+
+interface BubbleData {
+  id: string;
+  label: string;
+  size: "small" | "medium" | "large";
+  x: number;
+  y: number;
+  precedent_influence: string | null;
+}
+
+interface ConnectionData {
+  from: string;
+  to: string;
+  type: "adjacency" | "circulation" | "visual";
 }
 
 interface Bubble {
@@ -21,58 +40,252 @@ interface IllocaResult {
   synthesis: {
     narrative: string;
     bubbles: Bubble[];
+    note: string;
   };
+  sketch_next: string[];
 }
 
-// Phase A stub: the same three canonical precedents regardless of the brief.
-// TODO(phase-b): wire real Anthropic call here. Select precedents against the
-// brief from a grounded library, verify architect, year, and location, and
-// generate the bubble diagram from the synthesized moves.
-const STUB: IllocaResult = {
-  precedents: [
+const API_KEY = process.env.ANTHROPIC_API_KEY;
+const MODEL = "claude-sonnet-4-20250514";
+
+async function filterPrecedents(brief: string): Promise<PrecedentEntry[]> {
+  if (!API_KEY) {
+    return PRECEDENTS.slice(0, 20);
+  }
+
+  try {
+    const filterPrompt = `You are an architectural precedent curator. Given a project brief, identify the 15-20 most relevant precedents from the provided list.
+
+PROJECT BRIEF:
+${brief}
+
+PRECEDENT CORPUS:
+${PRECEDENTS.map((p) => `- ${p.building_name} (${p.architect}, ${p.year}): ${p.short_description} [program: ${p.program_type.join(", ")}]`).join("\n")}
+
+Return a JSON array with just the building names of the 15-20 most relevant precedents in order of relevance. Example: ["Salk Institute", "Yokohama International Port Terminal", ...].
+
+Only return the JSON array. No other text.`;
+
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 500,
+        messages: [{ role: "user", content: filterPrompt }],
+      }),
+    });
+
+    if (!res.ok) {
+      console.error(`Filter call failed with status ${res.status}`);
+      return PRECEDENTS.slice(0, 20);
+    }
+
+    const data = (await res.json()) as {
+      content: Array<{ type: string; text: string }>;
+    };
+    const text = data.content[0].text;
+    const names: string[] = JSON.parse(text);
+    const filtered = PRECEDENTS.filter((p) => names.includes(p.building_name));
+    return filtered.length > 0 ? filtered : PRECEDENTS.slice(0, 20);
+  } catch (err) {
+    console.error("Filter call error:", err);
+    return PRECEDENTS.slice(0, 20);
+  }
+}
+
+async function selectAndSynthesize(
+  brief: string,
+  candidates: PrecedentEntry[]
+): Promise<IllocaResult | null> {
+  if (!API_KEY) return null;
+
+  const candidatesList = candidates
+    .map(
+      (p) =>
+        `- ${p.building_name} (${p.architect}, ${p.year}): ${p.short_description}`
+    )
+    .join("\n");
+
+  const systemPrompt = `You are an architectural design consultant specializing in precedent-driven design. Your role is to identify three canonical precedent buildings most relevant to the user's project, explain why each is relevant, extract the specific design move worth adopting, and synthesize these moves into a bubble diagram and starting sketch concept.
+
+You have expertise in architectural history, spatial reasoning, and design pedagogy. When explaining precedents, cite specific architectural moves that translate to the user's context.
+
+CRITICAL CONSTRAINTS:
+- You may ONLY cite precedent buildings from the provided reference list. Do not invent or reference buildings outside this list.
+- If none of the precedents fit well, select the three best approximate matches rather than fabricating a better fit.
+- When explaining why a precedent is relevant, reference its specific key_moves from the reference data.
+- Do not embellish architectural histories. If you do not have information about a specific detail, acknowledge it.
+- No em dashes anywhere in your output. Use periods, commas, or colons instead.
+- The bubble diagram must have 5-9 bubbles representing key spatial zones or functions that emerge from combining the three precedent moves.
+- Each bubble should be influenced by at most one precedent.
+- Return valid JSON only. No markdown, no explanation before or after.`;
+
+  const userPrompt = `PROJECT BRIEF:
+${brief}
+
+CANDIDATE PRECEDENTS:
+${candidatesList}
+
+Analyze this project and select the three most relevant precedents. For each, explain why it is relevant to this specific project, identify the precise spatial or material move worth stealing, and note where that precedent succeeds and where it might fall short for this project.
+
+Then synthesize these three moves into:
+1. A bubble diagram with 5-9 labeled spatial zones
+2. A brief narrative (2-3 sentences) about the design starting point that emerges from combining all three moves
+3. Three or four specific sketch studies the architect should undertake next
+
+Return this JSON structure (no markdown, no extra text):
+
+{
+  "precedents": [
     {
-      name: "Salk Institute",
-      architect: "Louis Kahn",
-      year: "1965",
-      location: "La Jolla, California",
-      why: "Two wings of served rooms flank an empty court, and the emptiness is the point. It shows how a tight program can still give away its best space to the public.",
-      steal: "Hold the center open. Put the rooms on the edges and let the void between them be the generous gesture.",
+      "id": "string (building_name from list, lowercase with hyphens)",
+      "name": "string (full building name)",
+      "architect": "string",
+      "year": number,
+      "location": "string",
+      "why": "string (one sentence explaining relevance to THIS project)",
+      "steal": "string (one or two sentences describing the specific move to adopt)",
+      "worksDoesntWork": "string (one sentence noting success and tradeoff)"
     },
-    {
-      name: "Yokohama International Port Terminal",
-      architect: "Foreign Office Architects",
-      year: "2002",
-      location: "Yokohama, Japan",
-      why: "The roof is the building. Circulation, landscape, and structure fold into one continuous surface, so the public realm never stops at the door.",
-      steal: "Make the threshold a ramp, not a line. A floor that rises into a roof lets the street continue inside without a lobby.",
-    },
-    {
-      name: "Therme Vals",
-      architect: "Peter Zumthor",
-      year: "1996",
-      location: "Vals, Switzerland",
-      why: "Light enters through narrow slots between stone volumes, so the darkest rooms feel the most calm. Quiet is made with mass and controlled openings, not with silence.",
-      steal: "Bring light in from above through slots, not through the facade. On a north lot that is how a reading room gets both quiet and daylight.",
-    },
+    ...
   ],
-  synthesis: {
-    narrative:
-      "Start with a solid mass at the back of the lot holding the reading room, lit from above through slots in the Vals manner. Peel the community room off the front and drop it a half level, so the street can ramp into it after hours as at Yokohama. Between the two, leave a court open to the sky, the Salk move, and let the children's area borrow it. Four rooms, one void, one ramp.",
-    bubbles: [
-      { label: "reading", x: 130, y: 60, r: 38 },
-      { label: "court", x: 100, y: 118, r: 26 },
-      { label: "children", x: 48, y: 90, r: 28 },
-      { label: "community", x: 70, y: 160, r: 30 },
-      { label: "street", x: 150, y: 165, r: 20 },
+  "synthesis": {
+    "bubbles": [
+      {
+        "id": "string",
+        "label": "string (e.g. 'gallery', 'court', 'entry')",
+        "size": "small" | "medium" | "large",
+        "x": number (0-1, normalized position)",
+        "y": number (0-1, normalized position)",
+        "precedent_influence": "string (id of one of the three precedents, or null)"
+      },
+      ...
     ],
+    "connections": [
+      {
+        "from": "string (bubble id)",
+        "to": "string (bubble id)",
+        "type": "adjacency" | "circulation" | "visual"
+      },
+      ...
+    ],
+    "narrative": "string (2-3 sentences describing the parti that emerges)"
   },
-};
+  "sketch_next": [
+    "string (action item, e.g. 'Sketch the entry ramp from Yokohama adapted to this site slope')",
+    ...
+  ]
+}`;
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 2000,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+      }),
+    });
+
+    if (res.status === 401) {
+      console.error("API key authentication failed (401)");
+      return null;
+    }
+
+    if (!res.ok) {
+      console.error(`Selection call failed with status ${res.status}`);
+      return null;
+    }
+
+    const data = (await res.json()) as {
+      content: Array<{ type: string; text: string }>;
+    };
+    const text = data.content[0].text;
+
+    const parsed = JSON.parse(text) as {
+      precedents: Precedent[];
+      synthesis: {
+        bubbles: BubbleData[];
+        connections: ConnectionData[];
+        narrative: string;
+      };
+      sketch_next: string[];
+    };
+
+    const result: IllocaResult = {
+      precedents: parsed.precedents,
+      synthesis: {
+        narrative: parsed.synthesis.narrative,
+        bubbles: parsed.synthesis.bubbles.map((b) => ({
+          label: b.label,
+          x: Math.round(b.x * 200),
+          y: Math.round(b.y * 200),
+          r: b.size === "small" ? 20 : b.size === "medium" ? 28 : 38,
+        })),
+        note: "This is a parti, not a plan. It is a starting point for iteration.",
+      },
+      sketch_next: parsed.sketch_next,
+    };
+
+    return result;
+  } catch (err) {
+    console.error("Selection/synthesis call error:", err);
+    return null;
+  }
+}
 
 export async function POST(request: Request) {
   try {
-    await request.json();
-    return Response.json({ result: STUB });
+    const body = (await request.json()) as { brief?: string };
+    const brief = body.brief?.trim();
+
+    if (!brief || brief.length < 20) {
+      return Response.json(
+        { error: "Brief must be at least 20 characters." },
+        { status: 400 }
+      );
+    }
+
+    if (!API_KEY) {
+      return Response.json(
+        {
+          error:
+            "API key not configured. Precedent selection requires Claude. Try again in a moment.",
+        },
+        { status: 502 }
+      );
+    }
+
+    const candidates = await filterPrecedents(brief);
+    const result = await selectAndSynthesize(brief, candidates);
+
+    if (!result) {
+      return Response.json(
+        {
+          error:
+            "Could not process your brief. This may be a temporary issue. Try rephrasing your project description.",
+        },
+        { status: 502 }
+      );
+    }
+
+    return Response.json({ result });
   } catch (err) {
-    return Response.json({ error: String(err) }, { status: 500 });
+    console.error("POST error:", err);
+    return Response.json(
+      { error: "An unexpected error occurred. Please try again." },
+      { status: 500 }
+    );
   }
 }
