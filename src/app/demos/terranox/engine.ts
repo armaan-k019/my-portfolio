@@ -143,11 +143,16 @@ const POS: Record<Exclude<SurveyKind, "drill">, [string, string]> = {
   geochem: ["halo", "none"],
 };
 
+export function alreadyRun(state: GameState, kind: SurveyKind, target: string) {
+  return state.results.some((r) => r.kind === kind && r.target === target);
+}
+
 // ─── Running a survey ─────────────────────────────────────────────────────────
 
 export function runSurvey(state: GameState, kind: SurveyKind, target: string): GameState {
   const spec = SURVEYS[kind];
   if (state.status !== "playing" || state.budget < spec.cost) return state;
+  if (alreadyRun(state, kind, target)) return state;
   const cells = coverage(kind, target);
   // Deterministic per (seed, survey index, cell) so replays with the same seed agree.
   const readings: Record<string, string> = {};
@@ -221,6 +226,7 @@ export function candidates(state: GameState, allowed: SurveyKind[]): Candidate[]
     if (spec.cost > state.budget) continue;
     for (const target of allCells()) {
       if (drilled.has(target)) continue;
+      if (alreadyRun(state, kind, target)) continue;
       const cells = coverage(kind, target);
       let gain = 0;
       for (const cell of cells) {

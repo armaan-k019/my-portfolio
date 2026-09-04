@@ -6,7 +6,7 @@ import { CSS_VAR_COLORS } from "@/components/ThemeToggle";
 import CompanyThemeStyle from "@/components/CompanyThemeStyle";
 import {
   GRID, COLS, START_BUDGET, DEPOSIT_COUNT, SURVEYS,
-  allCells, cellId, coverage, newGame, runSurvey, belief, candidates, bestMove, engineTrajectory, fmtMoney,
+  allCells, cellId, coverage, newGame, runSurvey, belief, candidates, bestMove, engineTrajectory, fmtMoney, alreadyRun,
   type GameState, type SurveyKind, type Mode, type Candidate,
 } from "./engine";
 import type { TerranoxAdvice } from "@/app/api/demos/terranox/analyze/route";
@@ -241,15 +241,16 @@ export default function TerranoxPage() {
                           const isFound = game.found.includes(id);
                           const marks = game.results.filter((res) => res.readings[id] !== undefined);
                           const latest = marks[marks.length - 1];
-                          const inHover = hoverCells.has(id);
+                          const repeat = armed ? alreadyRun(game, armed, id) : false;
+                          const inHover = hoverCells.has(id) && !repeat;
                           const recommended = advice?.recommendation.cell === id || (!advice && fallback?.target === id);
                           const heat = isDrilled ? 0 : Math.min(1, p * 4);
                           return (
                             <button key={id} title={id}
                               onMouseEnter={() => setHover(id)} onMouseLeave={() => setHover(null)}
-                              onClick={() => armed && commit(armed, id)}
-                              disabled={!armed || isDrilled || game.status !== "playing"}
-                              className={`relative h-[2.35rem] rounded-[4px] border text-[11px] transition-colors ${armed && !isDrilled ? "cursor-crosshair" : "cursor-default"} ${isFound && lastFound === id ? "px-deposit" : ""}`}
+                              onClick={() => armed && !repeat && commit(armed, id)}
+                              disabled={!armed || isDrilled || repeat || game.status !== "playing"}
+                              className={`relative h-[2.35rem] rounded-[4px] border text-[11px] transition-colors ${armed && !isDrilled && !repeat ? "cursor-crosshair" : "cursor-default"} ${isFound && lastFound === id ? "px-deposit" : ""}`}
                               style={{
                                 backgroundColor: isFound ? C.accent : isDrilled ? C.cardBorder : `rgba(45,90,39,${0.04 + heat * 0.32})`,
                                 borderColor: recommended ? C.accent : inHover ? (armed ? SURVEYS[armed].color : C.accent) : C.cardBorder,
@@ -284,7 +285,9 @@ export default function TerranoxPage() {
                         {game.results.filter((r) => r.readings[hover] !== undefined).map((r) => (
                           <span key={r.id} className="ml-2" style={{ color: SURVEYS[r.kind].color }}>{SURVEYS[r.kind].short} {r.readings[hover]}</span>
                         ))}
-                        {armed && !drilled.has(hover) && <span className="ml-2" style={{ color: SURVEYS[armed].color }}>click to deploy {SURVEYS[armed].short}</span>}
+                        {armed && !drilled.has(hover) && (alreadyRun(game, armed, hover)
+                          ? <span className="ml-2" style={{ color: LABEL }}>{SURVEYS[armed].short} already run here</span>
+                          : <span className="ml-2" style={{ color: SURVEYS[armed].color }}>click to deploy {SURVEYS[armed].short}</span>)}
                       </>
                     ) : armed ? <span style={{ color: SURVEYS[armed].color }}>{SURVEYS[armed].label} armed. Pick a cell.</span>
                       : <span>Hover a cell. Shade is prospectivity.</span>}
