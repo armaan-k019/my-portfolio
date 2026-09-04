@@ -235,15 +235,30 @@ export function candidates(state: GameState, allowed: SurveyKind[]): Candidate[]
         const postNeg = (p * (1 - pDep)) / (1 - pPos);
         gain += entropy(p) - (pPos * entropy(postPos) + (1 - pPos) * entropy(postNeg));
       }
-      // Drilling a high probability cell is also how you win; weight it so the
-      // engine drills when the belief is concentrated instead of surveying forever.
-      const winBonus = kind === "drill" ? b[target] * 1.5 : 0;
+      // Drilling a high probability cell is also how you win. Pure bits per
+      // dollar would survey forever, so a hole earns credit for the discovery
+      // it is likely to book, scaled by the drill hit rate.
+      const winBonus = kind === "drill" ? b[target] * DRILL_WIN_WEIGHT : 0;
       const infoGainBits = gain + winBonus;
       out.push({ kind, target, cost: spec.cost, infoGainBits, gainPerDollar: (infoGainBits / spec.cost) * 100_000 });
     }
   }
-  return out.sort((x, y) => y.gainPerDollar - x.gainPerDollar);
+  out.sort((x, y) => y.gainPerDollar - x.gainPerDollar);
+  // Decisive drilling: once a cell's prospectivity clears the threshold, the
+  // right move is the hole, whatever the survey math says about cheaper bits.
+  if (allowed.includes("drill") && state.budget >= SURVEYS.drill.cost) {
+    const hot = out.filter((c) => c.kind === "drill" && b[c.target] >= DRILL_THRESHOLD).sort((x, y) => b[y.target] - b[x.target]);
+    if (hot.length) {
+      const rest = out.filter((c) => c !== hot[0]);
+      return [hot[0], ...rest];
+    }
+  }
+  return out;
 }
+
+// Tuning knobs. See the phase b PR for the simulation that set them.
+export const DRILL_WIN_WEIGHT = 6;
+export const DRILL_THRESHOLD = 0.35;
 
 export function bestMove(state: GameState, allowed: SurveyKind[]): Candidate | null {
   return candidates(state, allowed)[0] ?? null;
