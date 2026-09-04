@@ -28,7 +28,7 @@ export const SURVEYS: Record<SurveyKind, SurveySpec> = {
   magnetics: {
     kind: "magnetics", label: "Airborne magnetics", short: "MAG", cost: 50_000, coverage: "block3",
     reads: "Structural anomalies across a 3 by 3 block",
-    signal: "warm or cold per cell", quality: "Wide net, high false positive rate", color: "#3b82f6",
+    signal: "warm or cold per cell", quality: "Wide net, maps structure not ore", color: "#3b82f6",
     real: "A fixed wing or helicopter magnetometer flown over the whole tenement. It maps basement structure, faults, and basin margins, which is where uranium tends to sit, but it cannot see uranium itself. Cheap per square kilometre and the first thing a real program runs.",
   },
   gravity: {
@@ -44,7 +44,7 @@ export const SURVEYS: Record<SurveyKind, SurveySpec> = {
     real: "A gamma spectrometer reads potassium, thorium, and uranium channels at the surface. A real uranium signature is close to unambiguous, but gamma travels only centimetres through rock, so a deposit under any cover reads as nothing. Superb for outcropping mineralisation, useless for a buried one.",
   },
   geochem: {
-    kind: "geochem", label: "Geochem sampling", short: "GEO", cost: 100_000, coverage: "cell",
+    kind: "geochem", label: "Geochem sampling", short: "GEO", cost: 75_000, coverage: "cell",
     reads: "Trace element halo within 200 m of surface",
     signal: "halo or none", quality: "Moderate, favours near surface targets", color: "#10b981",
     real: "Soil, stream sediment, or vegetation samples assayed for uranium and its pathfinders. Groundwater mobilises uranium, so a halo can sit above and around a deposit that is too deep for gamma. Noisier than radiometrics, but it sees a little further down.",
@@ -130,7 +130,7 @@ export function newGame(seed = Math.floor(Math.random() * 1e9)): GameState {
 // Each returns the probability of the "positive" reading.
 
 const LIK = {
-  magnetics:   { surface: 0.80, deep: 0.85, none: 0.30 },
+  magnetics:   { surface: 0.92, deep: 0.92, none: 0.08 },
   gravity:     { surface: 0.60, deep: 0.85, none: 0.20 },
   radiometric: { surface: 0.95, deep: 0.05, none: 0.03 },
   geochem:     { surface: 0.80, deep: 0.50, none: 0.20 },
@@ -143,6 +143,13 @@ const POS: Record<Exclude<SurveyKind, "drill">, [string, string]> = {
   geochem: ["halo", "none"],
 };
 
+const KIND_SALT: Record<SurveyKind, number> = { magnetics: 1, gravity: 2, radiometric: 3, geochem: 4, drill: 5 };
+
+export function priorReading(state: GameState, kind: SurveyKind, cell: string): string | undefined {
+  for (const r of state.results) if (r.kind === kind && r.readings[cell] !== undefined) return r.readings[cell];
+  return undefined;
+}
+
 export function alreadyRun(state: GameState, kind: SurveyKind, target: string) {
   return state.results.some((r) => r.kind === kind && r.target === target);
 }
@@ -154,15 +161,20 @@ export function runSurvey(state: GameState, kind: SurveyKind, target: string): G
   if (state.status !== "playing" || state.budget < spec.cost) return state;
   if (alreadyRun(state, kind, target)) return state;
   const cells = coverage(kind, target);
-  // Deterministic per (seed, survey index, cell) so replays with the same seed agree.
+  // A reading belongs to (survey kind, cell, seed). Flying the same ground
+  // twice returns the same signal, which is why overlapping blocks add no
+  // information about cells already read. The ground does not change.
   const readings: Record<string, string> = {};
-  const rnd = mulberry32(state.seed * 7919 + state.results.length * 104729 + 17);
   for (const cell of cells) {
+    const prior = priorReading(state, kind, cell);
+    if (prior !== undefined) { readings[cell] = prior; continue; }
     const dep = state.deposits.find((d) => d.cell === cell);
     if (kind === "drill") {
       readings[cell] = dep ? "intercept" : "barren";
       continue;
     }
+    const [r, c] = parseCell(cell);
+    const rnd = mulberry32(state.seed * 7919 + KIND_SALT[kind] * 104729 + r * 8 + c + 17);
     const p = dep ? LIK[kind][dep.depth] : LIK[kind].none;
     readings[cell] = rnd() < p ? POS[kind][0] : POS[kind][1];
   }
@@ -178,15 +190,19 @@ export function runSurvey(state: GameState, kind: SurveyKind, target: string): G
 
 // ─── Belief. P(deposit in cell | all readings). Bayesian, independent cells. ─
 
+const PRIOR = DEPOSIT_COUNT / (GRID * GRID);
+
 export function belief(state: GameState): Record<string, number> {
-  const prior = DEPOSIT_COUNT / (GRID * GRID);
+  const prior = PRIOR;
   const out: Record<string, number> = {};
   for (const cell of allCells()) {
     let logOdds = Math.log(prior / (1 - prior));
     let decided: number | null = null;
+    const seen = new Set<SurveyKind>();
     for (const res of state.results) {
       const reading = res.readings[cell];
-      if (reading === undefined) continue;
+      if (reading === undefined || seen.has(res.kind)) continue;
+      seen.add(res.kind);
       if (res.kind === "drill") { decided = reading === "intercept" ? 1 : 0; continue; }
       const kind = res.kind as Exclude<SurveyKind, "drill">;
       const positive = reading === POS[kind][0];
@@ -201,8 +217,14 @@ export function belief(state: GameState): Record<string, number> {
   return out;
 }
 
-// ─── Expected information gain per dollar. The heuristic Terranox mode also
-// hands to the decision engine as context, and Learner mode shows as hints. ──
+// ─── Scoring ──────────────────────────────────────────────────────────────────
+// Surveys are ranked by prospectivity weighted information gain per dollar: a
+// bit learned about a cell you might drill is worth more than a bit about one
+// you never would. The hole is a separate decision made on expected value: it
+// is drilled when prospectivity clears cost over discovery value. A one step
+// value of information cannot rank surveys here, since no single reading can
+// carry a cell from the prior across break even; information on this block
+// pays only in sequence, which is the point of the game.
 
 function entropy(p: number) {
   if (p <= 0 || p >= 1) return 0;
@@ -213,8 +235,10 @@ export interface Candidate {
   kind: SurveyKind;
   target: string;
   cost: number;
-  infoGainBits: number;
-  gainPerDollar: number; // bits per $100k
+  prospectivity: number;  // belief on the target cell
+  infoGainBits: number;   // weighted expected entropy reduction across covered cells
+  gainPerDollar: number;  // bits per $100k
+  hitEV: number;          // for a hole: prospectivity x discovery value, less cost
 }
 
 export function candidates(state: GameState, allowed: SurveyKind[]): Candidate[] {
@@ -228,47 +252,54 @@ export function candidates(state: GameState, allowed: SurveyKind[]): Candidate[]
       if (drilled.has(target)) continue;
       if (alreadyRun(state, kind, target)) continue;
       const cells = coverage(kind, target);
-      let gain = 0;
-      for (const cell of cells) {
-        const p = b[cell];
-        if (p === 0 || p === 1) continue;
-        if (kind === "drill") { gain += entropy(p); continue; }
+      let bits = 0;
+      if (kind === "drill") {
+        bits = entropy(b[target]);
+      } else {
         const k = kind as Exclude<SurveyKind, "drill">;
         const pDep = 0.5 * LIK[k].surface + 0.5 * LIK[k].deep;
         const pNone = LIK[k].none;
-        const pPos = p * pDep + (1 - p) * pNone;
-        const postPos = (p * pDep) / pPos;
-        const postNeg = (p * (1 - pDep)) / (1 - pPos);
-        gain += entropy(p) - (pPos * entropy(postPos) + (1 - pPos) * entropy(postNeg));
+        for (const cell of cells) {
+          const p = b[cell];
+          if (p === 0 || p === 1) continue;
+          if (priorReading(state, kind, cell) !== undefined) continue;
+          const pPos = p * pDep + (1 - p) * pNone;
+          const postPos = (p * pDep) / pPos;
+          const postNeg = (p * (1 - pDep)) / (1 - pPos);
+          const w = Math.pow(p / PRIOR, PROSPECTIVITY_WEIGHT);
+          bits += w * (entropy(p) - (pPos * entropy(postPos) + (1 - pPos) * entropy(postNeg)));
+        }
       }
-      // Drilling a high probability cell is also how you win. Pure bits per
-      // dollar would survey forever, so a hole earns credit for the discovery
-      // it is likely to book, scaled by the drill hit rate.
-      const winBonus = kind === "drill" ? b[target] * DRILL_WIN_WEIGHT : 0;
-      const infoGainBits = gain + winBonus;
-      out.push({ kind, target, cost: spec.cost, infoGainBits, gainPerDollar: (infoGainBits / spec.cost) * 100_000 });
+      out.push({
+        kind, target, cost: spec.cost, prospectivity: b[target], infoGainBits: bits,
+        gainPerDollar: (bits / spec.cost) * 100_000,
+        hitEV: kind === "drill" ? b[target] * DISCOVERY_VALUE - spec.cost : 0,
+      });
     }
   }
-  out.sort((x, y) => y.gainPerDollar - x.gainPerDollar);
-  // Decisive drilling: once a cell's prospectivity clears the threshold, the
-  // right move is the hole, whatever the survey math says about cheaper bits.
-  if (allowed.includes("drill") && state.budget >= SURVEYS.drill.cost) {
-    const hot = out.filter((c) => c.kind === "drill" && b[c.target] >= DRILL_THRESHOLD).sort((x, y) => b[y.target] - b[x.target]);
-    if (hot.length) {
-      const rest = out.filter((c) => c !== hot[0]);
-      return [hot[0], ...rest];
-    }
-  }
-  return out;
+  return out.sort((x, y) => y.gainPerDollar - x.gainPerDollar);
 }
-
-// Tuning knobs. See the phase b PR for the simulation that set them.
-export const DRILL_WIN_WEIGHT = 6;
-export const DRILL_THRESHOLD = 0.35;
 
 export function bestMove(state: GameState, allowed: SurveyKind[]): Candidate | null {
-  return candidates(state, allowed)[0] ?? null;
+  const list = candidates(state, allowed);
+  if (!list.length) return null;
+  const holes = list.filter((c) => c.kind === "drill").sort((x, y) => y.prospectivity - x.prospectivity);
+  const surveys = list.filter((c) => c.kind !== "drill" && c.infoGainBits > 1e-4);
+  // 1. A hole that is positive expected value is the move.
+  if (holes.length && holes[0].hitEV > 0) return holes[0];
+  // 2. Otherwise buy the best information available.
+  if (surveys.length) return surveys[0];
+  // 3. Nothing left to learn: the most prospective hole, since a campaign that
+  //    stops with money in the bank has also lost.
+  return holes[0] ?? list[0];
 }
+
+// What a discovery is worth to the campaign, in dollars. A hole is drilled
+// when prospectivity clears drill cost over this value. Set by simulation.
+export const DISCOVERY_VALUE = 1_136_364;
+export const DRILL_THRESHOLD = SURVEYS.drill.cost / DISCOVERY_VALUE;
+// Exponent on (prospectivity / prior) when weighting a cell's information gain.
+export const PROSPECTIVITY_WEIGHT = 1;
 
 // ─── Engine trajectory on the same seed, for the post mortem. ────────────────
 
@@ -280,7 +311,8 @@ export function engineTrajectory(seed: number, allowed: SurveyKind[]): GameState
     if (!m) break;
     s = runSurvey(s, m.kind, m.target);
   }
-  return s;
+  // Out of affordable moves with a deposit still in the ground counts as a loss.
+  return s.status === "playing" ? { ...s, status: "lost" } : s;
 }
 
 export function fmtMoney(n: number) {

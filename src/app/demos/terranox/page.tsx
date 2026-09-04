@@ -348,7 +348,7 @@ export default function TerranoxPage() {
                           ? "Warm cells are more likely, not certain. Survey a second block or drill the warmest cell once it climbs past 25%."
                           : `Most prospective: ${top.map((t) => `${t.cell} ${(t.p * 100).toFixed(0)}%`).join(", ")}.`}
                       </p>
-                      {hint && <p className="mt-1" style={{ color: HEADING }}>Engine would: {SURVEYS[hint.kind].short} {hint.target} ({hint.gainPerDollar.toFixed(2)} bits per $100k)</p>}
+                      {hint && <p className="mt-1" style={{ color: HEADING }}>Engine would: {SURVEYS[hint.kind].short} {hint.target} ({hint.kind === "drill" ? `${(hint.prospectivity * 100).toFixed(0)}% hit rate` : `${hint.infoGainBits.toFixed(2)} bits for ${fmtMoney(hint.cost)}`})</p>}
                     </div>
                   )}
 
@@ -440,8 +440,8 @@ export default function TerranoxPage() {
                           <p className="text-base font-black font-mono" style={{ color: HEADING }}>
                             <span style={{ color: SURVEYS[fallback.kind].color }}>{SURVEYS[fallback.kind].label}</span> at {fallback.target}
                           </p>
-                          <p className="text-[11px] font-mono mt-1" style={{ color: SUBTEXT }}>{fmtMoney(fallback.cost)} · {fallback.infoGainBits.toFixed(2)} bits · {fallback.gainPerDollar.toFixed(2)} bits per $100k</p>
-                          <p className="text-xs leading-relaxed mt-2" style={{ color: SUBTEXT }}>Highest expected information gain per dollar across every allowed move on the current belief.</p>
+                          <p className="text-[11px] font-mono mt-1" style={{ color: SUBTEXT }}>{fmtMoney(fallback.cost)} · {fallback.kind === "drill" ? `${(fallback.prospectivity * 100).toFixed(0)}% hit rate` : `${fallback.infoGainBits.toFixed(2)} bits, ${fallback.gainPerDollar.toFixed(2)} per $100k`}</p>
+                          <p className="text-xs leading-relaxed mt-2" style={{ color: SUBTEXT }}>The engine's own pick: a hole once a cell's prospectivity clears break even, otherwise the survey with the most prospectivity weighted information per dollar.</p>
                           <button onClick={() => { commit(fallback.kind, fallback.target); setAskOpen(false); }}
                             className="w-full mt-3 text-xs font-semibold px-3 py-2 rounded-lg" style={{ backgroundColor: C.accent, color: "#fff" }}>Do it</button>
                         </div>

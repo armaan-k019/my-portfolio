@@ -1,6 +1,6 @@
 export const maxDuration = 60;
 
-import { SURVEYS, type Candidate, type Mode, type SurveyKind } from "@/app/demos/terranox/engine";
+import { SURVEYS, DRILL_THRESHOLD, type Candidate, type Mode, type SurveyKind } from "@/app/demos/terranox/engine";
 
 interface Brief {
   mode: Mode;
@@ -26,10 +26,10 @@ const SYSTEM = `You are Terranox's sequential decision engine. Your job is to re
 Vocabulary you use, because it is how Terranox and its clients talk: information gain per dollar, prospectivity (the current probability a cell hosts a deposit), sequential decision intelligence (each move chosen in light of everything learned so far, not from a fixed plan), expected value, drill hit rate (the probability a hole intercepts), and geological priors (what the survey physics says a reading means before any data).
 
 Survey physics on this block:
-- Airborne magnetics, $50k, reads a 3 by 3 block. Warm or cold per cell. Maps structure, not uranium. Roughly 80 to 85 percent of deposit cells read warm, but 30 percent of empty cells also read warm. Cheap, wide, noisy.
+- Airborne magnetics, $50k, reads a 3 by 3 block. Warm or cold per cell. Maps structure, not uranium. About 92 percent of deposit cells read warm and 8 percent of empty cells also read warm, so a warm cell is prospective but far from proven. Flying the same ground twice returns the same reading; overlap adds nothing.
 - Ground gravity, $200k, one cell. Anomaly or none. Sees density contrast at mid depth; strong on deep deposits (85 percent), weaker on surface ones (60 percent), 20 percent false positive.
 - Radiometric, $150k, one cell. Hit or miss. Near certain on a surface deposit (95 percent) and near blind on a deep one (5 percent); 3 percent false positive. A miss on a warm cell does not clear it, it may be buried.
-- Geochem, $100k, one cell. Halo or none. 80 percent on surface, 50 percent on deep, 20 percent false positive.
+- Geochem, $75k, one cell. Halo or none. 80 percent on surface, 50 percent on deep, 20 percent false positive. The cheapest confirmation on a warm cell.
 - Drill, $250k, one cell. Definitive. Ends uncertainty for that cell and is the only way to book a discovery.
 
 Rules:
@@ -43,9 +43,9 @@ Rules:
 {
   "recommendation": { "survey": "magnetics|gravity|radiometric|geochem|drill", "cell": "E5" },
   "reasoning": "2 to 3 sentences using the vocabulary above, explaining why this move beats the alternatives",
-  "expected_information_gain": "a short quantitative phrase drawn from the candidate scores, e.g. about 1.2 bits, or cuts the live search area by roughly a third",
+  "expected_information_gain": "a short quantitative phrase drawn from the candidate scores, e.g. about 1.2 bits, or lifts the best hole from 8 to 22 percent",
   "expected_cost": 50000,
-  "expected_value_ratio": "bits per $100k, from the candidate score, as a short string",
+  "expected_value_ratio": "bits per $100k for a survey, or expected value over cost for a hole, from the candidate score, as a short string",
   "alternatives_considered": [ { "move": "survey and cell", "why_rejected": "one sentence" } ]
 }`;
 
@@ -62,9 +62,12 @@ function describe(brief: Brief) {
   }
   lines.push("Highest prospectivity cells now:");
   for (const t of brief.topCells) lines.push(`  ${t.cell}: ${(t.p * 100).toFixed(1)}%`);
-  lines.push("Top candidate moves by expected information gain per dollar (engine heuristic):");
+  lines.push(`Drill break even: a hole is positive expected value once prospectivity clears ${(DRILL_THRESHOLD * 100).toFixed(0)}% (drill cost over discovery value).`);
+  lines.push("Top candidate moves by prospectivity weighted information gain per dollar (engine heuristic):");
   for (const c of brief.candidates.slice(0, 8)) {
-    lines.push(`  ${SURVEYS[c.kind].label} at ${c.target}: ${c.infoGainBits.toFixed(2)} bits for $${c.cost.toLocaleString()}, ${c.gainPerDollar.toFixed(2)} bits per $100k`);
+    lines.push(c.kind === "drill"
+      ? `  Drill ${c.target}: prospectivity ${(c.prospectivity * 100).toFixed(1)}%, expected value $${Math.round(c.hitEV).toLocaleString()} for $${c.cost.toLocaleString()}`
+      : `  ${SURVEYS[c.kind].label} at ${c.target}: ${c.infoGainBits.toFixed(2)} bits for $${c.cost.toLocaleString()}, ${c.gainPerDollar.toFixed(2)} bits per $100k`);
   }
   return lines.join("\n");
 }
