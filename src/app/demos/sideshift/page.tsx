@@ -20,6 +20,12 @@ const COMPANY_THEME_CSS = `
 }
 `;
 
+const RISK_COLOR: Record<"Low" | "Medium" | "High", string> = {
+  Low: "#22c55e",
+  Medium: "#eab308",
+  High: "#ef4444",
+};
+
 const PRIORITIES = ["Lowest Fees", "Fastest Confirmation", "Best Rate Certainty"] as const;
 type Priority = typeof PRIORITIES[number];
 
@@ -69,7 +75,21 @@ interface HopRow {
   rate_type: string;
 }
 
+interface RiskFactor {
+  name: string;
+  score: number;
+  detail: string;
+}
+
+interface RiskProfile {
+  overall: "Low" | "Medium" | "High";
+  overall_reason: string;
+  factors: RiskFactor[];
+  watch_outs: string[];
+}
+
 interface RouteResult {
+  risk_profile?: RiskProfile;
   recommendation: "direct" | "multihop";
   recommendation_reason: string;
   estimated_fee_savings: string;
@@ -816,6 +836,68 @@ export default function SideShiftPage() {
                 </div>
               </div>
             </div>
+
+            {/* ── 4b. Swap risk profile ── */}
+            {result.risk_profile && (
+              <div
+                className="rounded-xl p-5 mb-8"
+                style={{ backgroundColor: CARD, border: `1px solid ${BORDER}` }}
+              >
+                <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+                  <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: DIM }}>
+                    Risk profile for this swap
+                  </h2>
+                  <span
+                    className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-widest"
+                    style={{
+                      color: RISK_COLOR[result.risk_profile.overall],
+                      backgroundColor: RISK_COLOR[result.risk_profile.overall] + "18",
+                      border: `1px solid ${RISK_COLOR[result.risk_profile.overall]}50`,
+                    }}
+                  >
+                    {result.risk_profile.overall} risk
+                  </span>
+                </div>
+                <p className="text-sm leading-relaxed mb-5" style={{ color: MUTED }}>
+                  {result.risk_profile.overall_reason}
+                </p>
+
+                <div className="space-y-4 mb-5">
+                  {result.risk_profile.factors.map((f) => {
+                    const pct = Math.max(0, Math.min(10, f.score)) * 10;
+                    const color = f.score >= 7 ? RISK_COLOR.High : f.score >= 4 ? RISK_COLOR.Medium : RISK_COLOR.Low;
+                    return (
+                      <div key={f.name}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <p className="text-xs font-bold" style={{ color: TEXT }}>{f.name}</p>
+                          <p className="text-xs font-mono tabular-nums" style={{ color }}>{f.score}/10</p>
+                        </div>
+                        <div className="h-1.5 rounded-full overflow-hidden mb-1.5" style={{ backgroundColor: BORDER }}>
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
+                        </div>
+                        <p className="text-xs leading-relaxed" style={{ color: MUTED }}>{f.detail}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {result.risk_profile.watch_outs.length > 0 && (
+                  <div className="rounded-xl p-4" style={{ backgroundColor: BG, border: `1px solid ${ORANGE}30` }}>
+                    <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: ORANGE }}>
+                      Check before you send
+                    </p>
+                    <ul className="space-y-1.5">
+                      {result.risk_profile.watch_outs.map((w, i) => (
+                        <li key={i} className="text-xs leading-relaxed flex gap-2" style={{ color: TEXT }}>
+                          <span style={{ color: ORANGE }}>&#10003;</span>
+                          <span>{w}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* ── 5. SideShift CTA ── */}
             <div
