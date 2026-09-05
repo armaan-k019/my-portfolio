@@ -98,7 +98,7 @@ export async function POST(request: Request) {
     let message: Awaited<ReturnType<typeof client.messages.create>>;
     try {
       message = await client.messages.create({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 2500,
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: `Generate a 3D model for: ${name}` }],

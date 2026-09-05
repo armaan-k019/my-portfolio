@@ -67,7 +67,7 @@ Return this exact JSON structure with realistic values for this specific busines
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 2000,
         system: "You are a commercial insurance expert. You must respond with ONLY a valid JSON object. No markdown, no explanation, no code blocks. Just raw JSON.",
         messages: [{ role: "user", content: userPrompt }],

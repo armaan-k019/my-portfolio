@@ -326,7 +326,7 @@ Return EXACTLY this JSON shape:
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 3000,
       system:
         "You are a senior software engineer specializing in code review quality and codebase intelligence. You produce concise, codebase-aware re-scoring of PR review comments. Do not use em dashes anywhere in your response. Output JSON only.",

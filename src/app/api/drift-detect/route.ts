@@ -113,7 +113,7 @@ export async function POST(request: Request) {
     try {
       message = await client.messages.create(
         {
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-6",
           max_tokens: 1024,
           system: systemPrompt,
           messages: [{ role: "user", content: JSON.stringify(summary) }],

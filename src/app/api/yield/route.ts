@@ -145,7 +145,7 @@ export async function POST(request: Request) {
     // Screenshot extraction mode
     if (body.base64) {
       const message = await client.messages.create({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 1024,
         system: EXTRACT_SYSTEM_PROMPT,
         messages: [{
@@ -195,7 +195,7 @@ export async function POST(request: Request) {
     }));
 
     const message = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 2048,
       system: ANALYSIS_SYSTEM_PROMPT,
       messages: [{

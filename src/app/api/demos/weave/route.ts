@@ -99,7 +99,7 @@ Return ONLY this JSON object — no markdown, no preamble, no code blocks:
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 2000,
         system:
           "You are an expert in healthcare practice communication and patient engagement. You have deep knowledge of no-show patterns across medical specialties, optimal reminder timing, and message copy that actually gets patients to show up. You write clear, warm, professional patient communications. Respond with ONLY valid JSON — no markdown, no preamble, no code blocks.",

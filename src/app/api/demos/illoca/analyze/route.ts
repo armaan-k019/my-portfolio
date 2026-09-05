@@ -46,7 +46,7 @@ interface IllocaResult {
 }
 
 const API_KEY = process.env.ANTHROPIC_API_KEY;
-const MODEL = "claude-sonnet-4-20250514";
+const MODEL = "claude-sonnet-4-6";
 
 async function filterPrecedents(brief: string): Promise<PrecedentEntry[]> {
   if (!API_KEY) {

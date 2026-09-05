@@ -128,7 +128,7 @@ Return ONLY this JSON object, no markdown, no code blocks:
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 2000,
         system:
           "You are an expert in banking compliance, crypto regulation, and de-banking risk. You understand exactly how traditional bank compliance teams assess accounts for risk and closure, and you give specific, accurate assessments grounded in the company's actual business model. You are direct and do not sugarcoat risk. Respond with ONLY valid JSON, no markdown, no code blocks.",

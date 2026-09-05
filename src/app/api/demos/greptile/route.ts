@@ -218,7 +218,7 @@ Return this exact JSON shape:
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 2000,
         system:
           "You are a senior software engineer and code review expert. You have deep knowledge of what makes code review feedback valuable vs wasteful. You analyze PR diffs and review comments with the precision of someone who has reviewed thousands of PRs. You are direct and specific -- you reference actual code and actual comments in your analysis. Do not use em dashes anywhere in your response.",

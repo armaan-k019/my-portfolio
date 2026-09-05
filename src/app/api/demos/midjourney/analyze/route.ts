@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
     if (!prompt) return NextResponse.json({ error: 'No prompt provided' }, { status: 400 })
 
     const message = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 2200,
       temperature: 0.2,
       system: `You are a Midjourney prompt engineer who has written and iterated on thousands of prompts across v5, v6, and niji, and who reads a prompt the way the model does: as a weighted bag of tokens where subject, medium, lighting, lens, composition, and parameters each pull the image in a direction. Your job is not only to produce a better prompt but to explain every edit precisely enough that a working prompt engineer learns the principle and can reuse it.
