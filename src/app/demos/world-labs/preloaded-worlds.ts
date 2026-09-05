@@ -14,13 +14,12 @@
 //      Claude for each text's reading so the Marble prompt is the interpreted
 //      one, not the raw excerpt.
 //   3. From the repo root run:
-//        WORLDLABS_API_KEY=... ANTHROPIC_API_KEY=... \
-//        node src/app/demos/world-labs/populate-worlds.mjs
-//      The script submits one generation per text, polls until each is done
-//      (roughly 5 to 10 minutes per world, run in parallel), and prints a
-//      ready to paste PRELOADED_WORLDS object. Add --model marble-1.1 for full
+//        node scripts/generate-preloaded-worlds.mjs
+//      It reads both keys from .env.local, submits one generation per text,
+//      polls until each is done (5 to 10 minutes, run in parallel), and
+//      rewrites this file with the results. Add --model marble-1.1 for full
 //      quality instead of draft.
-//   4. Paste the printed object over PRELOADED_WORLDS below, commit, deploy.
+//   4. Commit this file, deploy.
 //   5. Smoke test: each preloaded text should show its world with no spinner.
 //
 // A value of "pending-generation" for world_id means the world has not been

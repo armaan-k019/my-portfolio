@@ -20,7 +20,7 @@ without a world, or the world panel shows an unavailable notice.
   re-checking it against the source named in `attribution_notes`.
 - `preloaded-worlds.ts`: cached world ids per preloaded text. See the comment
   at the top for how to populate it.
-- `populate-worlds.mjs`: one time script that generates the cached worlds.
+- `scripts/generate-preloaded-worlds.mjs` (repo root): one time script that generates the cached worlds and writes `preloaded-worlds.ts`.
 - `types.ts`: shared types.
 
 ## Marble API shape used
