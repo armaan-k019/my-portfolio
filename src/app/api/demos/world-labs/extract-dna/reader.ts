@@ -65,7 +65,7 @@ export async function readText(text: string): Promise<{ reading?: Reading; error
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: 1800,
+      max_tokens: 3000,
       temperature: 0.3,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: `TEXT:\n\n${text}` }],
