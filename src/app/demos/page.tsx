@@ -23,13 +23,6 @@ const ACCENT = "#2d5a27";
 
 const demoCards: DemoCard[] = [
   {
-    slug: "terranox",
-    company: "Terranox",
-    headline: "Prospect: an exploration decision game",
-    pitch: "Hunt hidden uranium deposits on a claim block with a fixed budget, then ask Terranox for the single best next move and the reasoning behind it.",
-    url: "/demos/terranox",
-  },
-  {
     slug: "world-labs",
     company: "World Labs",
     headline: "Ekphrasis: words to walkable worlds",
@@ -49,27 +42,6 @@ const demoCards: DemoCard[] = [
     headline: "Drift Detection + Candidate Trajectory",
     pitch: "Two builds for Rho: spend anomaly detection for finance teams, and a hiring lens that plots candidates by trajectory and audits their claims against corroborating evidence.",
     url: "/demos/rho",
-  },
-  {
-    slug: "whop",
-    company: "Whop",
-    headline: "Page Roaster",
-    pitch: "Paste your Whop product page and get a brutally honest AI critique of your copy, pricing, conversion strategy, and affiliate setup, with specific rewrites.",
-    url: "/demos/whop",
-  },
-  {
-    slug: "sideshift",
-    company: "SideShift.ai",
-    headline: "Swap Route Optimizer",
-    pitch: "Find the optimal multi-hop route for any crypto swap, minimizing fees, confirmation time, and slippage across 200+ assets.",
-    url: "/demos/sideshift",
-  },
-  {
-    slug: "wisprflow",
-    company: "Wispr Flow",
-    headline: "ASL sign language to voice dictation",
-    pitch: "TensorFlow.js hand-pose CV recognizes ASL signs from a webcam, converts them to words, and feeds that text stream into Wispr Flow with no microphone needed.",
-    url: "/demos/wisprflow",
   },
   {
     slug: "midjourney",

@@ -389,11 +389,7 @@ export default function IllocaPage() {
             </h2>
             <div className="space-y-3 text-xs leading-relaxed" style={{ color: SUBTEXT }}>
               <p>
-                This tool automates the precedent-driven design methodology I used on my own studio work. See{" "}
-                <Link href="/projects/framed" className="underline hover:opacity-70" style={{ color: C.muted }}>
-                  Framed
-                </Link>{" "}
-                for the manual version: three canonical precedents (Guggenheim spiral, PAMM lightness, Steven Holl's Winter House) merged into a new architectural parti.
+                This tool automates the precedent-driven design methodology I used on my own studio work. The manual version ran the same way: three canonical precedents (Guggenheim spiral, PAMM lightness, Steven Holl&apos;s Winter House) merged into a new architectural parti.
               </p>
               <p>
                 The precedent selection logic here draws on research in multi-modal architectural precedent retrieval. If you are interested in the academic framing, see the CAADRIA 2026 Archipedia paper on computational precedent systems.

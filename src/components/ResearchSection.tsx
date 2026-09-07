@@ -17,7 +17,6 @@ export default function ResearchSection({ entries }: { entries: ResearchEntry[] 
     <>
       <div className="space-y-4">
         {entries.map((entry, i) => {
-          const accent = entry.category === "cs" ? "#2D5A27" : entry.category === "intersection" ? "#1E3A5F" : "#4A7A44";
           return (
             <motion.button
               key={entry.slug}
@@ -31,7 +30,7 @@ export default function ResearchSection({ entries }: { entries: ResearchEntry[] 
             >
               <span
                 className="absolute left-0 top-0 h-full w-[3px] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                style={{ backgroundColor: accent }}
+                style={{ backgroundColor: "#4A7A44" }}
               />
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">

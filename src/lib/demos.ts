@@ -44,6 +44,28 @@ export const demos: Record<string, DemoConfig> = {
   },
 
 
+  // ── Terranox: access code only, not on the public grid ───────────────────
+  "terranox_2026": {
+    company: "Terranox",
+    role: "Exploration Analytics",
+    accentColor: "#B8862A",
+    headline: "Where to drill next",
+    pitch: "A survey planner that weighs geochemistry, geophysics, and drilling against a budget, then argues for one next move and shows what it would take to change its mind.",
+    sections: [],
+    url: "/demos/terranox",
+  },
+
+  // ── Whop: access code only, not on the public grid ───────────────────────
+  "whop_2026": {
+    company: "Whop",
+    role: "Growth Engineering",
+    accentColor: "#FF6243",
+    headline: "Page Roaster",
+    pitch: "Paste a Whop product page and get a blunt read on the copy, pricing, conversion path, and affiliate setup, with specific rewrites rather than generic advice.",
+    sections: [],
+    url: "/demos/whop",
+  },
+
   // ── Example entry - test the full flow at /demos with password "demo123" ──
   "demo123": {
     company: "Acme Corp",

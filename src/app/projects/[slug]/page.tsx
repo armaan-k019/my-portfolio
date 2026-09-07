@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { projects } from "../../../../content/projects";
-import CategoryTag from "@/components/CategoryTag";
 
 export function generateStaticParams() {
   return projects.map((p) => ({ slug: p.slug }));
@@ -30,7 +29,6 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
         <header className="mb-8">
           <div className="flex items-center gap-3 mb-3 flex-wrap">
             <h1 className="font-display display-md font-semibold text-ink">{project.title}</h1>
-            <CategoryTag category={project.category} />
             <span
               className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
                 project.status === "Coming Soon"

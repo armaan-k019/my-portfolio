@@ -1,7 +1,6 @@
 import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
-import type { Category } from "../../content/projects";
 
 const contentDir = path.join(process.cwd(), "content");
 
@@ -20,7 +19,6 @@ export interface ResearchEntry {
   date: string;
   abstract: string;
   venue?: string;
-  category?: Category;
   pdf?: string;
   status?: string;
   preview?: string;
@@ -46,7 +44,6 @@ export function getBlogPosts(): BlogPost[] {
         title: data.title,
         date: data.date,
         excerpt: data.excerpt,
-        category: data.category,
         content,
       };
     })
@@ -72,7 +69,6 @@ export function getResearchEntries(): ResearchEntry[] {
         date: data.date,
         abstract: data.abstract ?? data.preview ?? "",
         venue: data.venue,
-        category: data.category,
         pdf: data.pdf,
         status: data.status,
         preview: data.preview,

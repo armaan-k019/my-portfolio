@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getResearchEntries, getResearchEntry } from "@/lib/mdx";
 import { MDXRemote } from "next-mdx-remote/rsc";
-import CategoryTag from "@/components/CategoryTag";
 
 export function generateStaticParams() {
   return getResearchEntries().map((e) => ({ slug: e.slug }));
@@ -31,7 +30,6 @@ export default async function ResearchPage({ params }: { params: Promise<{ slug:
         <header className="mb-8">
           <div className="flex items-center gap-3 mb-3 flex-wrap">
             <h1 className="font-display display-md font-semibold text-ink">{entry.title}</h1>
-            {entry.category && <CategoryTag category={entry.category} />}
           </div>
           <div className="flex items-center gap-3 mb-2 flex-wrap">
             {entry.venue && (

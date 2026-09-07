@@ -84,27 +84,19 @@ const RAW: RawLocation[] = [
   { id: "page-blog", title: "Field Notes", type: "page", region: "RESEARCH", route: "/blog", secondary: ["DESIGN"], date: "2026.04" },
 
   // -- Projects (from content/projects.ts) ----------------------------------
-  { id: "edo-commons", title: "Guest People", type: "project", region: "ARCHITECTURE", route: "/projects/edo-commons", date: "2025.11", related: ["intersecting-realms"] },
-  { id: "intersecting-realms", title: "Intersecting Realms", type: "project", region: "ARCHITECTURE", route: "/projects/intersecting-realms", date: "2025.12", related: ["shape-machine", "exp-shape-computation-lab"] },
-  { id: "framed", title: "Framed", type: "project", region: "ARCHITECTURE", route: "/projects/framed", date: "2026.03", related: ["exp-ag-rhodes"] },
   { id: "archipedia", title: "Archipedia", type: "project", region: "DESIGN", route: "/projects/archipedia", externalLink: "https://archipedia.ai", secondary: ["ARCHITECTURE", "SYSTEMS"], date: "2026.04", related: ["latent-maps-architectural-reasoning", "urban-gpt"] },
-  { id: "urban-gpt", title: "UrbanGPT", type: "project", region: "DESIGN", route: "/projects/urban-gpt", secondary: ["SYSTEMS"], date: "2026.02", related: ["archipedia", "carbon-lens", "pulse"] },
-  { id: "acoustic-form", title: "Acoustic Form", type: "project", region: "DESIGN", route: "/projects/acoustic-form", secondary: ["ARCHITECTURE", "SYSTEMS"], date: "2026.01", related: ["carbon-lens"] },
-  { id: "pulse", title: "Pulse", type: "project", region: "SYSTEMS", route: "/projects/pulse", secondary: ["FIELD"], date: "2026.03", related: ["urban-gpt"] },
-  { id: "carbon-lens", title: "Carbon Lens", type: "project", region: "SYSTEMS", route: "/projects/carbon-lens", secondary: ["ARCHITECTURE"], date: "2026.02", related: ["urban-gpt", "acoustic-form", "plastic-panel-fabrication"] },
+  { id: "urban-gpt", title: "UrbanGPT", type: "project", region: "DESIGN", route: "/projects/urban-gpt", secondary: ["SYSTEMS"], date: "2026.02", related: ["archipedia"] },
 
   // -- Demos (company field stations) ---------------------------------------
   { id: "rho", title: "Drift Detection", type: "demo", region: "SYSTEMS", route: "/demos/rho", date: "2026.01" },
   { id: "whop", title: "Page Roaster", type: "demo", region: "SYSTEMS", route: "/demos/whop", date: "2026.02" },
-  { id: "sideshift", title: "Swap Route Optimizer", type: "demo", region: "SYSTEMS", route: "/demos/sideshift", date: "2026.03" },
-  { id: "wisprflow", title: "ASL to Voice", type: "demo", region: "SYSTEMS", route: "/demos/wisprflow", secondary: ["DESIGN"], date: "2026.03" },
   { id: "midjourney", title: "Prompt Autopsy", type: "demo", region: "SYSTEMS", route: "/demos/midjourney", secondary: ["DESIGN"], date: "2026.04" },
 
   // -- Research (from content/research) --------------------------------------
-  { id: "shape-machine", title: "The Shape Machine", type: "research", region: "RESEARCH", route: "/research/shape-machine", secondary: ["DESIGN"], date: "2025.10", related: ["exp-shape-computation-lab", "intersecting-realms"] },
+  { id: "shape-machine", title: "The Shape Machine", type: "research", region: "RESEARCH", route: "/research/shape-machine", secondary: ["DESIGN"], date: "2025.10", related: ["exp-shape-computation-lab"] },
   { id: "latent-maps-architectural-reasoning", title: "Latent Maps for Architectural Reasoning", type: "research", region: "RESEARCH", route: "/research/latent-maps-architectural-reasoning", secondary: ["DESIGN", "SYSTEMS"], date: "2026.01", related: ["archipedia"] },
   { id: "designing-for-engagement-horticulture-therapy", title: "Designing for Engagement", type: "research", region: "RESEARCH", route: "/research/designing-for-engagement-horticulture-therapy", secondary: ["ARCHITECTURE"], date: "2025.12", related: ["exp-ag-rhodes"] },
-  { id: "plastic-panel-fabrication", title: "Plastic Panel Fabrication", type: "research", region: "RESEARCH", route: "/research/plastic-panel-fabrication", secondary: ["ARCHITECTURE"], date: "2025.11", related: ["carbon-lens", "exp-electrify-gt"] },
+  { id: "plastic-panel-fabrication", title: "Plastic Panel Fabrication", type: "research", region: "RESEARCH", route: "/research/plastic-panel-fabrication", secondary: ["ARCHITECTURE"], date: "2025.11", related: ["exp-electrify-gt"] },
 
   // -- Photography stations (from content/photos.ts) -------------------------
   { id: "field-taiwan", title: "Taiwan", type: "field", region: "FIELD", route: "/photography", date: "2025.07" },
@@ -119,8 +111,8 @@ const RAW: RawLocation[] = [
 
   // -- Experience (from content/work.ts) -------------------------------------
   { id: "exp-jeeves", title: "Jeeves", type: "experience", region: "SYSTEMS", route: "/#work", date: "2025.09", related: ["rho"] },
-  { id: "exp-shape-computation-lab", title: "Shape Computation Lab", type: "experience", region: "RESEARCH", route: "/#work", secondary: ["DESIGN"], date: "2025.05", related: ["shape-machine", "intersecting-realms"] },
-  { id: "exp-ag-rhodes", title: "A.G. Rhodes", type: "experience", region: "ARCHITECTURE", route: "/#work", secondary: ["RESEARCH"], date: "2025.08", related: ["designing-for-engagement-horticulture-therapy", "framed"] },
+  { id: "exp-shape-computation-lab", title: "Shape Computation Lab", type: "experience", region: "RESEARCH", route: "/#work", secondary: ["DESIGN"], date: "2025.05", related: ["shape-machine"] },
+  { id: "exp-ag-rhodes", title: "A.G. Rhodes", type: "experience", region: "ARCHITECTURE", route: "/#work", secondary: ["RESEARCH"], date: "2025.08", related: ["designing-for-engagement-horticulture-therapy"] },
   { id: "exp-electrify-gt", title: "Electrify GT", type: "experience", region: "SYSTEMS", route: "/#work", secondary: ["ARCHITECTURE"], date: "2025.09", related: ["plastic-panel-fabrication"] },
   { id: "exp-ncr-voyix", title: "NCR Voyix", type: "experience", region: "SYSTEMS", route: "/#work", date: "2024.09" },
   { id: "exp-sweet-frog", title: "Sweet Frog", type: "experience", region: "FIELD", route: "/#work", date: "2022.07" },
