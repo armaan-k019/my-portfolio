@@ -48,6 +48,16 @@ interface IllocaResult {
 const API_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL = "claude-sonnet-4-6";
 
+// Claude occasionally wraps JSON in markdown code fences despite instructions.
+// Strip a leading ``` or ```json and a trailing ``` before parsing.
+function stripJsonFences(text: string): string {
+  return text
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```\s*$/, "")
+    .trim();
+}
+
 async function filterPrecedents(brief: string): Promise<PrecedentEntry[]> {
   if (!API_KEY) {
     return PRECEDENTS.slice(0, 20);
@@ -64,7 +74,7 @@ ${PRECEDENTS.map((p) => `- ${p.building_name} (${p.architect}, ${p.year}): ${p.s
 
 Return a JSON array with just the building names of the 15-20 most relevant precedents in order of relevance. Example: ["Salk Institute", "Yokohama International Port Terminal", ...].
 
-Only return the JSON array. No other text.`;
+Return ONLY the raw JSON array with no markdown code fences, no explanatory text, no leading or trailing content. Your entire response must be valid JSON parseable by JSON.parse().`;
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -89,7 +99,7 @@ Only return the JSON array. No other text.`;
       content: Array<{ type: string; text: string }>;
     };
     const text = data.content[0].text;
-    const names: string[] = JSON.parse(text);
+    const names: string[] = JSON.parse(stripJsonFences(text));
     const filtered = PRECEDENTS.filter((p) => names.includes(p.building_name));
     return filtered.length > 0 ? filtered : PRECEDENTS.slice(0, 20);
   } catch (err) {
@@ -123,7 +133,7 @@ CRITICAL CONSTRAINTS:
 - No em dashes anywhere in your output. Use periods, commas, or colons instead.
 - The bubble diagram must have 5-9 bubbles representing key spatial zones or functions that emerge from combining the three precedent moves.
 - Each bubble should be influenced by at most one precedent.
-- Return valid JSON only. No markdown, no explanation before or after.`;
+- Return ONLY the raw JSON object with no markdown code fences, no explanatory text, no leading or trailing content. Your entire response must be valid JSON parseable by JSON.parse().`;
 
   const userPrompt = `PROJECT BRIEF:
 ${brief}
@@ -213,7 +223,7 @@ Return this JSON structure (no markdown, no extra text):
     };
     const text = data.content[0].text;
 
-    const parsed = JSON.parse(text) as {
+    const parsed = JSON.parse(stripJsonFences(text)) as {
       precedents: Precedent[];
       synthesis: {
         bubbles: BubbleData[];
