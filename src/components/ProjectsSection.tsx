@@ -1,62 +1,20 @@
 "use client";
 
-import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
-import CategoryTag from "./CategoryTag";
-import type { Category, Project } from "../../content/projects";
+import type { Project } from "../../content/projects";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
   visible: { opacity: 1, y: 0 },
 };
 
-const filters: { label: string; value: Category | "all" }[] = [
-  { label: "All", value: "all" },
-  { label: "CS", value: "cs" },
-  { label: "Architecture", value: "architecture" },
-  { label: "CS \u00d7 Architecture", value: "intersection" },
-];
-
-const ACCENT: Record<Category, string> = {
-  cs: "#2D5A27",
-  architecture: "#4A7A44",
-  intersection: "#1E3A5F",
-};
-
 export default function ProjectsSection({ projects }: { projects: Project[] }) {
-  const [activeFilter, setActiveFilter] = useState<Category | "all">("all");
-
-  const filtered = activeFilter === "all"
-    ? projects
-    : projects.filter((p) => p.category === activeFilter);
-
   return (
     <>
-      <div className="flex flex-wrap gap-2 mb-6">
-        {filters.map((f) => (
-          <button
-            key={f.value}
-            onClick={() => setActiveFilter(f.value)}
-            className={`font-mono text-[11px] tracking-wide uppercase px-3 py-1.5 rounded-full border transition-all ${
-              activeFilter === f.value
-                ? f.value === "cs"
-                  ? "bg-terracotta text-white border-terracotta shadow-sm"
-                  : f.value === "architecture"
-                  ? "bg-sage text-white border-sage shadow-sm"
-                  : f.value === "intersection"
-                  ? "bg-darkblue text-white border-darkblue shadow-sm"
-                  : "bg-brown text-white border-brown shadow-sm"
-                : "bg-transparent text-brown-light border-tan/50 hover:border-tan"
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
       <div className="grid md:grid-cols-3 gap-5">
         <AnimatePresence mode="popLayout">
-          {filtered.map((project, i) => (
+          {projects.map((project, i) => (
             <motion.div
               key={project.slug}
               layout
@@ -72,15 +30,7 @@ export default function ProjectsSection({ projects }: { projects: Project[] }) {
                 <div
                   className={`card card-hover p-5 h-full overflow-hidden ${project.github ? 'pb-8' : ''}`}
                 >
-                  {/* category accent edge */}
-                  <span
-                    className="absolute left-0 top-0 h-full w-[3px] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                    style={{ backgroundColor: ACCENT[project.category] }}
-                  />
-                  <div className="flex items-start justify-between gap-2 mb-1.5">
-                    <h3 className="font-display text-lg font-semibold text-ink leading-snug">{project.title}</h3>
-                    <CategoryTag category={project.category} />
-                  </div>
+                  <h3 className="font-display text-lg font-semibold text-ink leading-snug mb-1.5">{project.title}</h3>
                   <p className="text-[13px] text-brown-light mb-3 line-clamp-2 leading-relaxed">{project.blurb}</p>
                   {project.status && (
                     <span
