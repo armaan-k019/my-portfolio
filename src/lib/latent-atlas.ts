@@ -96,7 +96,6 @@ const RAW: RawLocation[] = [
   // -- Demos (company field stations) ---------------------------------------
   { id: "rho", title: "Drift Detection", type: "demo", region: "SYSTEMS", route: "/demos/rho", date: "2026.01" },
   { id: "whop", title: "Page Roaster", type: "demo", region: "SYSTEMS", route: "/demos/whop", date: "2026.02" },
-  { id: "wisprflow", title: "ASL to Voice", type: "demo", region: "SYSTEMS", route: "/demos/wisprflow", secondary: ["DESIGN"], date: "2026.03" },
   { id: "midjourney", title: "Prompt Autopsy", type: "demo", region: "SYSTEMS", route: "/demos/midjourney", secondary: ["DESIGN"], date: "2026.04" },
 
   // -- Research (from content/research) --------------------------------------

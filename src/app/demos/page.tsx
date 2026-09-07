@@ -58,13 +58,6 @@ const demoCards: DemoCard[] = [
     url: "/demos/whop",
   },
   {
-    slug: "wisprflow",
-    company: "Wispr Flow",
-    headline: "ASL sign language to voice dictation",
-    pitch: "TensorFlow.js hand-pose CV recognizes ASL signs from a webcam, converts them to words, and feeds that text stream into Wispr Flow with no microphone needed.",
-    url: "/demos/wisprflow",
-  },
-  {
     slug: "midjourney",
     company: "Midjourney",
     headline: "Prompt Autopsy + 3D Parallax",
