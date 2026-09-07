@@ -7,6 +7,7 @@ import IsometricBackground from "@/components/IsometricBackground";
 import DrawingAwareScope from "@/components/DrawingAwareScope";
 import CustomCursor from "@/components/CustomCursor";
 import AtlasFrame from "@/components/AtlasFrame";
+import RenovationBanner from "@/components/RenovationBanner";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -54,10 +55,16 @@ export default function RootLayout({
         <IsometricBackground />
         <AtlasFrame />
         <CustomCursor />
+        <RenovationBanner />
         <DrawingAwareScope>
           <div className="relative z-10 flex flex-col min-h-screen">
             <Navbar />
-            <main className="flex-1 pt-16">{children}</main>
+            <main
+              className="flex-1"
+              style={{ paddingTop: "calc(4rem + var(--renovation-h, 0px))" }}
+            >
+              {children}
+            </main>
             <Footer />
           </div>
         </DrawingAwareScope>
