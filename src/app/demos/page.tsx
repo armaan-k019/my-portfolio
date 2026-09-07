@@ -58,13 +58,6 @@ const demoCards: DemoCard[] = [
     url: "/demos/whop",
   },
   {
-    slug: "sideshift",
-    company: "SideShift.ai",
-    headline: "Swap Route Optimizer",
-    pitch: "Find the optimal multi-hop route for any crypto swap, minimizing fees, confirmation time, and slippage across 200+ assets.",
-    url: "/demos/sideshift",
-  },
-  {
     slug: "wisprflow",
     company: "Wispr Flow",
     headline: "ASL sign language to voice dictation",
