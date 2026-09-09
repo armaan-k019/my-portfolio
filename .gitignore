@@ -43,3 +43,7 @@ next-env.d.ts
 
 # local source material
 Work/
+
+# Prevent stale extraction folders
+demos-standalone/
+exports/

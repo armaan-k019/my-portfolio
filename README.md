@@ -1,95 +1,30 @@
-# Armaan Kazi — Portfolio
+armaankazi.com
 
-A personal portfolio built with Next.js 16, featuring an interactive 3D acoustic simulation tool.
+Personal portfolio for Armaan Kazi. CS + Architecture at Georgia Tech.
 
----
+Live at armaankazi.com.
 
-## Acoustic Form
+Stack
 
-An early-stage room-acoustic simulator for architects. Describe a room in plain English (or edit vertices by hand), and the tool computes reverb time (RT60) and visualises sound-ray propagation in 3D.
+Next.js 16 (App Router), TypeScript, Tailwind, Vercel.
 
-**Screenshot placeholder**
+Structure
+src/app/ — routes (pages, API endpoints, layout)
+src/components/ — shared React components
+src/lib/ — utilities and shared logic
+content/ — structured data for demos, projects, and other content
+public/ — static assets
+scripts/ — build and maintenance scripts
 
-![Acoustic Form preview](./public/acoustic-form-preview.png)
-
-### Features
-
-- **3D Room Visualisation** — interactive Three.js canvas with manual orbit controls (drag to rotate, scroll to zoom)
-- **Sound Ray Tracing** — Fibonacci sphere distribution, Möller–Trumbore intersection, per-bounce colour gradient, pulsing opacity animation
-- **Acoustic Metrics** — volume (divergence theorem), surface area, RT60 (Sabine's formula), early-reflection count
-- **Natural Language Room Parser** — describe a room in plain English; Claude converts it to a 3D mesh
-- **Manual Vertex Editor** — editable vertex table with preset rooms (Rectangle, L-Shaped, Trapezoidal)
-- **Claude Acoustic Analysis** — expert 3-4 sentence acoustic report powered by Claude claude-opus-4-6
-
----
-
-## Setup
-
-### Prerequisites
-
-- Node.js ≥ 18
-- An Anthropic API key
-
-### Install
-
-```bash
+Setup
+bash
 npm install
-```
-
-### Environment
-
-Create `.env.local` in the project root:
-
-```
-ANTHROPIC_API_KEY=sk-ant-...
-```
-
-### Run
-
-```bash
+cp .env.example .env.local
+# fill in the four required API keys
 npm run dev
-```
 
-Open [http://localhost:3000/projects/acoustic-form](http://localhost:3000/projects/acoustic-form) to view the simulator.
+Required env vars are listed in .env.example. All keys are personal accounts; obtain your own from the respective providers if forking.
 
----
+Contact
 
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Framework | Next.js 16 (App Router) |
-| Language | TypeScript |
-| 3D | Three.js |
-| AI | Claude claude-opus-4-6 via `@anthropic-ai/sdk` |
-| Styling | Tailwind CSS v4 |
-| Animation | Framer Motion |
-| Content | MDX + gray-matter |
-
----
-
-## Project Structure
-
-```
-src/
-├── app/
-│   ├── api/
-│   │   ├── parse-shape/route.ts       # POST: NL → RoomShape via Claude
-│   │   └── acoustic-summary/route.ts  # POST: metrics → analysis via Claude
-│   └── projects/acoustic-form/
-│       └── page.tsx                   # Main simulator page
-├── components/
-│   ├── ThreeCanvas.tsx                # Three.js renderer (SSR-disabled)
-│   ├── ShapeInputPanel.tsx            # Left panel (describe / manual)
-│   ├── VertexTable.tsx                # Editable vertex table
-│   └── MetricsPanel.tsx               # Right panel with Claude analysis
-├── lib/
-│   ├── acoustics.ts                   # Volume, RT60, ray casting
-│   └── geometry.ts                    # Room helpers, face normals
-└── types/
-    └── index.ts                       # Shared TypeScript types
-```
-
----
-
-© 2025 Armaan Kazi
+armaankazi.com has current contact information.
