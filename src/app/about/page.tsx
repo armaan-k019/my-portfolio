@@ -55,10 +55,10 @@ export default function AboutPage() {
           <h1 className="font-display display-lg font-semibold text-ink mb-6">More about me</h1>
           <div className="text-brown-light leading-relaxed space-y-4 max-w-2xl">
             <p>
-              I build things because I care about people and the places they inhabit. That usually means architecture, sometimes code, often both. I&apos;m drawn to problems that sit at that intersection where designing something well and building something well are the same question.
+              I build things because I care about people and the places they inhabit. That usually means architecture, sometimes code, often both.
             </p>
             <p>
-              I also like to write and take pictures, alongside many other things.
+              I also like to write and take pictures.
             </p>
           </div>
         </section>
