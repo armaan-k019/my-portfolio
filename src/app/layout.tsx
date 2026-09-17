@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Amiri, Fraunces, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import IsometricBackground from "@/components/IsometricBackground";
@@ -68,6 +69,7 @@ export default function RootLayout({
             <Footer />
           </div>
         </DrawingAwareScope>
+        <Analytics />
       </body>
     </html>
   );
