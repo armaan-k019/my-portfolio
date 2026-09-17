@@ -1,5 +1,3 @@
-import AboutTimeline from "@/components/AboutTimeline";
-
 const favColumns = [
   {
     emoji: "🎬",
@@ -77,12 +75,6 @@ export default function AboutPage() {
               </div>
             ))}
           </div>
-        </section>
-
-        <section className="mb-16">
-          <p className="eyebrow mb-3">Timeline</p>
-          <hr className="rule mb-6" />
-          <AboutTimeline />
         </section>
 
         <section>
