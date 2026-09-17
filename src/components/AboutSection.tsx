@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Carousel from "./Carousel";
 
-const ROLE_WORDS = ["student", "researcher", "architect", "computer scientist", "engineer"];
+const ROLE_WORDS = ["student", "researcher", "artist", "engineer"];
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
