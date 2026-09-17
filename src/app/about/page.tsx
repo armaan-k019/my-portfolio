@@ -1,4 +1,5 @@
 import AboutTimeline from "@/components/AboutTimeline";
+import SketchbookGrid from "@/components/SketchbookGrid";
 
 const favColumns = [
   {
@@ -80,6 +81,12 @@ export default function AboutPage() {
           <p className="eyebrow mb-3">Timeline</p>
           <hr className="rule mb-6" />
           <AboutTimeline />
+        </section>
+
+        <section>
+          <p className="eyebrow mb-3">Pages from my sketchbook</p>
+          <hr className="rule mb-6" />
+          <SketchbookGrid />
         </section>
 
       </div>
