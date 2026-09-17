@@ -6,13 +6,13 @@ import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 
 const sections = [
-  { id: "about", label: "About" },
   { id: "work", label: "Experience" },
   { id: "projects", label: "Projects" },
   { id: "research", label: "Research" },
 ];
 
 const pages = [
+  { href: "/about", label: "About" },
   { href: "/demos", label: "Demos" },
   { href: "/blog", label: "Blog" },
   { href: "/photography", label: "Photography" },
