@@ -2,63 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 import Carousel from "./Carousel";
-import Modal from "./Modal";
 
-const ROLE_WORDS = ["student", "researcher", "architect", "computer scientist", "engineer"];
+const ROLE_WORDS = ["student", "researcher", "artist", "engineer"];
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
   visible: { opacity: 1, y: 0 },
 };
 
-const favColumns = [
-  {
-    emoji: "🎬",
-    label: "Watches",
-    labelColor: "text-sage",
-    dotColor: "bg-sage",
-    items: ["Ted Lasso", "Demolition", "Chhichhore"],
-  },
-  {
-    emoji: "📚",
-    label: "Reads",
-    labelColor: "text-darkblue",
-    dotColor: "bg-darkblue",
-    items: ["The Catcher in the Rye", "The Odyssey", "A Canticle for Leibowitz"],
-  },
-  {
-    emoji: "🎵",
-    label: "Listens",
-    labelColor: "text-terracotta",
-    dotColor: "bg-terracotta",
-    items: ["End of Summer by Tame Impala", "Runaway by Kanye West", "Eyes Without a Face by Billy Idol"],
-  },
-  {
-    emoji: "🏆",
-    label: "Sports Teams",
-    labelColor: "text-darkblue",
-    dotColor: "bg-darkblue",
-    items: ["Baltimore Ravens", "Washington Wizards", "Juventus"],
-  },
-  {
-    emoji: "🏛️",
-    label: "Favorite Architects",
-    labelColor: "text-sage",
-    dotColor: "bg-sage",
-    items: ["Louis Kahn", "Tadao Ando", "Peter Zumthor"],
-  },
-  {
-    emoji: "🌍",
-    label: "Destinations",
-    labelColor: "text-terracotta",
-    dotColor: "bg-terracotta",
-    items: ["Mumbai", "Iceland", "Amsterdam"],
-  },
-];
-
 export default function AboutSection() {
-  const [favOpen, setFavOpen] = useState(false);
   const [roleIdx, setRoleIdx] = useState(0);
 
   useEffect(() => {
@@ -130,12 +84,6 @@ export default function AboutSection() {
               </AnimatePresence>
               {" "}at Georgia Tech, double majoring in Computer Science and Architecture with a certificate in Sustainable Architecture.
             </p>
-            <p>
-              I build things because I care about people and the places they inhabit. That usually means architecture, sometimes code, often both. I&apos;m drawn to problems that sit at that intersection where designing something well and building something well are the same question.
-            </p>
-            <p>
-              I also like to write and take pictures, alongside many other things.
-            </p>
           </div>
           <div className="flex flex-wrap gap-2 mb-7">
             <span className="text-xs px-3 py-1.5 rounded-full bg-white/60 backdrop-blur text-brown-light border border-[#D8E6D8]">
@@ -154,14 +102,14 @@ export default function AboutSection() {
               Get in touch
               <span className="transition-transform group-hover:translate-x-0.5">&rarr;</span>
             </a>
-            <button
-              onClick={() => setFavOpen(true)}
+            <Link
+              href="/about"
               data-cursor
-              className="group inline-flex items-center gap-1.5 text-sm font-medium px-5 py-2.5 rounded-full border border-terracotta/30 text-terracotta hover:bg-terracotta/5 transition-all cursor-pointer"
+              className="group inline-flex items-center gap-1.5 text-sm font-medium px-5 py-2.5 rounded-full border border-terracotta/30 text-terracotta hover:bg-terracotta/5 transition-all"
             >
-              Favorites
+              More about me
               <span className="transition-transform group-hover:translate-x-0.5">&rarr;</span>
-            </button>
+            </Link>
           </div>
         </motion.div>
 
@@ -179,31 +127,6 @@ export default function AboutSection() {
           </div>
         </motion.div>
       </div>
-
-      {/* Favorites modal */}
-      <Modal open={favOpen} onClose={() => setFavOpen(false)} panelClassName="max-w-3xl">
-        <h2 className="font-display text-2xl font-semibold text-ink mb-1">Favorites</h2>
-        <hr className="rule mb-6 mt-2" />
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {favColumns.map((col) => (
-            <div
-              key={col.label}
-              className="card p-4"
-            >
-              <p className="text-lg mb-1">{col.emoji}</p>
-              <p className={`text-sm font-semibold ${col.labelColor} mb-3`}>{col.label}</p>
-              <ul className="space-y-2">
-                {col.items.map((item) => (
-                  <li key={item} className="flex gap-2 items-center">
-                    <span className={`w-1.5 h-1.5 rounded-full ${col.dotColor} shrink-0`} />
-                    <p className="text-sm font-medium text-brown">{item}</p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      </Modal>
     </section>
   );
 }
