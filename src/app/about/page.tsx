@@ -60,7 +60,6 @@ export default function AboutPage() {
             <p>
               I also like to write and take pictures, alongside many other things.
             </p>
-            <p>[TODO: what I&apos;m interested in / what I want to do next]</p>
           </div>
         </section>
 
