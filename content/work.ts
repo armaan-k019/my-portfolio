@@ -16,7 +16,9 @@ export const workEntries: WorkEntry[] = [
     role: "Engineering Intern",
     dates: "2026 – Present",
     bullets: [
-      "Current role. More details to come.",
+      "Shipping Meter, the AI-native ATS Rho's talent team runs its hiring on, taking it from prototype to production across sourcing, scheduling, and offer.",
+      "Modeling headcount as a financial object: every approved seat is a budget line with a persistent ID that outlives backfills and promotions, and the ledger tracks how long each seat sits empty and why.",
+      "Writing a scheduler that sequences full interview panels against each interviewer's own availability window, and a synthesis engine that turns applications and interview feedback into a short read on the candidate.",
     ],
     link: "",
     cardBg: "#ffffff",
