@@ -330,15 +330,15 @@ async function fetchCensusData(lat: number, lng: number): Promise<CensusData> {
       areaLandSqM = parseFloat(String(t.AREALAND ?? 0)) || 0;
       tractName = t.NAME ?? "";
     } else {
-      console.warn(`[urban-gpt] Geocoder returned no Census Tracts - geographies keys: ${Object.keys(geoJson?.result?.geographies ?? {}).join(", ")}`);
+      console.warn(`[datum] Geocoder returned no Census Tracts - geographies keys: ${Object.keys(geoJson?.result?.geographies ?? {}).join(", ")}`);
     }
   } catch (err) {
-    console.error(`[urban-gpt] Geocoder error:`, err);
+    console.error(`[datum] Geocoder error:`, err);
     return CENSUS_EMPTY;
   }
 
   if (!state || !county || !tract) {
-    console.warn(`[urban-gpt] Missing FIPS codes - skipping ACS fetch`);
+    console.warn(`[datum] Missing FIPS codes - skipping ACS fetch`);
     return CENSUS_EMPTY;
   }
 
@@ -353,13 +353,13 @@ async function fetchCensusData(lat: number, lng: number): Promise<CensusData> {
     const acsText = await acsRes.text();
 
     if (!acsRes.ok) {
-      console.error(`[urban-gpt] ACS HTTP ${acsRes.status} — falling back to county`);
+      console.error(`[datum] ACS HTTP ${acsRes.status} — falling back to county`);
       return fetchCensusCountyFallback(state, county, tractName, areaLandSqM);
     }
 
     const acsJson = JSON.parse(acsText) as string[][];
     if (!Array.isArray(acsJson) || acsJson.length < 2) {
-      console.warn(`[urban-gpt] ACS empty response - trying county fallback`);
+      console.warn(`[datum] ACS empty response - trying county fallback`);
       return fetchCensusCountyFallback(state, county, tractName, areaLandSqM);
     }
 
@@ -367,7 +367,7 @@ async function fetchCensusData(lat: number, lng: number): Promise<CensusData> {
     const dataRow = acsJson[1];
     return parseCensusRow(dataRow, header, tractName, areaLandSqM);
   } catch (err) {
-    console.error(`[urban-gpt] ACS error:`, err);
+    console.error(`[datum] ACS error:`, err);
     return fetchCensusCountyFallback(state, county, tractName, areaLandSqM);
   }
 }
@@ -392,7 +392,7 @@ async function fetchCensusCountyFallback(
     const header = json[0];
     return parseCensusRow(json[1], header, `${tractName} (county-level)`, areaLandSqM);
   } catch (err) {
-    console.error(`[urban-gpt] County fallback error:`, err);
+    console.error(`[datum] County fallback error:`, err);
     return { ...CENSUS_EMPTY, tractName };
   }
 }
@@ -510,12 +510,12 @@ async function fetchOverpassData(
       try {
         const res = await fetchWithTimeout(endpoint, fetchOptions(query), 15000);
         if (res.status === 429) {
-          console.warn(`[urban-gpt] Overpass ${category}: rate limited (429)`);
+          console.warn(`[datum] Overpass ${category}: rate limited (429)`);
           sawRateLimit = true;
           continue;
         }
         if (!res.ok) {
-          console.warn(`[urban-gpt] Overpass ${category}: HTTP ${res.status}`);
+          console.warn(`[datum] Overpass ${category}: HTTP ${res.status}`);
           continue;
         }
         const json = await res.json() as {
@@ -538,7 +538,7 @@ async function fetchOverpassData(
         }
         return points;
       } catch (err) {
-        console.error(`[urban-gpt] Overpass ${category} @ ${endpoint}: ${(err as Error).message}`);
+        console.error(`[datum] Overpass ${category} @ ${endpoint}: ${(err as Error).message}`);
       }
     }
     if (sawRateLimit) throw new RateLimitError();
@@ -714,7 +714,7 @@ async function fetchAIInsights(
 
     const textBlock = message.content.find((b) => b.type === "text");
     if (!textBlock || textBlock.type !== "text") {
-      console.error(`[urban-gpt] Claude returned no text block. Full content:`, JSON.stringify(message.content));
+      console.error(`[datum] Claude returned no text block. Full content:`, JSON.stringify(message.content));
       return makeFallback(address);
     }
 
@@ -725,12 +725,12 @@ async function fetchAIInsights(
     try {
       return JSON.parse(raw) as AIInsights;
     } catch (parseErr) {
-      console.error(`[urban-gpt] Claude JSON parse failed:`, parseErr);
-      console.error(`[urban-gpt] Full unparseable response:`, raw);
+      console.error(`[datum] Claude JSON parse failed:`, parseErr);
+      console.error(`[datum] Full unparseable response:`, raw);
       return makeFallback(address);
     }
   } catch (err) {
-    console.error(`[urban-gpt] Claude API error:`, err);
+    console.error(`[datum] Claude API error:`, err);
     return makeFallback(address);
   }
 }
@@ -740,7 +740,7 @@ async function fetchAIInsights(
 export async function POST(request: Request) {
   try {
     if (!process.env.ANTHROPIC_API_KEY) {
-      console.error('[urban-gpt] Missing ANTHROPIC_API_KEY env var');
+      console.error('[datum] Missing ANTHROPIC_API_KEY env var');
       return Response.json({ error: 'Server misconfiguration: ANTHROPIC_API_KEY is not set. Add it to Vercel → Settings → Environment Variables.' }, { status: 500 });
     }
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -777,9 +777,9 @@ export async function POST(request: Request) {
       : { data: { transit: [], parks: [], restaurants: [], schools: [], hospitals: [], bikeWayCount: 0 } as OverpassData, error: true };
     const temp = tempRes.status === "fulfilled" ? tempRes.value : { tempF: null, tempC: null };
 
-    if (censusRes.status === "rejected")   console.error("[urban-gpt] census rejected:", censusRes.reason);
-    if (overpassRes.status === "rejected") console.error("[urban-gpt] overpass rejected:", overpassRes.reason);
-    if (tempRes.status === "rejected")     console.error("[urban-gpt] temp rejected:", tempRes.reason);
+    if (censusRes.status === "rejected")   console.error("[datum] census rejected:", censusRes.reason);
+    if (overpassRes.status === "rejected") console.error("[datum] overpass rejected:", overpassRes.reason);
+    if (tempRes.status === "rejected")     console.error("[datum] temp rejected:", tempRes.reason);
 
     census.tempF = temp.tempF;
     census.tempC = temp.tempC;
@@ -798,7 +798,7 @@ export async function POST(request: Request) {
 
     return Response.json(result);
   } catch (err) {
-    console.error("UrbanGPT API error:", err);
+    console.error("Datum API error:", err);
     return Response.json({ error: "Analysis failed. Please try again." }, { status: 500 });
   }
 }

@@ -8,9 +8,9 @@ import type {
   UrbanAnalysisResult,
   OverpassPoint,
   IncomeBracket,
-} from "../../api/urban-gpt/route";
+} from "../../api/datum/route";
 
-const UrbanGPTMap = dynamic(() => import("./UrbanGPTMap"), { ssr: false });
+const DatumMap = dynamic(() => import("./DatumMap"), { ssr: false });
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -537,7 +537,7 @@ function ZoningPanel({
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function UrbanGPTPage() {
+export default function DatumPage() {
   const [address, setAddress] = useState("");
   const [place, setPlace] = useState<{ lat: number; lng: number; formatted: string } | null>(null);
   const [unit, setUnit] = useState<"miles" | "km">("miles");
@@ -594,7 +594,7 @@ export default function UrbanGPTPage() {
         const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=6&countrycodes=us&addressdetails=0`;
         const res = await fetch(url, {
           signal: controller.signal,
-          headers: { "Accept-Language": "en", "User-Agent": "UrbanGPT/1.0" },
+          headers: { "Accept-Language": "en", "User-Agent": "Datum/1.0" },
         });
         const data = await res.json() as { display_name: string; lat: string; lon: string }[];
         setSuggestions(data.map(d => ({ display: d.display_name, lat: parseFloat(d.lat), lng: parseFloat(d.lon) })));
@@ -656,7 +656,7 @@ export default function UrbanGPTPage() {
       setActiveTab("demographics");
 
       const attempt = async () => {
-        const res = await fetch("/api/urban-gpt", {
+        const res = await fetch("/api/datum", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: requestBody,
@@ -701,7 +701,7 @@ export default function UrbanGPTPage() {
   async function geocodeAddress(addr: string): Promise<{ lat: number; lng: number; formatted: string } | null> {
     try {
       const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1&countrycodes=us`;
-      const res = await fetch(url, { headers: { "Accept-Language": "en", "User-Agent": "UrbanGPT/1.0" } });
+      const res = await fetch(url, { headers: { "Accept-Language": "en", "User-Agent": "Datum/1.0" } });
       const data = await res.json() as { lat: string; lon: string; display_name: string }[];
       if (!data.length) return null;
       return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), formatted: data[0].display_name };
@@ -762,7 +762,7 @@ export default function UrbanGPTPage() {
     const rMeters = RADIUS_VALUES[currentRadiusIndexRef.current] * 1609.344;
     try {
       const res = await fetch(
-        `/api/urban-gpt/overpass?lat=${result.lat}&lng=${result.lng}&radius=${rMeters}&category=${categoryName}`
+        `/api/datum/overpass?lat=${result.lat}&lng=${result.lng}&radius=${rMeters}&category=${categoryName}`
       );
       const data = await res.json() as { points: OverpassPoint[]; rateLimited: boolean; timeout: boolean };
       const overpassKey = categoryName === "dining" ? "restaurants" : categoryName === "health" ? "hospitals" : categoryName;
@@ -855,17 +855,17 @@ export default function UrbanGPTPage() {
         </Link>
 
         <header className="mb-14">
-          <h1 className="text-4xl font-semibold text-darkblue tracking-tight mb-3">UrbanGPT</h1>
+          <h1 className="text-4xl font-semibold text-darkblue tracking-tight mb-3">Datum</h1>
           <p className="text-sm text-brown-light">April 2026 &middot; Personal Project &middot; Next.js &middot; Leaflet &middot; Claude</p>
           <div className="w-10 h-[2px] bg-terracotta mt-5" />
         </header>
 
         <div className="space-y-6 mb-14">
           <p className="text-base text-brown leading-relaxed">
-            UrbanGPT is a site analysis tool for architects and urban designers. Enter a US address, set a study radius, and get a dashboard of demographics, transit, amenities, environmental risk, and design implications for that site.
+            Datum is a site analysis tool for architects and urban designers. Enter a US address, set a study radius, and get a dashboard of demographics, transit, amenities, environmental risk, and design implications for that site.
           </p>
           <p className="text-base text-brown leading-relaxed">
-            The problem it addresses is time. Early design decisions depend on site context that lives in a dozen places. Median income and population are in the Census. Transit stops and amenities are in OpenStreetMap. Flood zones belong to FEMA. Heat exposure is a weather question. Each source has its own query pattern, and gathering them by hand is slow enough that it often does not happen before the first sketch. UrbanGPT pulls them into a single request triggered by an address.
+            The problem it addresses is time. Early design decisions depend on site context that lives in a dozen places. Median income and population are in the Census. Transit stops and amenities are in OpenStreetMap. Flood zones belong to FEMA. Heat exposure is a weather question. Each source has its own query pattern, and gathering them by hand is slow enough that it often does not happen before the first sketch. Datum pulls them into a single request triggered by an address.
           </p>
           <p className="text-base text-brown leading-relaxed">
             The front end is Next.js with a Leaflet map on OpenStreetMap tiles and a radius control from half a mile to fifty miles, or the kilometer equivalent. Address lookup runs through OpenStreetMap&rsquo;s Nominatim. Server side API routes then query the Overpass API for amenities and transit, the Census Bureau&rsquo;s ACS five year estimates for median household income and population (tables B19013 and B01003, located through the Census geocoder), FEMA&rsquo;s flood hazard layer, and Open-Meteo for temperature. Claude writes a three part design implications section from the result: a summary, an interpretation of each data point, and specific recommendations. Every API key stays on the server.
@@ -1006,7 +1006,7 @@ export default function UrbanGPTPage() {
               <div className="lg:sticky lg:top-6 self-start">
                 <div className="relative rounded-xl overflow-hidden border border-tan/30 shadow-sm">
                   <div className="w-full h-[480px]">
-                    <UrbanGPTMap
+                    <DatumMap
                       result={result}
                       layers={layers}
                       floodData={floodData}
@@ -1339,7 +1339,7 @@ export default function UrbanGPTPage() {
             </motion.div>
 
             <p className="text-xs text-brown-light/50 italic text-center mt-6">
-              UrbanGPT is a design research tool. Always verify data with official sources before making design decisions.
+              Datum is a design research tool. Always verify data with official sources before making design decisions.
             </p>
           </motion.div>
         )}

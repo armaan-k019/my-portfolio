@@ -84,8 +84,8 @@ const RAW: RawLocation[] = [
   { id: "page-blog", title: "Field Notes", type: "page", region: "RESEARCH", route: "/blog", secondary: ["DESIGN"], date: "2026.04" },
 
   // -- Projects (from content/projects.ts) ----------------------------------
-  { id: "archipedia", title: "Archipedia", type: "project", region: "DESIGN", route: "/projects/archipedia", externalLink: "https://archipedia.ai", secondary: ["ARCHITECTURE", "SYSTEMS"], date: "2026.04", related: ["latent-maps-architectural-reasoning", "urban-gpt"] },
-  { id: "urban-gpt", title: "UrbanGPT", type: "project", region: "DESIGN", route: "/projects/urban-gpt", secondary: ["SYSTEMS"], date: "2026.02", related: ["archipedia"] },
+  { id: "archipedia", title: "Archipedia", type: "project", region: "DESIGN", route: "/projects/archipedia", externalLink: "https://archipedia.ai", secondary: ["ARCHITECTURE", "SYSTEMS"], date: "2026.04", related: ["latent-maps-architectural-reasoning", "datum"] },
+  { id: "datum", title: "Datum", type: "project", region: "DESIGN", route: "/projects/datum", secondary: ["SYSTEMS"], date: "2026.02", related: ["archipedia"] },
 
   // -- Demos (company field stations) ---------------------------------------
   { id: "rho", title: "Drift Detection", type: "demo", region: "SYSTEMS", route: "/demos/rho", date: "2026.01" },

@@ -13,7 +13,7 @@ import { useEffect } from "react";
 import type {
   UrbanAnalysisResult,
   OverpassPoint,
-} from "../../api/urban-gpt/route";
+} from "../../api/datum/route";
 
 // ─── Types (mirrored from page.tsx) ───────────────────────────────────────────
 
@@ -161,7 +161,7 @@ const ZONING_COLORS: Record<string, string> = {
   unknown:       "#888888",
 };
 
-export default function UrbanGPTMap({ result, layers, floodData, heatData, zoningData }: Props) {
+export default function DatumMap({ result, layers, floodData, heatData, zoningData }: Props) {
   const center: [number, number] = [result.lat, result.lng];
   const zoom = getZoomForRadius(result.radiusM);
 

@@ -34,7 +34,7 @@ Next.js 16 App Router, React 19, TypeScript, Tailwind v4, deployed on Vercel. Se
 
 Four content systems feed the site, and knowing which one owns a page saves a lot of searching:
 
-1. **`content/*.ts`** holds hand written TypeScript data modules (`projects.ts`, `work.ts`, `photos.ts`, `photography.ts`). `content/projects.ts` is the registry that drives the projects index and the `/projects/[slug]` fallback renderer. A project appears on the site only if it has an entry here. It currently lists two: Archipedia (external link, no local page) and UrbanGPT.
+1. **`content/*.ts`** holds hand written TypeScript data modules (`projects.ts`, `work.ts`, `photos.ts`, `photography.ts`). `content/projects.ts` is the registry that drives the projects index and the `/projects/[slug]` fallback renderer. A project appears on the site only if it has an entry here. It currently lists two: Archipedia (external link, no local page) and Datum.
 2. **`content/blog/*.mdx` and `content/research/*.mdx`** are frontmatter driven MDX, read at build time through `src/lib/mdx.ts` (`gray-matter` plus `next-mdx-remote`). Adding a file is enough. There is no index to update.
 3. **`src/app/projects/<slug>/page.tsx`** are bespoke project pages that override the generic `[slug]` renderer. `fine-print` and `yield` are examples: routable, but absent from `content/projects.ts`, so unlisted on the projects index.
 4. **`src/app/demos/<slug>/`** are self contained recruiter facing demos, each with its own page, client components, and usually its own API route under `src/app/api/demos/<slug>/`.

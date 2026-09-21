@@ -20,11 +20,10 @@ export const projects: Project[] = [
     link: "https://archipedia.ai",
   },
   {
-    slug: "urban-gpt",
-    title: "UrbanGPT",
+    slug: "datum",
+    title: "Datum",
     blurb: "Site intelligence for architects: demographic and urban data at your fingertips.",
-    description: "UrbanGPT pulls demographic, economic, and spatial data for any architecture site and surfaces design-relevant insights automatically. Enter an address and receive median income, household composition, density, transit access, and AI-generated design implications to guide early-stage decisions.",
+    description: "Datum pulls demographic, economic, and spatial data for any architecture site and surfaces design-relevant insights automatically. Enter an address and receive median income, household composition, density, transit access, and AI-generated design implications to guide early-stage decisions.",
     stack: ["Next.js", "Census API", "OpenStreetMap", "Claude API"],
-    github: "https://github.com/armaan-k019/urban-gpt",
   },
 ];
