@@ -12,10 +12,8 @@ const sections = [
 ];
 
 const pages = [
-  { href: "/about", label: "About" },
   { href: "/demos", label: "Demos" },
-  { href: "/blog", label: "Blog" },
-  { href: "/photography", label: "Photography" },
+  { href: "/journal", label: "Journal" },
 ];
 
 export default function Navbar() {

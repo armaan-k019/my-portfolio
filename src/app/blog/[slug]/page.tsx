@@ -21,10 +21,10 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   return (
     <div className="max-w-3xl mx-auto px-6 py-16">
       <Link
-        href="/blog"
+        href="/journal"
         className="text-sm text-terracotta hover:text-terracotta-dark transition-colors mb-8 inline-block"
       >
-        &larr; Back to blog
+        &larr; Back to journal
       </Link>
       <article>
         <header className="mb-10">
