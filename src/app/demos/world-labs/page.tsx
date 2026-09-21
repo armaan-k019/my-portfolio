@@ -368,7 +368,7 @@ export default function WorldLabsPage() {
                   }}
                   placeholder="Or paste your own passage, roughly 100 to 400 words"
                   rows={4}
-                  className="w-full text-xs rounded-lg border px-3 py-2 mb-2 focus:outline-none"
+                  className="w-full text-xs rounded-lg border px-3 py-2 mb-2"
                   style={{ borderColor: C.cardBorder, backgroundColor: C.bg, color: HEADING }}
                 />
                 <button
