@@ -32,7 +32,7 @@ export default function JournalPage() {
               <Link
                 key={post.slug}
                 href={`/blog/${post.slug}`}
-                className="group flex items-baseline justify-between gap-4 py-3"
+                className="group flex items-baseline justify-between gap-4 py-4"
               >
                 <span className="font-display text-base text-ink group-hover:text-terracotta transition-colors">
                   {post.title}
