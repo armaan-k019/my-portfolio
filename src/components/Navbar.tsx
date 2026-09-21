@@ -123,6 +123,7 @@ export default function Navbar() {
             className="md:hidden flex flex-col gap-1 p-2"
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label="Toggle menu"
+            aria-expanded={mobileOpen}
           >
             <span className={`w-5 h-0.5 bg-darkblue transition-transform ${mobileOpen ? "rotate-45 translate-y-1.5" : ""}`} />
             <span className={`w-5 h-0.5 bg-darkblue transition-opacity ${mobileOpen ? "opacity-0" : ""}`} />
@@ -147,7 +148,7 @@ export default function Navbar() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed top-0 right-0 h-full w-64 bg-white z-50 shadow-xl p-8 flex flex-col gap-6 md:hidden"
+              className="fixed top-0 right-0 h-full w-64 bg-paper z-50 shadow-xl p-8 flex flex-col gap-6 md:hidden"
             >
               <button
                 onClick={() => setMobileOpen(false)}
