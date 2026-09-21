@@ -4,7 +4,6 @@ import { useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import Modal from "./Modal";
-import CurrentlyWorkingOn from "./CurrentlyWorkingOn";
 import { workEntries, type WorkEntry } from "../../content/work";
 
 const fadeUp = {
@@ -84,10 +83,6 @@ export default function WorkSection() {
             </motion.button>
           );
         })}
-      </div>
-
-      <div className="mt-8">
-        <CurrentlyWorkingOn />
       </div>
 
       <Modal open={!!selected} onClose={() => setSelected(null)}>
