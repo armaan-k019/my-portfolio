@@ -1163,8 +1163,6 @@ export default function UrbanGPTPage() {
                         tooltip="Average number of people per household." />
                       <StatCard label="Unemployed" value={fmtNum(result.census.unemployedPop)}
                         tooltip="Number of residents in the labor force who are unemployed." />
-                      <StatCard label="Est. Homeless" value={fmtNum(result.census.estHomelessPop)}
-                        tooltip="ACS imputed estimate of homeless population." />
                       <StatCard label="Bachelor's Degree+" value={fmtPct(result.census.bachelorsOrHigherPct)}
                         tooltip="Share of adults with a bachelor's degree or higher." />
                       <StatCard label="Non-Hisp. White" value={fmtPct(result.census.nonHispanicWhitePct)}
