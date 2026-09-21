@@ -1,8 +1,9 @@
 # Phase 0 baseline: pre-rebuild state of `/projects/datum`
 
 Captured 2026-09-21 against the current `src/app/projects/datum/page.tsx` (1350 lines) after the
-FEMA NFHL host fix (`src/app/api/flood-risk/route.ts`, the `arcgis` path replacing `gis/nfhl`) and
-with no `CENSUS_API_KEY` set. Run with `npm run build && npm run e2e:baseline`
+FEMA NFHL host fix (`src/app/api/flood-risk/route.ts`, the `arcgis` path replacing `gis/nfhl`).
+`CENSUS_API_KEY` is set in `.env.local`, but the current route never sends it (see the Census note
+below). Run with `npm run build && npm run e2e:baseline`
 (`e2e/baseline.spec.ts`, one Playwright test per site, `workers: 1`). Each test typed the address
 into the field, waited 700 ms, pressed Escape, then clicked a neutral point on the page to close
 the suggestion list without picking a suggestion (the page has no Escape handler on the address
