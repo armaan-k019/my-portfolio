@@ -7,7 +7,16 @@ export const metadata = { title: "Journal | Armaan Kazi" };
 
 export default function JournalPage() {
   const posts = getBlogPosts();
-  const previewPhotos = PHOTOS.slice(0, 6);
+
+  const seenDestinations = new Set<string>();
+  const previewPhotos = [];
+  for (const photo of PHOTOS) {
+    if (previewPhotos.length >= 4) break;
+    if (!seenDestinations.has(photo.location)) {
+      seenDestinations.add(photo.location);
+      previewPhotos.push(photo);
+    }
+  }
 
   return (
     <div className="max-w-5xl mx-auto px-6 pt-12 pb-20">
@@ -43,7 +52,7 @@ export default function JournalPage() {
         <section>
           <h2 className="font-display text-xl font-semibold text-ink mb-1">Photography</h2>
           <hr className="rule mb-6" />
-          <Link href="/photography" className="group block">
+          <Link href="/photography" className="group block" aria-label={`View all ${TOTAL_PHOTOS} photos`}>
             <div className="grid grid-cols-2 gap-2 mb-3">
               {previewPhotos.map((photo) => (
                 <div key={photo.id} className="relative aspect-square rounded-lg overflow-hidden bg-[#D8E6D8]">
