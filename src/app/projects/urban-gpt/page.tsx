@@ -874,7 +874,7 @@ export default function UrbanGPTPage() {
             Most of the work went into the things that fail. The map started on Google Maps and moved to Leaflet mid build after API key domain restrictions and cost made production unreliable. Vercel&rsquo;s serverless functions returned 504s once five external calls ran in sequence, so the orchestration route now runs with a sixty second limit and the calls run in parallel. Any of those five sources can still time out, which meant rewriting the Claude prompt to reason from whatever data actually arrived rather than assuming a complete set.
           </p>
           <p className="text-base text-brown leading-relaxed">
-            Built in April 2026 as a personal project at the intersection of computer science and architecture. Today the free data backends (Overpass, Census, FEMA, Open-Meteo) return live results. The Claude generated design implications are offline pending an API key rotation. Everything else works end to end, and the tool is below.
+            Built in April 2026 as a personal project at the intersection of computer science and architecture. Today the free data backends (Overpass, Census, FEMA, Open-Meteo) return live results. Everything else works end to end, and the tool is below.
           </p>
         </div>
 
