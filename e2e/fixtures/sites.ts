@@ -18,7 +18,11 @@ export const testSites: TestSite[] = [
   },
   {
     slug: "miami",
-    query: "NE 25th St and Biscayne Blvd, Miami, FL",
+    // Nominatim's search endpoint (used by the typed path, no suggestion
+    // picked) does not resolve "NE 25th St and Biscayne Blvd, Miami, FL"
+    // (SPEC.md's prose form, verified empty on 2026-09-21). "&" in place of
+    // "and" resolves to the exact SPEC.md coordinates below.
+    query: "NE 25th St & Biscayne Blvd, Miami, FL",
     lat: 25.8011588,
     lng: -80.1890627,
   },

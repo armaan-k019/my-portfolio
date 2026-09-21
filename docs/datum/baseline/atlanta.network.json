@@ -1,0 +1,26 @@
+{
+  "slug": "atlanta",
+  "totalTimeMs": 31922,
+  "calls": [
+    {
+      "url": "http://localhost:3000/api/datum",
+      "status": 200,
+      "durationMs": 31406
+    },
+    {
+      "url": "http://localhost:3000/api/heat-island?lat=33.7766729&lng=-84.3920932&parksCount=0",
+      "status": 200,
+      "durationMs": 165
+    },
+    {
+      "url": "http://localhost:3000/api/zoning?lat=33.7766729&lng=-84.3920932",
+      "status": 200,
+      "durationMs": 5761
+    },
+    {
+      "url": "http://localhost:3000/api/flood-risk?lat=33.7766729&lng=-84.3920932",
+      "status": 200,
+      "durationMs": 7863
+    }
+  ]
+}
