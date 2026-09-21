@@ -9,6 +9,7 @@ interface ApiCall {
   url: string;
   status: number;
   durationMs: number;
+  bodyKeys: string[] | null;
 }
 
 function recordApiResponses(page: Page, calls: ApiCall[]) {
@@ -36,7 +37,19 @@ function recordApiResponses(page: Page, calls: ApiCall[]) {
       const start = startTimes.get(request);
       durationMs = start ? Date.now() - start : -1;
     }
-    calls.push({ url, status: response.status(), durationMs });
+    const call: ApiCall = { url, status: response.status(), durationMs, bodyKeys: null };
+    calls.push(call);
+    // Record the top level keys of the JSON body so a 200 status with an
+    // {error} body is visible in the network capture, not just in a
+    // status column that cannot distinguish it from a real result.
+    response
+      .json()
+      .then((body) => {
+        call.bodyKeys = body && typeof body === "object" ? Object.keys(body) : null;
+      })
+      .catch(() => {
+        call.bodyKeys = null;
+      });
   });
 }
 
@@ -65,10 +78,8 @@ for (const site of testSites) {
     await analyzeButton.click();
 
     // Wait for the loading state to start, then for it to clear (result or error).
-    await expect(analyzeButton).toHaveText("Analyzing site…", { timeout: 15_000 }).catch(() => {
-      // If the request is fast enough that we miss the loading frame, that's fine;
-      // the next wait still holds.
-    });
+    // No .catch here: a click that fires nothing must fail the test, not pass silently.
+    await expect(analyzeButton).toHaveText("Analyzing site…", { timeout: 15_000 });
     await expect(analyzeButton).toHaveText("Analyze Site", { timeout: 120_000 });
     const resultsOrErrorTime = Date.now();
     const totalTimeMs = resultsOrErrorTime - clickTime;
@@ -127,10 +138,9 @@ for (const site of testSites) {
       "utf-8"
     );
 
-    // No hard assertion on success/failure here; Phase 0 records the true state
-    // of the current page, including known-broken external dependencies.
-    if (apiCalls.length === 0) {
-      console.warn(`baseline: ${site.slug} made no /api/ calls (see .text.txt for the error shown)`);
-    }
+    // Phase 0 records the true state of the current page, including known-broken
+    // external dependencies, but a click that fires no /api/ calls at all is a
+    // hard failure, not a state worth recording silently.
+    expect(apiCalls.length).toBeGreaterThan(0);
   });
 }

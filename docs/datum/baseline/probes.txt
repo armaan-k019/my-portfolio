@@ -1,0 +1,33 @@
+Datum Phase 0 baseline: independent probes for the Overpass 406/429 and FEMA area-query 500
+claims in README.md. Run directly against the live services, not through the app. Each command is
+printed on its own line above its raw output.
+
+=== a. Overpass, no User-Agent (expect 406) ===
+date: 2026-09-21 21:45:24 UTC
+
+curl -s -m 30 -o /dev/null -w "%{http_code}\n" -X POST https://overpass-api.de/api/interpreter --data-urlencode 'data=[out:json][timeout:25];node["highway"="bus_stop"](around:200,33.7756,-84.3963);out 3;'
+406
+
+=== b. Overpass, with User-Agent "Datum-baseline-probe/0.1" (expect 200, or 429/504 if busy) ===
+date: 2026-09-21 21:45:29 UTC
+
+curl -s -m 30 -o /dev/null -w "%{http_code}\n" -A "Datum-baseline-probe/0.1" -X POST https://overpass-api.de/api/interpreter --data-urlencode 'data=[out:json][timeout:25];node["highway"="bus_stop"](around:200,33.7756,-84.3963);out 3;'
+200
+
+=== c. FEMA area query as built for Miami, returnGeometry=true, first 200 bytes ===
+envelope: lng-0.05,lat-0.05,lng+0.05,lat+0.05 around 25.8011588,-80.1890627
+date: 2026-09-21 21:45:43 UTC
+
+curl -s -m 30 "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query?geometry=-80.23906269999999,25.7511588,-80.1390627,25.8511588&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=FLD_ZONE,ZONE_SUBTY,SFHA_TF&returnGeometry=true&f=json" | head -c 200
+{"error":{"code":500,"message":"Error performing query operation","details":[]}}
+
+=== d. Same FEMA area query, returnGeometry=false, first 300 bytes ===
+date: 2026-09-21 21:45:50 UTC
+
+curl -s -m 30 "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query?geometry=-80.23906269999999,25.7511588,-80.1390627,25.8511588&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=FLD_ZONE,ZONE_SUBTY,SFHA_TF&returnGeometry=false&f=json" | head -c 300
+{"displayFieldName":"FLD_AR_ID","fieldAliases":{"FLD_ZONE":"FLD_ZONE","ZONE_SUBTY":"ZONE_SUBTY","SFHA_TF":"SFHA_TF"},"fields":[{"name":"FLD_ZONE","type":"esriFieldTypeString","alias":"FLD_ZONE","length":17},{"name":"ZONE_SUBTY","type":"esriFieldTypeString","alias":"ZONE_SUBTY","length":76},{"name":
+
+All four results match the claims previously made in README.md from server console observations
+during the baseline run: Overpass returns 406 with no User-Agent and 200 with one, and the FEMA
+area query returns an ArcGIS-side HTTP 500 with returnGeometry=true and succeeds with
+returnGeometry=false, on the exact envelope the route builds for Miami.
