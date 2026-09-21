@@ -52,15 +52,16 @@ export default function ResearchSection({ entries }: { entries: ResearchEntry[] 
         })}
       </div>
 
-      <Modal open={!!selected} onClose={() => setSelected(null)}>
+      <Modal open={!!selected} onClose={() => setSelected(null)} titleId="research-modal-title">
         {selected && (
           <div>
-            <div className="bg-darkblue -mx-6 -mt-6 px-6 py-5 rounded-t-2xl mb-5">
-              <h3 className="font-display text-xl font-semibold text-white leading-snug">{selected.title}</h3>
+            <div className="mb-4">
+              <h3 id="research-modal-title" className="font-display text-xl font-semibold text-ink leading-snug">{selected.title}</h3>
               {selected.status && (
-                <p className="text-[11px] uppercase tracking-wide text-tan-light mt-1.5">{selected.status}</p>
+                <p className="meta text-terracotta/80 mt-1.5">{selected.status}</p>
               )}
             </div>
+            <hr className="rule mb-4" />
 
             {selected.authors && (
               <p className="text-xs text-brown-light mb-3">

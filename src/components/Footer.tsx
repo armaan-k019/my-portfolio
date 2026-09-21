@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 export default function Footer() {
   return (
     <footer className="relative overflow-hidden bg-[#16241A]">
@@ -21,6 +23,13 @@ export default function Footer() {
         </div>
 
         <div className="flex items-center gap-5">
+          {/* About */}
+          <Link
+            href="/about"
+            className="text-white/70 hover:text-tan transition-colors text-sm"
+          >
+            About
+          </Link>
           {/* Email */}
           <a
             href="mailto:archarmaan@gmail.com"

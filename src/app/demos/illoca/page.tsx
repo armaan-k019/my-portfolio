@@ -195,7 +195,7 @@ export default function IllocaPage() {
                 onChange={(e) => setBrief(e.target.value)}
                 placeholder="Program, site, aspirations, constraints"
                 rows={5}
-                className="w-full text-sm rounded-lg border px-3 py-2 mb-3 focus:outline-none"
+                className="w-full text-sm rounded-lg border px-3 py-2 mb-3"
                 style={{ borderColor: C.cardBorder, backgroundColor: C.bg, color: HEADING }}
               />
               <div className="flex gap-2 flex-wrap mb-3">

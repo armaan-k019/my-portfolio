@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface ModalProps {
@@ -8,10 +9,16 @@ interface ModalProps {
   onClose: () => void;
   children: React.ReactNode;
   panelClassName?: string;
+  titleId?: string;
 }
 
-export default function Modal({ open, onClose, children, panelClassName }: ModalProps) {
+export default function Modal({ open, onClose, children, panelClassName, titleId }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -51,15 +58,17 @@ export default function Modal({ open, onClose, children, panelClassName }: Modal
     };
   }, [open, handleKeyDown]);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-[#16241A]/40 backdrop-blur-[3px]"
+            className="absolute inset-0 bg-[#16241A]/40"
             onClick={onClose}
           />
           <motion.div
@@ -67,6 +76,7 @@ export default function Modal({ open, onClose, children, panelClassName }: Modal
             tabIndex={-1}
             role="dialog"
             aria-modal="true"
+            aria-labelledby={titleId}
             initial={{ opacity: 0, scale: 0.97, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.97, y: 12 }}
@@ -89,6 +99,7 @@ export default function Modal({ open, onClose, children, panelClassName }: Modal
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
