@@ -59,7 +59,7 @@ export default function Modal({ open, onClose, children, panelClassName }: Modal
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-[#16241A]/40 backdrop-blur-[3px]"
+            className="absolute inset-0 bg-[#16241A]/40"
             onClick={onClose}
           />
           <motion.div

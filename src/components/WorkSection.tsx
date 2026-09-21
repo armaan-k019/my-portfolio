@@ -88,17 +88,16 @@ export default function WorkSection() {
       <Modal open={!!selected} onClose={() => setSelected(null)}>
         {selected && (
           <div>
-            <div className="bg-darkblue -mx-6 -mt-6 px-6 py-5 rounded-t-2xl mb-5">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 flex items-center justify-center">
-                  <LogoWithFallback src={selected.logo} alt={selected.name} dark />
-                </div>
-                <div>
-                  <h3 className="font-display text-xl font-semibold text-white">{selected.name}</h3>
-                  <p className="text-sm text-white/70">{selected.role}</p>
-                </div>
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-10 h-10 flex items-center justify-center">
+                <LogoWithFallback src={selected.logo} alt={selected.name} />
+              </div>
+              <div>
+                <h3 className="font-display text-xl font-semibold text-ink">{selected.name}</h3>
+                <p className="text-sm text-brown-light">{selected.role}</p>
               </div>
             </div>
+            <hr className="rule mb-4" />
             <p className="text-xs text-brown-light mb-4">{selected.dates}</p>
             <ul className="space-y-2">
               {selected.bullets.map((bullet, i) => (
