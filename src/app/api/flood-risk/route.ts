@@ -76,7 +76,7 @@ export async function GET(request: Request) {
   }
 
   const d = 0.05;
-  const base = "https://hazards.fema.gov/gis/nfhl/rest/services/public/NFHL/MapServer/28/query";
+  const base = "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query";
   const pointUrl =
     `${base}?geometry=${lng},${lat}&geometryType=esriGeometryPoint&inSR=4326` +
     `&spatialRel=esriSpatialRelIntersects&outFields=FLD_ZONE,ZONE_SUBTY,SFHA_TF&returnGeometry=false&f=json`;
