@@ -96,7 +96,7 @@ export default function Navbar() {
               <a
                 key={s.id}
                 href={isHome ? `#${s.id}` : `/#${s.id}`}
-                onClick={(e) => e.currentTarget.blur()}
+                onClick={(e) => { if (e.detail > 0) e.currentTarget.blur(); }}
                 className={navLinkClass(activeSection === s.id && isHome)}
               >
                 {s.label}
@@ -110,7 +110,7 @@ export default function Navbar() {
               <Link
                 key={p.href}
                 href={p.href}
-                onClick={(e) => e.currentTarget.blur()}
+                onClick={(e) => { if (e.detail > 0) e.currentTarget.blur(); }}
                 className={navLinkClass(pathname.startsWith(p.href))}
               >
                 {p.label}
@@ -161,7 +161,7 @@ export default function Navbar() {
                   key={s.id}
                   href={isHome ? `#${s.id}` : `/#${s.id}`}
                   className="text-lg text-brown hover:text-terracotta transition-colors"
-                  onClick={(e) => { e.currentTarget.blur(); handleSectionClick(s.id); }}
+                  onClick={(e) => { if (e.detail > 0) e.currentTarget.blur(); handleSectionClick(s.id); }}
                 >
                   {s.label}
                 </a>
@@ -172,7 +172,7 @@ export default function Navbar() {
                   key={p.href}
                   href={p.href}
                   className="text-lg text-brown hover:text-terracotta transition-colors flex items-center gap-1.5"
-                  onClick={(e) => { e.currentTarget.blur(); setMobileOpen(false); }}
+                  onClick={(e) => { if (e.detail > 0) e.currentTarget.blur(); setMobileOpen(false); }}
                 >
                   {p.label}
                   <svg className="w-3 h-3 text-brown-light" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
