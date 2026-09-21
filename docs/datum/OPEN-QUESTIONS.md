@@ -63,7 +63,7 @@ session reads it before each phase.
     licence string because the licence text was not verified.
 
 12. **User-Agent contact string.** Nominatim requires a User-Agent that identifies the application.
-    The spec uses `UrbanGPT/2.0 (site analysis; portfolio; +<site URL>)`. Provide the production
+    The spec uses `Datum/1.0 (site analysis; portfolio; +<site URL>)`. Provide the production
     site URL to put there; the default until then is the GitHub profile URL.
 
 13. **`content/projects.ts` GitHub link.** The entry links to `github.com/armaan-k019/urban-gpt`.

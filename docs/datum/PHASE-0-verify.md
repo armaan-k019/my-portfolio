@@ -18,7 +18,7 @@ is small enough to belong here (the FEMA path).
 - `e2e/**` (new)
 - `.gitignore` (add `/test-results/`, `/playwright-report/`, `/e2e/.auth/`)
 - `src/app/api/flood-risk/route.ts` (URL constant only)
-- `docs/urbangpt/baseline/**` (new)
+- `docs/datum/baseline/**` (new)
 
 Nothing else. In particular not `page.tsx`, not `globals.css`, not `layout.tsx`.
 
@@ -68,7 +68,7 @@ Add to `package.json` scripts:
 `e2e/fixtures/sites.ts` exports the three test sites exactly as in `SPEC.md` section 5, with
 `slug`, `query` (the address string), `lat`, `lng`.
 
-Commit: `test: add Playwright scaffold for UrbanGPT verification`
+Commit: `test: add Playwright scaffold for Datum verification`
 
 Verify: `git diff --name-only main` lists only `package.json`, `package-lock.json`,
 `playwright.config.ts`, `.gitignore`, `e2e/fixtures/sites.ts`.
@@ -97,7 +97,7 @@ Expected WaKeeney: the current code has no coverage check, so it returns `"zoneA
 with `isMinimalRisk: true`. That is a known false "minimal" for an unmapped community and is fixed
 in phase 1 (layer 0 coverage check). Record this in the baseline notes; do not fix it here.
 
-Commit: `fix(urban-gpt): point flood route at the current NFHL ArcGIS host`
+Commit: `fix(datum): point flood route at the current NFHL ArcGIS host`
 
 Verify: `git diff --name-only main` adds only `src/app/api/flood-risk/route.ts`.
 
@@ -107,49 +107,49 @@ Verify: `git diff --name-only main` adds only `src/app/api/flood-risk/route.ts`.
 
 1. Record every response whose URL contains `/api/` as `{ url, status, durationMs }` using
    `page.on("response")` with `request().timing()`.
-2. Go to `/projects/urban-gpt`. Fill the address input with `query`. Wait 700 ms for the
+2. Go to `/projects/datum`. Fill the address input with `query`. Wait 700 ms for the
    suggestion list, press Escape (do not pick a suggestion; the baseline tests the typed path).
    Click "Analyze Site".
 3. Wait until either the results block or the error block appears, up to 120 s.
    Then wait a further 20 s for the flood, heat, and zoning panels to settle.
 4. Click through the four tabs (Demographics, Flood Risk, Heat Island, Zoning), screenshotting
-   each: `docs/urbangpt/baseline/<slug>-<tab>.png`, full page.
-5. Write `docs/urbangpt/baseline/<slug>.network.json` with the recorded responses and the total
+   each: `docs/datum/baseline/<slug>-<tab>.png`, full page.
+5. Write `docs/datum/baseline/<slug>.network.json` with the recorded responses and the total
    time from click to results.
-6. Write `docs/urbangpt/baseline/<slug>.text.txt` with `innerText` of the results block, so the
+6. Write `docs/datum/baseline/<slug>.text.txt` with `innerText` of the results block, so the
    numbers the old page showed are preserved as text, not just pixels.
 
 Run:
 
 ```bash
 npm run build && npm run e2e:baseline
-ls docs/urbangpt/baseline
+ls docs/datum/baseline
 ```
 
 Expected files: 12 PNGs, 3 network JSONs, 3 text files.
 
-Then write `docs/urbangpt/baseline/README.md` by hand from the captured data (not from memory):
+Then write `docs/datum/baseline/README.md` by hand from the captured data (not from memory):
 one table with, per site, total time to results, status of each `/api/` call, and which panels
 showed data, an error, or a default. Include the WaKeeney false "minimal" flood note and whether
 Census returned nulls (expected: yes, no key), and whether Overpass returned 406 (expected: yes,
 the current route sends no User-Agent).
 
-Commit: `docs(urban-gpt): capture pre-rebuild baseline for three test sites`
+Commit: `docs(datum): capture pre-rebuild baseline for three test sites`
 
-Verify: `git diff --name-only main` adds only `e2e/baseline.spec.ts` and `docs/urbangpt/baseline/**`.
+Verify: `git diff --name-only main` adds only `e2e/baseline.spec.ts` and `docs/datum/baseline/**`.
 
 ## Acceptance criteria
 
 - [ ] `git merge-base --is-ancestor 5fda80e HEAD` exits 0.
 - [ ] `npx playwright --version` prints a version; `npm run e2e:baseline` exits 0.
-- [ ] `docs/urbangpt/baseline/` contains 12 PNGs, 3 `.network.json`, 3 `.text.txt`, one `README.md`.
+- [ ] `docs/datum/baseline/` contains 12 PNGs, 3 `.network.json`, 3 `.text.txt`, one `README.md`.
 - [ ] Miami baseline network JSON shows `/api/flood-risk` status 200 and the flood tab screenshot
       shows "ZONE X" with a moderate badge, not the unavailable message.
-- [ ] Each `.network.json` records `/api/urban-gpt` total time; README quotes those three numbers.
+- [ ] Each `.network.json` records `/api/datum` total time; README quotes those three numbers.
 - [ ] `npx tsc --noEmit` clean (delete `.next/` and rerun if the only errors are inside it).
 - [ ] `npm run build` succeeds.
 - [ ] Three commits on the branch, each touching only the files listed for its step.
-- [ ] No key values in any committed file: `git grep -nE "(sk-ant|eyJhbGci)" -- docs/urbangpt/baseline e2e` prints nothing.
+- [ ] No key values in any committed file: `git grep -nE "(sk-ant|eyJhbGci)" -- docs/datum/baseline e2e` prints nothing.
 
 ## Tripwires: stop and ask
 
