@@ -31,7 +31,7 @@ Not allowed: `src/app/projects/**`, `src/app/api/datum/route.ts` (old, untouched
 
 ## Prerequisites
 
-- `CENSUS_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`. If any is missing,
+- `CENSUS_API_KEY`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY` in `.env.local`. If any is missing,
   stop and ask (tripwire) rather than working around it.
 - Migration 0001 applied by the owner. Check with the SQL in step 1.1 before writing code that
   depends on it.
@@ -71,7 +71,7 @@ where table_schema = 'public' and table_name in ('api_cache','sites','layer_resu
 Expected: four rows.
 
 `src/lib/datum/memory.ts`:
-- `getClient()` singleton from `@supabase/supabase-js` with the service role key, `auth: { persistSession: false }`.
+- `getClient()` singleton from `@supabase/supabase-js` with the secret key (`SUPABASE_SECRET_KEY`), `auth: { persistSession: false }`.
 - `withMemory<T>(op: (client) => Promise<T>): Promise<T | undefined>` with the 3 s timeout, single
   retry, and the offline flag with 60 s cool down from `SPEC.md` section 13.
 - `getOrCreateSite({ lat, lng, locality, tractGeoid, isTest })`, `touchSite(id)`,

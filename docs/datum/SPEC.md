@@ -634,7 +634,8 @@ behaviour.
 
 ## 13. Data model (Supabase, Postgres)
 
-All access is server side with the service role key. RLS is enabled on every table with no policies,
+All access is server side with the secret key (an `sb_secret_` key, which `createClient` accepts in
+place of the legacy service_role key). RLS is enabled on every table with no policies,
 so the anon key (which is never shipped) could not read anything even if leaked. Migrations are
 plain SQL files under `supabase/migrations/`, numbered, applied by the owner in the SQL editor.
 
@@ -693,6 +694,10 @@ alter table api_cache     enable row level security;
 alter table sites         enable row level security;
 alter table layer_results enable row level security;
 alter table rate_limits   enable row level security;
+
+-- The project has "automatically expose new tables" turned off, so grants are explicit.
+-- service_role only. Nothing is granted to anon or authenticated.
+grant select, insert, update, delete on api_cache, sites, layer_results, rate_limits to service_role;
 ```
 
 Only `ok` and `partial` and `no_coverage` envelopes are written to `layer_results`; transient
@@ -722,6 +727,7 @@ create table briefs (
   primary key (site_id, input_hash)
 );
 alter table briefs enable row level security;
+grant select, insert, update, delete on briefs to service_role;
 
 -- percentile helper: rank of one value among non test sites for a named metric
 create or replace function metric_percentile(metric text, value double precision)
@@ -828,7 +834,7 @@ three components that differ least. Percentiles use `metric_percentile()` on the
 | `ANTHROPIC_API_KEY` | existing | brief route | |
 | `CENSUS_API_KEY` | phase 1 | `sources/census.ts` | missing key produces the `missing_key` envelope, never a crash |
 | `SUPABASE_URL` | phase 1 | `memory.ts`, `cache.ts` | project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | phase 1 | same | server only; never prefixed `NEXT_PUBLIC_` |
+| `SUPABASE_SECRET_KEY` | phase 1 | same | an `sb_secret_` key; server only; never prefixed `NEXT_PUBLIC_`. Supabase is retiring legacy service_role keys by the end of 2026 |
 | `DATUM_ALLOW_TEST_FLAG` | phase 1, local and preview only | `site` route | `1` lets the client set `isTest`; unset in production |
 | `DATUM_SOURCE_OVERRIDES` | tests only | `sources/*` | JSON map of source name to base URL, honoured only when `NODE_ENV !== "production"`; used by e2e to point a source at an unreachable port and assert the unavailable state |
 | `CRON_SECRET` | phase 3 | `memory/ping` | Vercel sets `Authorization: Bearer <CRON_SECRET>` on cron requests; the route rejects anything else |
