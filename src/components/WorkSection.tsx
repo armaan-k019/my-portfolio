@@ -85,7 +85,7 @@ export default function WorkSection() {
         })}
       </div>
 
-      <Modal open={!!selected} onClose={() => setSelected(null)}>
+      <Modal open={!!selected} onClose={() => setSelected(null)} titleId="work-modal-title">
         {selected && (
           <div>
             <div className="flex items-center gap-4 mb-4">
@@ -93,7 +93,7 @@ export default function WorkSection() {
                 <LogoWithFallback src={selected.logo} alt={selected.name} imageClassName="object-contain max-h-10 max-w-10 w-auto h-auto" />
               </div>
               <div>
-                <h3 className="font-display text-xl font-semibold text-ink">{selected.name}</h3>
+                <h3 id="work-modal-title" className="font-display text-xl font-semibold text-ink">{selected.name}</h3>
                 <p className="text-sm text-brown-light">{selected.role}</p>
               </div>
             </div>

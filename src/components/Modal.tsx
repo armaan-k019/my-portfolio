@@ -9,9 +9,10 @@ interface ModalProps {
   onClose: () => void;
   children: React.ReactNode;
   panelClassName?: string;
+  titleId?: string;
 }
 
-export default function Modal({ open, onClose, children, panelClassName }: ModalProps) {
+export default function Modal({ open, onClose, children, panelClassName, titleId }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -75,6 +76,7 @@ export default function Modal({ open, onClose, children, panelClassName }: Modal
             tabIndex={-1}
             role="dialog"
             aria-modal="true"
+            aria-labelledby={titleId}
             initial={{ opacity: 0, scale: 0.97, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.97, y: 12 }}
