@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface ModalProps {
@@ -12,6 +13,11 @@ interface ModalProps {
 
 export default function Modal({ open, onClose, children, panelClassName }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -51,7 +57,9 @@ export default function Modal({ open, onClose, children, panelClassName }: Modal
     };
   }, [open, handleKeyDown]);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -89,6 +97,7 @@ export default function Modal({ open, onClose, children, panelClassName }: Modal
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
