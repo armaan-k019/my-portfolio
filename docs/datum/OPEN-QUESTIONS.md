@@ -63,13 +63,14 @@ session reads it before each phase.
     licence string because the licence text was not verified.
 
 12. **User-Agent contact string.** Nominatim requires a User-Agent that identifies the application.
-    The spec uses `UrbanGPT/2.0 (site analysis; portfolio; +<site URL>)`. Provide the production
+    The spec uses `Datum/1.0 (site analysis; portfolio; +<site URL>)`. Provide the production
     site URL to put there; the default until then is the GitHub profile URL.
 
 13. **`content/projects.ts` GitHub link.** The entry links to `github.com/armaan-k019/urban-gpt`.
     If that repository does not reflect this rebuild, the link should be removed in phase 2 step
     2.5 (it would otherwise describe code that is not the shipped code). Decide: keep, update, or
-    remove.
+    remove. Resolved 2026-09-21: the link was removed in the rename to Datum; that repository does
+    not contain this code and will not contain the rebuild.
 
 14. **Precedent dataset (phase 4, BLOCKED).** Choose a dataset from `PHASE-4-precedents.md` or
     name another, state the licence you accept, whether non US precedents are included (which
@@ -92,3 +93,5 @@ session reads it before each phase.
     Open-Meteo response. If Open-Meteo is down, the spec computes sun times in UTC and marks the
     layer partial. Alternative: add a small timezone lookup dependency. Default: UTC with the
     partial flag, no dependency.
+
+19. Renamed to Datum; resolved.

@@ -9,7 +9,7 @@ would fail a listed check, not that a human would notice.
 |---|---|---|
 | Playwright browsers install but the `webServer` never comes up (port in use, build stale) | Baseline never captured; later phases have no verification | Phase 0 acceptance: `npm run e2e:baseline` exits 0 and the 18 baseline files exist |
 | The FEMA fix is right but the WaKeeney false "minimal" is mistaken for a bug and fixed here, widening scope | Phase 0 touches classification logic that phase 1 deletes | Step 0.3 states the expected WaKeeney output and the README records it; the allowed file list has one file with one constant; `git diff --name-only main` check |
-| Baseline README written from memory rather than the captured data | The record of the old state is wrong | README must quote the three `/api/urban-gpt` timings from the `.network.json` files; the reviewer diffs them |
+| Baseline README written from memory rather than the captured data | The record of the old state is wrong | README must quote the three `/api/datum` timings from the `.network.json` files; the reviewer diffs them |
 
 ## Phase 1
 

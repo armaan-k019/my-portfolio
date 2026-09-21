@@ -12,7 +12,7 @@ const PROJECT_OPTIONS = [
   "General / Other",
   "Acoustic Form",
   "Fine Print",
-  "UrbanGPT",
+  "Datum",
   "Tempo",
   "Yield",
   "Edo Commons",

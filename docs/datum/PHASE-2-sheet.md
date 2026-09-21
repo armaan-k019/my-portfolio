@@ -7,34 +7,34 @@ Read `SPEC.md` sections 3, 6, 10, 11, 12, 17 before starting. Phase 1 must be co
 
 ## Scope
 
-1. Pure SVG builders under `src/lib/urban-gpt/sheet/`.
+1. Pure SVG builders under `src/lib/datum/sheet/`.
 2. Brief route with streaming and citation validation.
 3. Page rebuild: address entry, confirm map, progressive panels, brief, export.
 4. Deletions listed in `SPEC.md` section 17.
-5. `content/projects.ts` UrbanGPT entry rewritten to match the shipped code.
+5. `content/projects.ts` Datum entry rewritten to match the shipped code.
 6. Playwright: screenshots, export validity, layer group list, unavailable states, brief citations.
 
 ## Files allowed to change
 
-- `src/lib/urban-gpt/sheet/**` (new), `src/lib/urban-gpt/brief/**` (new)
-- `src/app/api/urban-gpt/brief/route.ts` (new)
-- `src/app/projects/urban-gpt/**` (rewrite; `UrbanGPTMap.tsx` deleted)
-- `content/projects.ts` (the `urban-gpt` entry only)
+- `src/lib/datum/sheet/**` (new), `src/lib/datum/brief/**` (new)
+- `src/app/api/datum/brief/route.ts` (new)
+- `src/app/projects/datum/**` (rewrite; `DatumMap.tsx` deleted)
+- `content/projects.ts` (the `datum` entry only)
 - `e2e/sheet.spec.ts`, `e2e/unit/sheet.test.ts`, `e2e/fixtures/layers/**` (new)
 - Deletions, exactly these six paths and nothing else:
   - `src/app/api/heat-island/route.ts`
   - `src/app/api/zoning/route.ts`
-  - `src/app/api/urban-gpt/overpass/route.ts`
+  - `src/app/api/datum/overpass/route.ts`
   - `src/app/api/flood-risk/route.ts`
-  - `src/app/api/urban-gpt/route.ts`
-  - `src/app/projects/urban-gpt/UrbanGPTMap.tsx`
+  - `src/app/api/datum/route.ts`
+  - `src/app/projects/datum/DatumMap.tsx`
 
 Not allowed: `src/app/layout.tsx`, `src/app/globals.css` (use existing tokens and primitives;
 sheet colours are hard coded hex copies of the tokens inside `sheet/styles.ts` because the SVG must
-be self contained), `src/lib/urban-gpt/sources/**` (phase 1 code; if a bug is found, stop and ask).
+be self contained), `src/lib/datum/sources/**` (phase 1 code; if a bug is found, stop and ask).
 
-Before deleting anything, run `git grep -n "heat-island\|/api/zoning\|urban-gpt/overpass\|flood-risk\|UrbanGPTMap"`
-and confirm the only consumers are inside `src/app/projects/urban-gpt/` (which is being rewritten)
+Before deleting anything, run `git grep -n "heat-island\|/api/zoning\|datum/overpass\|flood-risk\|DatumMap"`
+and confirm the only consumers are inside `src/app/projects/datum/` (which is being rewritten)
 and `e2e/baseline.spec.ts` (which stays as a historical record and is excluded from the default
 `e2e` script by renaming it to `e2e/baseline.spec.ts.skip` in step 2.6... see that step).
 
@@ -50,7 +50,7 @@ text, maxWidthPt, fontSizePt, avgCharEm = 0.5)` returning lines, and `escapeXml`
 Unit test: every zone lies inside the page and no two zones overlap (rectangle intersection test
 over all pairs). `escapeXml("<&>\"")` round trips.
 
-Commit: `feat(urban-gpt): add sheet layout constants and styles`
+Commit: `feat(datum): add sheet layout constants and styles`
 
 ### Step 2.2: builders
 
@@ -83,7 +83,7 @@ Unit tests (`e2e/unit/sheet.test.ts`):
 - Scale bars: the site plan imperial bar's 200 ft tick is 72 pt from its origin (1 in = 200 ft).
 - Text budget: no `<tspan` line in the brief group exceeds 110 characters.
 
-Commit: `feat(urban-gpt): add pure SVG builders for every sheet group`
+Commit: `feat(datum): add pure SVG builders for every sheet group`
 
 ### Step 2.3: brief route
 
@@ -99,7 +99,7 @@ Unit tests:
 - A citation not in `fieldPaths` is returned as invalid.
 - The serializer output contains no key named `locality`, `address`, `displayName`, or `city`.
 
-Commit: `feat(urban-gpt): add streaming site brief with citation validation`
+Commit: `feat(datum): add streaming site brief with citation validation`
 
 ### Step 2.4: page rebuild
 
@@ -121,11 +121,11 @@ Retry per panel calls the layer route again. Retrying `osm` also re-fires `walks
 
 Uses existing primitives (`.eyebrow`, `.card`, `.rule`, `.meta`) for the chrome around the sheet.
 
-Commit: `feat(urban-gpt): rebuild page around the site sheet with confirm step and export`
+Commit: `feat(datum): rebuild page around the site sheet with confirm step and export`
 
 ### Step 2.5: deletions and registry
 
-Delete the six files. Rewrite the `urban-gpt` entry in `content/projects.ts`:
+Delete the six files. Rewrite the `datum` entry in `content/projects.ts`:
 `blurb`, `description`, and `stack` describe only what phase 1 and 2 shipped (for example stack:
 `["Next.js", "Supabase", "OpenStreetMap", "USGS", "FEMA", "Census ACS", "Open-Meteo", "Claude API",
 "SVG"]`). Keep `github` only if the linked repository reflects this code; otherwise remove the
@@ -133,7 +133,7 @@ field and note it in the phase notes (see `OPEN-QUESTIONS.md` item 13).
 
 Run `npx tsc --noEmit` and `npm run build`. Both must pass with the files gone.
 
-Commit: `chore(urban-gpt): remove superseded routes and map component`
+Commit: `chore(datum): remove superseded routes and map component`
 
 ### Step 2.6: e2e
 
@@ -141,16 +141,16 @@ Rename `e2e/baseline.spec.ts` to `e2e/baseline.spec.ts.skip` so the default `e2e
 targets deleted routes (the file stays in git as the record of the phase 0 run).
 
 `e2e/sheet.spec.ts`, one test per site plus two failure tests. Server started with
-`URBANGPT_ALLOW_TEST_FLAG=1`; the client marks these runs as test through a query parameter
+`DATUM_ALLOW_TEST_FLAG=1`; the client marks these runs as test through a query parameter
 `?test=1` that `SiteSheetApp` forwards as `isTest` (only honoured when the server flag is set).
 
 Per site:
-1. Go to `/projects/urban-gpt?test=1`, type `query`, wait for the suggestion list (Photon), press
+1. Go to `/projects/datum?test=1`, type `query`, wait for the suggestion list (Photon), press
    Enter without selecting. Wait for the confirm map. Assert the marker coordinates shown on screen
    are within 0.002 degrees of the fixture `lat, lng`. Click Confirm.
 2. Wait until no panel is loading (poll a `data-loading-count` attribute on the sheet root), up to
    150 s. Record which panels are `ok`, `partial`, `unavailable`.
-3. Screenshot the full page to `docs/urbangpt/screenshots/phase-2/<slug>.png`.
+3. Screenshot the full page to `docs/datum/screenshots/phase-2/<slug>.png`.
 4. Wait for the brief `done` event (the app sets `data-brief-status`). Assert at least 8 citation
    chips, zero "unverified" banner unless the run had unavailable layers other than osm and
    walkshed (then the banner is allowed and logged).
@@ -160,12 +160,12 @@ Per site:
    no `image`, `foreignObject`, `script` elements and no `href` attribute containing `data:`.
    Assert the `attribution` group text contains "OpenStreetMap contributors". Assert the root
    `width` is `36in` and `height` is `24in`.
-6. Save the SVG to `docs/urbangpt/screenshots/phase-2/<slug>.svg`.
+6. Save the SVG to `docs/datum/screenshots/phase-2/<slug>.svg`.
 7. Site specific: WaKeeney's `flood-summary` group has `data-status="unavailable"` and contains
    "FEMA has not published"; Miami's `site-plan-flood` group contains at least one `<path` with
    `fill="url(#flood-ve)"`; Atlanta's `site-plan-building-heights` has no `<text`.
 
-Failure test A (Overpass down): server with `URBANGPT_SOURCE_OVERRIDES='{"overpass":"http://127.0.0.1:9"}'`.
+Failure test A (Overpass down): server with `DATUM_SOURCE_OVERRIDES='{"overpass":"http://127.0.0.1:9"}'`.
 Run Atlanta. Assert the figure-ground and walk shed panels show UNAVAILABLE with the Overpass
 message, export still succeeds, and the exported `site-plan` group has `data-status="unavailable"`
 and contains no `<path` in `site-plan-buildings`. Assert the brief's "What is missing" names
@@ -175,22 +175,22 @@ Failure test B (everything external down): override all sources. Assert every pa
 is unavailable, the brief streams and contains "What is missing", the citation chips reference
 only `sun.*` paths, and the export is valid.
 
-Commit: `test(urban-gpt): add sheet, export, unavailable state, and brief checks`
+Commit: `test(datum): add sheet, export, unavailable state, and brief checks`
 
 ## Acceptance criteria
 
 - [ ] `npm run test:unit` exits 0 (phase 1 tests plus at least 12 new).
-- [ ] `npm run build && URBANGPT_ALLOW_TEST_FLAG=1 npm run e2e -- e2e/sheet.spec.ts` exits 0.
+- [ ] `npm run build && DATUM_ALLOW_TEST_FLAG=1 npm run e2e -- e2e/sheet.spec.ts` exits 0.
 - [ ] Both failure tests exit 0.
-- [ ] `docs/urbangpt/screenshots/phase-2/` contains three PNGs and three SVGs; the SVGs open in a
+- [ ] `docs/datum/screenshots/phase-2/` contains three PNGs and three SVGs; the SVGs open in a
       browser (manual check by the owner) and each is under 4 MB.
 - [ ] Manual, owner: open one SVG in Illustrator and in Rhino; note in `OPEN-QUESTIONS.md` item 6
       whether groups arrive named. This is not automatable here.
-- [ ] `git ls-files src/app/api | grep -E "heat-island|zoning|flood-risk|urban-gpt/overpass|urban-gpt/route.ts"`
+- [ ] `git ls-files src/app/api | grep -E "heat-island|zoning|flood-risk|datum/overpass|datum/route.ts"`
       prints nothing.
-- [ ] `wc -l src/app/projects/urban-gpt/page.tsx` under 80; no single file under
-      `src/app/projects/urban-gpt/` over 400 lines.
-- [ ] `git grep -n "levels \* \|\* 3\.\|assumedHeight\|estimateHeight" src/lib/urban-gpt` prints nothing.
+- [ ] `wc -l src/app/projects/datum/page.tsx` under 80; no single file under
+      `src/app/projects/datum/` over 400 lines.
+- [ ] `git grep -n "levels \* \|\* 3\.\|assumedHeight\|estimateHeight" src/lib/datum` prints nothing.
 - [ ] `content/projects.ts` description mentions only shipped layers (reviewer reads it against
       the sheet).
 - [ ] `npx tsc --noEmit` clean; `npm run build` succeeds; `npm run lint` clean.
@@ -205,7 +205,7 @@ Commit: `test(urban-gpt): add sheet, export, unavailable state, and brief checks
   raw outputs to the phase notes and ask before changing the prompt contract.
 - Export exceeds 4 MB or the page freezes while building the sheet (likely the untrimmed street
   set); ask before adding simplification.
-- The deletion grep shows a consumer outside `src/app/projects/urban-gpt/` and `e2e/`.
+- The deletion grep shows a consumer outside `src/app/projects/datum/` and `e2e/`.
 
 ## Out of scope
 

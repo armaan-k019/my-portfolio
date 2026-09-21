@@ -1,4 +1,4 @@
-# UrbanGPT rebuild: specification
+# Datum rebuild: specification
 
 Status: draft for build. Written 2026-09-21 against `origin/main` at `5fda80e` (PR #20 merged).
 Audience: the implementation session (Opus) that builds each phase, and the repo owner who reviews it.
@@ -11,7 +11,7 @@ Companion documents: `PHASE-0-verify.md`, `PHASE-1-data.md`, `PHASE-2-sheet.md`,
 
 ## 1. Goals
 
-1. Turn `/projects/urban-gpt` into a tool a working architect would open at the start of a project:
+1. Turn `/projects/datum` into a tool a working architect would open at the start of a project:
    enter an address, get an architectural site analysis sheet built from verified public data.
 2. Every number on the sheet traces to a named source and a named field. A source that fails shows
    an unavailable state, never a default or an estimate.
@@ -44,7 +44,7 @@ Companion documents: `PHASE-0-verify.md`, `PHASE-1-data.md`, `PHASE-2-sheet.md`,
 
 ## 3. Product shape
 
-Three routes inside one page, `/projects/urban-gpt`:
+Three routes inside one page, `/projects/datum`:
 
 | Route | Name | Phase | State |
 |---|---|---|---|
@@ -59,7 +59,7 @@ User flow for Route 1:
    point on a small Leaflet map with the display name and asks the user to confirm or adjust by
    dragging the marker. Nothing else runs until confirm. (Photon mis-resolves the Miami test
    intersection; Nominatim resolves it. This step is mandatory, not optional.)
-3. On confirm, the client creates or fetches the site record (`POST /api/urban-gpt/site`), then fires
+3. On confirm, the client creates or fetches the site record (`POST /api/datum/site`), then fires
    every layer request in parallel. Each layer renders into its sheet panel as it arrives. Panels
    that fail render an unavailable state with the reason and a retry button.
 4. When the layers that the brief depends on have settled (ok or unavailable), the client opens the
@@ -119,7 +119,7 @@ Anything not in this table is unverified and belongs in `OPEN-QUESTIONS.md`.
 | Overpass | `POST https://overpass-api.de/api/interpreter` body `data=<QL>` form encoded | none | 406 without User-Agent. Intermittent 504 "server is probably too busy" independent of query size. Rate limit 2 concurrent slots per IP. Mirror `https://overpass.kumi.systems/api/interpreter` hung 180 s on one probe |
 | USGS EPQS | `GET https://epqs.nationalmap.gov/v1/json?x=&y=&units=Meters&wkid=4326&includeDate=false` | none | `{ value: "281.726..." }` string metres |
 | USGS 3DEP | `POST https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/getSamples` with `geometry` (esriGeometryMultipoint JSON), `geometryType=esriGeometryMultipoint`, `returnFirstValueOnly=true`, `f=json` | none | 100 points in 1.0 s; `samples[i].value` string metres, `locationId` maps to input order |
-| USGS seismic | `GET https://earthquake.usgs.gov/ws/building-codes/asce7-22/calculate?latitude=&longitude=&riskCategory=II&siteClass=D&title=UrbanGPT` | none | The old `/ws/designmaps/` path 301s here. `response.data` has `ss, s1, sds, sd1, sms, sm1, sdc, pgam, tl, ts, t0`. Site classes A to E accepted |
+| USGS seismic | `GET https://earthquake.usgs.gov/ws/building-codes/asce7-22/calculate?latitude=&longitude=&riskCategory=II&siteClass=D&title=Datum` | none | The old `/ws/designmaps/` path 301s here. `response.data` has `ss, s1, sds, sd1, sms, sm1, sdc, pgam, tl, ts, t0`. Site classes A to E accepted |
 | USDA SDA | `POST https://sdmdataaccess.sc.egov.usda.gov/Tabular/post.rest` JSON `{ query, format: "JSON+COLUMNNAME" }` | none | Query uses `SDA_Get_Mukey_from_intersection_with_WktWgs84('point(lng lat)')` joined to `mapunit` and `component`. Max 100000 rows |
 | FEMA NFHL zones | `GET https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query` ArcGIS query params, `f=json` | none | The old `/gis/nfhl/` path returns 404. Fields `FLD_ZONE, ZONE_SUBTY, SFHA_TF, STATIC_BFE` |
 | FEMA NFHL availability | same service, layer `0`, `outFields=STUDY_ID` | none | Empty `features` at WaKeeney: no NFHL coverage there |
@@ -142,14 +142,14 @@ runs are comparable even if geocoding drifts:
 ## 6. Architecture
 
 ```
-src/app/projects/urban-gpt/
+src/app/projects/datum/
   page.tsx                 server component shell: title, intro, <SiteSheetApp />
   SiteSheetApp.tsx         client: address, confirm map, orchestrates layer fetches, brief, export
   ConfirmMap.tsx           Leaflet, dynamic import, ssr false
   panels/                  one React component per sheet panel, each renders a <g> via the builders
   MemoryPanel.tsx          phase 3
   SitesMap.tsx             phase 3, Leaflet
-src/lib/urban-gpt/
+src/lib/datum/
   types.ts                 LayerEnvelope, per layer data types, SiteRecord
   geo.ts                   local projection (metres east/north from lat, lng), haversine, bbox
   solar.ts                 solar position, sun path, no dependency
@@ -167,7 +167,7 @@ src/lib/urban-gpt/
     builders/*.ts          one builder per <g id>, each (data | unavailable) => string
     sheet.ts               assembles the full document string
     styles.ts              line weights, hatches, colours (from globals.css tokens, hard coded hex)
-src/app/api/urban-gpt/
+src/app/api/datum/
   suggest/route.ts         Photon proxy
   geocode/route.ts         Nominatim proxy, 1 rps token bucket
   site/route.ts            create or fetch site record, rate limit check
@@ -195,14 +195,14 @@ Rules:
 
 ## 7. API routes
 
-All under `src/app/api/urban-gpt/`. All export `maxDuration`. All answer JSON except the brief.
+All under `src/app/api/datum/`. All export `maxDuration`. All answer JSON except the brief.
 All read the client IP from `x-forwarded-for` (first entry) for the rate limit only.
 
 | Route | Method | maxDuration | Input | Output |
 |---|---|---|---|---|
-| `suggest` | GET | 15 | `q` (min 3 chars) | `{ suggestions: [{ label, lat, lng }] }` max 6. Photon proxy with User-Agent `UrbanGPT/2.0 (site analysis; portfolio; +https://<site domain>)` |
+| `suggest` | GET | 15 | `q` (min 3 chars) | `{ suggestions: [{ label, lat, lng }] }` max 6. Photon proxy with User-Agent `Datum/1.0 (site analysis; portfolio; +https://<site domain>)` |
 | `geocode` | POST | 15 | `{ q }` | `{ lat, lng, displayName, locality }` or `{ error: { code: "not_found" } }`. Nominatim search plus one reverse call at `zoom=10` for `locality` ("Atlanta, Georgia"). Server side token bucket: 1 request per second per instance, 429 when exhausted |
-| `site` | POST | 15 | `{ lat, lng, isTest? }` | `{ siteId, siteKey, locality, tract: { geoid, state, county, tract, areaLandM2 } | null, memoryStatus, rateLimit: { remaining } }`. Creates the `sites` row if new. `isTest` accepted only when `URBANGPT_ALLOW_TEST_FLAG=1` |
+| `site` | POST | 15 | `{ lat, lng, isTest? }` | `{ siteId, siteKey, locality, tract: { geoid, state, county, tract, areaLandM2 } | null, memoryStatus, rateLimit: { remaining } }`. Creates the `sites` row if new. `isTest` accepted only when `DATUM_ALLOW_TEST_FLAG=1` |
 | `layers/[layer]` | GET | 60 | `site=<siteId>` plus per layer params (`siteClass` for seismic) | `LayerEnvelope` |
 | `brief` | POST | 60 | `{ siteId }` | `text/event-stream` (section 11) |
 | `memory/context` | GET | 15 | `site=` | percentiles and similar sites (phase 3) |
@@ -337,7 +337,7 @@ ns: number[21] }`, `reliefM` (max minus min), `meanSlopePct`, `aspectDeg` of the
 ### seismic (USGS)
 
 Request: `asce7-22/calculate` with `riskCategory=II`, `siteClass` from the query (default `D`),
-`title=UrbanGPT`. Cache key rounds to 0.001 degree plus site class.
+`title=Datum`. Cache key rounds to 0.001 degree plus site class.
 
 Data: `ss, s1, sms, sm1, sds, sd1, sdc, pgam, tl`, `assumptions: { reference: "ASCE 7-22",
 riskCategory: "II", siteClass, siteClassIsDefault: boolean }`.
@@ -535,7 +535,7 @@ The document is assembled by `sheet/sheet.ts`:
 
 ```
 <svg ...>
-  <title>UrbanGPT site analysis: <locality></title>
+  <title>Datum site analysis: <locality></title>
   <desc>Generated <date>. Sources listed in the attribution group. Coordinates <lat>, <lng>.</desc>
   <defs>  hatches: water-hatch, flood-sfha, flood-ve, flood-02pct; clipPaths: clip-site-plan, clip-walk-shed; marker: north-arrow  </defs>
   <rect id="paper" .../>
@@ -584,7 +584,7 @@ Rules:
   NRCS SSURGO. Climate: Open-Meteo (ERA5). Demographics: US Census Bureau ACS 5-year
   2023. Geocoding: Nominatim and Photon (OSM)." Each source appears only when its layer was
   attempted, but OSM always appears because the base drawing is OSM.
-- The exported file name is `urbangpt-site-<lat5>_<lng5>-<yyyymmdd>.svg`.
+- The exported file name is `datum-site-<lat5>_<lng5>-<yyyymmdd>.svg`.
 - Export is client side: the same builder strings are joined with an XML declaration and served
   through `URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }))`.
 - Validity: the string must parse with `DOMParser` as `image/svg+xml` with no `parsererror`
@@ -634,7 +634,8 @@ behaviour.
 
 ## 13. Data model (Supabase, Postgres)
 
-All access is server side with the service role key. RLS is enabled on every table with no policies,
+All access is server side with the secret key (an `sb_secret_` key, which `createClient` accepts in
+place of the legacy service_role key). RLS is enabled on every table with no policies,
 so the anon key (which is never shipped) could not read anything even if leaked. Migrations are
 plain SQL files under `supabase/migrations/`, numbered, applied by the owner in the SQL editor.
 
@@ -693,6 +694,10 @@ alter table api_cache     enable row level security;
 alter table sites         enable row level security;
 alter table layer_results enable row level security;
 alter table rate_limits   enable row level security;
+
+-- The project has "automatically expose new tables" turned off, so grants are explicit.
+-- service_role only. Nothing is granted to anon or authenticated.
+grant select, insert, update, delete on api_cache, sites, layer_results, rate_limits to service_role;
 ```
 
 Only `ok` and `partial` and `no_coverage` envelopes are written to `layer_results`; transient
@@ -722,6 +727,7 @@ create table briefs (
   primary key (site_id, input_hash)
 );
 alter table briefs enable row level security;
+grant select, insert, update, delete on briefs to service_role;
 
 -- percentile helper: rank of one value among non test sites for a named metric
 create or replace function metric_percentile(metric text, value double precision)
@@ -828,9 +834,9 @@ three components that differ least. Percentiles use `metric_percentile()` on the
 | `ANTHROPIC_API_KEY` | existing | brief route | |
 | `CENSUS_API_KEY` | phase 1 | `sources/census.ts` | missing key produces the `missing_key` envelope, never a crash |
 | `SUPABASE_URL` | phase 1 | `memory.ts`, `cache.ts` | project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | phase 1 | same | server only; never prefixed `NEXT_PUBLIC_` |
-| `URBANGPT_ALLOW_TEST_FLAG` | phase 1, local and preview only | `site` route | `1` lets the client set `isTest`; unset in production |
-| `URBANGPT_SOURCE_OVERRIDES` | tests only | `sources/*` | JSON map of source name to base URL, honoured only when `NODE_ENV !== "production"`; used by e2e to point a source at an unreachable port and assert the unavailable state |
+| `SUPABASE_SECRET_KEY` | phase 1 | same | an `sb_secret_` key; server only; never prefixed `NEXT_PUBLIC_`. Supabase is retiring legacy service_role keys by the end of 2026 |
+| `DATUM_ALLOW_TEST_FLAG` | phase 1, local and preview only | `site` route | `1` lets the client set `isTest`; unset in production |
+| `DATUM_SOURCE_OVERRIDES` | tests only | `sources/*` | JSON map of source name to base URL, honoured only when `NODE_ENV !== "production"`; used by e2e to point a source at an unreachable port and assert the unavailable state |
 | `CRON_SECRET` | phase 3 | `memory/ping` | Vercel sets `Authorization: Bearer <CRON_SECRET>` on cron requests; the route rejects anything else |
 
 `.env.example` is updated in phase 1 to list these and to drop `EVENTBRITE_API_KEY` (already dead;
@@ -861,10 +867,10 @@ Deleted in phase 2 once their replacements exist (exact paths, pre approved by t
 
 - `src/app/api/heat-island/route.ts`
 - `src/app/api/zoning/route.ts`
-- `src/app/api/urban-gpt/overpass/route.ts`
+- `src/app/api/datum/overpass/route.ts`
 - `src/app/api/flood-risk/route.ts` (replaced by `layers/flood`)
-- `src/app/api/urban-gpt/route.ts` (the monolithic POST; replaced by `site`, `layers`, `brief`)
-- `src/app/projects/urban-gpt/UrbanGPTMap.tsx` (replaced by `ConfirmMap.tsx` and `SitesMap.tsx`)
+- `src/app/api/datum/route.ts` (the monolithic POST; replaced by `site`, `layers`, `brief`)
+- `src/app/projects/datum/DatumMap.tsx` (replaced by `ConfirmMap.tsx` and `SitesMap.tsx`)
 
-Nothing else is deleted. `content/projects.ts` keeps its UrbanGPT entry; its `description`, `blurb`,
+Nothing else is deleted. `content/projects.ts` keeps its Datum entry; its `description`, `blurb`,
 and `stack` are rewritten in phase 2 to match the shipped code (anti fabrication rule).

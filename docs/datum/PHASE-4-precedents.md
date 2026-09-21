@@ -12,7 +12,7 @@ similar site. This is a site similarity search over precedents, not a style sear
 
 ## Interface
 
-Route: `GET /api/urban-gpt/precedents?site=<siteId>&limit=8`
+Route: `GET /api/datum/precedents?site=<siteId>&limit=8`
 
 Response:
 

@@ -9,7 +9,7 @@ Read `SPEC.md` sections 5, 7, 8, 9, 13, 15 before starting.
 ## Scope
 
 1. Supabase migration 0001, `memory.ts` (site records, rate limit, offline handling), `cache.ts`.
-2. Source modules under `src/lib/urban-gpt/sources/`, one per external service.
+2. Source modules under `src/lib/datum/sources/`, one per external service.
 3. Computation modules: `geo.ts`, `solar.ts`, `climate.ts`, `topo.ts`, `walkshed.ts`.
 4. Routes: `suggest`, `geocode`, `site`, `layers/[layer]`.
 5. Unit tests on parsers and computations with recorded fixtures; e2e checks against the running
@@ -19,19 +19,19 @@ Read `SPEC.md` sections 5, 7, 8, 9, 13, 15 before starting.
 ## Files allowed to change
 
 - `supabase/migrations/0001_cache_sites_ratelimit.sql` (new)
-- `src/lib/urban-gpt/**` (new)
-- `src/app/api/urban-gpt/suggest/route.ts`, `geocode/route.ts`, `site/route.ts`,
+- `src/lib/datum/**` (new)
+- `src/app/api/datum/suggest/route.ts`, `geocode/route.ts`, `site/route.ts`,
   `layers/[layer]/route.ts` (new)
 - `e2e/unit/**`, `e2e/fixtures/**`, `e2e/layers.spec.ts` (new)
 - `package.json`, `package-lock.json` (add `d3-contour`, `@types/d3-contour`; add script `test:unit`)
 - `.env.example`
 
-Not allowed: `src/app/projects/**`, `src/app/api/urban-gpt/route.ts` (old, untouched),
+Not allowed: `src/app/projects/**`, `src/app/api/datum/route.ts` (old, untouched),
 `src/app/api/flood-risk/**`, `src/app/layout.tsx`, `src/app/globals.css`.
 
 ## Prerequisites
 
-- `CENSUS_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`. If any is missing,
+- `CENSUS_API_KEY`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY` in `.env.local`. If any is missing,
   stop and ask (tripwire) rather than working around it.
 - Migration 0001 applied by the owner. Check with the SQL in step 1.1 before writing code that
   depends on it.
@@ -42,16 +42,16 @@ Not allowed: `src/app/projects/**`, `src/app/api/urban-gpt/route.ts` (old, untou
   `(params, ctx: { fetch, cache, overrides }) => Promise<LayerEnvelope<T>>` so tests can inject a
   fake `fetch`.
 - No literal fallback values in `sources/**`. The acceptance grep below enforces it.
-- User-Agent on every outbound request: `UrbanGPT/2.0 (site analysis; portfolio; +<site URL>)`.
-  The site URL comes from a constant in `src/lib/urban-gpt/constants.ts` (see `OPEN-QUESTIONS.md`
+- User-Agent on every outbound request: `Datum/1.0 (site analysis; portfolio; +<site URL>)`.
+  The site URL comes from a constant in `src/lib/datum/constants.ts` (see `OPEN-QUESTIONS.md`
   item 12 for the value; use `https://github.com/armaan-k019` until answered).
 - Unit tests run with Node's built in runner on TypeScript directly:
   `node --test e2e/unit/` (Node 22.18 and later strip types without a flag; this machine has
-  Node 25). Write erasable TypeScript only in `src/lib/urban-gpt/**`: no `enum`, no parameter
-  properties, no namespaces, and import with explicit `.ts` extensions inside `src/lib/urban-gpt`
+  Node 25). Write erasable TypeScript only in `src/lib/datum/**`: no `enum`, no parameter
+  properties, no namespaces, and import with explicit `.ts` extensions inside `src/lib/datum`
   is not needed because the Next bundler resolves them; for the unit runner add
   `--experimental-transform-types` only if plain `--test` fails, and record which in the phase
-  notes. Do not use the `@/` alias inside `src/lib/urban-gpt/**`.
+  notes. Do not use the `@/` alias inside `src/lib/datum/**`.
 - Fixtures are recorded responses from the real endpoints, saved under `e2e/fixtures/<source>/`,
   with the request URL in a sibling `.url.txt`. Record them with `curl` during this phase; never
   hand write a fixture.
@@ -70,21 +70,21 @@ where table_schema = 'public' and table_name in ('api_cache','sites','layer_resu
 
 Expected: four rows.
 
-`src/lib/urban-gpt/memory.ts`:
-- `getClient()` singleton from `@supabase/supabase-js` with the service role key, `auth: { persistSession: false }`.
+`src/lib/datum/memory.ts`:
+- `getClient()` singleton from `@supabase/supabase-js` with the secret key (`SUPABASE_SECRET_KEY`), `auth: { persistSession: false }`.
 - `withMemory<T>(op: (client) => Promise<T>): Promise<T | undefined>` with the 3 s timeout, single
   retry, and the offline flag with 60 s cool down from `SPEC.md` section 13.
 - `getOrCreateSite({ lat, lng, locality, tractGeoid, isTest })`, `touchSite(id)`,
   `checkRateLimit(ipHash)`, `memoryStatus()`.
 - In memory fallbacks for sites and rate limits when offline.
 
-`src/lib/urban-gpt/cache.ts`:
+`src/lib/datum/cache.ts`:
 - `cached<T>(key, ttlSeconds, producer: () => Promise<{ status, body, url } | Failure>)`.
 - Reads `api_cache` where `expires_at > now()`; on miss runs the producer; writes only when the
   producer reports a cacheable result (`ok`, `partial`, `no_coverage`).
 - Offline fallback: a module level `Map` with the same TTLs.
 
-Commit: `feat(urban-gpt): add Supabase cache, site records, and rate limit plumbing`
+Commit: `feat(datum): add Supabase cache, site records, and rate limit plumbing`
 
 ### Step 1.2: geometry and solar
 
@@ -106,7 +106,7 @@ Unit tests (`e2e/unit/solar.test.ts`):
 - WaKeeney 39.0198 N on 21 June noon altitude within 0.5 of 74.42.
 - Day length on 21 June at Atlanta between 14.0 and 14.6 hours.
 
-Commit: `feat(urban-gpt): add local projection and solar position`
+Commit: `feat(datum): add local projection and solar position`
 
 ### Step 1.3: Open-Meteo climate
 
@@ -122,7 +122,7 @@ Unit tests:
 - A fetch that throws produces `status: "unavailable"`, `code: "timeout"` or `"upstream_error"`,
   `data: null`.
 
-Commit: `feat(urban-gpt): add Open-Meteo climate source, wind rose, and comfort normals`
+Commit: `feat(datum): add Open-Meteo climate source, wind rose, and comfort normals`
 
 ### Step 1.4: USGS elevation and topography
 
@@ -136,7 +136,7 @@ Unit tests:
 - A response with 200 samples yields `unavailable` with `parse_error`; 430 samples yields `partial`.
 - Contour coordinates all lie within ±420 m of the origin.
 
-Commit: `feat(urban-gpt): add USGS elevation source and contour generation`
+Commit: `feat(datum): add USGS elevation source and contour generation`
 
 ### Step 1.5: USGS seismic and USDA soil
 
@@ -155,7 +155,7 @@ Unit tests:
 - The SQL string contains the coordinates formatted with 6 decimals and nothing else variable
   (test with a coordinate containing many decimals).
 
-Commit: `feat(urban-gpt): add USGS seismic and USDA soil sources`
+Commit: `feat(datum): add USGS seismic and USDA soil sources`
 
 ### Step 1.6: FEMA flood
 
@@ -169,7 +169,7 @@ Unit tests:
 - Atlanta point yields class "minimal".
 - HTTP 500 yields `unavailable` with `http_error`, `httpStatus: 500`, `retryable: true`.
 
-Commit: `feat(urban-gpt): add FEMA NFHL flood source with coverage check`
+Commit: `feat(datum): add FEMA NFHL flood source with coverage check`
 
 ### Step 1.7: Census
 
@@ -184,7 +184,7 @@ Unit tests:
 - Derived `carFreeCommutePct` equals `(transit + walked + bike) / workers * 100` rounded to 0.1.
 - Tract GEOID for the Atlanta fixture is `13121001002`.
 
-Commit: `feat(urban-gpt): add Census ACS, geocoder, and TIGERweb sources`
+Commit: `feat(datum): add Census ACS, geocoder, and TIGERweb sources`
 
 ### Step 1.8: Overpass and walk shed
 
@@ -202,15 +202,15 @@ Unit tests:
 - A 504 on the first mirror followed by 200 on the retry yields `ok` (assert two fetch calls).
 - WaKeeney fixture: `buildings.length` between 10 and 40.
 
-Commit: `feat(urban-gpt): add Overpass source and computed walk shed`
+Commit: `feat(datum): add Overpass source and computed walk shed`
 
 ### Step 1.9: routes
 
 `suggest`, `geocode`, `site`, `layers/[layer]` per `SPEC.md` section 7. `layers/[layer]` validates
 the layer name against the fixed list and returns 404 JSON for anything else. Every route reads
-`URBANGPT_SOURCE_OVERRIDES` when `NODE_ENV !== "production"` and passes it into the source context.
+`DATUM_SOURCE_OVERRIDES` when `NODE_ENV !== "production"` and passes it into the source context.
 
-Commit: `feat(urban-gpt): add suggest, geocode, site, and per layer routes`
+Commit: `feat(datum): add suggest, geocode, site, and per layer routes`
 
 ### Step 1.10: env example and e2e
 
@@ -219,8 +219,8 @@ Update `.env.example`: add the four new variables with one line comments, remove
 
 `e2e/layers.spec.ts` uses `request` (no browser) against the running server:
 
-For each site: `POST /api/urban-gpt/site` with `{ lat, lng, isTest: true }` (server started with
-`URBANGPT_ALLOW_TEST_FLAG=1`), then `GET /api/urban-gpt/layers/<layer>?site=<id>` for all nine
+For each site: `POST /api/datum/site` with `{ lat, lng, isTest: true }` (server started with
+`DATUM_ALLOW_TEST_FLAG=1`), then `GET /api/datum/layers/<layer>?site=<id>` for all nine
 layers, twice (cold then warm). Assertions:
 
 | Layer | Atlanta | Miami | WaKeeney |
@@ -241,7 +241,7 @@ test prints a warning rather than failing, but fails if the unavailable envelope
 null or lacks a `message`.
 
 Forced failure run: start the server with
-`URBANGPT_SOURCE_OVERRIDES='{"fema":"http://127.0.0.1:9","usgs_elev":"http://127.0.0.1:9","usgs_seis":"http://127.0.0.1:9","usda":"http://127.0.0.1:9","openmeteo":"http://127.0.0.1:9","overpass":"http://127.0.0.1:9","census_acs":"http://127.0.0.1:9"}'`
+`DATUM_SOURCE_OVERRIDES='{"fema":"http://127.0.0.1:9","usgs_elev":"http://127.0.0.1:9","usgs_seis":"http://127.0.0.1:9","usda":"http://127.0.0.1:9","openmeteo":"http://127.0.0.1:9","overpass":"http://127.0.0.1:9","census_acs":"http://127.0.0.1:9"}'`
 and assert every overridden layer returns `status: "unavailable"`, `data: null`, a non empty
 `unavailable.message`, and that nothing was written to `api_cache` for those keys (query the table
 count before and after).
@@ -250,18 +250,18 @@ Rate limit run: call `site` 21 times with distinct coordinates from one client; 
 429 with `resetAt`. Then delete the test rows:
 `delete from rate_limits where day = current_date;` (documented in the spec as the cleanup).
 
-Commit: `test(urban-gpt): add layer, cache, forced failure, and rate limit checks`
+Commit: `test(datum): add layer, cache, forced failure, and rate limit checks`
 
 ## Acceptance criteria
 
 - [ ] Migration applied; the four tables exist (step 1.1 query).
 - [ ] `npm run test:unit` exits 0 with at least 35 tests.
-- [ ] `npm run build && URBANGPT_ALLOW_TEST_FLAG=1 npm run e2e -- e2e/layers.spec.ts` exits 0.
+- [ ] `npm run build && DATUM_ALLOW_TEST_FLAG=1 npm run e2e -- e2e/layers.spec.ts` exits 0.
 - [ ] Forced failure run exits 0.
 - [ ] Rate limit run exits 0 and the cleanup was executed.
-- [ ] `grep -rnE "\?\? *[0-9]+|\?\? *\"X\"|\|\| *[0-9]+\b" src/lib/urban-gpt/sources/` prints
+- [ ] `grep -rnE "\?\? *[0-9]+|\?\? *\"X\"|\|\| *[0-9]+\b" src/lib/datum/sources/` prints
       nothing (no literal fallbacks). Any legitimate match is rewritten, not excused.
-- [ ] `git grep -n "User-Agent" src/lib/urban-gpt/sources/` shows every source module that makes
+- [ ] `git grep -n "User-Agent" src/lib/datum/sources/` shows every source module that makes
       an HTTP request (Photon, Nominatim, Overpass at minimum).
 - [ ] `git grep -nE "key=[A-Za-z0-9]{10,}" -- src e2e docs` prints nothing.
 - [ ] `npx tsc --noEmit` clean; `npm run build` succeeds; `npm run lint` clean.

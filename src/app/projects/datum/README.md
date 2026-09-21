@@ -1,6 +1,6 @@
-# UrbanGPT — Urban Analysis Dashboard
+# Datum: Urban Analysis Dashboard
 
-UrbanGPT is a site-intelligence tool for architects and urban designers. Enter any address and a search radius, and it pulls amenity data from OpenStreetMap via the Overpass API across five categories (food, transit, parks, education, healthcare), then passes the counts to Claude for design-relevant analysis. The result is a narrative insight — population context, walkability read, and design implications — alongside a live map with color-coded amenity pins.
+Datum is a site-intelligence tool for architects and urban designers. Enter any address and a search radius, and it pulls amenity data from OpenStreetMap via the Overpass API across five categories (food, transit, parks, education, healthcare), then passes the counts to Claude for design-relevant analysis. The result is a narrative insight — population context, walkability read, and design implications — alongside a live map with color-coded amenity pins.
 
 ## Tech Stack
 
@@ -22,13 +22,12 @@ Overpass API is free and requires no key.
 ## Run Locally
 
 ```bash
-git clone https://github.com/armaan-k019/urban-gpt
-cd urban-gpt
+# Runs inside this repo at /projects/datum via npm run dev
 npm install
 cp .env.example .env.local
 # Fill in your API keys in .env.local
 npm run dev
-# Navigate to http://localhost:3000/projects/urban-gpt
+# Navigate to http://localhost:3000/projects/datum
 ```
 
 ## How It Works
