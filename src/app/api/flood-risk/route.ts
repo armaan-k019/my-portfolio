@@ -34,7 +34,7 @@ function classifyZone(zone: string, subtype: string, sfha: boolean) {
     };
   }
   // X shaded = 500-year
-  if (z === "X" && (st.includes("500") || st.includes("SHADED"))) {
+  if (z === "X" && (st.includes("500") || st.includes("SHADED") || st.includes("0.2 PCT"))) {
     return {
       isHighRisk: false,
       isModerateRisk: true,
