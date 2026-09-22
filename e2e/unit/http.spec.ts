@@ -114,7 +114,7 @@ test("fetchWithPolicy sends the Datum User-Agent", async () => {
 
 const SOURCE = {
   name: "Fixture source",
-  url: "https://example.test/q?a=1&key=SECRETVALUE123",
+  url: "https://example.test/q?a=1&key=fake-key-value",
   licence: "public domain",
   cached: false,
 };
@@ -139,13 +139,13 @@ test("fieldPathsOf collapses arrays to path[] and sorts the leaves", () => {
 });
 
 test("stripKey removes the key value and leaves the rest of the query", () => {
-  expect(stripKey("https://api.census.gov/data?get=B01003_001E&key=abc123def")).toBe(
+  expect(stripKey("https://api.census.gov/data?get=B01003_001E&key=fake-key")).toBe(
     "https://api.census.gov/data?get=B01003_001E&key=",
   );
   expect(stripKey("https://example.test/no-query")).toBe(
     "https://example.test/no-query",
   );
-  expect(stripKey(SOURCE.url)).not.toContain("SECRETVALUE123");
+  expect(stripKey(SOURCE.url)).not.toContain("fake-key-value");
 });
 
 test("ok and partial build envelopes with a stripped url and ctx time", () => {
@@ -153,7 +153,7 @@ test("ok and partial build envelopes with a stripped url and ctx time", () => {
   expect(good.status).toBe("ok");
   expect(good.source.fetchedAt).toBe("2026-09-22T12:00:00.000Z");
   expect(good.source.url).toContain("key=");
-  expect(good.source.url).not.toContain("SECRETVALUE123");
+  expect(good.source.url).not.toContain("fake-key-value");
   expect(good.fieldPaths).toEqual(["sdc", "sds"]);
 
   const some = partial(
