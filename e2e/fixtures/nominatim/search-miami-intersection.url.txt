@@ -1,0 +1,1 @@
+https://nominatim.openstreetmap.org/search?q=NE%2025th%20St%20%26%20Biscayne%20Blvd%2C%20Miami%2C%20FL&format=jsonv2&limit=1&countrycodes=us
