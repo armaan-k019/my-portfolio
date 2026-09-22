@@ -2,7 +2,9 @@
 // six parallel module agents replace file bodies under sources/ and the four
 // computation modules without ever editing this file.
 
-import { TTL_SECONDS } from "./constants";
+import { createCacheApi, type CacheClient } from "./cache";
+import { TTL_SECONDS, USER_AGENT } from "./constants";
+import { getClient } from "./memory";
 import { fetchCensus } from "./sources/census";
 import { fetchFlood } from "./sources/fema";
 import { fetchOsm } from "./sources/overpass";
@@ -12,7 +14,7 @@ import { fetchSoil } from "./sources/usdaSoil";
 import { fetchTopo } from "./sources/usgsElevation";
 import { fetchSun } from "./solar";
 import { fetchWalkshed } from "./walkshed";
-import type { LayerFetcher, LayerName } from "./types";
+import type { LayerFetcher, LayerName, SourceContext } from "./types";
 
 export const layerFetchers: Record<LayerName, LayerFetcher<unknown>> = {
   sun: fetchSun,
@@ -54,3 +56,35 @@ export const LAYER_PARAMS: Record<LayerName, string[]> = {
   flood: [],
   census: [],
 };
+
+/**
+ * The SourceContext the routes hand to every fetcher. DATUM_SOURCE_OVERRIDES is
+ * read only outside production (SPEC section 15) and CENSUS_API_KEY is passed
+ * through ctx.env so no source module reads process.env directly.
+ */
+export function buildSourceContext(): SourceContext {
+  let overrides: Record<string, string> = {};
+  if (process.env.NODE_ENV !== "production" && process.env.DATUM_SOURCE_OVERRIDES) {
+    try {
+      const parsed: unknown = JSON.parse(process.env.DATUM_SOURCE_OVERRIDES);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        overrides = Object.fromEntries(
+          Object.entries(parsed as Record<string, unknown>)
+            .filter(([, value]) => typeof value === "string")
+            .map(([name, value]) => [name, String(value)]),
+        );
+      }
+    } catch {
+      overrides = {};
+    }
+  }
+  const now = () => new Date();
+  return {
+    fetch: globalThis.fetch,
+    cache: createCacheApi(getClient() as CacheClient | null, now),
+    overrides,
+    userAgent: USER_AGENT,
+    now,
+    env: { censusApiKey: process.env.CENSUS_API_KEY },
+  };
+}
