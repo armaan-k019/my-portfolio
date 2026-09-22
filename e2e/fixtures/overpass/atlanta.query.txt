@@ -1,0 +1,13 @@
+[out:json][timeout:45];
+(
+  way["building"](around:400,33.7751258,-84.3919750);
+  relation["building"](around:400,33.7751258,-84.3919750);
+  way["natural"="water"](around:400,33.7751258,-84.3919750);
+  relation["natural"="water"](around:400,33.7751258,-84.3919750);
+  way["waterway"](around:400,33.7751258,-84.3919750);
+  way["natural"="coastline"](around:400,33.7751258,-84.3919750);
+  way["highway"]["highway"!~"motorway|motorway_link|trunk|trunk_link|proposed|construction|abandoned|raceway"](around:1200,33.7751258,-84.3919750);
+  node["highway"="bus_stop"](around:1200,33.7751258,-84.3919750);
+  node["railway"~"^(station|tram_stop|halt)$"](around:1200,33.7751258,-84.3919750);
+);
+out geom;
