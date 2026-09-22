@@ -7,7 +7,7 @@ interface FemaFeature {
   geometry?: { rings: number[][][] };
 }
 
-function classifyZone(zone: string, subtype: string, sfha: boolean) {
+export function classifyZone(zone: string, subtype: string, sfha: boolean) {
   const z = (zone ?? "X").toUpperCase().trim();
   const st = (subtype ?? "").toUpperCase();
 
