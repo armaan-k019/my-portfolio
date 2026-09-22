@@ -179,3 +179,37 @@ export function resolveBaseUrl(
   }
   return SOURCE_BASE_URLS[source];
 }
+
+/**
+ * The verbatim unavailable messages from SPEC section 8, so screenshots are
+ * comparable. `<code>` is replaced with the UnavailableCode by the caller.
+ */
+export const UNAVAILABLE_MESSAGES = {
+  overpass:
+    "OpenStreetMap data could not be loaded (Overpass <code>). Buildings, streets, and the walk shed are unavailable. Retry in a minute.",
+  femaNoCoverage:
+    "FEMA has not published a flood hazard layer for this location. Check the community's status at msc.fema.gov.",
+  femaFailure:
+    "FEMA flood data could not be reached (<code>). Verify at msc.fema.gov.",
+  usgsElevation:
+    "USGS 3DEP elevation could not be reached (<code>). Topography is unavailable.",
+  usgsSeismic: "USGS seismic design values could not be reached (<code>).",
+  usda: "USDA soil survey could not be reached (<code>).",
+  usdaNoCoverage: "No SSURGO soil map unit intersects this point.",
+  censusMissingKey:
+    "Census API key is not configured on the server. Demographics are unavailable.",
+  censusNoTract:
+    "The Census geocoder returned no tract for this point. Demographics are unavailable.",
+  censusFailure: "Census ACS could not be reached (<code>).",
+  openMeteo:
+    "Open-Meteo climate archive could not be reached (<code>). Wind and climate are unavailable.",
+  briefDependency:
+    "The brief was written without <layer list>; those sources were unavailable.",
+  walkshedNoStart:
+    "No walkable street within 150 m of this point in OpenStreetMap.",
+};
+
+/** Fill the `<code>` placeholder in an UNAVAILABLE_MESSAGES entry. */
+export function withCode(message: string, code: string): string {
+  return message.replace("<code>", code);
+}
