@@ -1,0 +1,4 @@
+{
+  "query": "SELECT TOP 5 mu.muname, mu.mukey, c.compname, c.comppct_r, c.hydgrp, c.drainagecl, c.taxorder, c.slope_r, c.hydricrating FROM SDA_Get_Mukey_from_intersection_with_WktWgs84('point(-80.189063 25.801159)') AS i INNER JOIN mapunit AS mu ON mu.mukey = i.mukey INNER JOIN component AS c ON c.mukey = mu.mukey ORDER BY c.comppct_r DESC",
+  "format": "JSON+COLUMNNAME"
+}
