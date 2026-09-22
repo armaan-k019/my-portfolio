@@ -26,7 +26,7 @@ Started 2026-09-21 from `origin/main` at `c2c8517` (PR #22, rename to Datum).
 
 ## Phase 0
 
-Status: built, reviewed, fixed twice; gate closes when the Miami flood test passes against a reachable FEMA.
+Status: GATE CLOSED 2026-09-22. PR #23. One live check pending (below).
 Branch `feat/datum-phase-0`. Builder: Sonnet. Reviewer: Opus. Fix round 1: Sonnet.
 
 Commits: `eeb3fd7` step 0 (orchestrator, docs only, outside the Phase 0 allowed list by the owner's
@@ -56,7 +56,8 @@ classification fix with a Miami request test (owner decision A, fix round 2).
 | `npm run e2e:baseline` | pass | builder run 3 passed (3.1 m); orchestrator re-run 3 passed (4.0 m), then the committed capture was restored |
 | Baseline files | pass | 12 PNG, 3 network JSON, 3 text, README, plus probes.txt |
 | Miami flood: `/api/flood-risk` 200 | pass | 200 in miami.network.json |
-| Miami flood: "ZONE X" with a moderate badge | fixed, pending re-test | badge read Minimal Risk because `classifyZone` matched only "500" or "SHADED"; decision A added "0.2 PCT" in `f372b46`. FEMA was unreachable (TLS failure) when the test first ran; result recorded below when it answers |
+| Miami flood: "ZONE X" with a moderate badge | pass (fixture) | `classifyZone` matched only "500" or "SHADED"; decision A added "0.2 PCT" in `f372b46`. `338b538` exports the function and unit tests it from the verified Miami, Atlanta, and SFHA values (1 passed). The live FEMA request test is gated by `DATUM_LIVE_FEMA=1` and skipped by default |
+| Lint guard (decision C) | pass | `npx eslint .` on the branch: 16 errors, 10 warnings, equal to the baseline |
 | README quotes the three `/api/datum` times | pass | 31406, 34365, 43466 ms |
 | `npx tsc --noEmit` | pass | exit 0 |
 | `npm run build` | pass | exit 0 |
@@ -82,6 +83,21 @@ committed capture and expect wide variance on the old page.
 | 8 | low | text captures include AtlasFrame chrome with a hard coded Atlanta coordinate | noted in README |
 | 9 | low | Panel table incomplete | every cell now says data or default with the captured value |
 | 10 | low | Claude narrative reported as "works" | reworded: narrates failed source zeros and general knowledge history, quoted from the capture |
+
+### Pending live check
+
+- `DATUM_LIVE_FEMA=1 npx playwright test e2e/flood-classify.spec.ts` against a running build.
+  FEMA (`hazards.fema.gov`) refused TLS connections from this machine from about 15:00 UTC on
+  2026-09-22 for the whole gate window (poll: 9 attempts, all connection failures). Run when it
+  answers and record the output here.
+
+### Deviations recorded
+
+- Phase 1 unit tests will run through Playwright's test runner without a browser
+  (`playwright test --config playwright.unit.config.ts`) rather than `node --test`, because Node's
+  type stripping requires explicit file extensions in relative imports, which the Next bundler
+  build does not use. The acceptance criterion (`npm run test:unit` exits 0 with at least 35 tests)
+  is unchanged; only the runner differs.
 
 ### Findings for later phases
 
