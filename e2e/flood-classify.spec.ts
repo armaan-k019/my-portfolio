@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { testSites } from "./fixtures/sites";
-import { classifyZone } from "../src/app/api/flood-risk/route";
+import { classifyZone } from "../src/app/api/flood-risk/classify";
 
 test("flood-risk: classifyZone marks a 0.2 PCT zone X as moderate (fixture)", () => {
   // this fixture is constructed from the Miami values verified by direct FEMA request on 2026-09-21
