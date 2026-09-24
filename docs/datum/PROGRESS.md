@@ -120,7 +120,8 @@ committed capture and expect wide variance on the old page.
 
 ## Phase 1
 
-Status: modules merged; step 1.10 (e2e) in progress; migration 0001 at the human gate.
+Status: modules merged, reviewed, fixed once, step 1.10 merged. Waiting on the owner: migration
+0001 (human gate) and decisions 1 to 7 below. PR #24.
 Branch `feat/datum-phase-1`, base `feat/datum-phase-0`. Contract: Opus. Modules A to G: seven
 Opus agents in worktrees, merged by the orchestrator with no conflicts. Fix rounds: none yet.
 
@@ -148,6 +149,42 @@ dependencies (to tidy), unit runner is Playwright without a browser (see Phase 0
 Merged branch gates: tsc exit 0; `npm run test:unit` 130 passed; `npx eslint .` 16 errors, 10
 warnings (equal to baseline); `npm run build` exit 0; `npx next build --webpack` exit 0.
 
+### Review round 1 (Opus reviewer, 2026-09-24) and fix round 1
+
+| # | Severity | Finding | Resolution (commit) |
+|---|---|---|---|
+| 1 | high | climate.ts returned literal 0 for empty months, seasons, wind sets inside an ok envelope; types made null impossible | fields widened to `number \| null`, nulls returned, paths in `partial.missing`, tests for a missing month and an all null archive (`b32c3a0`) |
+| 2 | high | layer route `local-` path: no range check, no rate limit, open proxy for every upstream including Census with the server key | range checks, local ids only while memory is offline, rate limit peek with 429, absent point now 400, route unit tests (`cf6f89a`) |
+| 3 | high | Overpass mirror loop computed the 55 s cap per attempt, up to 135 s against maxDuration 60 | one shared deadline threaded through `fetchWithPolicy`, timeout once under 2 s remain, budget test (`17d5380`) |
+| 4 | medium | topo.ts returned 0 for relief, slope, aspect on degenerate grids | `number \| null`, listed in missing, degenerate grid test (`b32c3a0`) |
+| 5 | medium | census geocoder error envelope cached 365 days as no_coverage | parse_error thrown, null only for a present empty tract array, zero cache writes asserted (`5bdb66c`) |
+| 6 | medium | relation outer rings counted as buildings; coverageRatio biased low | distinct feature counting, `ringCount` added, rings clipped to the frame for coverage, count asserted from the fixture (`3011e3c`) |
+| 7 | medium | invalid siteClass answered as an envelope, not a 400 | route validates with `isValidSiteClass` (`cf6f89a`) |
+| 8 | medium | suggest answered 200 with an empty list on any failure | `unavailable: { code, message }` added to the body (`2aa05b6`) |
+| 9 | low | every transport error retried | retry only on abort or a retryable status (`17d5380`) |
+| 10 | low | unbounded query strings as cache keys | 120 character cap, sha256 keyed (`2aa05b6`) |
+| 11 | low | two PHASE-1 acceptance greps unsatisfiable as written | owner decision 5 |
+| 12 | low | FEMA fixtures constructed | pending live re-record |
+| 13 | medium | missing tests: shared osm and walkshed failure, FEMA no_coverage cached, layer route | added (`c745973`) |
+
+Fix round deviations recorded by the builder: `buildClimate` now returns `{ data, missing }`; a
+zero row archive is `parse_error` rather than partial; retryable statuses stay the union of the
+policy list and 502, 503, 504. Widened fallback grep over `src/lib/datum/` shows two `?? 0` lines
+in `memory.ts`, both rate limit counters where no row means zero requests, not a data value.
+
+### Step 1.10 (e2e, `42b8e62`, merged)
+
+Offline mode (migration not applied): layers spec 3 passed, forced failure spec 1 passed (against
+`npm run dev`, see decision 7), rate limit spec 1 passed (429 at request 21). Every non flood layer
+ok at every site, warm under 1500 ms with `source.cached: true`. Flood unavailable everywhere with
+`upstream_error` (FEMA unreachable). Database gated assertions skip with a named reason until
+`DATUM_E2E_DB=1`. Cold timings (ms) from the run of record: Atlanta osm 15483, topo 5076, census
+4045, climate 3217; Miami osm 5577; WaKeeney osm 6683. Every cold layer except osm at Atlanta met
+the SPEC section 16 cold targets.
+
+Combined branch gates after the merge: tsc exit 0; `npm run test:unit` 159 passed; `npx eslint .`
+16 errors, 10 warnings; `npm run build` exit 0; `npx next build --webpack` exit 0.
+
 ### Owner decisions pending (Phase 1)
 
 1. Migration 0001: run as written, or with the atomic `rate_limit_hit` function appended.
@@ -159,6 +196,12 @@ warnings (equal to baseline); `npm run build` exit 0; `npx next build --webpack`
 3. SPEC section 9 says the trimmed Atlanta street set "should be under 1 MB". Trimming exactly as
    specified gives 1.42 MB. Accept, or authorise coordinate rounding to 5 decimals.
 4. `playwright.config.ts` one line `testIgnore` for `e2e/unit/**` (outside the Phase 1 list).
+5. PHASE-1 acceptance text: restate the User-Agent grep as a "no direct fetch in src/lib/datum"
+   check and widen the fallback grep to all of `src/lib/datum/` (both stricter).
+6. Decision 2 restated after review finding 6: approve distinct feature counting and correct the
+   SPEC section 5 Atlanta line to the fixture's counts.
+7. SPEC section 15: honour `DATUM_SOURCE_OVERRIDES` also when `DATUM_ALLOW_TEST_FLAG=1`, so the
+   forced failure spec can run against a production build (`next start` inlines production).
 
 ### Pending live checks
 
