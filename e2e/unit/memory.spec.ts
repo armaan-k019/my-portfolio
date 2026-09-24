@@ -29,8 +29,75 @@ function rejectingClient(): SupabaseClient {
       };
       return chain;
     },
+    rpc: fail,
   } as unknown as SupabaseClient;
 }
+
+/**
+ * A client that records what the rate limit path calls. `rate_limit_hit` is the
+ * atomic increment from migration 0001, so an increment is one rpc call and no
+ * select at all; a peek is a select and no rpc.
+ */
+function recordingClient() {
+  const calls: string[] = [];
+  let count = 0;
+  const client = {
+    from(table: string) {
+      const chain = {
+        select: () => {
+          calls.push(`select:${table}`);
+          return chain;
+        },
+        upsert: () => {
+          calls.push(`upsert:${table}`);
+          return Promise.resolve({ error: null });
+        },
+        eq: () => chain,
+        async maybeSingle() {
+          return { data: count === 0 ? null : { count }, error: null };
+        },
+      };
+      return chain;
+    },
+    async rpc(name: string, args: Record<string, unknown>) {
+      calls.push(`rpc:${name}`);
+      expect(Object.keys(args).sort()).toEqual(["p_day", "p_ip_hash"]);
+      count += 1;
+      return { data: count, error: null };
+    },
+  } as unknown as SupabaseClient;
+  return { client, calls: () => calls };
+}
+
+test("an increment is one rate_limit_hit rpc call with no select before it", async () => {
+  const { client, calls } = recordingClient();
+  setClientForTests(client);
+  const ipHash = hashIp("192.0.2.11");
+
+  const first = await checkRateLimit(ipHash);
+  expect(calls()).toEqual(["rpc:rate_limit_hit"]);
+  expect(first.count).toBe(1);
+  expect(first.allowed).toBe(true);
+
+  const second = await checkRateLimit(ipHash);
+  expect(calls()).toEqual(["rpc:rate_limit_hit", "rpc:rate_limit_hit"]);
+  expect(second.count).toBe(2);
+  expect(calls().filter((call) => call.startsWith("upsert:"))).toEqual([]);
+  setClientForTests(null);
+});
+
+test("a peek reads the count without calling the rpc", async () => {
+  const { client, calls } = recordingClient();
+  setClientForTests(client);
+  const ipHash = hashIp("192.0.2.12");
+
+  await checkRateLimit(ipHash);
+  const peek = await checkRateLimit(ipHash, { increment: false });
+  expect(peek.count).toBe(1);
+  expect(calls()).toEqual(["rpc:rate_limit_hit", "select:rate_limits"]);
+  expect(calls().filter((call) => call === "rpc:rate_limit_hit")).toHaveLength(1);
+  setClientForTests(null);
+});
 
 test("a rejecting client flips Site Memory offline", async () => {
   setClientForTests(rejectingClient());

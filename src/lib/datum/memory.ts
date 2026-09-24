@@ -376,10 +376,10 @@ function nextUtcMidnight(now: Date): string {
  * which is what a re-open of an already analyzed site does: re-opens are free
  * (SPEC section 13).
  *
- * Deviation: the spec writes this as one `insert ... on conflict do update set
- * count = count + 1 returning count`. PostgREST cannot express an incrementing
- * upsert without a SQL function, and migration 0001 is fixed by the spec, so
- * this reads then writes. The window is one request wide on a 20 per day cap.
+ * The increment goes through the `rate_limit_hit` SQL function from migration
+ * 0001, which is one `insert ... on conflict do update set count = count + 1
+ * returning count`, so two concurrent requests cannot both read the same count.
+ * The peek is a plain select and writes nothing.
  */
 export async function checkRateLimit(
   ipHash: string,
@@ -391,20 +391,23 @@ export async function checkRateLimit(
   const localKey = `${ipHash}:${day}`;
 
   const remote = await withMemory(async (db) => {
-    const { data, error } = await db
-      .from("rate_limits")
-      .select("count")
-      .eq("ip_hash", ipHash)
-      .eq("day", day)
-      .maybeSingle();
-    if (error) throw new Error("rate_limits read failed");
-    const current = (data as { count: number } | null)?.count ?? 0;
-    if (!increment) return current;
-    const next = current + 1;
-    const { error: writeError } = await db
-      .from("rate_limits")
-      .upsert({ ip_hash: ipHash, day, count: next }, { onConflict: "ip_hash,day" });
-    if (writeError) throw new Error("rate_limits write failed");
+    if (!increment) {
+      const { data, error } = await db
+        .from("rate_limits")
+        .select("count")
+        .eq("ip_hash", ipHash)
+        .eq("day", day)
+        .maybeSingle();
+      if (error) throw new Error("rate_limits read failed");
+      return (data as { count: number } | null)?.count ?? 0;
+    }
+    const { data, error } = await db.rpc("rate_limit_hit", {
+      p_ip_hash: ipHash,
+      p_day: day,
+    });
+    if (error) throw new Error("rate_limits increment failed");
+    const next = typeof data === "number" ? data : Number(data);
+    if (!Number.isFinite(next)) throw new Error("rate_limits increment failed");
     return next;
   });
 
