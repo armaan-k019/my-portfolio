@@ -445,6 +445,14 @@ function clipRingToFrame(ring: LocalPoint[], halfSizeM: number): LocalPoint[] {
   return output.length < 3 ? [] : output;
 }
 
+/**
+ * The denominator of coverageRatio: the area of the 400 m fetch circle, about
+ * 502655 m2 (SPEC section 9, owner decision 2026-09-24). Buildings are only
+ * ever fetched inside that circle, so dividing by the 800 m frame area would
+ * count the four corners the query never reached and read every site low.
+ */
+const FETCH_CIRCLE_AREA_M2 = Math.PI * SITE_RADIUS_M * SITE_RADIUS_M;
+
 /** Pure: turn the trimmed payload into the osm layer data. */
 export function buildOsm(payload: TrimmedOverpass, origin: LatLng): OsmData {
   const buildings: OsmBuilding[] = [];
@@ -571,8 +579,7 @@ export function buildOsm(payload: TrimmedOverpass, origin: LatLng): OsmData {
     withHeight,
     withLevels,
     relationCount,
-    coverageRatio:
-      Math.round((footprintArea / (FRAME_SIZE_M * FRAME_SIZE_M)) * 10000) / 10000,
+    coverageRatio: Math.round((footprintArea / FETCH_CIRCLE_AREA_M2) * 10000) / 10000,
   };
 
   return { buildings, water, streets, transitStops, stats };

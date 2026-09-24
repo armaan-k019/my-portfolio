@@ -320,7 +320,10 @@ export interface OsmStats {
   withHeight: number;
   withLevels: number;
   relationCount: number;
-  /** Footprint area clipped to the 800 m frame over the frame area. */
+  /**
+   * Footprint area, rings clipped to the 800 m frame, over the area of the
+   * 400 m fetch circle (SPEC section 9).
+   */
   coverageRatio: number;
   /** Present only when the cached Overpass payload passed the size threshold. */
   sizeWarning?: { bytes: number; thresholdBytes: number };

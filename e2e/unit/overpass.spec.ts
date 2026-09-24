@@ -255,7 +255,7 @@ test("the WaKeeney fixture yields between 10 and 40 buildings", () => {
   expect(data.buildings.length).toBeLessThanOrEqual(40);
 });
 
-test("coverage counts only the footprint area inside the 800 m frame", () => {
+test("coverage counts footprint inside the frame over the 400 m circle area", () => {
   const data = buildOsm(loadTrimmed("atlanta"), ATLANTA);
   expect(data.stats.coverageRatio).toBeGreaterThan(0);
   expect(data.stats.coverageRatio).toBeLessThan(1);
@@ -285,8 +285,13 @@ test("coverage counts only the footprint area inside the 800 m frame", () => {
 
   const clipped = buildOsm(straddling as never, ATLANTA);
   expect(clipped.stats.buildingCount).toBe(1);
-  // 200 x 200 of 800 x 800, not the 400 x 200 the ring actually spans.
-  expect(clipped.stats.coverageRatio).toBeCloseTo((200 * 200) / (800 * 800), 3);
+  // The numerator is the clipped 200 x 200 m, not the 400 x 200 m the ring
+  // actually spans. The denominator is the area of the 400 m fetch circle,
+  // not the 800 m frame: SPEC section 9, owner decision 2026-09-24.
+  expect(clipped.stats.coverageRatio).toBeCloseTo(
+    (200 * 200) / (Math.PI * 400 * 400),
+    3,
+  );
 });
 
 // ─── fetch behaviour ─────────────────────────────────────────────────────────
