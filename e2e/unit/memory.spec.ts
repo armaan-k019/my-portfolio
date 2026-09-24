@@ -6,8 +6,10 @@ import {
   getOrCreateSite,
   hashIp,
   isLocalSiteId,
+  issueLocalSiteId,
   memoryStatus,
   setClientForTests,
+  verifyLocalSiteId,
   withMemory,
 } from "../../src/lib/datum/memory";
 
@@ -41,7 +43,7 @@ test("a rejecting client flips Site Memory offline", async () => {
   setClientForTests(null);
 });
 
-test("the offline fallback serves a local- prefixed site id", async () => {
+test("the offline fallback serves a signed local site id", async () => {
   setClientForTests(rejectingClient());
   const site = await getOrCreateSite({
     lat: 33.7751258,
@@ -50,6 +52,12 @@ test("the offline fallback serves a local- prefixed site id", async () => {
     isTest: true,
   });
   expect(isLocalSiteId(site.id)).toBe(true);
+  expect(site.id).toMatch(/^local-33\.775,-84\.392-[0-9a-f]{32}$/);
+  expect(verifyLocalSiteId(site.id)).toEqual({
+    siteKey: "33.775,-84.392",
+    lat: 33.775,
+    lng: -84.392,
+  });
   expect(site.site_key).toBe("33.775,-84.392");
   expect(site.public_lat).toBe(33.78);
   expect(site.analysis_count).toBe(1);
@@ -97,4 +105,56 @@ test("hashIp is a stable sha256 hex digest and clientIpFrom takes the first entr
 
   expect(clientIpFrom("203.0.113.7, 70.41.3.18")).toBe("203.0.113.7");
   expect(clientIpFrom(null)).toBe("unknown");
+});
+
+// ─── signed local site ids ───────────────────────────────────────────────────
+
+const DAY_MS = 86_400_000;
+const ATLANTA_KEY = "33.775,-84.392";
+
+test("a local site id verifies whatever Site Memory is doing now", async () => {
+  setClientForTests(rejectingClient());
+  const id = issueLocalSiteId(ATLANTA_KEY);
+  await withMemory(async (db) => db.from("sites").select("*").maybeSingle());
+  expect(memoryStatus()).toBe("offline");
+  expect(verifyLocalSiteId(id)?.siteKey).toBe(ATLANTA_KEY);
+
+  // The cool down ends and the module reports online again. The id issued
+  // during the outage still resolves, which is the whole point of signing it.
+  setClientForTests(null);
+  expect(memoryStatus()).toBe("online");
+  expect(verifyLocalSiteId(id)?.siteKey).toBe(ATLANTA_KEY);
+});
+
+test("a forged or tampered local site id does not verify", () => {
+  const id = issueLocalSiteId(ATLANTA_KEY);
+  const signature = id.slice(id.lastIndexOf("-") + 1);
+
+  // A signature altered by one character.
+  const flipped = signature.startsWith("0") ? "1" : "0";
+  expect(verifyLocalSiteId(`${id.slice(0, -signature.length)}${flipped}${signature.slice(1)}`)).toBeNull();
+
+  // The same signature carried over to a different point.
+  expect(verifyLocalSiteId(`local-25.801,-80.189-${signature}`)).toBeNull();
+
+  // An id with no signature at all, which is what the old format amounted to.
+  expect(verifyLocalSiteId("local-0123456789abcdef01234567")).toBeNull();
+  expect(verifyLocalSiteId(`local-${ATLANTA_KEY}`)).toBeNull();
+
+  // A non canonical spelling of the same point.
+  expect(verifyLocalSiteId(`local-33.7750,-84.392-${signature}`)).toBeNull();
+
+  // Not a local id at all.
+  expect(verifyLocalSiteId("11111111-1111-1111-1111-111111111111")).toBeNull();
+});
+
+test("yesterday's signature verifies and the day before does not", () => {
+  const now = Date.now();
+  expect(
+    verifyLocalSiteId(issueLocalSiteId(ATLANTA_KEY, new Date(now - DAY_MS)))
+      ?.siteKey,
+  ).toBe(ATLANTA_KEY);
+  expect(
+    verifyLocalSiteId(issueLocalSiteId(ATLANTA_KEY, new Date(now - 2 * DAY_MS))),
+  ).toBeNull();
 });

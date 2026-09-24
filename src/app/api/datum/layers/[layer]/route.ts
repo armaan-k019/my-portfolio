@@ -15,8 +15,8 @@ import {
   getSiteById,
   hashIp,
   isLocalSiteId,
-  memoryStatus,
   storeLayerResult,
+  verifyLocalSiteId,
 } from "@/lib/datum/memory";
 import { isValidSiteClass } from "@/lib/datum/sources/usgsSeismic";
 import { isLayerName, type LayerInput } from "@/lib/datum/types";
@@ -53,23 +53,16 @@ export async function GET(
 
   if (isLocalSiteId(siteId)) {
     // A local id is the offline fallback the site route hands out when Site
-    // Memory is down. While memory is online every real site has a stored row,
-    // so a local id is a caller inventing a site id rather than using one.
-    if (memoryStatus() !== "offline") {
+    // Memory is down. It carries its own point and an HMAC over that point and
+    // the day, so it is accepted whatever memoryStatus says now: memory can
+    // come back online mid analysis, and the later layers of that analysis must
+    // still resolve. Anything forged or stale fails here.
+    const local = verifyLocalSiteId(siteId);
+    if (!local) {
       return badRequest("Unknown site.");
     }
-
-    // The point travels on the query string, so it is range checked here the
-    // way the site route checks the body it stores.
-    const rawLat = query.get("lat");
-    const rawLng = query.get("lng");
-    if (rawLat === null || rawLng === null) {
-      return badRequest("lat and lng are required for a local site id.");
-    }
-    // Number("") and Number(null) are both 0, which would silently analyse a
-    // point in the Gulf of Guinea, so the raw strings are checked first.
-    lat = Number(rawLat.trim() === "" ? Number.NaN : rawLat);
-    lng = Number(rawLng.trim() === "" ? Number.NaN : rawLng);
+    lat = local.lat;
+    lng = local.lng;
     if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
       return badRequest("lat must be a number between -90 and 90.");
     }

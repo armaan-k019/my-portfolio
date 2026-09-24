@@ -3,7 +3,7 @@
 // SPEC.md section 13. Key values are never logged and never returned.
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import {
   MEMORY_OFFLINE_COOLDOWN_MS,
   MEMORY_TIMEOUT_MS,
@@ -132,12 +132,82 @@ export function clientIpFrom(headerValue: string | null): string {
 
 const localSites = new Map<string, SiteRecord>();
 
-function localSiteId(key: string): string {
-  return `local-${createHash("sha256").update(key).digest("hex").slice(0, 24)}`;
+const LOCAL_ID_PREFIX = "local-";
+const LOCAL_ID_SIG_LENGTH = 32;
+const DAY_MS = 86_400_000;
+
+let localIdSecret: string | null = null;
+
+/**
+ * The signing key for local site ids. Read once, never logged, never returned.
+ * When SUPABASE_SECRET_KEY is absent Site Memory is not configured at all, so
+ * there is no project behind the id to protect and a fixed in code string
+ * stands in rather than leaving the id unsigned.
+ */
+function localIdKey(): string {
+  if (localIdSecret !== null) return localIdSecret;
+  const secret = process.env.SUPABASE_SECRET_KEY;
+  localIdSecret =
+    secret && secret.length > 0 ? secret : "datum.local-site-id.unconfigured";
+  return localIdSecret;
+}
+
+function localIdSignature(key: string, day: string): string {
+  return createHmac("sha256", localIdKey())
+    .update(`${key}|${day}`)
+    .digest("hex")
+    .slice(0, LOCAL_ID_SIG_LENGTH);
+}
+
+/**
+ * The offline site id: `local-<siteKey>-<sig>`, where sig is the first 32 hex
+ * characters of HMAC-SHA256 over `<siteKey>|<UTC day>`. The point travels
+ * inside the id, so the layer route does not have to trust a query string, and
+ * the signature means an id can only come from the site route, which charges
+ * the daily cap before it issues one.
+ *
+ * `now` is a test seam for the day rollover; callers pass nothing.
+ */
+export function issueLocalSiteId(key: string, now: Date = new Date()): string {
+  return `${LOCAL_ID_PREFIX}${key}-${localIdSignature(key, utcDay(now))}`;
 }
 
 export function isLocalSiteId(id: string): boolean {
-  return id.startsWith("local-");
+  return id.startsWith(LOCAL_ID_PREFIX);
+}
+
+/**
+ * The inverse of issueLocalSiteId. Returns the site key and the point it
+ * encodes, or null for anything forged, tampered with, or older than
+ * yesterday. Yesterday is accepted so an analysis started before UTC midnight
+ * still resolves its layers afterwards.
+ */
+export function verifyLocalSiteId(
+  id: string,
+): { siteKey: string; lat: number; lng: number } | null {
+  if (!isLocalSiteId(id)) return null;
+  const body = id.slice(LOCAL_ID_PREFIX.length);
+  // The site key itself contains hyphens for southern and western points, so
+  // the signature is taken from the last one.
+  const cut = body.lastIndexOf("-");
+  if (cut <= 0) return null;
+  const key = body.slice(0, cut);
+  const signature = body.slice(cut + 1);
+  if (!/^[0-9a-f]{32}$/.test(signature)) return null;
+
+  const parts = key.split(",");
+  if (parts.length !== 2) return null;
+  const lat = Number(parts[0]);
+  const lng = Number(parts[1]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  // Only the canonical 3 dp spelling verifies, so one point has one id.
+  if (siteKeyOf(lat, lng) !== key) return null;
+
+  const now = Date.now();
+  const days = [utcDay(new Date(now)), utcDay(new Date(now - DAY_MS))];
+  if (!days.some((day) => localIdSignature(key, day) === signature)) return null;
+
+  return { siteKey: key, lat, lng };
 }
 
 export interface SiteInput {
@@ -194,7 +264,7 @@ export async function getOrCreateSite(input: SiteInput): Promise<SiteRecord> {
   if (row) return row;
 
   const fallback: SiteRecord = {
-    id: localSiteId(key),
+    id: issueLocalSiteId(key),
     site_key: key,
     lat: input.lat,
     lng: input.lng,
