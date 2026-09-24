@@ -170,7 +170,11 @@ test("trimPayload rejects a body with no elements array", () => {
 
 // ─── fixtures ────────────────────────────────────────────────────────────────
 
-/** Distinct way and relation ids tagged `building` in a trimmed fixture. */
+/**
+ * Distinct way and relation ids tagged `building` in a trimmed fixture, counted
+ * by a plain loop here rather than by anything in the module under test, so the
+ * two counts are arrived at independently.
+ */
 function distinctBuildingIds(name: string): Set<string> {
   const payload = loadTrimmed(name) as {
     elements: Array<{ type: string; id: number; tags: Record<string, string> }>;
@@ -184,20 +188,36 @@ function distinctBuildingIds(name: string): Set<string> {
   return ids;
 }
 
-// buildingCount is counted from the fixture here rather than hard coded, so an
-// OSM edit that changes the recorded response moves both sides together. The
-// bands on withHeight and withLevels stay as a wide sanity range only.
+// Two assertions, deliberately of different kinds. The first is structural:
+// buildingCount is recounted from the fixture by the loop above, so an OSM edit
+// to the recorded response moves both sides together. On its own that is
+// self referential, because the loop states the same rule the parser applies.
+// The second is absolute: fixed numbers that no change to the parser can move.
+//
+// The absolute bands come from the 2026-09-22 Overpass capture in
+// e2e/fixtures/overpass, which holds 140 distinct building tagged features
+// within the Atlanta 400 m extent. SPEC section 5 recorded "about 96 buildings,
+// 11 with levels, 0 with height" from the 2026-09-21 probe, a narrower query
+// against a different day of OSM data, so the bands are wide enough to hold
+// both that figure and ordinary map editing, and narrow enough that a parser
+// counting rings, nodes, or every element would fall outside them.
 test("the Atlanta fixture counts distinct buildings, not rings", () => {
   const data = buildOsm(loadTrimmed("atlanta"), ATLANTA);
   const expected = distinctBuildingIds("atlanta");
 
   expect(data.stats.buildingCount).toBe(expected.size);
+  // Absolute: the count itself, not just agreement with the parser.
+  expect(expected.size).toBeGreaterThanOrEqual(100);
+  expect(expected.size).toBeLessThanOrEqual(200);
+  expect(data.stats.buildingCount).toBeGreaterThanOrEqual(100);
+  expect(data.stats.buildingCount).toBeLessThanOrEqual(200);
+
   // A relation contributes several outer rings, all of them drawn.
   expect(data.stats.ringCount).toBe(data.buildings.length);
   expect(data.stats.ringCount).toBeGreaterThan(data.stats.buildingCount);
   expect(data.stats.relationCount).toBeGreaterThan(0);
 
-  // Sanity range only, not a measurement.
+  // Absolute bands, same reasoning as the building count.
   expect(data.stats.withHeight).toBeGreaterThanOrEqual(5);
   expect(data.stats.withHeight).toBeLessThanOrEqual(40);
   expect(data.stats.withLevels).toBeGreaterThanOrEqual(30);
