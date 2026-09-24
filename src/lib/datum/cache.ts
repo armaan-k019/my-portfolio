@@ -51,7 +51,9 @@ export async function cached(
     return {
       entry: hit,
       cached: true,
-      sizeWarning: (hit.bodyBytes ?? 0) > CACHE_SIZE_WARN_BYTES,
+      sizeWarning:
+        typeof hit.bodyBytes === "number" &&
+        hit.bodyBytes > CACHE_SIZE_WARN_BYTES,
     };
   }
 

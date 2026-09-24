@@ -362,16 +362,17 @@ export async function fetchOsmPayload(
       source: "overpass",
     });
   }
+  // bodyBytes is always a number when the cache flagged the size; the type
+  // guard is what narrows it, not a default that could invent a size.
+  const bytes = result.entry.bodyBytes;
   return {
     payload,
     url: result.entry.url,
     cached: result.cached,
-    sizeWarning: result.sizeWarning
-      ? {
-          bytes: result.entry.bodyBytes ?? 0,
-          thresholdBytes: CACHE_SIZE_WARN_BYTES,
-        }
-      : null,
+    sizeWarning:
+      result.sizeWarning && typeof bytes === "number"
+        ? { bytes, thresholdBytes: CACHE_SIZE_WARN_BYTES }
+        : null,
   };
 }
 
