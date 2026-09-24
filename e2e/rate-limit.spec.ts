@@ -11,10 +11,15 @@
 // first attempt on 2026-09-24 failed because the layers spec had already spent
 // three of the twenty.
 //
-// With DATUM_E2E_DB=1 the run deletes its own rate_limits row and the test
-// sites at the end. The SQL fallback is in e2e/README.md.
+// The 21 points are randomised per run as well, within a fixed rural cell, so a
+// site row left behind by an earlier run cannot make one of this run's requests
+// free (a re-open inside 30 days is not charged).
+//
+// With DATUM_E2E_DB=1 the run deletes its own rate_limits row and its own 21
+// site rows at the end. The SQL fallback is in e2e/README.md.
 
 import { test, expect } from "@playwright/test";
+import { siteKey } from "../src/lib/datum/geo";
 import { getClient, hashIp } from "../src/lib/datum/memory";
 
 const LIMIT = 20;
@@ -35,15 +40,41 @@ const SYNTHETIC_IP = [
 const HEADERS = { "x-forwarded-for": SYNTHETIC_IP };
 
 /**
- * Twenty one points near Atlanta, one per third decimal step, so every request
- * creates a new site row and is therefore chargeable. A re-open of a site
- * analyzed in the last 30 days is free and would not move the counter.
+ * The cell the run's points are drawn from: empty rangeland in western Kansas,
+ * well clear of the three test sites in e2e/fixtures/sites.ts and of the forced
+ * failure points. Nothing here depends on what is on the ground; it only has to
+ * be somewhere no other spec analyses.
  */
+const CELL = { lat: 38.0, lng: -101.0, span: 0.4 };
+
+/**
+ * The base point, randomised once per run. Every request must create a new site
+ * row to be chargeable (a re-open inside 30 days is free and would not move the
+ * counter), and a fixed ladder of points meant a row left behind by an earlier
+ * run made one of this run's requests free. A random base makes that collision
+ * as unlikely as the synthetic IP does.
+ */
+const BASE = {
+  lat: Number((CELL.lat + Math.random() * CELL.span).toFixed(3)),
+  lng: Number((CELL.lng + Math.random() * CELL.span).toFixed(3)),
+};
+
+/** Twenty one points, one per third decimal step north of the base. */
 function pointFor(index: number): { lat: number; lng: number } {
   return {
-    lat: Number((33.776 + index * 0.001).toFixed(3)),
-    lng: -84.392,
+    lat: Number((BASE.lat + index * 0.001).toFixed(3)),
+    lng: BASE.lng,
   };
+}
+
+/** The site keys this run generates, which is what its cleanup deletes. */
+function siteKeysThisRun(): string[] {
+  const keys: string[] = [];
+  for (let index = 0; index <= LIMIT; index++) {
+    const point = pointFor(index);
+    keys.push(siteKey(point.lat, point.lng));
+  }
+  return keys;
 }
 
 interface RateLimitError {
@@ -53,7 +84,9 @@ interface RateLimitError {
 
 /**
  * Remove what this run created: its own counter row, found with the same hash
- * the route computes, and the test site rows (layer_results follow by cascade).
+ * the route computes, and its own 21 site rows, found by the site keys it
+ * generated (layer_results follow by cascade). Scoped to those keys rather than
+ * to every is_test row, so a run cannot delete another spec's sites.
  * Prints counts only, never the URL and never the key.
  */
 async function cleanup(): Promise<void> {
@@ -70,10 +103,10 @@ async function cleanup(): Promise<void> {
   const sites = await client
     .from("sites")
     .delete({ count: "exact" })
-    .eq("is_test", true);
+    .in("site_key", siteKeysThisRun());
   console.log(
     `rate limit cleanup: rate_limits rows deleted ${limits.count ?? 0}` +
-      `${limits.error ? " (error)" : ""}, test sites deleted ${sites.count ?? 0}` +
+      `${limits.error ? " (error)" : ""}, own sites deleted ${sites.count ?? 0}` +
       `${sites.error ? " (error)" : ""}`,
   );
 }

@@ -94,17 +94,19 @@ DATUM_E2E_DB=1 npx playwright test e2e/rate-limit.spec.ts
 
 The spec generates one synthetic client IP per run (a random address in 10.0.0.0/8) and sends it in
 the `x-forwarded-for` header on every request. The `site` route hashes the first entry of that
-header, so the daily counter the run exercises is its own: it is not shared with `layers.spec.ts`,
-and the spec can be repeated on the same UTC day without clearing anything first. It asserts exactly
-20 responses with status 200 and `rateLimit.remaining` counting down 19 to 0, then a 429 with
-`resetAt` on the twenty first.
+header, so the daily counter the run exercises is its own: it is not shared with `layers.spec.ts`.
+Its 21 points are randomised per run as well, within a fixed rural cell in western Kansas, so every
+request creates a site row and is chargeable. Those two together are why repeats are safe: the
+points and the IP are both random per run, so nothing an earlier run left behind can make one of
+this run's requests free. It asserts exactly 20 responses with status 200 and `rateLimit.remaining`
+counting down 19 to 0, then a 429 with `resetAt` on the twenty first.
 
 With `DATUM_E2E_DB=1` the run deletes what it created, through `getClient()` in the test process:
 the `rate_limits` row for its own hashed IP (computed with `hashIp` from
-`src/lib/datum/memory.ts`, since the salt is not exported) and `sites` where `is_test`. It prints
-row counts only, never a URL and never a key. Deleting the test sites matters for the next run: a
-site re-opened within 30 days is free and would not move the counter. The SQL below stays as the
-manual fallback for a run that was interrupted or run without `DATUM_E2E_DB=1`.
+`src/lib/datum/memory.ts`, since the salt is not exported) and the `sites` rows for the 21 site keys
+it generated (computed with `siteKey` from `src/lib/datum/geo.ts`), not every `is_test` row in the
+project. It prints row counts only, never a URL and never a key. The SQL below stays as the manual
+fallback for a run that was interrupted or run without `DATUM_E2E_DB=1`.
 
 ## Environment flags
 
