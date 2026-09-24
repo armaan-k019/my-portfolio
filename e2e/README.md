@@ -37,21 +37,37 @@ throughout and the cold column means nothing.
 
 ## Run: forced failure
 
+Procedure revised 2026-09-24 (owner decision c). Three things it depends on: a development server,
+the test flag, and the `overpass` override reaching the mirror.
+
 ```bash
-DATUM_ALLOW_TEST_FLAG=1 DATUM_E2E_FORCED=1 \
+DATUM_ALLOW_TEST_FLAG=1 \
 DATUM_SOURCE_OVERRIDES='{"fema":"http://127.0.0.1:9","usgs_elev":"http://127.0.0.1:9","usgs_seis":"http://127.0.0.1:9","usda":"http://127.0.0.1:9","openmeteo":"http://127.0.0.1:9","overpass":"http://127.0.0.1:9","census_acs":"http://127.0.0.1:9"}' \
 npm run dev
 
-DATUM_E2E_FORCED=1 npx playwright test e2e/layers-forced-failure.spec.ts
+DATUM_E2E_FORCED=1 DATUM_E2E_DB=1 npx playwright test e2e/layers-forced-failure.spec.ts
 ```
 
-Note `npm run dev`, not `npm run start`. `buildSourceContext` in `src/lib/datum/layers.ts` line 67
-reads `DATUM_SOURCE_OVERRIDES` only when `NODE_ENV !== "production"` (SPEC section 15), and the
-webpack build inlines `NODE_ENV` as `"production"` into the server bundle, so a built server
-ignores the override map even when `NODE_ENV=development` is exported into `next start`. Verified
-on 2026-09-24: with the map above and `npm run start`, `layers/seismic` answered `ok` from
-`earthquake.usgs.gov`; with `npm run dev` the same request answered `unavailable` from
-`http://127.0.0.1:9`.
+`npm run dev`, not `npm run start`. `buildSourceContext` in `src/lib/datum/layers.ts` reads
+`DATUM_SOURCE_OVERRIDES` only when `DATUM_ALLOW_TEST_FLAG=1` **and** `NODE_ENV !== "production"`
+(SPEC section 15, owner decision 6), and the webpack build inlines `NODE_ENV` as `"production"` into
+the server bundle, so a built server ignores the override map even when `NODE_ENV=development` is
+exported into `next start`. Verified on 2026-09-24: with the map above and `npm run start`,
+`layers/seismic` answered `ok` from `earthquake.usgs.gov`; with `npm run dev` the same request
+answered `unavailable` from `http://127.0.0.1:9`.
+
+`DATUM_ALLOW_TEST_FLAG=1` is required twice over: it is what makes the `site` route honour
+`{ isTest: true }`, and it is now also half of the condition that makes the override map readable.
+
+The `overpass` entry covers the kumi.systems mirror as well, through `SOURCE_OVERRIDE_ALIASES` in
+`src/lib/datum/constants.ts`. Before that alias existed the override named only the primary host,
+the mirror answered for real, and the run wrote an Overpass row to `api_cache` while still passing.
+
+Both tests analyse a cold point rather than a test site: 35.1, -85.3 for the unavailable assertions
+and 36.4, -86.2 for the `api_cache` count. Each is at least 0.3 degrees from every site in
+`e2e/fixtures/sites.ts` and from the other, which is what keeps the 0.1 degree Open-Meteo climate
+cell cold. A warmed cell is never fetched, so the override would have nothing to block and the layer
+would answer `ok`: that is how the 2026-09-24 run failed.
 
 `sun` is not in the forced list. Only its timezone comes from Open-Meteo, so with `openmeteo`
 overridden it still answers `ok` with `timezoneSource: "utc"`. `census` is in the list: the Census
@@ -73,13 +89,13 @@ the spec on the same UTC day.
 | Flag | Set on | Effect |
 |---|---|---|
 | `DATUM_ALLOW_TEST_FLAG=1` | the server | the `site` route accepts `isTest` |
-| `DATUM_SOURCE_OVERRIDES` | the server | JSON map of source name to base URL, honoured outside production only |
+| `DATUM_SOURCE_OVERRIDES` | the server | JSON map of source name to base URL, honoured only when `DATUM_ALLOW_TEST_FLAG=1` and `NODE_ENV !== "production"` |
 | `DATUM_E2E_FORCED=1` | the test process | runs `layers-forced-failure.spec.ts` instead of skipping it |
 | `DATUM_E2E_DB=1` | the test process | runs the assertions that need migration 0001 applied |
 | `DATUM_LIVE_FEMA=1` | the test process | Phase 0 live FEMA check in `flood-classify.spec.ts` |
 
-Migration 0001 has not been applied, so `DATUM_E2E_DB` is unset and these checks skip with a named
-reason:
+Migration 0001 was applied on 2026-09-24. Without `DATUM_E2E_DB=1` these checks still skip, with a
+named reason:
 
 - `layers.spec.ts`: Site Memory reports `online` and the `site` route returns a real row id rather
   than a `local-` id.

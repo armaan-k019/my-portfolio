@@ -1,19 +1,32 @@
-// Step 1.10 forced failure run. Every external source is pointed at an
-// unreachable port, so every layer that depends on one must come back
-// unavailable with data null and a real sentence, and nothing may be cached.
+// Step 1.10 forced failure run (procedure revised 2026-09-24, owner decision c).
+// Every external source is pointed at an unreachable port, so every layer that
+// depends on one must come back unavailable with data null and a real sentence,
+// and nothing may be cached.
 //
-// Start the server with (one line, exactly this JSON):
+// Start a development server with (one line, exactly this JSON):
 //
-//   DATUM_ALLOW_TEST_FLAG=1 DATUM_E2E_FORCED=1 \
+//   DATUM_ALLOW_TEST_FLAG=1 \
 //   DATUM_SOURCE_OVERRIDES='{"fema":"http://127.0.0.1:9","usgs_elev":"http://127.0.0.1:9","usgs_seis":"http://127.0.0.1:9","usda":"http://127.0.0.1:9","openmeteo":"http://127.0.0.1:9","overpass":"http://127.0.0.1:9","census_acs":"http://127.0.0.1:9"}' \
-//   npm run start
+//   npm run dev
 //
-// DATUM_SOURCE_OVERRIDES is read only when NODE_ENV !== "production"
-// (SPEC section 15), so the server must be started from a development build.
+// then run the spec with DATUM_E2E_FORCED=1 (and DATUM_E2E_DB=1 for the
+// api_cache count assertion).
+//
+// Three things the procedure depends on:
+//
+//   1. npm run dev, not npm run start. The overrides are honoured only when
+//      DATUM_ALLOW_TEST_FLAG=1 and NODE_ENV !== "production" (SPEC section 15,
+//      owner decision 6), and a built server inlines "production".
+//   2. The "overpass" entry covers the kumi.systems mirror as well, through
+//      SOURCE_OVERRIDE_ALIASES. Without that the mirror answered for real and
+//      the run cached an Overpass row while still passing.
+//   3. Both tests analyse a cold point (see COLD_POINTS below), because a
+//      source whose cache cell is already populated is never asked and the
+//      override has nothing to block.
+//
 // See e2e/README.md.
 
 import { test, expect, type APIRequestContext } from "@playwright/test";
-import { testSites } from "./fixtures/sites";
 import { getClient } from "../src/lib/datum/memory";
 
 /**
@@ -32,6 +45,21 @@ const FORCED_LAYERS = [
   "flood",
   "census",
 ] as const;
+
+/**
+ * The two points the tests analyse, one each. Both are in the continental US
+ * (rural middle Tennessee) and both are at least 0.3 degrees from every site in
+ * e2e/fixtures/sites.ts and from each other, in latitude and in longitude:
+ * Atlanta 33.775, -84.392; Miami 25.801, -80.189; WaKeeney 39.020, -99.884.
+ * 0.3 degrees is the threshold because the coarsest cache key in the system is
+ * the Open-Meteo climate cell, rounded to 0.1 degrees, so a point this far away
+ * cannot share a cell with anything an earlier run warmed, and neither test can
+ * warm a cell for the other.
+ */
+const COLD_POINTS = {
+  unavailable: { lat: 35.1, lng: -85.3 },
+  cacheCount: { lat: 36.4, lng: -86.2 },
+} as const;
 
 /** api_cache key prefixes written by the overridden sources. */
 const FORCED_CACHE_PREFIXES = [
@@ -88,13 +116,13 @@ test("datum layers: every overridden source reports unavailable", async ({ reque
   );
   test.setTimeout(10 * 60 * 1000);
 
-  const site = testSites[0];
-  const created = await createSite(request, site.lat, site.lng);
+  const point = COLD_POINTS.unavailable;
+  const created = await createSite(request, point.lat, point.lng);
 
   for (const layer of FORCED_LAYERS) {
     const response = await request.get(
       `/api/datum/layers/${layer}?site=${encodeURIComponent(created.siteId)}` +
-        `&lat=${site.lat}&lng=${site.lng}`,
+        `&lat=${point.lat}&lng=${point.lng}`,
       { timeout: 120_000 },
     );
     expect(response.status(), `GET ${layer} should answer 200`).toBe(200);
@@ -127,13 +155,14 @@ test("datum layers: a forced failure writes nothing to api_cache", async ({ requ
   const before = await apiCacheCounts();
   expect(before, "the test process should be able to read api_cache").not.toBeNull();
 
-  // A fresh point, so no prior cache row can satisfy any of these layers.
-  const site = testSites[2];
-  const created = await createSite(request, site.lat + 0.004, site.lng + 0.004);
+  // The second cold point, far enough from the first that the two tests cannot
+  // warm a cache cell for each other.
+  const point = COLD_POINTS.cacheCount;
+  const created = await createSite(request, point.lat, point.lng);
   for (const layer of FORCED_LAYERS) {
     await request.get(
       `/api/datum/layers/${layer}?site=${encodeURIComponent(created.siteId)}` +
-        `&lat=${site.lat + 0.004}&lng=${site.lng + 0.004}`,
+        `&lat=${point.lat}&lng=${point.lng}`,
       { timeout: 120_000 },
     );
   }
