@@ -311,8 +311,10 @@ required, inert in production proven by a test).
 
 ### Third round results (2026-09-24)
 
-Commits `99623b3` (site lookup started before parameter work; layer_results written through
-`after()` from next/server via a one line wrapper in `src/lib/datum/after.ts` with a test seam,
+Commits `99623b3` (layer_results written through `after()`; the commit subject claims an overlap
+of the site lookup with the fetch, but the reviewer confirmed nothing asynchronous runs between
+starting the lookup and awaiting it, so the lookup and the cache read remain serial and only the
+write was removed from the response path; written through `after()` from next/server via a one line wrapper in `src/lib/datum/after.ts` with a test seam,
 because a route file may not export helpers), `5947997` (overrides need the flag and non
 production, inert in production proven by a unit test; `overpass` alias covers the mirror),
 `f75d514` (forced failure spec on cold points 35.1,-85.3 and 36.4,-86.2), `7485a89` (rate limit
@@ -333,7 +335,25 @@ that true overlap of the site lookup with the cache read is not possible on the 
 must precede any upstream call, so the gain came from `after()`. Informational only; the Vercel
 preview is the measurement of record (decision b).
 
-Fresh reviewer dispatched on the third round per the owner's instruction.
+### Third round review (fresh Opus reviewer, 2026-09-24): STOP
+
+| # | Severity | Finding |
+|---|---|---|
+| 1 | high | The claimed overlap of site lookup and fetch was not delivered (all code between starting and awaiting the lookup is synchronous). Only the layer_results write left the response path |
+| 2 | high | Database backed site ids reach every upstream with no rate limit gate; SPEC section 13 exempts only sites created in the last 24 hours, the route exempts every site forever |
+| 3 | medium | `Number(null)` is 0, so a null rpc result silently disables the cap instead of failing; a timeout on a successful increment can double charge through the retry |
+| 4 | medium | The forced failure api_cache assertion counts rows per prefix; an upsert onto an existing key is invisible, and `census_acs`/`tiger` keys are tract keyed, not point keyed |
+| 5 | medium | The 0.3 degree cold point rule does not cover tract keyed caches, so `census` can answer ok from cache on a repeat run |
+| 6 | medium | Rate limit spec cleanup deletes every test site in the project, not only its own |
+| 7 to 11 | low | README repeatability claim, unguarded test seams in src, env restore writes the string "undefined", a `?? ""` in the size guard, a no-op after() for local ids |
+
+Sound: `after()` usage and error handling, transient envelopes never scheduled, override gating
+and the inertness test, the alias without double matching, signed local ids, the synthetic IP
+hashing, the cold points' separation, no weakened thresholds.
+
+Phase 1 has used its two fix rounds plus the owner authorised third. A fourth round is proposed to
+the owner with a design for the overlap (site lookup and rate limit peek in parallel, peek result
+memoised per IP for 60 s in the instance, fetch after both) and the 24 hour exemption rule.
 
 ### Owner decisions pending (Phase 1), superseded by the answers above
 
