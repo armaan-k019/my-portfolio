@@ -355,6 +355,16 @@ Phase 1 has used its two fix rounds plus the owner authorised third. A fourth ro
 the owner with a design for the overlap (site lookup and rate limit peek in parallel, peek result
 memoised per IP for 60 s in the instance, fetch after both) and the 24 hour exemption rule.
 
+### Fourth round authorised (owner, 2026-09-24): recorded second exception to the two round limit
+
+Scope: review findings 1 to 11 of the third round review. Constraints from the owner: the rate
+limit peek memo is keyed by IP hash only and held for 60 seconds in the instance, which means an
+IP that has just hit the cap can keep making layer calls for up to one minute; this tolerance is
+accepted and stated here. The 24 hour exemption matches SPEC section 13 exactly: layer calls for
+a site created within the last 24 hours are not separately limited; an id older than 24 hours is
+subject to the cap, and the unit test asserts that. If the gate still fails after this round the
+orchestrator stops and the owner re-plans; no fifth round.
+
 ### Owner decisions pending (Phase 1), superseded by the answers above
 
 1. Migration 0001: run as written, or with the atomic `rate_limit_hit` function appended.
