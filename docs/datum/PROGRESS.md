@@ -246,6 +246,53 @@ the point version), Sonnet where the plan says Sonnet, Haiku for one or two file
 orchestrator's own model is a harness setting the orchestrator cannot change from inside the
 session; the owner switches it with the `/model` command.
 
+### Owner directed round (2026-09-24, after the decisions)
+
+`3aa26ce` rpc increment, `251e08c` 3 MB size guard, `9c28b00` coverage over the 400 m circle,
+`cccc720` Playwright ignore and types tidy, `af0d248` keeps the fallback grep to the two counters.
+Gates: tsc exit 0; 168 unit tests; both builds exit 0; eslint 16 errors; `playwright test --list`
+12 tests in 5 files, none under unit.
+
+### Migration 0001 applied (owner, 2026-09-24) and verified from the app side
+
+Through the Supabase client with the secret key: insert, update, delete succeed on api_cache,
+sites, layer_results, rate_limits; deleting a site cascades to layer_results; `rate_limit_hit`
+returns 1 then 2 on consecutive calls; an unauthenticated REST request is refused with 401. Test
+rows were removed afterwards.
+
+### Database gated e2e (2026-09-24): STOP, two fix rounds already used
+
+Run against `next start` with `DATUM_ALLOW_TEST_FLAG=1 DATUM_E2E_DB=1`, cache and rate limit
+tables live, from this laptop to the Americas region project.
+
+| Spec | Result | Cause |
+|---|---|---|
+| layers.spec | 3 failed | warm responses over Supabase exceed the 1500 ms budget: sun 1920 and 1970 ms, climate 2316 and 2580 ms, topo 4434 ms at Atlanta. In memory mode the same assertions passed at 280 to 1500 ms. Each layer request does a site lookup, a cache read, and a layer_results write in series, each a round trip from the laptop to the project |
+| rate-limit.spec | passed after clearing `rate_limits` | the first attempt failed because the counter persists across specs within a day (the layers spec had already spent 3 of 20); the spec assumes a fresh day |
+| layers-forced-failure.spec (dev server) | 2 failed | climate answered ok because the 0.1 degree climate cache cell was already populated by the layers spec, so the override never had a request to block; the Overpass cache gained a row because the documented override JSON names `overpass` but not `overpass_mirror`, so the mirror answered for real |
+
+Warm timing table, database mode, ms (cold column is itself warm from the previous run's cache):
+
+| layer | Atlanta warm | Miami warm | WaKeeney warm |
+|---|---|---|---|
+| sun | 1920 | 1970 | 1202 |
+| climate | 2580 | 2180 | 2316 |
+| topo | 4434 | 1797 | 1444 |
+| seismic | 1095 | 1119 | 1147 |
+| soil | 1092 | 1111 | 1206 |
+| osm | 4472 | 2962 | 1624 |
+| walkshed | 3166 | 1869 | 1209 |
+| census | 2014 | 1535 | 2030 |
+
+Flood unavailable everywhere (FEMA unreachable). All test rows cleaned up afterwards.
+
+Proposed to the owner (not applied): (a) a third round to run the site lookup and cache read in
+parallel and to write layer_results without awaiting it, then re-measure; (b) treat laptop to
+Supabase numbers as an upper bound and re-measure on the Vercel preview; (c) forced failure spec
+uses a point far from any cached cell and the override alias maps `overpass` onto the mirror too;
+(d) rate-limit spec asserts relative to the first response's `remaining` and the README says to
+clear the table first.
+
 ### Owner decisions pending (Phase 1), superseded by the answers above
 
 1. Migration 0001: run as written, or with the atomic `rate_limit_hit` function appended.
