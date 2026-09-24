@@ -293,6 +293,22 @@ uses a point far from any cached cell and the override alias maps `overpass` ont
 (d) rate-limit spec asserts relative to the first response's `remaining` and the README says to
 clear the table first.
 
+### Third round authorised (owner, 2026-09-24): recorded exception to the two round limit
+
+Scope: (a) layer route runs the site lookup and the cache read in parallel and schedules the
+layer_results write with Next's `after()` so it is guaranteed to run after the response is sent
+(never a floating promise: serverless instances can be frozen once the response goes out);
+(b) Vercel preview becomes the measurement of record for SPEC section 16 warm targets, the 1500 ms
+threshold stays, local database mode timings are informational and include laptop to region
+latency, and all three sites cold and warm must be recorded here from the preview before the
+stack merges; (c) forced failure procedure revised in PHASE-1 step 1.10 (cold point at least
+0.3 degrees away, `overpass` override covers the mirror). What the old procedure failed to catch:
+the mirror answered for real while the test still passed in memory mode, because the override
+JSON never named `overpass_mirror` and the in memory run happened to hit a mirror timeout;
+(d) the rate limit spec isolates itself with a unique synthetic client IP per run and asserts the
+exact 429 at request 21; decision 6 implemented as approved (flag and non production both
+required, inert in production proven by a test).
+
 ### Owner decisions pending (Phase 1), superseded by the answers above
 
 1. Migration 0001: run as written, or with the atomic `rate_limit_hit` function appended.

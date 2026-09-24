@@ -208,7 +208,8 @@ Commit: `feat(datum): add Overpass source and computed walk shed`
 
 `suggest`, `geocode`, `site`, `layers/[layer]` per `SPEC.md` section 7. `layers/[layer]` validates
 the layer name against the fixed list and returns 404 JSON for anything else. Every route reads
-`DATUM_SOURCE_OVERRIDES` when `NODE_ENV !== "production"` and passes it into the source context.
+`DATUM_SOURCE_OVERRIDES` only when `DATUM_ALLOW_TEST_FLAG=1` and `NODE_ENV !== "production"` (owner
+decision 6, 2026-09-24) and passes it into the source context.
 
 Commit: `feat(datum): add suggest, geocode, site, and per layer routes`
 
@@ -240,15 +241,24 @@ under 1500 ms. `osm` and `walkshed` are allowed to be unavailable (Overpass is u
 test prints a warning rather than failing, but fails if the unavailable envelope has `data` not
 null or lacks a `message`.
 
-Forced failure run: start the server with
+Forced failure run (procedure revised 2026-09-24, owner decision c): start a development server
+(`npm run dev`; the overrides are inert in production mode by design) with `DATUM_ALLOW_TEST_FLAG=1`
+and
 `DATUM_SOURCE_OVERRIDES='{"fema":"http://127.0.0.1:9","usgs_elev":"http://127.0.0.1:9","usgs_seis":"http://127.0.0.1:9","usda":"http://127.0.0.1:9","openmeteo":"http://127.0.0.1:9","overpass":"http://127.0.0.1:9","census_acs":"http://127.0.0.1:9"}'`
-and assert every overridden layer returns `status: "unavailable"`, `data: null`, a non empty
-`unavailable.message`, and that nothing was written to `api_cache` for those keys (query the table
-count before and after).
+where the `overpass` override applies to the mirror as well (the alias table maps it onto both
+Overpass hosts). The spec analyses a point that no earlier run has cached: it must be at least
+0.3 degrees from every test site and from the previous forced failure point, so that even the
+0.1 degree climate cell is cold. Assert every overridden layer returns `status: "unavailable"`,
+`data: null`, a non empty `unavailable.message`, and that `api_cache` gained no row for any
+overridden key prefix (count before and after through the app's client).
 
-Rate limit run: call `site` 21 times with distinct coordinates from one client; the 21st returns
-429 with `resetAt`. Then delete the test rows:
-`delete from rate_limits where day = current_date;` (documented in the spec as the cleanup).
+Rate limit run: the spec sends a unique synthetic client IP per run in the `x-forwarded-for`
+header (a random address in 10.0.0.0/8), so the daily counter it exercises is isolated from every
+other spec and from earlier runs. Call `site` 21 times with distinct coordinates; the first 20
+return 200 with `rateLimit.remaining` counting down from 19 to 0; the 21st returns 429 with
+`resetAt`. Afterwards delete the test rows through the app's client (`rate_limits` for that hash,
+`sites` where `is_test`), and keep `delete from rate_limits where day = current_date;` in the
+README as the manual fallback.
 
 Commit: `test(datum): add layer, cache, forced failure, and rate limit checks`
 

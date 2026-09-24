@@ -851,7 +851,7 @@ three components that differ least. Percentiles use `metric_percentile()` on the
 | `SUPABASE_URL` | phase 1 | `memory.ts`, `cache.ts` | project URL |
 | `SUPABASE_SECRET_KEY` | phase 1 | same | an `sb_secret_` key; server only; never prefixed `NEXT_PUBLIC_`. Supabase is retiring legacy service_role keys by the end of 2026 |
 | `DATUM_ALLOW_TEST_FLAG` | phase 1, local and preview only | `site` route | `1` lets the client set `isTest`; unset in production |
-| `DATUM_SOURCE_OVERRIDES` | tests only | `sources/*` | JSON map of source name to base URL, honoured only when `NODE_ENV !== "production"`; used by e2e to point a source at an unreachable port and assert the unavailable state |
+| `DATUM_SOURCE_OVERRIDES` | tests only | `sources/*` | JSON map of source name to base URL, honoured only when `DATUM_ALLOW_TEST_FLAG=1` and `NODE_ENV !== "production"` (both conditions; inert in any production build, proven by a unit test); used by e2e to point a source at an unreachable port and assert the unavailable state |
 | `CRON_SECRET` | phase 3 | `memory/ping` | Vercel sets `Authorization: Bearer <CRON_SECRET>` on cron requests; the route rejects anything else |
 
 `.env.example` is updated in phase 1 to list these and to drop `EVENTBRITE_API_KEY` (already dead;
