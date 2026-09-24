@@ -309,6 +309,32 @@ JSON never named `overpass_mirror` and the in memory run happened to hit a mirro
 exact 429 at request 21; decision 6 implemented as approved (flag and non production both
 required, inert in production proven by a test).
 
+### Third round results (2026-09-24)
+
+Commits `99623b3` (site lookup started before parameter work; layer_results written through
+`after()` from next/server via a one line wrapper in `src/lib/datum/after.ts` with a test seam,
+because a route file may not export helpers), `5947997` (overrides need the flag and non
+production, inert in production proven by a unit test; `overpass` alias covers the mirror),
+`f75d514` (forced failure spec on cold points 35.1,-85.3 and 36.4,-86.2), `7485a89` (rate limit
+spec with a synthetic client IP per run, exact 429 at request 21).
+
+Gates (orchestrator re-run): tsc exit 0; `npm run test:unit` 175 passed; eslint 16 errors and
+10 warnings; both builds exit 0; fallback grep only the two counters; no direct `fetch` outside
+http.ts; no em dashes.
+
+Database mode e2e (builder run, laptop to region): rate-limit spec passed without any table
+clearing; forced failure spec 2 passed on the dev server (climate now unavailable on a cold
+cell, `api_cache` gained no row for any overridden prefix, mirror included); layers spec 2
+passed, 2 failed on warm latency only: Atlanta climate 2191 ms and WaKeeney sun 1677 ms against
+1500. Before the round 8 of 24 warm reads were inside budget; after it 24 of 27 are. Largest
+changes: Atlanta topo 4434 to 841 ms, osm 4472 to 1039, walkshed 3166 to 669. The builder notes
+that true overlap of the site lookup with the cache read is not possible on the database path
+(the cache key needs the site's point, which comes from the row) and that the rate limit peek
+must precede any upstream call, so the gain came from `after()`. Informational only; the Vercel
+preview is the measurement of record (decision b).
+
+Fresh reviewer dispatched on the third round per the owner's instruction.
+
 ### Owner decisions pending (Phase 1), superseded by the answers above
 
 1. Migration 0001: run as written, or with the atomic `rate_limit_hit` function appended.
