@@ -391,6 +391,28 @@ in two of six runs Site Memory flipped offline mid run on the slow link, and in 
 layer answered 404 because the site row could not be read while the guard was tripped. Raised
 with the fourth round reviewer (question 7) before the preview measurement.
 
+### Fourth round review (fresh Opus reviewer, 2026-09-24): STOP, no fifth round
+
+Previous findings: F1, F2, F4, F6 to F11 closed; F3 partly (the peek branch still reads a
+missing count as 0); F5 partly (the tract keyed clear runs only in the database mode test, while
+the test that asserts census unavailable runs without it). No weakened threshold, no literal
+fallback, no em dash, no overstated commit subject.
+
+| # | Severity | Finding | Smallest fix (not applied) |
+|---|---|---|---|
+| 1 | high | When Site Memory flips offline mid analysis, `getSiteById` returns null and the layer route answers 404 "Unknown site" for a database site id. SPEC section 13 item 3 requires layers to keep working offline. Reproduced by the builder on the slow link. Not introduced by round 4, but it blocks the gate | remember site rows per instance in memory.ts and serve the remembered row when offline; a cold instance would still 404, recorded as residual |
+| 2 | medium | The peek memo is unbounded (one entry per IP ever seen) | clear the map when it reaches a few thousand entries |
+| 3 | low | The memo stores results, not in flight promises, so the first wave of eight layer calls pays eight peeks | store the promise |
+| 4 | low | An unparsable `created_at` exempts a site from the cap forever (fails open) | charge when the date cannot be parsed |
+| 5 | low | The peek branch keeps `?? 0`, so a shape change reads as nothing spent | throw when the row exists without a numeric count |
+| 6 | low | The tract keyed clear removes every tract's cached ACS and TIGER rows, and its error is logged not asserted | assert the delete succeeded; accept the reach as documented |
+| 7 | low | The rate limit cleanup dropped the `is_test` predicate | keep it alongside the key list |
+| 8 | low | PHASE-1 step 1.10 text still describes the count based cache assertion and the broad cleanup | two sentences, owner approval needed |
+| 9 | out of scope | The legacy `/api/datum` and `/api/datum/overpass` routes reach upstreams with no rate limit; both are on the Phase 2 removal list | none in Phase 1 |
+
+Per the owner's instruction the orchestrator stops here without proposing a fifth round. The
+Phase 1 gate is open on finding 1 (and 2 as a should fix); the owner re-plans.
+
 ### Owner decisions pending (Phase 1), superseded by the answers above
 
 1. Migration 0001: run as written, or with the atomic `rate_limit_hit` function appended.
