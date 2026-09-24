@@ -53,6 +53,13 @@ export interface FetchPolicy {
   retries: number;
   retryOn: number[];
   source: string;
+  /**
+   * An absolute epoch millisecond deadline shared across several calls, for a
+   * caller that loops over mirrors itself. When it is set it replaces the 55 s
+   * cap this function would otherwise start afresh, so three mirror attempts
+   * cannot add up to three budgets.
+   */
+  deadlineMs?: number;
 }
 
 export interface PolicyResponse {
@@ -78,7 +85,7 @@ export async function fetchWithPolicy(
   ctx: Pick<SourceContext, "fetch" | "userAgent">,
 ): Promise<PolicyResponse> {
   const startedAt = Date.now();
-  const deadline = startedAt + WALL_CLOCK_CAP_MS;
+  const deadline = policy.deadlineMs ?? startedAt + WALL_CLOCK_CAP_MS;
   const attempts = Math.max(0, policy.retries) + 1;
   let lastError: SourceError | null = null;
 
@@ -87,7 +94,7 @@ export async function fetchWithPolicy(
     if (remaining <= 0) {
       throw new SourceError(
         "timeout",
-        `${policy.source} exceeded the 55 second request budget.`,
+        `${policy.source} exceeded its request budget.`,
         { source: policy.source },
       );
     }
@@ -148,7 +155,10 @@ export async function fetchWithPolicy(
             raw instanceof Error ? raw.message : String(raw),
             { source: policy.source },
           );
-      if (attempt < attempts - 1 && (aborted || error.code === "upstream_error")) {
+      // Only a timeout is retried here. A transport failure that answered at
+      // once (DNS, TLS, a refused connection) will answer the same way again,
+      // and a retryable status is handled in the branch above.
+      if (attempt < attempts - 1 && aborted) {
         lastError = error;
         await sleep(RETRY_BACKOFF_MS);
         continue;

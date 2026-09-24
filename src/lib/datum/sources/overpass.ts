@@ -11,6 +11,7 @@ import {
   SOURCE_TIMEOUT_MS,
   TTL_SECONDS,
   UNAVAILABLE_MESSAGES,
+  WALL_CLOCK_CAP_MS,
   resolveBaseUrl,
   withCode,
   type SourceName,
@@ -230,6 +231,26 @@ const ATTEMPT_ORDER: Attempt[] = [
   { source: "overpass_mirror" },
 ];
 
+/**
+ * The wall clock the three mirror attempts share. Without it each attempt would
+ * start its own 55 s cap and three timeouts would run for 135 s, well past the
+ * 60 s route budget.
+ */
+let budgetMs = WALL_CLOCK_CAP_MS;
+
+/** How much of the shared budget must remain for another attempt to be worth it. */
+const MIN_ATTEMPT_BUDGET_MS = 2_000;
+
+/** Test seam. Not used in production code paths. */
+export function setOverpassBudgetMsForTests(ms: number): void {
+  budgetMs = ms;
+}
+
+/** Test seam. Restores the 55 s cap. */
+export function resetOverpassBudgetForTests(): void {
+  budgetMs = WALL_CLOCK_CAP_MS;
+}
+
 /** The URL that goes in the envelope and the cache row. */
 export function overpassUrl(ctx: Pick<SourceContext, "overrides">): string {
   return resolveBaseUrl("overpass", ctx);
@@ -240,7 +261,19 @@ async function requestOverpass(
   ctx: SourceContext,
 ): Promise<{ body: unknown; url: string; status: number }> {
   let lastError: SourceError | null = null;
+  // One deadline for all three attempts, computed once before the loop.
+  const deadline = Date.now() + budgetMs;
   for (const attempt of ATTEMPT_ORDER) {
+    if (deadline - Date.now() < MIN_ATTEMPT_BUDGET_MS) {
+      throw (
+        lastError ??
+        new SourceError(
+          "timeout",
+          "Overpass exhausted the shared request budget.",
+          { source: attempt.source },
+        )
+      );
+    }
     const url = resolveBaseUrl(attempt.source, ctx);
     try {
       const response = await fetchWithPolicy(
@@ -255,6 +288,9 @@ async function requestOverpass(
         },
         {
           timeoutMs: SOURCE_TIMEOUT_MS[attempt.source],
+          // Every attempt shares the deadline, so the per attempt timeout is
+          // whatever is left of it.
+          deadlineMs: deadline,
           // fetchWithPolicy retries inside one mirror; the mirror order is the
           // outer loop, so each attempt is a single request.
           retries: 0,

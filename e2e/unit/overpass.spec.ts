@@ -7,6 +7,8 @@ import {
   fetchOsm,
   parseHeightM,
   parseLevels,
+  resetOverpassBudgetForTests,
+  setOverpassBudgetMsForTests,
   trimPayload,
 } from "../../src/lib/datum/sources/overpass";
 import type {
@@ -260,4 +262,45 @@ test("every mirror failing yields unavailable after three attempts", async () =>
   expect(envelope.status).toBe("unavailable");
   expect(calls()).toBe(3);
   expect(envelope.unavailable?.retryable).toBe(true);
+});
+
+test("the three mirror attempts share one deadline", async () => {
+  // A hanging Overpass used to cost 45 s per attempt against a budget computed
+  // fresh inside each call, so three attempts ran for 135 s. One shared
+  // deadline bounds the whole loop, and an attempt with under 2 s left is not
+  // started at all.
+  // Just over the 2 s an attempt needs, so exactly one attempt fits.
+  setOverpassBudgetMsForTests(2_400);
+  let calls = 0;
+  const hanging = (async (_url: string | URL | Request, init?: RequestInit) => {
+    calls += 1;
+    return new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => {
+        const error = new Error("aborted");
+        error.name = "AbortError";
+        reject(error);
+      });
+    });
+  }) as unknown as typeof fetch;
+
+  const ctx: SourceContext = {
+    fetch: hanging,
+    cache: memoryCache(),
+    overrides: {},
+    userAgent: "Datum/1.0 (test)",
+    now: () => new Date("2026-09-22T00:00:00.000Z"),
+    env: {},
+  };
+
+  const startedAt = Date.now();
+  const envelope = await fetchOsm(input(ATLANTA), ctx);
+  const elapsed = Date.now() - startedAt;
+  resetOverpassBudgetForTests();
+
+  expect(envelope.status).toBe("unavailable");
+  expect(envelope.unavailable?.code).toBe("timeout");
+  // The shared budget, not three times the 45 s per attempt timeout.
+  expect(elapsed).toBeLessThan(5_000);
+  // The first attempt consumed the budget, so the later mirrors were skipped.
+  expect(calls).toBe(1);
 });
