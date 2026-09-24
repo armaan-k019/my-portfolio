@@ -311,11 +311,14 @@ export interface OsmTransitStop {
 }
 
 export interface OsmStats {
+  /** Distinct building features: one per way id or relation id. */
   buildingCount: number;
+  /** Drawn rings, which is higher than buildingCount for multipolygons. */
+  ringCount: number;
   withHeight: number;
   withLevels: number;
   relationCount: number;
-  /** Footprint area inside the 800 m frame over the frame area. */
+  /** Footprint area clipped to the 800 m frame over the frame area. */
   coverageRatio: number;
 }
 

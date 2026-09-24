@@ -11,10 +11,12 @@ import {
   setOverpassBudgetMsForTests,
   trimPayload,
 } from "../../src/lib/datum/sources/overpass";
+import { fromLocal } from "../../src/lib/datum/geo";
 import type {
   CacheApi,
   CacheEntry,
   LayerInput,
+  LocalPoint,
   SourceContext,
 } from "../../src/lib/datum/types";
 
@@ -168,24 +170,49 @@ test("trimPayload rejects a body with no elements array", () => {
 
 // ─── fixtures ────────────────────────────────────────────────────────────────
 
-// The bands below are taken from the fixture recorded on 2026-09-22, not from
-// the SPEC section 5 note, which was counted on 2026-09-21 and reads "about 96
-// buildings, 11 with levels, 0 with height". The recorded response holds 126
-// ways tagged `building` plus 14 building relations contributing 30 outer
-// rings, 11 ways carry a `height` tag and 41 carry `building:levels`. OSM edits
-// move these numbers, so the bands are wide on purpose.
-test("the Atlanta fixture yields the expected building counts", () => {
+/** Distinct way and relation ids tagged `building` in a trimmed fixture. */
+function distinctBuildingIds(name: string): Set<string> {
+  const payload = loadTrimmed(name) as {
+    elements: Array<{ type: string; id: number; tags: Record<string, string> }>;
+  };
+  const ids = new Set<string>();
+  for (const element of payload.elements) {
+    if (typeof element.tags.building !== "string") continue;
+    if (element.type === "way") ids.add(`w${element.id}`);
+    if (element.type === "relation") ids.add(`r${element.id}`);
+  }
+  return ids;
+}
+
+// buildingCount is counted from the fixture here rather than hard coded, so an
+// OSM edit that changes the recorded response moves both sides together. The
+// bands on withHeight and withLevels stay as a wide sanity range only.
+test("the Atlanta fixture counts distinct buildings, not rings", () => {
   const data = buildOsm(loadTrimmed("atlanta"), ATLANTA);
-  expect(data.buildings.length).toBeGreaterThanOrEqual(110);
-  expect(data.buildings.length).toBeLessThanOrEqual(200);
+  const expected = distinctBuildingIds("atlanta");
+
+  expect(data.stats.buildingCount).toBe(expected.size);
+  // A relation contributes several outer rings, all of them drawn.
+  expect(data.stats.ringCount).toBe(data.buildings.length);
+  expect(data.stats.ringCount).toBeGreaterThan(data.stats.buildingCount);
+  expect(data.stats.relationCount).toBeGreaterThan(0);
+
+  // Sanity range only, not a measurement.
   expect(data.stats.withHeight).toBeGreaterThanOrEqual(5);
   expect(data.stats.withHeight).toBeLessThanOrEqual(40);
   expect(data.stats.withLevels).toBeGreaterThanOrEqual(30);
   expect(data.stats.withLevels).toBeLessThanOrEqual(80);
-  expect(data.stats.relationCount).toBeGreaterThan(0);
-  expect(data.stats.buildingCount).toBe(data.buildings.length);
+  // A tag counted per feature can never exceed the feature count.
+  expect(data.stats.withHeight).toBeLessThanOrEqual(data.stats.buildingCount);
+  expect(data.stats.withLevels).toBeLessThanOrEqual(data.stats.buildingCount);
+
   expect(data.streets.length).toBeGreaterThan(0);
   expect(data.transitStops.length).toBeGreaterThan(0);
+});
+
+test("the WaKeeney fixture counts distinct buildings too", () => {
+  const data = buildOsm(loadTrimmed("wakeeney"), WAKEENEY);
+  expect(data.stats.buildingCount).toBe(distinctBuildingIds("wakeeney").size);
 });
 
 test("the Atlanta fixture rings are closed and in local metres", () => {
@@ -201,9 +228,44 @@ test("the Atlanta fixture rings are closed and in local metres", () => {
 });
 
 test("the WaKeeney fixture yields between 10 and 40 buildings", () => {
+  // A sanity range, not a measurement: OSM edits move this.
   const data = buildOsm(loadTrimmed("wakeeney"), WAKEENEY);
   expect(data.buildings.length).toBeGreaterThanOrEqual(10);
   expect(data.buildings.length).toBeLessThanOrEqual(40);
+});
+
+test("coverage counts only the footprint area inside the 800 m frame", () => {
+  const data = buildOsm(loadTrimmed("atlanta"), ATLANTA);
+  expect(data.stats.coverageRatio).toBeGreaterThan(0);
+  expect(data.stats.coverageRatio).toBeLessThan(1);
+
+  // One 400 by 200 m building straddling the west frame edge. Half of it lies
+  // outside the sheet, so it covers 200 x 200 m of the 800 x 800 m frame.
+  const corners: LocalPoint[] = [
+    [-600, -100],
+    [-200, -100],
+    [-200, 100],
+    [-600, 100],
+    [-600, -100],
+  ];
+  const straddling = {
+    elements: [
+      {
+        type: "way",
+        id: 1,
+        tags: { building: "yes" },
+        geometry: corners.map(([x, y]) => {
+          const point = fromLocal(x, y, ATLANTA);
+          return { lat: point.lat, lon: point.lng };
+        }),
+      },
+    ],
+  };
+
+  const clipped = buildOsm(straddling as never, ATLANTA);
+  expect(clipped.stats.buildingCount).toBe(1);
+  // 200 x 200 of 800 x 800, not the 400 x 200 the ring actually spans.
+  expect(clipped.stats.coverageRatio).toBeCloseTo((200 * 200) / (800 * 800), 3);
 });
 
 // ─── fetch behaviour ─────────────────────────────────────────────────────────

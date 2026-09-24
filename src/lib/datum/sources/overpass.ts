@@ -385,9 +385,57 @@ function memberGeometry(
   return geometry as Array<{ lat: number; lon: number }>;
 }
 
+/**
+ * Sutherland-Hodgman clip of a ring to the square frame. A building that runs
+ * past the frame contributes only the part that is drawn, so the coverage
+ * ratio cannot exceed 1 through geometry that is off the sheet. The same
+ * approach is used for flood polygons in sources/fema.ts; each module keeps its
+ * own copy rather than importing across sources.
+ */
+function clipRingToFrame(ring: LocalPoint[], halfSizeM: number): LocalPoint[] {
+  if (ring.length < 3) return [];
+  // Each edge keeps the half plane on the inside of the frame.
+  const edges: Array<[(point: LocalPoint) => number]> = [
+    [(point) => halfSizeM - point[0]],
+    [(point) => point[0] + halfSizeM],
+    [(point) => halfSizeM - point[1]],
+    [(point) => point[1] + halfSizeM],
+  ];
+
+  let output: LocalPoint[] = ring.map((point) => [point[0], point[1]]);
+  for (const [distance] of edges) {
+    const inputRing = output;
+    if (inputRing.length === 0) return [];
+    output = [];
+    let previous = inputRing[inputRing.length - 1];
+    for (const current of inputRing) {
+      const currentDistance = distance(current);
+      const previousDistance = distance(previous);
+      const cross = (): LocalPoint => {
+        const t = previousDistance / (previousDistance - currentDistance);
+        return [
+          previous[0] + t * (current[0] - previous[0]),
+          previous[1] + t * (current[1] - previous[1]),
+        ];
+      };
+      if (currentDistance >= 0) {
+        if (previousDistance < 0) output.push(cross());
+        output.push(current);
+      } else if (previousDistance >= 0) {
+        output.push(cross());
+      }
+      previous = current;
+    }
+  }
+  return output.length < 3 ? [] : output;
+}
+
 /** Pure: turn the trimmed payload into the osm layer data. */
 export function buildOsm(payload: TrimmedOverpass, origin: LatLng): OsmData {
   const buildings: OsmBuilding[] = [];
+  // One key per drawn ring, naming the OSM feature the ring came from. A
+  // multipolygon contributes several rings and is still one building.
+  const featureKeys: string[] = [];
   const water: OsmWater[] = [];
   const streets: OsmStreet[] = [];
   const transitStops: OsmTransitStop[] = [];
@@ -436,6 +484,7 @@ export function buildOsm(payload: TrimmedOverpass, origin: LatLng): OsmData {
             levels: parseLevels(tags["building:levels"]),
             name: typeof tags.name === "string" ? tags.name : null,
           });
+          featureKeys.push(`r${element.id}`);
         } else {
           water.push({ ring, line: null });
         }
@@ -456,6 +505,7 @@ export function buildOsm(payload: TrimmedOverpass, origin: LatLng): OsmData {
         levels: parseLevels(tags["building:levels"]),
         name: typeof tags.name === "string" ? tags.name : null,
       });
+      featureKeys.push(`w${element.id}`);
       continue;
     }
 
@@ -483,19 +533,26 @@ export function buildOsm(payload: TrimmedOverpass, origin: LatLng): OsmData {
 
   const half = FRAME_SIZE_M / 2;
   let footprintArea = 0;
+  // Counted over features, not rings: a multipolygon with six outer rings is
+  // one building with a height, not six.
+  const seen = new Set<string>();
   let withHeight = 0;
   let withLevels = 0;
-  for (const building of buildings) {
-    if (building.heightM !== null) withHeight += 1;
-    if (building.levels !== null) withLevels += 1;
-    const inside = building.ring.every(
-      ([x, y]) => Math.abs(x) <= half && Math.abs(y) <= half,
-    );
-    if (inside) footprintArea += ringAreaM2(building.ring);
-  }
+  buildings.forEach((building, index) => {
+    const key = featureKeys[index];
+    if (!seen.has(key)) {
+      seen.add(key);
+      if (building.heightM !== null) withHeight += 1;
+      if (building.levels !== null) withLevels += 1;
+    }
+    // Every ring contributes the part of its footprint that is on the sheet.
+    const clipped = clipRingToFrame(building.ring, half);
+    if (clipped.length >= 3) footprintArea += ringAreaM2(clipped);
+  });
 
   const stats: OsmStats = {
-    buildingCount: buildings.length,
+    buildingCount: seen.size,
+    ringCount: buildings.length,
     withHeight,
     withLevels,
     relationCount,
