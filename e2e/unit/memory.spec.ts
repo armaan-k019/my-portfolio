@@ -8,10 +8,12 @@ import {
   isLocalSiteId,
   issueLocalSiteId,
   memoryStatus,
+  peekRateLimit,
   setClientForTests,
   verifyLocalSiteId,
   withMemory,
 } from "../../src/lib/datum/memory";
+import { RATE_LIMIT_PEEK_MEMO_MS } from "../../src/lib/datum/constants";
 
 /** A client whose every query rejects, which is what a paused project looks like. */
 function rejectingClient(): SupabaseClient {
@@ -150,6 +152,61 @@ test("the increment is attempted once, never retried", async () => {
   setClientForTests(client);
   await checkRateLimit(hashIp("192.0.2.32"));
   expect(rpcCalls()).toBe(1);
+  setClientForTests(null);
+});
+
+// ─── the peek memo ───────────────────────────────────────────────────────────
+//
+// The layer routes peek on every call and never increment, so the read is
+// memoised per hashed IP for RATE_LIMIT_PEEK_MEMO_MS. The accepted cost: an IP
+// that has just hit the cap can keep making layer calls for up to a minute.
+
+test("the memo serves a second peek inside the window with no client call", async () => {
+  const { client, calls } = recordingClient();
+  setClientForTests(client);
+  const ipHash = hashIp("192.0.2.41");
+
+  const first = await peekRateLimit(ipHash);
+  expect(calls()).toEqual(["select:rate_limits"]);
+  const second = await peekRateLimit(ipHash);
+  expect(calls()).toEqual(["select:rate_limits"]);
+  expect(second).toEqual(first);
+
+  // A different hash is a different entry, so it still reads.
+  await peekRateLimit(hashIp("192.0.2.42"));
+  expect(calls()).toEqual(["select:rate_limits", "select:rate_limits"]);
+  setClientForTests(null);
+});
+
+test("an increment clears the memo for that hash", async () => {
+  const { client, calls } = recordingClient();
+  setClientForTests(client);
+  const ipHash = hashIp("192.0.2.43");
+
+  await peekRateLimit(ipHash);
+  await checkRateLimit(ipHash);
+  const after = await peekRateLimit(ipHash);
+  expect(calls()).toEqual([
+    "select:rate_limits",
+    "rpc:rate_limit_hit",
+    "select:rate_limits",
+  ]);
+  expect(after.count).toBe(1);
+  setClientForTests(null);
+});
+
+test("a peek past the window reads the client again", async () => {
+  const { client, calls } = recordingClient();
+  setClientForTests(client);
+  const ipHash = hashIp("192.0.2.44");
+  const now = Date.now();
+
+  await peekRateLimit(ipHash, now);
+  await peekRateLimit(ipHash, now + RATE_LIMIT_PEEK_MEMO_MS - 1);
+  expect(calls()).toEqual(["select:rate_limits"]);
+
+  await peekRateLimit(ipHash, now + RATE_LIMIT_PEEK_MEMO_MS + 1);
+  expect(calls()).toEqual(["select:rate_limits", "select:rate_limits"]);
   setClientForTests(null);
 });
 

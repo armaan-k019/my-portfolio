@@ -171,6 +171,12 @@ export const RATE_LIMIT_FREE_REOPEN_DAYS = 30;
  * the layer routes peek at the cap before answering.
  */
 export const SITE_FREE_LAYER_WINDOW_MS = 86_400_000;
+/**
+ * How long a rate limit peek is reused for one hashed IP within an instance.
+ * The layer routes peek and never increment, so this is the freshness the owner
+ * accepted (fourth round) in exchange for taking the read off the warm path.
+ */
+export const RATE_LIMIT_PEEK_MEMO_MS = 60_000;
 
 // ─── Memory (SPEC section 13, paused database) ───────────────────────────────
 

@@ -12,11 +12,11 @@ import {
   layerFetchers,
 } from "@/lib/datum/layers";
 import {
-  checkRateLimit,
   clientIpFrom,
   getSiteById,
   hashIp,
   isLocalSiteId,
+  peekRateLimit,
   storeLayerResult,
   verifyLocalSiteId,
 } from "@/lib/datum/memory";
@@ -50,11 +50,18 @@ export async function GET(
     return badRequest("site is required.");
   }
 
-  // The site row lookup and the api_cache read the fetcher does are two round
-  // trips to the same region. Start the lookup here, before the parameter work
-  // below, and await the row only where it is needed: for validation, and for
-  // the point a database backed id does not carry itself.
-  const sitePromise = isLocalSiteId(siteId) ? null : getSiteById(siteId);
+  // Resolving the site and peeking at the rate limit are the two things that
+  // must both pass before any upstream is asked, and neither needs the other's
+  // answer, so they run together. The site lookup is a database round trip; the
+  // peek is a database round trip at most once a minute per IP (memoised in
+  // memory.ts). The fetcher, and with it the api_cache read, starts only after
+  // both have resolved and passed.
+  const local = isLocalSiteId(siteId);
+  const ipHash = hashIp(clientIpFrom(request.headers.get("x-forwarded-for")));
+  const resolution = Promise.all([
+    local ? verifyLocalSiteId(siteId) : getSiteById(siteId),
+    peekRateLimit(ipHash),
+  ]);
 
   const params: Record<string, string> = {};
   for (const name of LAYER_PARAMS[layer]) {
@@ -68,21 +75,31 @@ export async function GET(
   const siteClass = params.siteClass?.trim() ?? "";
   const siteClassValid = siteClass.length === 0 || isValidSiteClass(siteClass);
 
+  const [resolved, rate] = await resolution;
+
+  function rateLimited() {
+    return NextResponse.json(
+      { error: { code: "rate_limited", resetAt: rate.resetAt } },
+      { status: 429 },
+    );
+  }
+
   let lat: number;
   let lng: number;
 
-  if (isLocalSiteId(siteId)) {
+  if (local) {
     // A local id is the offline fallback the site route hands out when Site
     // Memory is down. It carries its own point and an HMAC over that point and
     // the day, so it is accepted whatever memoryStatus says now: memory can
     // come back online mid analysis, and the later layers of that analysis must
     // still resolve. Anything forged or stale fails here.
-    const local = verifyLocalSiteId(siteId);
-    if (!local) {
+    // The two resolvers return different shapes; the key name tells them apart.
+    const verified = resolved && "siteKey" in resolved ? resolved : null;
+    if (!verified) {
       return badRequest("Unknown site.");
     }
-    lat = local.lat;
-    lng = local.lng;
+    lat = verified.lat;
+    lng = verified.lng;
     if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
       return badRequest("lat must be a number between -90 and 90.");
     }
@@ -91,18 +108,11 @@ export async function GET(
     }
 
     // The site route charges the daily cap, and a local id never passes through
-    // it, so this path would otherwise drive every upstream uncounted. Peek
-    // without incrementing: the count belongs to the analysis, not the layer.
-    const ipHash = hashIp(clientIpFrom(request.headers.get("x-forwarded-for")));
-    const rate = await checkRateLimit(ipHash, { increment: false });
-    if (!rate.allowed) {
-      return NextResponse.json(
-        { error: { code: "rate_limited", resetAt: rate.resetAt } },
-        { status: 429 },
-      );
-    }
+    // it, so this path would otherwise drive every upstream uncounted. The peek
+    // never increments: the count belongs to the analysis, not to the layer.
+    if (!rate.allowed) return rateLimited();
   } else {
-    const site = await sitePromise;
+    const site = resolved && "site_key" in resolved ? resolved : null;
     if (!site) {
       return NextResponse.json(
         { error: { code: "not_found", message: "Unknown site." } },
@@ -114,19 +124,12 @@ export async function GET(
 
     // SPEC section 13 exempts layer calls for a site created in the last 24
     // hours, and only those. An older id is a saved link, so it is subject to
-    // the cap like anything else: peek without incrementing, because the count
-    // belongs to the analysis the site route charged for, not to the layer.
+    // the cap like anything else.
     const createdAt = Date.parse(site.created_at);
-    if (Number.isFinite(createdAt) && Date.now() - createdAt > SITE_FREE_LAYER_WINDOW_MS) {
-      const ipHash = hashIp(clientIpFrom(request.headers.get("x-forwarded-for")));
-      const rate = await checkRateLimit(ipHash, { increment: false });
-      if (!rate.allowed) {
-        return NextResponse.json(
-          { error: { code: "rate_limited", resetAt: rate.resetAt } },
-          { status: 429 },
-        );
-      }
-    }
+    const older =
+      Number.isFinite(createdAt) &&
+      Date.now() - createdAt > SITE_FREE_LAYER_WINDOW_MS;
+    if (older && !rate.allowed) return rateLimited();
   }
 
   if (!siteClassValid) {

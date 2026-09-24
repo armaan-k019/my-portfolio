@@ -7,6 +7,7 @@ import { createHash, createHmac } from "node:crypto";
 import {
   MEMORY_OFFLINE_COOLDOWN_MS,
   MEMORY_TIMEOUT_MS,
+  RATE_LIMIT_PEEK_MEMO_MS,
   RATE_LIMIT_PER_DAY,
 } from "./constants";
 import { publicPoint, siteKey as siteKeyOf } from "./geo";
@@ -47,6 +48,7 @@ export function setClientForTests(fake: SupabaseClient | null): void {
   offlineUntil = 0;
   localSites.clear();
   localRateLimits.clear();
+  peekMemo.clear();
 }
 
 // ─── Offline guard ───────────────────────────────────────────────────────────
@@ -360,6 +362,17 @@ export async function storeLayerResult(
 
 const localRateLimits = new Map<string, number>();
 
+/**
+ * Peek results, per hashed IP, for RATE_LIMIT_PEEK_MEMO_MS. The layer routes
+ * peek on every call, and a peek is a read of one row that changes only when
+ * the site route increments, so a warm layer request should not pay a round
+ * trip for it. An increment on this instance clears the entry.
+ *
+ * The accepted cost (owner, fourth round, PROGRESS.md): an IP that has just hit
+ * the cap can keep making layer calls for up to one minute, on this instance.
+ */
+const peekMemo = new Map<string, { result: RateLimitResult; until: number }>();
+
 export interface RateLimitResult {
   allowed: boolean;
   count: number;
@@ -440,6 +453,10 @@ export async function checkRateLimit(
     if (increment) localRateLimits.set(localKey, count);
   }
 
+  // A peek is only ever as fresh as the last increment, so the memo for this
+  // hash is dropped here rather than left to expire.
+  if (increment) peekMemo.delete(ipHash);
+
   return {
     allowed: count <= RATE_LIMIT_PER_DAY,
     count,
@@ -447,4 +464,25 @@ export async function checkRateLimit(
     resetAt: nextUtcMidnight(now),
     limit: RATE_LIMIT_PER_DAY,
   };
+}
+
+/**
+ * checkRateLimit with `increment: false`, memoised per hashed IP for 60 s. This
+ * is what the layer routes call: they peek on every request and never charge,
+ * so repeating the read for the same IP inside a minute buys nothing.
+ *
+ * `nowMs` is a test seam for the expiry; callers pass nothing.
+ */
+export async function peekRateLimit(
+  ipHash: string,
+  nowMs: number = Date.now(),
+): Promise<RateLimitResult> {
+  const memo = peekMemo.get(ipHash);
+  if (memo && memo.until > nowMs) return memo.result;
+  const result = await checkRateLimit(ipHash, { increment: false });
+  peekMemo.set(ipHash, {
+    result,
+    until: nowMs + RATE_LIMIT_PEEK_MEMO_MS,
+  });
+  return result;
 }
