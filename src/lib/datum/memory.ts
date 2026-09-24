@@ -89,9 +89,15 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  * Run one Supabase operation with a 3 s timeout and a single retry. Any failure
  * flips the module to offline for 60 s and resolves undefined, so callers use
  * their in memory fallback instead of surfacing an error.
+ *
+ * `retry: false` is for an operation that is not safe to repeat. The rate limit
+ * increment is one such: a timeout can fire on a call the database has already
+ * committed, and a retry would then charge the same request twice. Those
+ * operations get one attempt and fall back on failure.
  */
 export async function withMemory<T>(
   op: (db: SupabaseClient) => Promise<T>,
+  options?: { retry?: boolean },
 ): Promise<T | undefined> {
   if (memoryStatus() === "offline") return undefined;
   const db = getClient();
@@ -99,11 +105,12 @@ export async function withMemory<T>(
     goOffline();
     return undefined;
   }
-  for (let attempt = 0; attempt < 2; attempt++) {
+  const attempts = options?.retry === false ? 1 : 2;
+  for (let attempt = 0; attempt < attempts; attempt++) {
     try {
       return await withTimeout(op(db), MEMORY_TIMEOUT_MS);
     } catch {
-      if (attempt === 1) {
+      if (attempt === attempts - 1) {
         goOffline();
         return undefined;
       }
@@ -390,26 +397,39 @@ export async function checkRateLimit(
   const day = utcDay(now);
   const localKey = `${ipHash}:${day}`;
 
-  const remote = await withMemory(async (db) => {
-    if (!increment) {
-      const { data, error } = await db
-        .from("rate_limits")
-        .select("count")
-        .eq("ip_hash", ipHash)
-        .eq("day", day)
-        .maybeSingle();
-      if (error) throw new Error("rate_limits read failed");
-      return (data as { count: number } | null)?.count ?? 0;
-    }
-    const { data, error } = await db.rpc("rate_limit_hit", {
-      p_ip_hash: ipHash,
-      p_day: day,
-    });
-    if (error) throw new Error("rate_limits increment failed");
-    const next = typeof data === "number" ? data : Number(data);
-    if (!Number.isFinite(next)) throw new Error("rate_limits increment failed");
-    return next;
-  });
+  const remote = await withMemory(
+    async (db) => {
+      if (!increment) {
+        const { data, error } = await db
+          .from("rate_limits")
+          .select("count")
+          .eq("ip_hash", ipHash)
+          .eq("day", day)
+          .maybeSingle();
+        if (error) throw new Error("rate_limits read failed");
+        return (data as { count: number } | null)?.count ?? 0;
+      }
+      const { data, error } = await db.rpc("rate_limit_hit", {
+        p_ip_hash: ipHash,
+        p_day: day,
+      });
+      if (error) throw new Error("rate_limits increment failed");
+      // The function returns the new count, so the first hit of a day is 1 and
+      // nothing it can legitimately return is below that. Anything else (null,
+      // a string, an empty array from a shape change) is a failure, not a zero:
+      // Number(null) is 0, which would read as "no requests spent" and disable
+      // the cap silently. Throwing sends this through the in memory counter
+      // instead, whose failure mode is "allow" by design (SPEC section 13,
+      // paused database, item 3): the cap survives per instance, and a paused
+      // project never turns into a hard refusal for a real visitor.
+      if (typeof data !== "number" || data < 1) {
+        throw new Error("rate_limits increment failed");
+      }
+      return data;
+    },
+    // One attempt: see withMemory. A retried increment can double charge.
+    { retry: !increment },
+  );
 
   let count: number;
   if (remote !== undefined) {

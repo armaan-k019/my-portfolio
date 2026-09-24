@@ -249,6 +249,94 @@ test("the peek does not spend a request of its own", async () => {
   expect(after.count).toBe(before.count);
 });
 
+// ─── the 24 hour exemption on database site ids ──────────────────────────────
+//
+// SPEC section 13: "Layer routes for a site created in the last 24 hours are
+// not separately limited." Only those. An older id is a saved link and is
+// subject to the cap like anything else.
+
+/**
+ * A Supabase double with one site row of a chosen age and one rate_limits row
+ * of a chosen count. Nothing else answers, so api_cache always misses.
+ */
+function agedSiteClient(createdMsAgo: number, rateCount: number): SupabaseClient {
+  const siteRow = {
+    id: UUID,
+    site_key: ATLANTA_KEY,
+    lat: 33.7751258,
+    lng: -84.391975,
+    public_lat: 33.775,
+    public_lng: -84.392,
+    locality: "Atlanta, Georgia",
+    tract_geoid: null,
+    is_test: true,
+    created_at: new Date(Date.now() - createdMsAgo).toISOString(),
+    last_analyzed_at: new Date().toISOString(),
+    analysis_count: 1,
+    schema_version: 1,
+  };
+  return {
+    from(table: string) {
+      const chain = {
+        select: () => chain,
+        eq: () => chain,
+        gt: () => chain,
+        async maybeSingle() {
+          if (table === "sites") return { data: siteRow, error: null };
+          if (table === "rate_limits") return { data: { count: rateCount }, error: null };
+          return { data: null, error: null };
+        },
+        upsert: () => Promise.resolve({ error: null }),
+      };
+      return chain;
+    },
+    rpc: async () => ({ data: 1, error: null }),
+  } as unknown as SupabaseClient;
+}
+
+test("a database site id older than 24 hours is refused once the cap is spent", async () => {
+  setClientForTests(agedSiteClient(25 * 60 * 60 * 1000, RATE_LIMIT_PER_DAY + 1));
+  let calls = 0;
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async () => {
+    calls += 1;
+    return new Response("{}", { status: 200 });
+  }) as typeof fetch;
+  try {
+    const response = await call("seismic", `site=${UUID}`, {
+      "x-forwarded-for": "203.0.113.90",
+    });
+    expect(response.status).toBe(429);
+    const body = (await response.json()) as {
+      error: { code: string; resetAt: string };
+    };
+    expect(body.error.code).toBe("rate_limited");
+    expect(body.error.resetAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(calls).toBe(0);
+  } finally {
+    globalThis.fetch = realFetch;
+    setClientForTests(null);
+  }
+});
+
+test("a database site id created an hour ago is served with the cap spent", async () => {
+  setClientForTests(agedSiteClient(60 * 60 * 1000, RATE_LIMIT_PER_DAY + 1));
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response("upstream failure", { status: 500 })) as typeof fetch;
+  try {
+    const response = await call("seismic", `site=${UUID}`, {
+      "x-forwarded-for": "203.0.113.91",
+    });
+    expect(response.status).toBe(200);
+    const envelope = (await response.json()) as { layer: string };
+    expect(envelope.layer).toBe("seismic");
+  } finally {
+    globalThis.fetch = realFetch;
+    setClientForTests(null);
+  }
+});
+
 // ─── after() scheduling ──────────────────────────────────────────────────────
 //
 // The route hands the layer_results write to Next's after(), which needs a

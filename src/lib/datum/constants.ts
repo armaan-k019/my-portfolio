@@ -165,6 +165,12 @@ export const MAX_GEOCODE_QUERY_LENGTH = 120;
 export const RATE_LIMIT_PER_DAY = 20;
 /** A site analyzed within this window is a free re-open. */
 export const RATE_LIMIT_FREE_REOPEN_DAYS = 30;
+/**
+ * "Layer routes for a site created in the last 24 hours are not separately
+ * limited" (SPEC section 13). Past this window a site id is a saved link, and
+ * the layer routes peek at the cap before answering.
+ */
+export const SITE_FREE_LAYER_WINDOW_MS = 86_400_000;
 
 // ─── Memory (SPEC section 13, paused database) ───────────────────────────────
 

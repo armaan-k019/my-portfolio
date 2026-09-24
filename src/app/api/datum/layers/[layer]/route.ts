@@ -4,6 +4,7 @@
 
 import { NextResponse } from "next/server";
 import { scheduleAfter } from "@/lib/datum/after";
+import { SITE_FREE_LAYER_WINDOW_MS } from "@/lib/datum/constants";
 import {
   LAYER_PARAMS,
   LAYER_RESULT_TTL_SECONDS,
@@ -110,6 +111,22 @@ export async function GET(
     }
     lat = site.lat;
     lng = site.lng;
+
+    // SPEC section 13 exempts layer calls for a site created in the last 24
+    // hours, and only those. An older id is a saved link, so it is subject to
+    // the cap like anything else: peek without incrementing, because the count
+    // belongs to the analysis the site route charged for, not to the layer.
+    const createdAt = Date.parse(site.created_at);
+    if (Number.isFinite(createdAt) && Date.now() - createdAt > SITE_FREE_LAYER_WINDOW_MS) {
+      const ipHash = hashIp(clientIpFrom(request.headers.get("x-forwarded-for")));
+      const rate = await checkRateLimit(ipHash, { increment: false });
+      if (!rate.allowed) {
+        return NextResponse.json(
+          { error: { code: "rate_limited", resetAt: rate.resetAt } },
+          { status: 429 },
+        );
+      }
+    }
   }
 
   if (!siteClassValid) {

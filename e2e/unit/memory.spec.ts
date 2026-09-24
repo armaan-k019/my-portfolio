@@ -99,6 +99,60 @@ test("a peek reads the count without calling the rpc", async () => {
   setClientForTests(null);
 });
 
+/**
+ * A client whose `rate_limit_hit` answers with something that is not a count.
+ * `Number(null)` is 0, so before the guard this read as "nothing spent today"
+ * and quietly disabled the cap; now it throws and the local counter takes over.
+ */
+function badRpcClient(data: unknown) {
+  let rpcCalls = 0;
+  const client = {
+    from() {
+      const chain = {
+        select: () => chain,
+        eq: () => chain,
+        async maybeSingle() {
+          return { data: null, error: null };
+        },
+      };
+      return chain;
+    },
+    async rpc() {
+      rpcCalls += 1;
+      return { data, error: null };
+    },
+  } as unknown as SupabaseClient;
+  return { client, rpcCalls: () => rpcCalls };
+}
+
+test("a null rpc result is a failure, not a zero, and the local counter takes over", async () => {
+  const { client, rpcCalls } = badRpcClient(null);
+  setClientForTests(client);
+  const ipHash = hashIp("192.0.2.31");
+
+  const first = await checkRateLimit(ipHash);
+  // 1, from the in memory fallback, not 0 from Number(null).
+  expect(first.count).toBe(1);
+  expect(first.allowed).toBe(true);
+  expect(memoryStatus()).toBe("offline");
+
+  // And the fallback keeps counting, so the cap still exists per instance.
+  const second = await checkRateLimit(ipHash);
+  expect(second.count).toBe(2);
+  expect(rpcCalls()).toBe(1);
+  setClientForTests(null);
+});
+
+test("the increment is attempted once, never retried", async () => {
+  // A timeout can fire on an increment the database already committed, so the
+  // retry that every other operation gets would charge the request twice.
+  const { client, rpcCalls } = badRpcClient(undefined);
+  setClientForTests(client);
+  await checkRateLimit(hashIp("192.0.2.32"));
+  expect(rpcCalls()).toBe(1);
+  setClientForTests(null);
+});
+
 test("a rejecting client flips Site Memory offline", async () => {
   setClientForTests(rejectingClient());
   expect(memoryStatus()).toBe("online");
