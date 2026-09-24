@@ -7,7 +7,7 @@ port 3000.
 | Spec | What it proves |
 |---|---|
 | `layers.spec.ts` | The nine layers answer for the three test sites with the values in `docs/datum/PHASE-1-data.md` step 1.10, cold then warm, and the warm run is served from the cache inside the budget |
-| `layers-forced-failure.spec.ts` | Every source pointed at an unreachable port degrades to `unavailable` with `data: null` and a real sentence, and writes nothing to `api_cache` |
+| `layers-forced-failure.spec.ts` | Every source pointed at an unreachable port degrades to `unavailable` with `data: null` and a real sentence, and writes no `api_cache` row after the run started |
 | `rate-limit.spec.ts` | The twenty first uncached analysis of the day from one client is refused with 429 and a `resetAt` |
 
 `baseline.spec.ts` and `flood-classify.spec.ts` are from Phase 0 and are unrelated.
@@ -64,10 +64,22 @@ The `overpass` entry covers the kumi.systems mirror as well, through `SOURCE_OVE
 the mirror answered for real, and the run wrote an Overpass row to `api_cache` while still passing.
 
 Both tests analyse a cold point rather than a test site: 35.1, -85.3 for the unavailable assertions
-and 36.4, -86.2 for the `api_cache` count. Each is at least 0.3 degrees from every site in
+and 36.4, -86.2 for the `api_cache` check. Each is at least 0.3 degrees from every site in
 `e2e/fixtures/sites.ts` and from the other, which is what keeps the 0.1 degree Open-Meteo climate
 cell cold. A warmed cell is never fetched, so the override would have nothing to block and the layer
 would answer `ok`: that is how the 2026-09-24 run failed.
+
+Two caches are keyed by tract GEOID rather than by point, `census_acs` (GEOID plus vintage) and
+`tiger` (GEOID), so distance does nothing for them: a cold point can sit in a tract an earlier run
+already cached. The `DATUM_E2E_DB=1` test therefore deletes every `census_acs:` and `tiger:` row
+older than the run's start timestamp before it analyses its point. It deletes them for all tracts,
+not only the point's, because that is the simplest correct approach from the test process, and it
+costs one re-fetch per tract on a later run.
+
+The `api_cache` assertion is a `fetched_at` gate, not a row count: for each overridden prefix it
+requires zero rows with `cache_key like '<prefix>:%'` and `fetched_at >= runStart`, where `runStart`
+is taken once before the first request in the file. A row count could not see an upsert onto a key
+that already existed.
 
 `sun` is not in the forced list. Only its timezone comes from Open-Meteo, so with `openmeteo`
 overridden it still answers `ok` with `timezoneSource: "utc"`. `census` is in the list: the Census
@@ -109,10 +121,10 @@ named reason:
 
 - `layers.spec.ts`: Site Memory reports `online` and the `site` route returns a real row id rather
   than a `local-` id.
-- `layers-forced-failure.spec.ts`: `api_cache` row counts for the overridden key prefixes are
-  unchanged across a forced failure run.
+- `layers-forced-failure.spec.ts`: no `api_cache` row for an overridden key prefix was written or
+  refreshed after the run started, and the tract keyed prefixes are cleared first.
 
-The `api_cache` count helper calls `getClient()` from `src/lib/datum/memory.ts` inside the test
+The `api_cache` helper calls `getClient()` from `src/lib/datum/memory.ts` inside the test
 process, so that process also needs `SUPABASE_URL` and `SUPABASE_SECRET_KEY`. It prints counts
 only, never a URL and never a key.
 

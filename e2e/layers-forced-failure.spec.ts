@@ -22,7 +22,9 @@
 //      the run cached an Overpass row while still passing.
 //   3. Both tests analyse a cold point (see COLD_POINTS below), because a
 //      source whose cache cell is already populated is never asked and the
-//      override has nothing to block.
+//      override has nothing to block. The cold point rule covers point keyed
+//      caches only; census_acs and tiger are keyed by tract GEOID, so the
+//      database mode test clears those two prefixes instead.
 //
 // See e2e/README.md.
 
@@ -51,10 +53,17 @@ const FORCED_LAYERS = [
  * (rural middle Tennessee) and both are at least 0.3 degrees from every site in
  * e2e/fixtures/sites.ts and from each other, in latitude and in longitude:
  * Atlanta 33.775, -84.392; Miami 25.801, -80.189; WaKeeney 39.020, -99.884.
- * 0.3 degrees is the threshold because the coarsest cache key in the system is
- * the Open-Meteo climate cell, rounded to 0.1 degrees, so a point this far away
- * cannot share a cell with anything an earlier run warmed, and neither test can
- * warm a cell for the other.
+ * 0.3 degrees is the threshold because the coarsest point keyed cache in the
+ * system is the Open-Meteo climate cell, rounded to 0.1 degrees, so a point this
+ * far away cannot share a cell with anything an earlier run warmed, and neither
+ * test can warm a cell for the other.
+ *
+ * Two caches are not point keyed at all and the distance rule does nothing for
+ * them: `census_acs` is keyed by tract GEOID plus vintage and `tiger` by tract
+ * GEOID (SPEC section 13). A cold point can sit in a tract an earlier run
+ * already cached, in which case the ACS call is never made and the override has
+ * nothing to block. The database mode test therefore clears those two prefixes
+ * before it runs; see clearTractKeyedRows.
  */
 const COLD_POINTS = {
   unavailable: { lat: 35.1, lng: -85.3 },
@@ -81,11 +90,21 @@ interface Envelope {
 }
 
 /**
- * Row counts for the overridden cache key prefixes. Runs inside the test
- * process only, and returns null when Supabase is not configured there. No URL
- * and no key is ever printed.
+ * The instant the file started, taken once and before any request. Every
+ * assertion below is about rows written after it.
  */
-async function apiCacheCounts(): Promise<Record<string, number> | null> {
+const RUN_START = new Date().toISOString();
+
+/**
+ * Rows per overridden prefix written since RUN_START. A row count per prefix
+ * cannot see an upsert onto a key that already existed, which is the shape a
+ * forced failure write would most likely take; fetched_at moves on every
+ * upsert, so this does.
+ *
+ * Runs inside the test process only, and returns null when Supabase is not
+ * configured there. No URL and no key is ever printed.
+ */
+async function rowsWrittenSinceRunStart(): Promise<Record<string, number> | null> {
   const client = getClient();
   if (!client) return null;
   const counts: Record<string, number> = {};
@@ -93,11 +112,38 @@ async function apiCacheCounts(): Promise<Record<string, number> | null> {
     const { count, error } = await client
       .from("api_cache")
       .select("cache_key", { count: "exact", head: true })
-      .like("cache_key", `${prefix}:%`);
+      .like("cache_key", `${prefix}:%`)
+      .gte("fetched_at", RUN_START);
     if (error) return null;
     counts[prefix] = count ?? 0;
   }
   return counts;
+}
+
+/**
+ * Delete every `census_acs:` and `tiger:` row older than this run. Those two
+ * caches are keyed by tract GEOID, so the cold point rule cannot keep them cold
+ * and a warm tract would let `census` answer ok with the ACS host overridden.
+ *
+ * This deletes the rows for every tract, not only the point's, which is the
+ * simplest correct approach: the test process would otherwise have to resolve
+ * the GEOID itself. The cost is one re-fetch per tract on a later run. The
+ * `fetched_at < RUN_START` bound keeps the delete off anything this run writes,
+ * which is what the assertion measures.
+ */
+async function clearTractKeyedRows(): Promise<void> {
+  const client = getClient();
+  if (!client) return;
+  for (const prefix of ["census_acs", "tiger"]) {
+    const { count, error } = await client
+      .from("api_cache")
+      .delete({ count: "exact" })
+      .like("cache_key", `${prefix}:%`)
+      .lt("fetched_at", RUN_START);
+    console.log(
+      `forced failure: cleared ${count ?? 0} "${prefix}:" rows${error ? " (error)" : ""}`,
+    );
+  }
 }
 
 async function createSite(request: APIRequestContext, lat: number, lng: number) {
@@ -152,8 +198,13 @@ test("datum layers: a forced failure writes nothing to api_cache", async ({ requ
   );
   test.setTimeout(10 * 60 * 1000);
 
-  const before = await apiCacheCounts();
-  expect(before, "the test process should be able to read api_cache").not.toBeNull();
+  expect(
+    await rowsWrittenSinceRunStart(),
+    "the test process should be able to read api_cache",
+  ).not.toBeNull();
+
+  // The tract keyed caches are not covered by the cold point rule.
+  await clearTractKeyedRows();
 
   // The second cold point, far enough from the first that the two tests cannot
   // warm a cache cell for each other.
@@ -167,12 +218,12 @@ test("datum layers: a forced failure writes nothing to api_cache", async ({ requ
     );
   }
 
-  const after = await apiCacheCounts();
-  expect(after, "the test process should be able to read api_cache").not.toBeNull();
+  const written = await rowsWrittenSinceRunStart();
+  expect(written, "the test process should be able to read api_cache").not.toBeNull();
   for (const prefix of FORCED_CACHE_PREFIXES) {
     expect(
-      after?.[prefix],
-      `api_cache rows for "${prefix}:" should not grow during a forced failure run`,
-    ).toBe(before?.[prefix]);
+      written?.[prefix],
+      `no "${prefix}:" row should have been written or refreshed during a forced failure run`,
+    ).toBe(0);
   }
 });
