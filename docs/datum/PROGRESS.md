@@ -365,6 +365,32 @@ a site created within the last 24 hours are not separately limited; an id older 
 subject to the cap, and the unit test asserts that. If the gate still fails after this round the
 orchestrator stops and the owner re-plans; no fifth round.
 
+### Fourth round results (2026-09-24)
+
+Commits `67048e7` (database site ids older than 24 h pass the non incrementing peek, 429 on cap;
+rpc result accepted only as a number at least 1; increment attempted once), `91e7469` (site
+lookup and rate limit peek issued together with Promise.all and awaited before the fetcher; peek
+memo per IP hash for 60 s, cleared by an increment; the cache read still runs inside the fetcher
+because it needs the point), `385c5b7` (forced failure spec asserts zero api_cache rows with
+fetched_at at or after run start per prefix; tract keyed census_acs and tiger rows cleared at the
+start of the database mode test, which deleted 3 rows each on the first run), `fbe5278` (rate
+limit spec deletes only its own 21 site keys; base point random per run inside a western Kansas
+cell), `793eb9d` (test seams inert in production, env restore deletes originally unset vars, size
+guard without a default, no after() for local ids).
+
+Gates (orchestrator re-run): tsc exit 0; `npm run test:unit` 182 passed; eslint 16 errors, 10
+warnings; both builds exit 0; fallback grep only the two counters; no direct fetch outside
+http.ts; key grep empty; no em dashes.
+
+Database mode e2e (builder, laptop to region, informational per decision b): rate-limit spec
+passed with scoped cleanup (20 own sites deleted; the 21st request creates no row); forced
+failure spec 2 passed with the fetched_at gate; layers spec 1 passed, 3 failed on warm latency
+only, one per site and the failing layer moves between runs: Atlanta sun 2050 ms, Miami climate
+1902 ms, WaKeeney census 1715 ms against 1500. Every layer reported cached true. Also observed:
+in two of six runs Site Memory flipped offline mid run on the slow link, and in one of those a
+layer answered 404 because the site row could not be read while the guard was tripped. Raised
+with the fourth round reviewer (question 7) before the preview measurement.
+
 ### Owner decisions pending (Phase 1), superseded by the answers above
 
 1. Migration 0001: run as written, or with the atomic `rate_limit_hit` function appended.
