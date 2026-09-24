@@ -76,6 +76,8 @@ export interface CacheEntry {
   httpStatus: number;
   body: unknown;
   fetchedAt: string;
+  /** Serialized size of `body` in bytes, measured when the entry is written. */
+  bodyBytes?: number;
 }
 
 export interface CacheApi {
@@ -320,6 +322,8 @@ export interface OsmStats {
   relationCount: number;
   /** Footprint area clipped to the 800 m frame over the frame area. */
   coverageRatio: number;
+  /** Present only when the cached Overpass payload passed the size threshold. */
+  sizeWarning?: { bytes: number; thresholdBytes: number };
 }
 
 export interface OsmData {

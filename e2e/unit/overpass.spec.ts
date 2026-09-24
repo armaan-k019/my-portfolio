@@ -11,6 +11,7 @@ import {
   setOverpassBudgetMsForTests,
   trimPayload,
 } from "../../src/lib/datum/sources/overpass";
+import { CACHE_SIZE_WARN_BYTES } from "../../src/lib/datum/cache";
 import { fromLocal } from "../../src/lib/datum/geo";
 import type {
   CacheApi,
@@ -385,4 +386,32 @@ test("the three mirror attempts share one deadline", async () => {
   expect(elapsed).toBeLessThan(5_000);
   // The first attempt consumed the budget, so the later mirrors were skipped.
   expect(calls).toBe(1);
+});
+
+test("the Atlanta payload is 1.42 MB and carries no size warning", async () => {
+  const raw = JSON.parse(
+    readFileSync(path.join(FIXTURES, "atlanta.raw.json"), "utf8"),
+  );
+  const { ctx } = makeCtx([{ status: 200, body: raw }]);
+
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    warnings.push(args.map(String).join(" "));
+  };
+  let envelope;
+  try {
+    envelope = await fetchOsm(input(ATLANTA), ctx);
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  expect(envelope.status).toBe("ok");
+  // The trimmed payload is about 1.42 MB, well under the 3 MB threshold, so
+  // the envelope carries no sizeWarning and nothing is logged.
+  const trimmedBytes = Buffer.byteLength(JSON.stringify(trimPayload(raw)));
+  expect(trimmedBytes).toBeGreaterThan(1_000_000);
+  expect(trimmedBytes).toBeLessThan(CACHE_SIZE_WARN_BYTES);
+  expect(envelope.data?.stats.sizeWarning).toBeUndefined();
+  expect(warnings).toEqual([]);
 });

@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import {
+  CACHE_SIZE_WARN_BYTES,
   cached,
   clearMemoryCache,
   createMemoryCacheApi,
@@ -137,4 +138,81 @@ test("the in memory fallback honours the same TTL", async () => {
 
   clock += 61_000;
   expect(await api.get("openmeteo:33.8,-84.4")).toBeNull();
+});
+
+test("a body above the 3 MB threshold is flagged and warned about once", async () => {
+  const { client, rows } = fakeClient();
+  const ctx = { cache: createSupabaseCacheApi(client, NOW), now: NOW };
+
+  // 3.1 MB of payload (3.1 x 1024 x 1024 bytes), past the 3 MB threshold.
+  const bigBody = { elements: ["x".repeat(Math.round(3.1 * 1024 * 1024))] };
+
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    warnings.push(args.map(String).join(" "));
+  };
+
+  let result;
+  try {
+    result = await cached(
+      "overpass:33.775,-84.392",
+      2_592_000,
+      async () => ({
+        source: "overpass",
+        url: "https://overpass-api.de/api/interpreter?data=secret",
+        status: 200,
+        body: bigBody,
+        cacheable: true,
+      }),
+      ctx,
+    );
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  expect(result.sizeWarning).toBe(true);
+  expect(result.entry.bodyBytes).toBeGreaterThan(CACHE_SIZE_WARN_BYTES);
+  expect(result.entry.bodyBytes).toBe(Buffer.byteLength(JSON.stringify(bigBody)));
+  expect(rows.size).toBe(1);
+
+  expect(warnings).toHaveLength(1);
+  expect(warnings[0]).toContain("overpass");
+  expect(warnings[0]).toContain(String(result.entry.bodyBytes));
+  // The URL and its query string never reach the log line.
+  expect(warnings[0]).not.toContain("secret");
+  expect(warnings[0]).not.toContain("http");
+});
+
+test("a small body records its size and raises no warning", async () => {
+  const { client } = fakeClient();
+  const ctx = { cache: createSupabaseCacheApi(client, NOW), now: NOW };
+
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    warnings.push(args.map(String).join(" "));
+  };
+
+  let result;
+  try {
+    result = await cached(
+      "usgs_epqs:33.775,-84.392",
+      31_536_000,
+      async () => ({
+        source: "usgs_epqs",
+        url: "https://epqs.nationalmap.gov/v1/json",
+        status: 200,
+        body: { value: "281.726" },
+        cacheable: true,
+      }),
+      ctx,
+    );
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  expect(result.sizeWarning).toBe(false);
+  expect(result.entry.bodyBytes).toBe(19);
+  expect(warnings).toEqual([]);
 });

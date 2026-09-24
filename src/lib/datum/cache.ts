@@ -22,7 +22,17 @@ export interface CacheProducerResult {
 export interface CachedResult {
   entry: CacheEntry;
   cached: boolean;
+  /** True when the serialized body passed CACHE_SIZE_WARN_BYTES. */
+  sizeWarning: boolean;
 }
+
+/**
+ * The size a single cached body may reach before it is flagged (owner decision
+ * 3, 2026-09-24). Atlanta's trimmed Overpass payload is about 1.42 MB, so this
+ * is roughly twice the worst case seen and catches a payload that has grown
+ * past what the free tier database can hold at scale.
+ */
+export const CACHE_SIZE_WARN_BYTES = 3_145_728;
 
 /**
  * Read `key` from the cache, or run the producer and write it when the producer
@@ -37,7 +47,13 @@ export async function cached(
   ctx: Pick<SourceContext, "cache" | "now">,
 ): Promise<CachedResult> {
   const hit = await ctx.cache.get(key).catch(() => null);
-  if (hit) return { entry: hit, cached: true };
+  if (hit) {
+    return {
+      entry: hit,
+      cached: true,
+      sizeWarning: (hit.bodyBytes ?? 0) > CACHE_SIZE_WARN_BYTES,
+    };
+  }
 
   const produced = await producer();
   const entry: CacheEntry = {
@@ -47,10 +63,21 @@ export async function cached(
     body: produced.body,
     fetchedAt: ctx.now().toISOString(),
   };
+  let sizeWarning = false;
   if (produced.cacheable) {
+    // Measured on the trimmed body that is actually stored, not the response.
+    entry.bodyBytes = Buffer.byteLength(JSON.stringify(produced.body) ?? "");
+    sizeWarning = entry.bodyBytes > CACHE_SIZE_WARN_BYTES;
+    if (sizeWarning) {
+      // The source and the size only. A cache key or URL can carry a query
+      // string with a coordinate in it, which does not belong in a log line.
+      console.warn(
+        `[datum] cached payload from ${produced.source} is ${entry.bodyBytes} bytes, above the ${CACHE_SIZE_WARN_BYTES} byte threshold`,
+      );
+    }
     await ctx.cache.set(key, entry, ttlSeconds).catch(() => undefined);
   }
-  return { entry, cached: false };
+  return { entry, cached: false, sizeWarning };
 }
 
 // ─── In memory fallback ──────────────────────────────────────────────────────

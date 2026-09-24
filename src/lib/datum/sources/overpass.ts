@@ -16,7 +16,7 @@ import {
   withCode,
   type SourceName,
 } from "../constants";
-import { cached } from "../cache";
+import { CACHE_SIZE_WARN_BYTES, cached } from "../cache";
 import {
   SourceError,
   fetchWithPolicy,
@@ -325,7 +325,12 @@ async function requestOverpass(
 export async function fetchOsmPayload(
   input: LayerInput,
   ctx: SourceContext,
-): Promise<{ payload: TrimmedOverpass; url: string; cached: boolean }> {
+): Promise<{
+  payload: TrimmedOverpass;
+  url: string;
+  cached: boolean;
+  sizeWarning: { bytes: number; thresholdBytes: number } | null;
+}> {
   const key = `overpass:${roundKey(input.lat, input.lng, 3)}`;
   const query = buildQuery(input.lat, input.lng);
 
@@ -357,7 +362,17 @@ export async function fetchOsmPayload(
       source: "overpass",
     });
   }
-  return { payload, url: result.entry.url, cached: result.cached };
+  return {
+    payload,
+    url: result.entry.url,
+    cached: result.cached,
+    sizeWarning: result.sizeWarning
+      ? {
+          bytes: result.entry.bodyBytes ?? 0,
+          thresholdBytes: CACHE_SIZE_WARN_BYTES,
+        }
+      : null,
+  };
 }
 
 // ─── osm layer ───────────────────────────────────────────────────────────────
@@ -572,10 +587,16 @@ export const fetchOsm: LayerFetcher<OsmData> = async (input, ctx) => {
   };
 
   try {
-    const { payload, url, cached: fromCache } = await fetchOsmPayload(input, ctx);
+    const {
+      payload,
+      url,
+      cached: fromCache,
+      sizeWarning,
+    } = await fetchOsmPayload(input, ctx);
     source.url = url;
     source.cached = fromCache;
     const data = buildOsm(payload, { lat: input.lat, lng: input.lng });
+    if (sizeWarning) data.stats.sizeWarning = sizeWarning;
     return ok("osm", source, data, { now: ctx.now });
   } catch (raw) {
     const error = toSourceError(raw, "overpass");
