@@ -185,6 +185,25 @@ the SPEC section 16 cold targets.
 Combined branch gates after the merge: tsc exit 0; `npm run test:unit` 159 passed; `npx eslint .`
 16 errors, 10 warnings; `npm run build` exit 0; `npx next build --webpack` exit 0.
 
+### Re-verification and fix round 2 (2026-09-24)
+
+Reviewer re-verified findings 1 to 10 and 13 at `bc318ce`: all resolved, finding 6 partially (the
+coverage ratio extent, decision 8). Two residuals the fixes introduced were closed in fix round 2:
+
+- `d6a1f7d` local site ids are now `local-<siteKey>-<sig>`, sig = first 32 hex of HMAC-SHA256
+  keyed with the secret key over `<siteKey>|<UTC day>`, valid today and yesterday. The layer route
+  accepts a verified local id whatever the memory status (an analysis that starts during a Supabase
+  outage no longer breaks when memory reconnects), keeps the range checks and the rate limit peek,
+  and cannot be forged. Nine new unit tests.
+- `73e758b` the Atlanta building count is asserted against an independent loop in the test and an
+  absolute band, not only the parser's own rule.
+- `fe85f71` contract document updated (buildClimate return shape, hashed geocoding keys, the fix
+  round surface changes).
+
+Gates after fix round 2: tsc exit 0; `npm run test:unit` 163 passed; `npx eslint .` 16 errors,
+10 warnings; `npm run build` exit 0; `npx next build --webpack` exit 0; key grep empty; no em
+dashes. Phase 1 has used both fix rounds. Any further code change waits for the owner.
+
 ### Owner decisions pending (Phase 1)
 
 1. Migration 0001: run as written, or with the atomic `rate_limit_hit` function appended.
@@ -202,6 +221,9 @@ Combined branch gates after the merge: tsc exit 0; `npm run test:unit` 159 passe
    SPEC section 5 Atlanta line to the fixture's counts.
 7. SPEC section 15: honour `DATUM_SOURCE_OVERRIDES` also when `DATUM_ALLOW_TEST_FLAG=1`, so the
    forced failure spec can run against a production build (`next start` inlines production).
+8. SPEC section 9 defines `coverageRatio` as footprint area inside the 800 m frame over the frame
+   area, but buildings are fetched within a 400 m radius, so the frame corners are always empty
+   and the ratio reads low. Proposed: define it over the area of the 400 m circle instead.
 
 ### Pending live checks
 
