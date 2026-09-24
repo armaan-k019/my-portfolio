@@ -293,15 +293,17 @@ export const fetchClimate: LayerFetcher<ClimateData> = async (input, ctx) => {
     source.url = archive.url;
     source.cached = archive.cached;
 
-    const data = buildClimate(archive);
-    const missing = missingColumns(archive);
+    const { data, missing: emptyMeasures } = buildClimate(archive);
+    // The columns that carry a null hour, plus the aggregates those nulls left
+    // empty. Both are absences, and both are named in partial.missing.
+    const missing = [...missingColumns(archive), ...emptyMeasures];
     if (missing.length > 0) {
       return partial(
         "climate",
         source,
         data,
         missing,
-        "The Open-Meteo archive left some hourly values empty, so the normals are computed from the hours that are present.",
+        "The Open-Meteo archive left some values empty. The normals are computed from the hours that are present, and a measure with no hours behind it is null.",
         { now: ctx.now },
       );
     }

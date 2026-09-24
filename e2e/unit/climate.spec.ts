@@ -163,16 +163,17 @@ test("wind rose sector frequencies sum to 100 including calm", () => {
     expect(rose.binEdgesMs).toEqual(WIND_BIN_EDGES_MS);
     const total =
       rose.sectors.reduce((sum, sector) => sum + sector.frequencyPct, 0) +
-      rose.calmSharePct;
+      (rose.calmSharePct as number);
     expect(Math.abs(total - 100)).toBeLessThan(0.1);
     for (const sector of rose.sectors) {
       expect(sector.binsPct).toHaveLength(WIND_BIN_EDGES_MS.length);
       const binTotal = sector.binsPct.reduce((sum, pct) => sum + pct, 0);
       expect(Math.abs(binTotal - sector.frequencyPct)).toBeLessThan(0.01);
     }
-    expect(rose.resultantLength).toBeGreaterThanOrEqual(0);
-    expect(rose.resultantLength).toBeLessThanOrEqual(1);
-    expect(rose.meanSpeedMs).toBeGreaterThan(0);
+    expect(rose.resultantLength as number).toBeGreaterThanOrEqual(0);
+    expect(rose.resultantLength as number).toBeLessThanOrEqual(1);
+    expect(rose.meanSpeedMs as number).toBeGreaterThan(0);
+    expect(rose.calmSharePct).not.toBeNull();
     expect(rose.sectors.map((sector) => sector.sectorDeg)).toContain(
       rose.prevailingSectorDeg,
     );
@@ -187,13 +188,13 @@ test("wind rose bins sort a synthetic set by speed and sector", () => {
     { time: "2023-01-01T03:00", temperatureC: 0, relativeHumidityPct: 50, windSpeedMs: 12, windDirectionDeg: 270, shortwaveWM2: 0 },
   ];
   const rose = buildWindRose(hours);
-  expect(rose.calmSharePct).toBeCloseTo(25, 3);
+  expect(rose.calmSharePct as number).toBeCloseTo(25, 3);
   expect(rose.sectors[0].binsPct[1]).toBeCloseTo(25, 3);
   expect(rose.sectors[4].binsPct[2]).toBeCloseTo(25, 3);
   expect(rose.sectors[12].binsPct[5]).toBeCloseTo(25, 3);
   const total =
     rose.sectors.reduce((sum, sector) => sum + sector.frequencyPct, 0) +
-    rose.calmSharePct;
+    (rose.calmSharePct as number);
   expect(Math.abs(total - 100)).toBeLessThan(0.1);
 });
 
@@ -206,11 +207,15 @@ test("monthly arrays have twelve entries and July is warmer than January", () =>
     expect(monthly.map((month) => month.month)).toEqual([
       1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
     ]);
-    expect(monthly[6].meanDailyMaxC).toBeGreaterThan(monthly[0].meanDailyMaxC);
+    expect(monthly[6].meanDailyMaxC as number).toBeGreaterThan(
+      monthly[0].meanDailyMaxC as number,
+    );
     for (const month of monthly) {
-      expect(month.meanDailyMaxC).toBeGreaterThanOrEqual(month.meanDailyMinC);
-      expect(month.meanDailyRadiationKwhM2).toBeGreaterThan(0);
-      expect(month.meanRhPct).toBeGreaterThan(0);
+      expect(month.meanDailyMaxC as number).toBeGreaterThanOrEqual(
+        month.meanDailyMinC as number,
+      );
+      expect(month.meanDailyRadiationKwhM2 as number).toBeGreaterThan(0);
+      expect(month.meanRhPct as number).toBeGreaterThan(0);
     }
   }
 });
@@ -219,26 +224,203 @@ test("WaKeeney has more heating degree days and Atlanta more cooling", () => {
   const atl = buildDegreeDays(atlanta.hours);
   const wak = buildDegreeDays(wakeeney.hours);
   expect(atl.baseC).toBeCloseTo(18.3, 6);
-  expect(wak.hdd).toBeGreaterThan(atl.hdd);
-  expect(atl.cdd).toBeGreaterThan(wak.cdd);
+  expect(wak.hdd as number).toBeGreaterThan(atl.hdd as number);
+  expect(atl.cdd as number).toBeGreaterThan(wak.cdd as number);
 });
 
 test("comfort share is a labelled percentage between 0 and 100", () => {
   const share = buildComfortShare(atlanta.hours);
-  expect(share.pct).toBeGreaterThan(0);
-  expect(share.pct).toBeLessThan(100);
+  expect(share.pct as number).toBeGreaterThan(0);
+  expect(share.pct as number).toBeLessThan(100);
   expect(share.definition).toContain("not ASHRAE 55");
 });
 
 test("buildClimate assembles the four parts plus the period and timezone", () => {
-  const data = buildClimate(atlanta);
+  const { data, missing } = buildClimate(atlanta);
   expect(Object.keys(data.wind)).toEqual(["annual", "summer", "winter"]);
   expect(data.monthly).toHaveLength(12);
   expect(data.period).toEqual(PERIOD);
   expect(data.timezone).toBe("America/New_York");
-  expect(data.degreeDays.hdd).toBeGreaterThan(0);
-  expect(data.wind.summer.meanSpeedMs).toBeGreaterThan(0);
-  expect(data.wind.winter.meanSpeedMs).toBeGreaterThan(0);
+  expect(data.degreeDays.hdd as number).toBeGreaterThan(0);
+  expect(data.wind.summer.meanSpeedMs as number).toBeGreaterThan(0);
+  expect(data.wind.winter.meanSpeedMs as number).toBeGreaterThan(0);
+  // A complete archive leaves nothing empty.
+  expect(missing).toEqual([]);
+});
+
+// ─── empty input is null, never zero ─────────────────────────────────────────
+
+/** The Atlanta archive with every hour of one month removed. */
+function withoutMonth(archive: ArchiveResponse, month: number): ArchiveResponse {
+  return {
+    ...archive,
+    hours: archive.hours.filter((hour) => Number(hour.time.slice(5, 7)) !== month),
+  };
+}
+
+test("a month with no hours is null in every measure, not zero", () => {
+  const { data, missing } = buildClimate(withoutMonth(atlanta, 4));
+  const april = data.monthly[3];
+  expect(april.month).toBe(4);
+  expect(april.meanC).toBeNull();
+  expect(april.meanDailyMaxC).toBeNull();
+  expect(april.meanDailyMinC).toBeNull();
+  expect(april.meanRhPct).toBeNull();
+  expect(april.meanDailyRadiationKwhM2).toBeNull();
+  expect(missing).toContain("monthly[3].meanC");
+  expect(missing).toContain("monthly[3].meanDailyRadiationKwhM2");
+  // The other eleven months are untouched.
+  expect(data.monthly[0].meanC).not.toBeNull();
+});
+
+test("an empty archive is null throughout and names every path", () => {
+  const empty: ArchiveResponse = { ...atlanta, hours: [] };
+  const { data, missing } = buildClimate(empty);
+
+  expect(data.wind.annual.sectors).toEqual([]);
+  expect(data.wind.annual.calmSharePct).toBeNull();
+  expect(data.wind.annual.prevailingSectorDeg).toBeNull();
+  expect(data.wind.annual.meanSpeedMs).toBeNull();
+  expect(data.wind.annual.resultantLength).toBeNull();
+  expect(data.degreeDays.hdd).toBeNull();
+  expect(data.degreeDays.cdd).toBeNull();
+  expect(data.comfortShare.pct).toBeNull();
+  for (const month of data.monthly) {
+    expect(month.meanC).toBeNull();
+    expect(month.meanDailyRadiationKwhM2).toBeNull();
+  }
+
+  expect(missing).toContain("wind.annual.meanSpeedMs");
+  expect(missing).toContain("wind.summer.prevailingSectorDeg");
+  expect(missing).toContain("wind.winter.resultantLength");
+  expect(missing).toContain("degreeDays.hdd");
+  expect(missing).toContain("comfortShare.pct");
+  // Twelve months times five measures, plus the wind and the three aggregates.
+  expect(missing.length).toBeGreaterThan(60);
+});
+
+test("an archive missing a month makes the climate envelope partial", async () => {
+  const raw = rawFixture("atlanta") as {
+    hourly: Record<string, Array<number | null>>;
+  };
+  // Blank every April hour in the recorded body, the way the archive does when
+  // it has no data for a period.
+  const times = raw.hourly.time as unknown as string[];
+  const blanked = {
+    ...raw,
+    hourly: Object.fromEntries(
+      Object.entries(raw.hourly).map(([name, column]) =>
+        name === "time"
+          ? [name, column]
+          : [
+              name,
+              column.map((value, index) =>
+                times[index].slice(5, 7) === "04" ? null : value,
+              ),
+            ],
+      ),
+    ),
+  };
+
+  const serveBlanked: typeof fetch = async () =>
+    new Response(JSON.stringify(blanked), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+
+  const envelope = await fetchClimate(INPUT, context(serveBlanked));
+  expect(envelope.status).toBe("partial");
+  expect(envelope.data?.monthly[3].meanC).toBeNull();
+  expect(envelope.partial?.missing).toContain("monthly[3].meanC");
+  expect(envelope.partial?.missing).toContain("temperature_2m");
+});
+
+test("an archive with no usable values is null throughout and partial", async () => {
+  // Open-Meteo answers with the hours it was asked for and null in every
+  // column when it holds no data for the period. Rows with no values behind
+  // them must produce nulls, not zeroes.
+  const raw = rawFixture("atlanta") as {
+    hourly: Record<string, unknown[]>;
+  };
+  const times = raw.hourly.time as string[];
+  const blank = {
+    ...raw,
+    hourly: Object.fromEntries(
+      Object.entries(raw.hourly).map(([name, column]) =>
+        name === "time" ? [name, column] : [name, times.map(() => null)],
+      ),
+    ),
+  };
+  const serveBlank: typeof fetch = async () =>
+    new Response(JSON.stringify(blank), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+
+  const envelope = await fetchClimate(INPUT, context(serveBlank));
+  expect(envelope.status).toBe("partial");
+  expect(envelope.data?.degreeDays.hdd).toBeNull();
+  expect(envelope.data?.degreeDays.cdd).toBeNull();
+  expect(envelope.data?.comfortShare.pct).toBeNull();
+  expect(envelope.data?.wind.annual.meanSpeedMs).toBeNull();
+  expect(envelope.data?.wind.annual.sectors).toEqual([]);
+  for (const month of envelope.data?.monthly ?? []) {
+    expect(month.meanC).toBeNull();
+    expect(month.meanDailyRadiationKwhM2).toBeNull();
+  }
+  expect(envelope.partial?.missing).toContain("degreeDays.hdd");
+  expect(envelope.partial?.missing).toContain("wind.annual.meanSpeedMs");
+  expect(envelope.partial?.missing).toContain("monthly[0].meanC");
+});
+
+test("a body with no hourly rows at all is a parse error, not a null sheet", async () => {
+  const emptyBody = {
+    timezone: "America/New_York",
+    hourly_units: { wind_speed_10m: "km/h" },
+    hourly: {
+      time: [],
+      temperature_2m: [],
+      relative_humidity_2m: [],
+      wind_speed_10m: [],
+      wind_direction_10m: [],
+      shortwave_radiation: [],
+    },
+  };
+  const serveEmpty: typeof fetch = async () =>
+    new Response(JSON.stringify(emptyBody), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+
+  const envelope = await fetchClimate(INPUT, context(serveEmpty));
+  expect(envelope.status).toBe("unavailable");
+  expect(envelope.unavailable?.code).toBe("parse_error");
+  expect(envelope.data).toBeNull();
+});
+
+test("the Atlanta fixture still answers ok with no nulls in the data", async () => {
+  const envelope = await fetchClimate(INPUT, context(serve("atlanta")));
+  expect(envelope.status).toBe("ok");
+  expect(envelope.partial).toBeUndefined();
+  const data = envelope.data;
+  expect(data).not.toBeNull();
+  for (const rose of [data!.wind.annual, data!.wind.summer, data!.wind.winter]) {
+    expect(rose.sectors).toHaveLength(16);
+    expect(rose.calmSharePct).not.toBeNull();
+    expect(rose.prevailingSectorDeg).not.toBeNull();
+    expect(rose.meanSpeedMs).not.toBeNull();
+    expect(rose.resultantLength).not.toBeNull();
+  }
+  for (const month of data!.monthly) {
+    expect(month.meanC).not.toBeNull();
+    expect(month.meanDailyMaxC).not.toBeNull();
+    expect(month.meanDailyMinC).not.toBeNull();
+    expect(month.meanRhPct).not.toBeNull();
+    expect(month.meanDailyRadiationKwhM2).not.toBeNull();
+  }
+  expect(data!.degreeDays.hdd).not.toBeNull();
+  expect(data!.degreeDays.cdd).not.toBeNull();
+  expect(data!.comfortShare.pct).not.toBeNull();
 });
 
 // ─── the climate layer envelope ──────────────────────────────────────────────

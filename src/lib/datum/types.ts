@@ -184,33 +184,40 @@ export interface WindSector {
   binsPct: number[];
 }
 
+/**
+ * Every aggregate is null when the hour set holds nothing to aggregate. A
+ * period with no usable wind hours reports null, never a zero that would read
+ * as calm air (SPEC section 8 rule 1).
+ */
 export interface WindRose {
+  /** Empty when no hour carried both a speed and a direction. */
   sectors: WindSector[];
   /** Upper edges in m/s: 0.5, 2, 4, 6, 8, Infinity. */
   binEdgesMs: number[];
-  calmSharePct: number;
-  prevailingSectorDeg: number;
-  meanSpeedMs: number;
+  calmSharePct: number | null;
+  prevailingSectorDeg: number | null;
+  meanSpeedMs: number | null;
   /** Vector resultant length, 0 to 1. */
-  resultantLength: number;
+  resultantLength: number | null;
 }
 
+/** A measure with no hours behind it is null, not zero. */
 export interface ClimateMonth {
   /** 1 to 12. */
   month: number;
-  meanC: number;
-  meanDailyMaxC: number;
-  meanDailyMinC: number;
-  meanRhPct: number;
-  meanDailyRadiationKwhM2: number;
+  meanC: number | null;
+  meanDailyMaxC: number | null;
+  meanDailyMinC: number | null;
+  meanRhPct: number | null;
+  meanDailyRadiationKwhM2: number | null;
 }
 
 export interface ClimateData {
   wind: { annual: WindRose; summer: WindRose; winter: WindRose };
   monthly: ClimateMonth[];
-  degreeDays: { baseC: number; hdd: number; cdd: number };
+  degreeDays: { baseC: number; hdd: number | null; cdd: number | null };
   /** Simple comfort band, not ASHRAE 55: 18 to 26 C and RH under 70 percent. */
-  comfortShare: { pct: number; definition: string };
+  comfortShare: { pct: number | null; definition: string };
   period: { start: string; end: string; years: number };
   timezone: string;
 }
@@ -224,10 +231,15 @@ export interface TopoData {
   /** Polylines in local metres. */
   contours: { intervalM: number; lines: LocalPoint[][] };
   sections: { ew: Array<number | null>; ns: Array<number | null> };
-  reliefM: number;
-  meanSlopePct: number;
-  /** Downhill aspect of the best fit plane, degrees clockwise from north. */
-  aspectDeg: number;
+  /** Null when no sample is present. */
+  reliefM: number | null;
+  /** Null when no cell has all four neighbours. */
+  meanSlopePct: number | null;
+  /**
+   * Downhill aspect of the best fit plane, degrees clockwise from north. Null
+   * when the plane cannot be fitted or the surface is flat, which has no aspect.
+   */
+  aspectDeg: number | null;
 }
 
 // ─── seismic (SPEC section 9) ────────────────────────────────────────────────

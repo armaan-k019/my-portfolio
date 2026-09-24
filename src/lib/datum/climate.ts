@@ -97,7 +97,20 @@ export function buildWindRose(hours: ArchiveHour[]): WindRose {
     counts[sectorIndex(direction)][binIndex(speed)]++;
   }
 
-  const scale = usable > 0 ? 100 / usable : 0;
+  if (usable === 0) {
+    // Nothing to aggregate. Every measure is null and the sector list is empty,
+    // because a zero here would read as calm air (SPEC section 8 rule 1).
+    return {
+      sectors: [],
+      binEdgesMs: [...WIND_BIN_EDGES_MS],
+      calmSharePct: null,
+      prevailingSectorDeg: null,
+      meanSpeedMs: null,
+      resultantLength: null,
+    };
+  }
+
+  const scale = 100 / usable;
   const sectors: WindSector[] = counts.map((bins, index) => {
     const binsPct = bins.map((count) => round(count * scale, 3));
     const total = bins.reduce((sum, count) => sum + count, 0);
@@ -108,8 +121,9 @@ export function buildWindRose(hours: ArchiveHour[]): WindRose {
     };
   });
 
-  let prevailingSectorDeg = 0;
-  let best = -1;
+  // Every hour was calm, so no sector carries a direction to prevail.
+  let prevailingSectorDeg: number | null = null;
+  let best = 0;
   for (const sector of sectors) {
     if (sector.frequencyPct > best) {
       best = sector.frequencyPct;
@@ -117,18 +131,19 @@ export function buildWindRose(hours: ArchiveHour[]): WindRose {
     }
   }
 
+  // A zero speed sum makes the resultant 0/0, which has no value.
   const resultantLength =
     speedSum > 0
-      ? Math.sqrt(eastSum * eastSum + northSum * northSum) / speedSum
-      : 0;
+      ? round(Math.sqrt(eastSum * eastSum + northSum * northSum) / speedSum, 4)
+      : null;
 
   return {
     sectors,
     binEdgesMs: [...WIND_BIN_EDGES_MS],
     calmSharePct: round(calm * scale, 3),
     prevailingSectorDeg,
-    meanSpeedMs: usable > 0 ? round(speedSum / usable, 3) : 0,
-    resultantLength: round(resultantLength, 4),
+    meanSpeedMs: round(speedSum / usable, 3),
+    resultantLength,
   };
 }
 
@@ -136,6 +151,7 @@ interface DayAccumulator {
   maxC: number | null;
   minC: number | null;
   radiationWhM2: number;
+  radiationSamples: number;
 }
 
 /** Twelve entries, January first. */
@@ -163,7 +179,7 @@ export function buildMonthlyNormals(hours: ArchiveHour[]): ClimateMonth[] {
     const key = dayOf(hour.time);
     let day = days.get(key);
     if (!day) {
-      day = { maxC: null, minC: null, radiationWhM2: 0 };
+      day = { maxC: null, minC: null, radiationWhM2: 0, radiationSamples: 0 };
       days.set(key, day);
     }
     if (hour.temperatureC !== null) {
@@ -173,6 +189,7 @@ export function buildMonthlyNormals(hours: ArchiveHour[]): ClimateMonth[] {
     if (hour.shortwaveWM2 !== null) {
       // One hourly sample of W/m2 is one hour of Wh/m2.
       day.radiationWhM2 += hour.shortwaveWM2;
+      day.radiationSamples++;
     }
   }
 
@@ -194,22 +211,26 @@ export function buildMonthlyNormals(hours: ArchiveHour[]): ClimateMonth[] {
       minSum[index] += day.minC;
       minCount[index]++;
     }
-    radSum[index] += day.radiationWhM2 / 1000;
-    radCount[index]++;
+    // A day with no radiation sample contributes no daily total.
+    if (day.radiationSamples > 0) {
+      radSum[index] += day.radiationWhM2 / 1000;
+      radCount[index]++;
+    }
   }
 
-  const mean = (sum: number, count: number): number =>
-    count > 0 ? sum / count : 0;
+  // A month the archive never covered has no mean, so it is null.
+  const mean = (sum: number, count: number, places: number): number | null =>
+    count > 0 ? round(sum / count, places) : null;
 
   const out: ClimateMonth[] = [];
   for (let index = 0; index < 12; index++) {
     out.push({
       month: index + 1,
-      meanC: round(mean(tempSum[index], tempCount[index]), 2),
-      meanDailyMaxC: round(mean(maxSum[index], maxCount[index]), 2),
-      meanDailyMinC: round(mean(minSum[index], minCount[index]), 2),
-      meanRhPct: round(mean(rhSum[index], rhCount[index]), 2),
-      meanDailyRadiationKwhM2: round(mean(radSum[index], radCount[index]), 3),
+      meanC: mean(tempSum[index], tempCount[index], 2),
+      meanDailyMaxC: mean(maxSum[index], maxCount[index], 2),
+      meanDailyMinC: mean(minSum[index], minCount[index], 2),
+      meanRhPct: mean(rhSum[index], rhCount[index], 2),
+      meanDailyRadiationKwhM2: mean(radSum[index], radCount[index], 3),
     });
   }
   return out;
@@ -218,8 +239,8 @@ export function buildMonthlyNormals(hours: ArchiveHour[]): ClimateMonth[] {
 /** HDD and CDD base 18.3 C per year, averaged over the period. */
 export function buildDegreeDays(hours: ArchiveHour[]): {
   baseC: number;
-  hdd: number;
-  cdd: number;
+  hdd: number | null;
+  cdd: number | null;
 } {
   const sums = new Map<string, { sum: number; count: number }>();
   for (const hour of hours) {
@@ -245,17 +266,18 @@ export function buildDegreeDays(hours: ArchiveHour[]): {
     else cdd += meanC - DEGREE_DAY_BASE_C;
   }
 
+  // No day carried a temperature, so there is no annual total to report.
   const yearCount = years.size;
   return {
     baseC: DEGREE_DAY_BASE_C,
-    hdd: yearCount > 0 ? round(hdd / yearCount, 1) : 0,
-    cdd: yearCount > 0 ? round(cdd / yearCount, 1) : 0,
+    hdd: yearCount > 0 ? round(hdd / yearCount, 1) : null,
+    cdd: yearCount > 0 ? round(cdd / yearCount, 1) : null,
   };
 }
 
 /** Percent of hours at 18 to 26 C with RH under 70 percent. */
 export function buildComfortShare(hours: ArchiveHour[]): {
-  pct: number;
+  pct: number | null;
   definition: string;
 } {
   let usable = 0;
@@ -272,7 +294,8 @@ export function buildComfortShare(hours: ArchiveHour[]): {
     }
   }
   return {
-    pct: usable > 0 ? round((comfortable / usable) * 100, 1) : 0,
+    // No hour carried both a temperature and a humidity, so there is no share.
+    pct: usable > 0 ? round((comfortable / usable) * 100, 1) : null,
     definition: COMFORT_DEFINITION,
   };
 }
@@ -281,9 +304,57 @@ function inMonths(hours: ArchiveHour[], months: number[]): ArchiveHour[] {
   return hours.filter((hour) => months.includes(monthOf(hour.time)));
 }
 
-export function buildClimate(archive: ArchiveResponse): ClimateData {
+const MONTH_FIELDS: Array<keyof ClimateMonth> = [
+  "meanC",
+  "meanDailyMaxC",
+  "meanDailyMinC",
+  "meanRhPct",
+  "meanDailyRadiationKwhM2",
+];
+
+/** The dotted paths of one wind rose that came back empty. */
+function windRoseMissing(prefix: string, rose: WindRose): string[] {
+  const out: string[] = [];
+  if (rose.sectors.length === 0) out.push(`${prefix}.sectors`);
+  if (rose.calmSharePct === null) out.push(`${prefix}.calmSharePct`);
+  if (rose.prevailingSectorDeg === null) out.push(`${prefix}.prevailingSectorDeg`);
+  if (rose.meanSpeedMs === null) out.push(`${prefix}.meanSpeedMs`);
+  if (rose.resultantLength === null) out.push(`${prefix}.resultantLength`);
+  return out;
+}
+
+/**
+ * Every measure the archive left empty, as a dotted path into ClimateData. The
+ * climate fetcher puts these in `partial.missing`, so a month the archive never
+ * covered is visible as an absence rather than as a zero.
+ */
+export function climateMissing(data: ClimateData): string[] {
+  const missing: string[] = [
+    ...windRoseMissing("wind.annual", data.wind.annual),
+    ...windRoseMissing("wind.summer", data.wind.summer),
+    ...windRoseMissing("wind.winter", data.wind.winter),
+  ];
+  data.monthly.forEach((month, index) => {
+    for (const field of MONTH_FIELDS) {
+      if (month[field] === null) missing.push(`monthly[${index}].${field}`);
+    }
+  });
+  if (data.degreeDays.hdd === null) missing.push("degreeDays.hdd");
+  if (data.degreeDays.cdd === null) missing.push("degreeDays.cdd");
+  if (data.comfortShare.pct === null) missing.push("comfortShare.pct");
+  return missing;
+}
+
+/**
+ * The four parts plus the period and the timezone, and the paths of everything
+ * the archive left empty.
+ */
+export function buildClimate(archive: ArchiveResponse): {
+  data: ClimateData;
+  missing: string[];
+} {
   const hours = archive.hours;
-  return {
+  const data: ClimateData = {
     wind: {
       annual: buildWindRose(hours),
       summer: buildWindRose(inMonths(hours, SUMMER_MONTHS)),
@@ -295,4 +366,5 @@ export function buildClimate(archive: ArchiveResponse): ClimateData {
     period: archive.period,
     timezone: archive.timezone,
   };
+  return { data, missing: climateMissing(data) };
 }

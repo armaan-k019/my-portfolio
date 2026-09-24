@@ -311,6 +311,22 @@ export const fetchTopo: LayerFetcher<TopoData> = async (input, ctx) => {
       GRID_N,
     );
 
+    // A degenerate grid leaves a derived measure with nothing behind it. Those
+    // are null in the data and are named here rather than reported as zero.
+    const derived: Array<[string, number | null]> = [
+      ["reliefM", data.reliefM],
+      ["meanSlopePct", data.meanSlopePct],
+      ["aspectDeg", data.aspectDeg],
+    ];
+    for (const [name, value] of derived) {
+      if (value === null) missing.push(name);
+    }
+    if (missing.length > 0 && messages.length === 0) {
+      messages.push(
+        "Some derived measures have no samples behind them and are null.",
+      );
+    }
+
     if (missing.length > 0) {
       return partial("topo", source, data, missing, messages.join(" "), {
         now: ctx.now,

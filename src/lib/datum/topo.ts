@@ -136,12 +136,15 @@ export function contourLines(
   return best;
 }
 
-/** Mean slope percent from central differences over the sampled cells. */
+/**
+ * Mean slope percent from central differences over the sampled cells. Null when
+ * no cell has all four neighbours, which is not a flat site but an unknown one.
+ */
 function meanSlopePct(
   values: Array<number | null>,
   n: number,
   spacingM: number,
-): number {
+): number | null {
   const at = (row: number, col: number): number | null => {
     if (row < 0 || row >= n || col < 0 || col >= n) return null;
     const value = values[row * n + col];
@@ -165,16 +168,20 @@ function meanSlopePct(
       count += 1;
     }
   }
-  if (count === 0) return 0;
+  if (count === 0) return null;
   return Math.round((sum / count) * 10) / 10;
 }
 
-/** Downhill aspect of the least squares plane, degrees clockwise from north. */
+/**
+ * Downhill aspect of the least squares plane, degrees clockwise from north.
+ * Null when fewer than three samples are present, when the normal equations are
+ * singular, or when the plane is level: a level plane has no downhill direction.
+ */
 function planeAspectDeg(
   values: Array<number | null>,
   n: number,
   spacingM: number,
-): number {
+): number | null {
   let sxx = 0;
   let sxy = 0;
   let syy = 0;
@@ -200,7 +207,7 @@ function planeAspectDeg(
       count += 1;
     }
   }
-  if (count < 3) return 0;
+  if (count < 3) return null;
 
   // Solve the 3 x 3 normal equations for z = a x + b y + c by Cramer's rule.
   const m = [
@@ -214,14 +221,14 @@ function planeAspectDeg(
     rows[0][1] * (rows[1][0] * rows[2][2] - rows[1][2] * rows[2][0]) +
     rows[0][2] * (rows[1][0] * rows[2][1] - rows[1][1] * rows[2][0]);
   const base = det3(m);
-  if (Math.abs(base) < 1e-9) return 0;
+  if (Math.abs(base) < 1e-9) return null;
   const replace = (column: number): number[][] =>
     m.map((row, index) =>
       row.map((cell, c) => (c === column ? rhs[index] : cell)),
     );
   const a = det3(replace(0)) / base;
   const b = det3(replace(1)) / base;
-  if (Math.abs(a) < 1e-12 && Math.abs(b) < 1e-12) return 0;
+  if (Math.abs(a) < 1e-12 && Math.abs(b) < 1e-12) return null;
 
   // Downhill points opposite the gradient: east component -a, north component -b.
   const deg = (Math.atan2(-a, -b) * 180) / Math.PI;
@@ -235,9 +242,10 @@ export function buildTopo(
   n: number,
 ): TopoData {
   const present = finiteValues(values);
+  // No sample means no measured range, which is null rather than flat ground.
   const reliefM =
     present.length === 0
-      ? 0
+      ? null
       : Math.round((Math.max(...present) - Math.min(...present)) * 10) / 10;
 
   const middle = Math.floor(n / 2);

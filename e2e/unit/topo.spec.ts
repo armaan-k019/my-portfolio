@@ -164,14 +164,39 @@ test("buildTopo reports the Atlanta surface", () => {
   const data = buildTopo(281.726287842, atlantaValues(), GRID_SPACING_M, GRID_N);
   expect(data.siteElevationM).toBeGreaterThan(270);
   expect(data.siteElevationM).toBeLessThan(295);
-  expect(data.reliefM).toBeGreaterThan(5);
-  expect(data.reliefM).toBeLessThan(80);
+  expect(data.reliefM as number).toBeGreaterThan(5);
+  expect(data.reliefM as number).toBeLessThan(80);
   expect(data.sections.ew.length).toBe(GRID_N);
   expect(data.sections.ns.length).toBe(GRID_N);
   expect(data.grid.values.length).toBe(GRID_N * GRID_N);
-  expect(data.meanSlopePct).toBeGreaterThan(0);
-  expect(data.aspectDeg).toBeGreaterThanOrEqual(0);
-  expect(data.aspectDeg).toBeLessThan(360);
+  expect(data.meanSlopePct as number).toBeGreaterThan(0);
+  expect(data.aspectDeg as number).toBeGreaterThanOrEqual(0);
+  expect(data.aspectDeg as number).toBeLessThan(360);
+});
+
+test("a degenerate grid reports null, not zero, for every derived measure", () => {
+  const empty = new Array<number | null>(GRID_N * GRID_N).fill(null);
+  const bare = buildTopo(null, empty, GRID_SPACING_M, GRID_N);
+  expect(bare.reliefM).toBeNull();
+  expect(bare.meanSlopePct).toBeNull();
+  expect(bare.aspectDeg).toBeNull();
+  expect(bare.contours.lines).toEqual([]);
+
+  // A level surface has a relief of zero, which is measured, but no aspect.
+  const level = new Array<number | null>(GRID_N * GRID_N).fill(100);
+  const flat = buildTopo(100, level, GRID_SPACING_M, GRID_N);
+  expect(flat.reliefM).toBe(0);
+  expect(flat.meanSlopePct).toBe(0);
+  expect(flat.aspectDeg).toBeNull();
+
+  // Two samples cannot carry a plane or a central difference.
+  const sparse = new Array<number | null>(GRID_N * GRID_N).fill(null);
+  sparse[0] = 10;
+  sparse[1] = 12;
+  const thin = buildTopo(null, sparse, GRID_SPACING_M, GRID_N);
+  expect(thin.reliefM).toBe(2);
+  expect(thin.meanSlopePct).toBeNull();
+  expect(thin.aspectDeg).toBeNull();
 });
 
 test("a south facing plane has an aspect of 180 degrees", () => {
@@ -183,8 +208,8 @@ test("a south facing plane has an aspect of 180 degrees", () => {
     }
   }
   const data = buildTopo(100, values, GRID_SPACING_M, GRID_N);
-  expect(data.aspectDeg).toBeCloseTo(180, 1);
-  expect(data.meanSlopePct).toBeCloseTo(10, 1);
+  expect(data.aspectDeg as number).toBeCloseTo(180, 1);
+  expect(data.meanSlopePct as number).toBeCloseTo(10, 1);
 });
 
 // ─── fetchTopo ───────────────────────────────────────────────────────────────
@@ -203,8 +228,11 @@ test("the Atlanta fixtures produce an ok topo envelope", async () => {
   const data = envelope.data as TopoData;
   expect(data.siteElevationM).toBeGreaterThan(270);
   expect(data.siteElevationM).toBeLessThan(295);
-  expect(data.reliefM).toBeGreaterThan(5);
-  expect(data.reliefM).toBeLessThan(80);
+  expect(data.reliefM as number).toBeGreaterThan(5);
+  expect(data.reliefM as number).toBeLessThan(80);
+  expect(envelope.partial).toBeUndefined();
+  expect(data.meanSlopePct).not.toBeNull();
+  expect(data.aspectDeg).not.toBeNull();
   expect(data.contours.lines.length).toBeGreaterThanOrEqual(4);
   expect(data.contours.lines.length).toBeLessThanOrEqual(20);
   expect(data.grid.spacingM).toBe(GRID_SPACING_M);
