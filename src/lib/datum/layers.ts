@@ -59,12 +59,17 @@ export const LAYER_PARAMS: Record<LayerName, string[]> = {
 
 /**
  * The SourceContext the routes hand to every fetcher. DATUM_SOURCE_OVERRIDES is
- * read only outside production (SPEC section 15) and CENSUS_API_KEY is passed
- * through ctx.env so no source module reads process.env directly.
+ * read only when DATUM_ALLOW_TEST_FLAG is "1" and NODE_ENV is not "production"
+ * (SPEC section 15, owner decision 6 of 2026-09-24): both conditions, so the
+ * map is inert in any production build whatever the flag says. CENSUS_API_KEY
+ * is passed through ctx.env so no source module reads process.env directly.
  */
 export function buildSourceContext(): SourceContext {
   let overrides: Record<string, string> = {};
-  if (process.env.NODE_ENV !== "production" && process.env.DATUM_SOURCE_OVERRIDES) {
+  const overridesAllowed =
+    process.env.DATUM_ALLOW_TEST_FLAG === "1" &&
+    process.env.NODE_ENV !== "production";
+  if (overridesAllowed && process.env.DATUM_SOURCE_OVERRIDES) {
     try {
       const parsed: unknown = JSON.parse(process.env.DATUM_SOURCE_OVERRIDES);
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {

@@ -51,6 +51,10 @@ export const SOURCE_OVERRIDE_ALIASES: Record<string, SourceName[]> = {
   usgs_elev: ["usgs_epqs", "usgs_3dep"],
   usgs_seis: ["usgs_seismic"],
   census_geo: ["census_geocoder"],
+  // "overpass" is a source name as well as an alias. The direct lookup in
+  // resolveBaseUrl answers for the primary host, and this entry carries the
+  // same override onto the mirror, so the documented JSON knocks out both.
+  overpass: ["overpass", "overpass_mirror"],
 };
 
 /** Attribution lines for LayerEnvelope.source.licence. */
@@ -175,6 +179,8 @@ export function resolveBaseUrl(
   source: SourceName,
   ctx: Pick<SourceContext, "overrides">,
 ): string {
+  // The direct key wins, and returning here is what keeps a name that is both
+  // a source and an alias from being matched twice.
   const direct = ctx.overrides[source];
   if (typeof direct === "string" && direct.length > 0) return direct;
   for (const alias of Object.keys(SOURCE_OVERRIDE_ALIASES)) {
