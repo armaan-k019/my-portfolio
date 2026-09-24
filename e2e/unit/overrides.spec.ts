@@ -27,10 +27,20 @@ function snapshot(): EnvSnapshot {
   };
 }
 
+/**
+ * Assigning undefined to a process.env entry writes the string "undefined",
+ * which is a set variable as far as every reader is concerned. A variable that
+ * was not there before has to be deleted.
+ */
+function restoreVar(name: string, value: string | undefined): void {
+  if (value === undefined) delete env[name];
+  else env[name] = value;
+}
+
 function restore(saved: EnvSnapshot): void {
-  env.NODE_ENV = saved.nodeEnv;
-  env.DATUM_ALLOW_TEST_FLAG = saved.flag;
-  env.DATUM_SOURCE_OVERRIDES = saved.overrides;
+  restoreVar("NODE_ENV", saved.nodeEnv);
+  restoreVar("DATUM_ALLOW_TEST_FLAG", saved.flag);
+  restoreVar("DATUM_SOURCE_OVERRIDES", saved.overrides);
 }
 
 function setEnv(nodeEnv: string, flag: string | undefined, overrides: string): void {

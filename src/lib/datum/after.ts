@@ -28,7 +28,11 @@ export function scheduleAfter(callback: AfterCallback): void {
   scheduler(callback);
 }
 
-/** Test seam: pass null to restore Next's own `after`. */
+/**
+ * Test seam: pass null to restore Next's own `after`. Inert in production, so
+ * nothing that reaches a deployed build can take the scheduler away from Next.
+ */
 export function setAfterForTests(fn: AfterScheduler | null): void {
+  if (process.env.NODE_ENV === "production") return;
   scheduler = fn ?? nextAfter;
 }

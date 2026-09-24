@@ -68,8 +68,14 @@ export async function cached(
   let sizeWarning = false;
   if (produced.cacheable) {
     // Measured on the trimmed body that is actually stored, not the response.
-    entry.bodyBytes = Buffer.byteLength(JSON.stringify(produced.body) ?? "");
-    sizeWarning = entry.bodyBytes > CACHE_SIZE_WARN_BYTES;
+    // JSON.stringify returns undefined for undefined and for a bare function or
+    // symbol; there is no size to report for those, so bodyBytes stays absent
+    // rather than being recorded as the zero bytes of an empty string.
+    const serialized = JSON.stringify(produced.body);
+    if (serialized !== undefined) {
+      entry.bodyBytes = Buffer.byteLength(serialized);
+      sizeWarning = entry.bodyBytes > CACHE_SIZE_WARN_BYTES;
+    }
     if (sizeWarning) {
       // The source and the size only. A cache key or URL can carry a query
       // string with a coordinate in it, which does not belong in a log line.

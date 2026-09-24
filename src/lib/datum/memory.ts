@@ -40,8 +40,13 @@ export function getClient(): SupabaseClient | null {
   return client;
 }
 
-/** Test seam: inject a fake client and reset the offline guard. */
+/**
+ * Test seam: inject a fake client and reset the offline guard. Inert in
+ * production, so nothing that reaches a deployed build can swap the client out
+ * from under Site Memory.
+ */
 export function setClientForTests(fake: SupabaseClient | null): void {
+  if (process.env.NODE_ENV === "production") return;
   client = fake;
   clientResolved = true;
   status = "online";

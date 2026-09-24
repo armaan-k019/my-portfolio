@@ -142,9 +142,13 @@ export async function GET(
     buildSourceContext(),
   );
 
+  // A local id has no row to hang a layer_results record on, and
+  // storeLayerResult returns immediately for one, so scheduling the callback at
+  // all would only keep the instance alive to do nothing.
   const worthStoring =
-    envelope.status !== "unavailable" ||
-    envelope.unavailable?.code === "no_coverage";
+    !isLocalSiteId(siteId) &&
+    (envelope.status !== "unavailable" ||
+      envelope.unavailable?.code === "no_coverage");
   if (worthStoring) {
     // Never a floating promise and never awaited: `after` runs the write once
     // the response is sent and keeps the instance alive for it.
