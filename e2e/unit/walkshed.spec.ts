@@ -7,6 +7,7 @@ import {
   fetchWalkshed,
   isWalkable,
 } from "../../src/lib/datum/walkshed";
+import { fetchOsm } from "../../src/lib/datum/sources/overpass";
 import type { TrimmedOverpass } from "../../src/lib/datum/sources/overpass";
 import type {
   CacheApi,
@@ -173,4 +174,32 @@ test("an Overpass failure makes walkshed unavailable with the Overpass message",
   expect(envelope.unavailable?.code).toBe("http_error");
   expect(envelope.unavailable?.httpStatus).toBe(406);
   expect(envelope.unavailable?.message).toContain("Overpass");
+});
+
+test("one Overpass failure gives osm and walkshed the same code and message", async () => {
+  // Both layers read the same Overpass fetch through one cache key, so a
+  // failure must read identically on both panels (SPEC section 9, module F).
+  const osm = await fetchOsm(input(ATLANTA), makeCtx(504, { remark: "busy" }));
+  const walk = await fetchWalkshed(
+    input(ATLANTA),
+    makeCtx(504, { remark: "busy" }),
+  );
+
+  expect(osm.status).toBe("unavailable");
+  expect(walk.status).toBe("unavailable");
+  expect(walk.unavailable?.code).toBe(osm.unavailable?.code);
+  expect(walk.unavailable?.message).toBe(osm.unavailable?.message);
+  expect(walk.unavailable?.httpStatus).toBe(osm.unavailable?.httpStatus);
+  expect(walk.unavailable?.retryable).toBe(osm.unavailable?.retryable);
+  expect(osm.unavailable?.message).toContain("OpenStreetMap data could not be loaded");
+  expect(osm.data).toBeNull();
+  expect(walk.data).toBeNull();
+});
+
+test("a shared cache means the second layer pays for no request", async () => {
+  const ctx = makeCtx(200, loadTrimmed("atlanta"));
+  const osm = await fetchOsm(input(ATLANTA), ctx);
+  const walk = await fetchWalkshed(input(ATLANTA), ctx);
+  expect(osm.source.cached).toBe(false);
+  expect(walk.source.cached).toBe(true);
 });

@@ -61,8 +61,15 @@ export async function GET(
 
     // The point travels on the query string, so it is range checked here the
     // way the site route checks the body it stores.
-    lat = Number(query.get("lat"));
-    lng = Number(query.get("lng"));
+    const rawLat = query.get("lat");
+    const rawLng = query.get("lng");
+    if (rawLat === null || rawLng === null) {
+      return badRequest("lat and lng are required for a local site id.");
+    }
+    // Number("") and Number(null) are both 0, which would silently analyse a
+    // point in the Gulf of Guinea, so the raw strings are checked first.
+    lat = Number(rawLat.trim() === "" ? Number.NaN : rawLat);
+    lng = Number(rawLng.trim() === "" ? Number.NaN : rawLng);
     if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
       return badRequest("lat must be a number between -90 and 90.");
     }

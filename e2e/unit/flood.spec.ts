@@ -167,6 +167,35 @@ test("WaKeeney layer 0 empty yields no_coverage and makes no second request", as
   expect(envelope.source.fetchedAt).toBe(FIXED_NOW.toISOString());
 });
 
+test("a no_coverage answer is written to the cache and served warm", async () => {
+  // no_coverage is a real answer, not a failure, so it is cached for the same
+  // 30 days and a second look makes no request at all (SPEC section 8 rule 2).
+  const cache = memoryCache();
+  const writes: string[] = [];
+  const watched: CacheApi = {
+    get: (key) => cache.get(key),
+    set: async (key, entry, ttl) => {
+      writes.push(key);
+      await cache.set(key, entry, ttl);
+    },
+  };
+
+  const cold = fakeFetch([{ match: isLayer0, body: fixture("wakeeney-layer0") }]);
+  const first = await fetchFlood(makeInput(WAKEENEY), makeCtx(cold, watched));
+  expect(first.unavailable?.code).toBe("no_coverage");
+  expect(first.source.cached).toBe(false);
+  expect(writes).toHaveLength(1);
+  expect(writes[0]).toContain("fema:");
+
+  const warm = fakeFetch([]);
+  const second = await fetchFlood(makeInput(WAKEENEY), makeCtx(warm, watched));
+  expect(second.unavailable?.code).toBe("no_coverage");
+  expect(second.source.cached).toBe(true);
+  expect(warm.calls).toHaveLength(0);
+  // The warm read writes nothing new.
+  expect(writes).toHaveLength(1);
+});
+
 test("Miami point is moderate, not SFHA, with a null static BFE from -9999", async () => {
   const fake = fakeFetch([
     { match: isLayer0, body: fixture("miami-layer0") },
