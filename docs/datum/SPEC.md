@@ -135,7 +135,7 @@ runs are comparable even if geocoding drifts:
 
 | Site | lat, lng | Tract GEOID | Facts verified |
 |---|---|---|---|
-| Techwood Drive NW, Atlanta, GA 30313 | 33.7751258, -84.3919750 | 13121001002 | EPQS 281.7 m. Soil "Urban land". Seismic (7-22, II, D): ss 0.25, s1 0.094, sds 0.21, sd1 0.13, sdc B, pgam 0.12. Flood: zone X, "AREA OF MINIMAL FLOOD HAZARD", SFHA F. OSM within 400 m: about 96 buildings, 11 with levels, 0 with height |
+| Techwood Drive NW, Atlanta, GA 30313 | 33.7751258, -84.3919750 | 13121001002 | EPQS 281.7 m. Soil "Urban land". Seismic (7-22, II, D): ss 0.25, s1 0.094, sds 0.21, sd1 0.13, sdc B, pgam 0.12. Flood: zone X, "AREA OF MINIMAL FLOOD HAZARD", SFHA F. OSM within 400 m (capture of 2026-09-22 in `e2e/fixtures/overpass/atlanta.raw.json`): 140 distinct building features (126 ways, 14 relations with 30 outer rings), 14 with a height tag, 49 with a levels tag. An earlier figure of 96, 11, 0 came from a probe centred about 400 m west and counting ways only; see PROGRESS.md |
 | NE 25th St and Biscayne Blvd, Miami, FL | 25.8011588, -80.1890627 | 12086002707 | EPQS 2.0 m. Soil "Urban land, 0 to 2 percent slopes". Seismic sds 0.044, sdc A. Flood at point: X, "0.2 PCT ANNUAL CHANCE FLOOD HAZARD", SFHA F; within 400 m: AE (25 polygons) and VE (15) SFHA T. OSM: about 258 buildings, 214 with height |
 | 300 Main St, WaKeeney, KS | 39.0197690, -99.8837310 | 20195955800 | EPQS 744.0 m. Soil "Harney silt loam, 0 to 1 percent slopes", hydrologic group C, well drained. Seismic ss 0.13, s1 0.046, sds 0.11, sd1 0.066, sdc A. Flood: no NFHL coverage (layer 0 and 28 both empty). OSM: about 21 buildings within 400 m |
 
@@ -397,7 +397,11 @@ Data:
 - `water: [{ ring | line }]`, `streets: [{ id, highway, line: [x,y][], foot: boolean }]`,
   `transitStops: [{ id, kind: "bus" | "rail", x, y, name }]`.
 - `stats: { buildingCount, withHeight, withLevels, relationCount, coverageRatio }` where
-  `coverageRatio` is footprint area inside the 800 m frame divided by the frame area.
+  `coverageRatio` is building footprint area (rings clipped to the 800 m frame) divided by the
+  area of the 400 m fetch circle (pi times 400 squared, about 502655 m2), because buildings are
+  fetched within that circle and the frame corners outside it hold no data. Owner decision
+  2026-09-24. `buildingCount`, `withHeight`, `withLevels` count distinct features (one per way or
+  relation id); `ringCount` counts rings drawn.
 
 Sheet: figure-ground with buildings filled ink, streets as hairlines by class, water hatched,
 the site parcel is not known (no parcel source) so the site is a marked point with a 50 m ring,
@@ -698,6 +702,17 @@ alter table rate_limits   enable row level security;
 -- The project has "automatically expose new tables" turned off, so grants are explicit.
 -- service_role only. Nothing is granted to anon or authenticated.
 grant select, insert, update, delete on api_cache, sites, layer_results, rate_limits to service_role;
+
+-- Atomic rate limit increment (owner decision, 2026-09-24). PostgREST cannot express
+-- "count = count + 1" in an upsert, so the increment lives in SQL. service_role only.
+create or replace function rate_limit_hit(p_ip_hash text, p_day date)
+returns int language sql as $$
+  insert into rate_limits (ip_hash, day, count) values (p_ip_hash, p_day, 1)
+  on conflict (ip_hash, day) do update set count = rate_limits.count + 1
+  returning count;
+$$;
+revoke execute on function rate_limit_hit(text, date) from public, anon, authenticated;
+grant execute on function rate_limit_hit(text, date) to service_role;
 ```
 
 Only `ok` and `partial` and `no_coverage` envelopes are written to `layer_results`; transient
@@ -773,8 +788,8 @@ ping route deletes expired rows in batches of 500 as a side effect.
 
 20 uncached analyses per IP per day (UTC). "Uncached" means the `site` route created a new site
 row or the site's `last_analyzed_at` is older than 30 days. Re-opening an analyzed site is free.
-The `site` route increments `rate_limits.count` atomically (`insert ... on conflict do update set
-count = rate_limits.count + 1 returning count`) and returns 429 with `{ error: { code:
+The `site` route increments `rate_limits.count` atomically by calling the `rate_limit_hit` SQL
+function through `rpc` (the function body is the `insert ... on conflict do update ... returning count`) and returns 429 with `{ error: { code:
 "rate_limited", resetAt } }` when the count exceeds 20. Layer routes for a site created in the last
 24 hours are not separately limited. The IP is hashed with SHA-256 and a fixed string salt in code;
 raw IPs are never stored.
@@ -814,7 +829,7 @@ metrics it does have, and shows "Sites like this needs all layers; <layers> were
 | 5 | windConcentration | climate.wind.annual.resultantLength | v |
 | 6 | reliefM | topo.reliefM | log10(1 + v) / 2.5 |
 | 7 | meanSlopePct | topo.meanSlopePct | v / 30 |
-| 8 | buildingCoverage | osm.stats.coverageRatio | v |
+| 8 | buildingCoverage | osm.stats.coverageRatio (footprints over the 400 m circle area, section 9) | v |
 | 9 | reach10Km | walkshed.reachKm[10] | v / 25 |
 | 10 | sfhaShare | flood: SFHA polygon area inside frame over frame area; 0 when coverage exists and none; null when no coverage | v |
 | 11 | sds | seismic.sds | v / 2 |

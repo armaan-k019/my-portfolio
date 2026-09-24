@@ -54,3 +54,14 @@ alter table rate_limits   enable row level security;
 -- The project has "automatically expose new tables" turned off, so grants are explicit.
 -- service_role only. Nothing is granted to anon or authenticated.
 grant select, insert, update, delete on api_cache, sites, layer_results, rate_limits to service_role;
+
+-- Atomic rate limit increment (owner decision, 2026-09-24). PostgREST cannot express
+-- "count = count + 1" in an upsert, so the increment lives in SQL. service_role only.
+create or replace function rate_limit_hit(p_ip_hash text, p_day date)
+returns int language sql as $$
+  insert into rate_limits (ip_hash, day, count) values (p_ip_hash, p_day, 1)
+  on conflict (ip_hash, day) do update set count = rate_limits.count + 1
+  returning count;
+$$;
+revoke execute on function rate_limit_hit(text, date) from public, anon, authenticated;
+grant execute on function rate_limit_hit(text, date) to service_role;

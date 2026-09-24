@@ -204,7 +204,49 @@ Gates after fix round 2: tsc exit 0; `npm run test:unit` 163 passed; `npx eslint
 10 warnings; `npm run build` exit 0; `npx next build --webpack` exit 0; key grep empty; no em
 dashes. Phase 1 has used both fix rounds. Any further code change waits for the owner.
 
-### Owner decisions pending (Phase 1)
+### Owner decisions answered 2026-09-24
+
+1. Migration 0001: option 1. `rate_limit_hit(p_ip_hash, p_day)` appended to the migration file and
+   to SPEC section 13; `memory.ts` switches to `rpc` in the owner directed round below. Owner runs
+   the file next.
+2. OSM counts, with evidence. SPEC section 5 said "about 96 buildings, 11 with levels, 0 with
+   height". That figure came from the orchestrator's probe on 2026-09-21, which was centred at
+   33.7756, -84.3963 (about 400 m west of the test site at 33.7751258, -84.3919750) and requested
+   `way["building"]` only, so relations were never counted. The committed capture of 2026-09-22
+   (`e2e/fixtures/overpass/atlanta.raw.json`, exact test site, the SPEC section 9 query) contains
+   126 ways and 14 relations tagged building (140 distinct features; the relations carry 30 outer
+   rings), 14 features with a height tag (11 ways, 3 relations) and 49 with a levels tag (41, 8).
+   The original number was wrong because of the probe centre and the missing relations, not
+   because OSM changed. SPEC section 5 now carries the capture's numbers and the reason.
+3. Trimmed Overpass payload 1.42 MB at Atlanta: accepted as a recorded deviation from "under 1 MB".
+   A size guard is added in the owner directed round: the trimmed size is logged per cache write
+   and anything above 3 MB is flagged (warning log plus a `sizeWarning` field on the envelope).
+   Storage math: Supabase free tier database limit is 500 MB. Per site worst case (dense urban)
+   about 1.4 MB Overpass plus about 0.8 MB climate (shared within 0.1 degree) plus under 0.1 MB for
+   the rest, so about 2.3 MB uncompressed per new dense site and under 0.4 MB rural. Uncompressed
+   that is roughly 200 dense sites before the tier fills; Postgres TOAST compresses jsonb
+   coordinate arrays several fold, so several hundred is more realistic. Expired rows are swept by
+   the Phase 3 ping. Revisit when `select pg_size_pretty(pg_total_relation_size('api_cache'))`
+   passes 250 MB.
+4. `playwright.config.ts` `testIgnore` for `e2e/unit/**`: approved, applied in the owner directed
+   round.
+5. Acceptance grep rewordings: before and after text sent to the owner for approval; not applied
+   until approved.
+6. `DATUM_SOURCE_OVERRIDES` under `DATUM_ALLOW_TEST_FLAG=1`: approved with the condition "both are
+   ignored when NODE_ENV is production". That condition leaves the forced failure spec unable to run
+   against `next start` (which is production mode), which was the problem. Clarification requested
+   before implementing.
+7. Coverage ratio over the 400 m circle: approved. SPEC sections 9 and 14 updated; code and test
+   updated in the owner directed round.
+8. No other decisions are outstanding.
+
+Model note (owner instruction 2026-09-24): from Phase 2 onward, build, review, and verification
+subagents run on Opus (the harness's current Opus; the orchestrator can only select the family, not
+the point version), Sonnet where the plan says Sonnet, Haiku for one or two file fixes. The
+orchestrator's own model is a harness setting the orchestrator cannot change from inside the
+session; the owner switches it with the `/model` command.
+
+### Owner decisions pending (Phase 1), superseded by the answers above
 
 1. Migration 0001: run as written, or with the atomic `rate_limit_hit` function appended.
 2. PHASE-1 step 1.8 asserts Atlanta buildings 80 to 130, withHeight 0, withLevels 8 to 20, from
