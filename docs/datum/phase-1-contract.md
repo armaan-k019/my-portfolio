@@ -207,7 +207,8 @@ Files owned: `src/lib/datum/sources/openMeteo.ts`, `src/lib/datum/climate.ts`,
 | `buildMonthlyNormals` | `(hours: ArchiveHour[]) => ClimateMonth[]` | Pure. Twelve entries, January first |
 | `buildDegreeDays` | `(hours: ArchiveHour[]) => { baseC, hdd, cdd }` | Pure. Base 18.3 C, per year, averaged over the period |
 | `buildComfortShare` | `(hours: ArchiveHour[]) => { pct, definition }` | Pure. 18 to 26 C and RH under 70 percent |
-| `buildClimate` | `(archive: ArchiveResponse) => ClimateData` | Pure. Assembles the four above |
+| `buildClimate` | `(archive: ArchiveResponse) => { data: ClimateData, missing: string[] }` | Pure. Assembles the four above and reports the paths the archive left empty |
+| `climateMissing` | `(data: ClimateData) => string[]` | Pure. Dotted paths of every null measure, for `partial.missing` |
 | `solarPosition` | `(date: Date, lat: number, lng: number) => SolarPosition` | Pure NOAA equations, azimuth clockwise from north |
 | `sunPath` | `(lat, lng, tzOffsetMinutes, date) => SunDay` | Pure. Samples every 15 minutes |
 | `sunLayer` | `(lat, lng, timezone) => SunData` | Pure. 21 March, 21 June, 21 December |
@@ -372,12 +373,18 @@ phase has not created yet. You create them.
 | `geocode` | `(query: string, ctx: SourceContext) => Promise<GeocodeResult \| null>` | Null is "not found", which is not an error |
 | `reverseLocality` | `(lat, lng, ctx) => Promise<string \| null>` | `zoom=10`, for example "Atlanta, Georgia". The site route already calls this and tolerates a throw |
 
-- Cache keys and TTLs: `photon:<normalized query>` 7 days (`TTL_SECONDS.photonSuggest`);
-  `nominatim:<normalized query>` 30 days (`TTL_SECONDS.nominatimSearch`);
-  `nominatim_reverse:<roundKey(lat, lng, 3)>` 365 days (`TTL_SECONDS.nominatimReverse`).
-  Normalized means lowercase with collapsed spaces.
+- Cache keys and TTLs: `photon:<sha256 of the normalized query, first 32 hex characters>` 7 days
+  (`TTL_SECONDS.photonSuggest`); `nominatim:<the same hash>` 30 days
+  (`TTL_SECONDS.nominatimSearch`); `nominatim_reverse:<roundKey(lat, lng, 3)>` 365 days
+  (`TTL_SECONDS.nominatimReverse`). Normalized means lowercase with collapsed spaces. The query is
+  hashed rather than written in plain, so a caller cannot choose what goes into `api_cache` or how
+  long a key is. Both routes also refuse a `q` longer than `MAX_GEOCODE_QUERY_LENGTH`, which is 120
+  characters: no address is that long, and the cap keeps an attacker chosen string out of the
+  upstream request.
 - Routes: `suggest` is GET, `maxDuration = 15`, requires `q` of at least 3 characters, answers
-  `{ suggestions: [{ label, lat, lng }] }`. `geocode` is POST, `maxDuration = 15`, answers
+  `{ suggestions: [{ label, lat, lng }] }` and, when Photon fails, a 200 carrying an empty list plus
+  `unavailable: { code, message }` so the field can say the suggester is down rather than show "no
+  matches" for a query that was never asked. `geocode` is POST, `maxDuration = 15`, answers
   `{ lat, lng, displayName, locality }` or `{ error: { code: "not_found" } }`, and carries a server
   side token bucket of one request per second per instance which answers 429 when exhausted.
 - Nominatim policy is binding: one request per second, a descriptive User-Agent (already sent by
@@ -397,3 +404,24 @@ Per module, before you hand back:
 - `grep -rnE "\?\? *[0-9]+|\?\? *\"X\"|\|\| *[0-9]+\b" src/lib/datum/sources/` prints nothing.
 - `git show --name-only --format="" HEAD` on each commit lists only the files you own.
 - You changed no shared file. If you needed to, you reported it instead.
+
+## 12. Fix round 1 changes
+
+The two review rounds after the modules landed changed the shared surface. This document already
+reflects them; they are listed here so a reader of an older copy knows what moved.
+
+1. **Signed local site ids.** `memory.ts` exports `issueLocalSiteId` and `verifyLocalSiteId`. The
+   offline id is `local-<siteKey>-<sig>`, sig being the first 32 hex characters of HMAC-SHA256 over
+   `<siteKey>|<UTC day>`. The layer route accepts any id that verifies, whatever `memoryStatus`
+   reports, because the 60 s cool down would otherwise strand an analysis that began during an
+   outage.
+2. **`deadlineMs` on `FetchPolicy`.** One wall clock deadline is shared across every attempt of a
+   fetch, including the Overpass mirror attempts, instead of each attempt starting its own.
+3. **`ringCount` and distinct building counting.** `OsmStats` carries `ringCount` beside
+   `buildingCount`. A multipolygon relation draws several rings but counts as one building, and the
+   footprint coverage ratio clips to the analysis extent.
+4. **`number | null` on the climate and topo fields.** No measure carries a stand in value. A field
+   the upstream never covered is `null` and its dotted path appears in `partial.missing`, which is
+   what `climateMissing` and `buildClimate`'s `missing` produce.
+5. **`unavailable` on the suggest route.** A Photon failure is a 200 with an empty `suggestions`
+   list and an `unavailable: { code, message }` object, not a 5xx and not a silent empty list.
