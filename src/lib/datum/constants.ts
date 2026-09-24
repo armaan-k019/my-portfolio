@@ -150,6 +150,12 @@ export const GRID_SPACING_M = 40;
 /** Flood polygon cap. */
 export const FLOOD_POLYGON_CAP = 200;
 
+/**
+ * The longest address string the geocoding routes accept. Longer than any real
+ * address, and short enough that an attacker cannot use the query as storage.
+ */
+export const MAX_GEOCODE_QUERY_LENGTH = 120;
+
 // ─── Rate limit (SPEC section 13, OPEN-QUESTIONS item 15) ────────────────────
 
 export const RATE_LIMIT_PER_DAY = 20;

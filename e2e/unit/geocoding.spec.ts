@@ -1,9 +1,10 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { test, expect } from "@playwright/test";
-import { suggest } from "../../src/lib/datum/sources/photon";
+import { suggest, suggestCacheKey } from "../../src/lib/datum/sources/photon";
 import {
   geocode,
+  searchCacheKey,
   reverseLocality,
   resetNominatimRateState,
   takeNominatimToken,
@@ -11,6 +12,8 @@ import {
 } from "../../src/lib/datum/sources/nominatim";
 import { haversineM } from "../../src/lib/datum/geo";
 import { isSourceError } from "../../src/lib/datum/http";
+import { MAX_GEOCODE_QUERY_LENGTH } from "../../src/lib/datum/constants";
+import { GET as suggestRoute } from "../../src/app/api/datum/suggest/route";
 import type { CacheApi, CacheEntry, SourceContext } from "../../src/lib/datum/types";
 
 // Every request in this file is served by a fake fetch. Nothing here touches
@@ -159,4 +162,88 @@ test("the token bucket refuses a second call within a second and allows it after
   expect(takeNominatimToken(t0 + 500)).toBe(false);
   expect(takeNominatimToken(t0 + NOMINATIM_MIN_INTERVAL_MS)).toBe(true);
   resetNominatimRateState();
+});
+
+// ─── Cache keys ──────────────────────────────────────────────────────────────
+
+test("a geocoding cache key is a fixed length hash, not the caller's string", () => {
+  const long = "a".repeat(5_000);
+  for (const key of [suggestCacheKey(long), searchCacheKey(long)]) {
+    expect(key).not.toContain("aaaa");
+    // "<source>:" plus 32 hex characters.
+    expect(/^(photon|nominatim):[0-9a-f]{32}$/.test(key)).toBe(true);
+  }
+
+  // Normalization still collapses to one key, and different text does not.
+  expect(suggestCacheKey("  Techwood   Drive  ")).toBe(
+    suggestCacheKey("techwood drive"),
+  );
+  expect(suggestCacheKey("techwood drive")).not.toBe(
+    suggestCacheKey("techwood road"),
+  );
+  expect(searchCacheKey("techwood drive")).not.toBe(
+    searchCacheKey("techwood road"),
+  );
+});
+
+test("the suggest cache key is the key the photon fetch writes", async () => {
+  const body = fixture("photon/techwood-atlanta.json");
+  const written: string[] = [];
+  const ctx = contextWith(jsonFetch(() => body));
+  const inner = ctx.cache;
+  const watched = {
+    ...ctx,
+    cache: {
+      get: (key: string) => inner.get(key),
+      set: async (key: string, entry: CacheEntry, ttl: number) => {
+        written.push(key);
+        await inner.set(key, entry, ttl);
+      },
+    },
+  };
+
+  await suggest("Techwood Drive Atlanta", watched);
+  expect(written).toEqual([suggestCacheKey("Techwood Drive Atlanta")]);
+});
+
+// ─── The suggest route ───────────────────────────────────────────────────────
+
+function suggestRequest(query: string): Request {
+  return new Request(
+    `https://datum.test/api/datum/suggest?q=${encodeURIComponent(query)}`,
+  );
+}
+
+test("the suggest route refuses a query under 3 or over 120 characters", async () => {
+  const short = await suggestRoute(suggestRequest("ab"));
+  expect(short.status).toBe(400);
+
+  const long = await suggestRoute(
+    suggestRequest("a".repeat(MAX_GEOCODE_QUERY_LENGTH + 1)),
+  );
+  expect(long.status).toBe(400);
+  const body = (await long.json()) as { error: { code: string } };
+  expect(body.error.code).toBe("bad_request");
+});
+
+test("a Photon failure answers 200 with an empty list and a reason", async () => {
+  // "No matches" and "the suggester is down" must not look the same to the UI.
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response("upstream failure", { status: 500 })) as typeof fetch;
+  try {
+    const response = await suggestRoute(
+      suggestRequest("Techwood Drive Atlanta, suggester down"),
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      suggestions: unknown[];
+      unavailable?: { code: string; message: string };
+    };
+    expect(body.suggestions).toEqual([]);
+    expect(body.unavailable?.code).toBe("http_error");
+    expect(body.unavailable?.message).toContain("unavailable");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });

@@ -7,6 +7,7 @@ import {
   TTL_SECONDS,
   resolveBaseUrl,
 } from "../constants";
+import { createHash } from "node:crypto";
 import { cached } from "../cache";
 import { SourceError, fetchWithPolicy } from "../http";
 import type { SourceContext, Suggestion } from "../types";
@@ -17,6 +18,18 @@ export const SUGGEST_LIMIT = 6;
 /** Lowercase with collapsed spaces, so the cache key is stable. */
 function normalizeQuery(query: string): string {
   return query.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/**
+ * The cache key carries a hash of the query rather than the query itself, so a
+ * caller cannot choose what is written into api_cache or how long a key is.
+ */
+export function suggestCacheKey(query: string): string {
+  const digest = createHash("sha256")
+    .update(normalizeQuery(query))
+    .digest("hex")
+    .slice(0, 32);
+  return `photon:${digest}`;
 }
 
 /** The fields kept from a Photon feature. Everything else is dropped. */
@@ -97,8 +110,8 @@ function labelOf(feature: TrimmedFeature): string {
 }
 
 /**
- * Address suggestions, at most six. Cache key `photon:<normalized query>`,
- * TTL TTL_SECONDS.photonSuggest. Throws SourceError; the suggest route answers
+ * Address suggestions, at most six. Cache key `photon:<hash of the normalized
+ * query>`, TTL TTL_SECONDS.photonSuggest. Throws SourceError; the suggest route answers
  * with an empty list rather than an error page.
  */
 export async function suggest(
@@ -112,7 +125,7 @@ export async function suggest(
   const url = `${base}/?q=${encodeURIComponent(query.trim())}&limit=${SUGGEST_LIMIT}&lang=en`;
 
   const result = await cached(
-    `photon:${normalized}`,
+    suggestCacheKey(normalized),
     TTL_SECONDS.photonSuggest,
     async () => {
       const response = await fetchWithPolicy(

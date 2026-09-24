@@ -7,6 +7,7 @@ import {
   TTL_SECONDS,
   resolveBaseUrl,
 } from "../constants";
+import { createHash } from "node:crypto";
 import { cached } from "../cache";
 import { SourceError, fetchWithPolicy } from "../http";
 import { roundKey } from "../geo";
@@ -58,6 +59,18 @@ export function resetNominatimRateState(): void {
 
 function normalizeQuery(query: string): string {
   return query.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/**
+ * The cache key carries a hash of the query rather than the query itself, so a
+ * caller cannot choose what is written into api_cache or how long a key is.
+ */
+export function searchCacheKey(query: string): string {
+  const digest = createHash("sha256")
+    .update(normalizeQuery(query))
+    .digest("hex")
+    .slice(0, 32);
+  return `nominatim:${digest}`;
 }
 
 function text(value: unknown): string | null {
@@ -122,7 +135,7 @@ function trimSearch(raw: unknown): TrimmedSearch {
 }
 
 /**
- * One search per submit. Cache key `nominatim:<normalized query>`, TTL
+ * One search per submit. Cache key `nominatim:<hash of the normalized query>`, TTL
  * TTL_SECONDS.nominatimSearch. Null means not found, which is not an error.
  * Throws SourceError.
  */
@@ -137,7 +150,7 @@ export async function geocode(
   const url = `${base}/search?q=${encodeURIComponent(query.trim())}&format=jsonv2&limit=1&countrycodes=us`;
 
   const result = await cached(
-    `nominatim:${normalized}`,
+    searchCacheKey(normalized),
     TTL_SECONDS.nominatimSearch,
     async () => {
       const { status, body } = await readJson(url, ctx);

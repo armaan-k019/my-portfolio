@@ -4,6 +4,7 @@
 // intersection, which is why the confirm step exists.
 
 import { NextResponse, type NextRequest } from "next/server";
+import { MAX_GEOCODE_QUERY_LENGTH } from "@/lib/datum/constants";
 import { buildSourceContext } from "@/lib/datum/layers";
 import { geocode, takeNominatimToken } from "@/lib/datum/sources/nominatim";
 import { isSourceError } from "@/lib/datum/http";
@@ -29,6 +30,19 @@ export async function POST(request: NextRequest) {
   if (query.length === 0) {
     return NextResponse.json(
       { error: { code: "bad_request", message: "q is required." } },
+      { status: 400 },
+    );
+  }
+  // An address is never this long. The cap keeps an attacker chosen string out
+  // of the upstream request and out of api_cache.
+  if (query.length > MAX_GEOCODE_QUERY_LENGTH) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "bad_request",
+          message: `q must be at most ${MAX_GEOCODE_QUERY_LENGTH} characters.`,
+        },
+      },
       { status: 400 },
     );
   }
