@@ -1,4 +1,6 @@
 import { test, expect } from "@playwright/test";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { setAfterForTests } from "../../src/lib/datum/after";
 import { GET } from "../../src/app/api/datum/layers/[layer]/route";
 import {
   checkRateLimit,
@@ -245,4 +247,128 @@ test("the peek does not spend a request of its own", async () => {
 
   const after = await checkRateLimit(ipHash, { increment: false });
   expect(after.count).toBe(before.count);
+});
+
+// ─── after() scheduling ──────────────────────────────────────────────────────
+//
+// The route hands the layer_results write to Next's after(), which needs a
+// request context this process does not have, so the tests inject a scheduler
+// through setAfterForTests and run the scheduled callback themselves.
+
+interface StoredRow {
+  site_id: string;
+  layer: string;
+  status: string;
+  envelope: { layer: string; status: string };
+}
+
+/**
+ * A Supabase double: one site row for UUID, an always empty api_cache, and a
+ * record of every layer_results upsert.
+ */
+function storeRecordingClient(): {
+  client: SupabaseClient;
+  stored: StoredRow[];
+} {
+  const stored: StoredRow[] = [];
+  const siteRow = {
+    id: UUID,
+    site_key: ATLANTA_KEY,
+    lat: 33.7751258,
+    lng: -84.391975,
+    public_lat: 33.775,
+    public_lng: -84.392,
+    locality: "Atlanta, Georgia",
+    tract_geoid: null,
+    is_test: true,
+    created_at: new Date().toISOString(),
+    last_analyzed_at: new Date().toISOString(),
+    analysis_count: 1,
+    schema_version: 1,
+  };
+  const client = {
+    from(table: string) {
+      const chain = {
+        select: () => chain,
+        eq: () => chain,
+        gt: () => chain,
+        async maybeSingle() {
+          if (table === "sites") return { data: siteRow, error: null };
+          return { data: null, error: null };
+        },
+        upsert: (row: unknown) => {
+          if (table === "layer_results") stored.push(row as StoredRow);
+          return Promise.resolve({ error: null });
+        },
+      };
+      return chain;
+    },
+    rpc: async () => ({ data: 1, error: null }),
+  } as unknown as SupabaseClient;
+  return { client, stored };
+}
+
+test("a stored envelope is written once, after the response, with the envelope", async () => {
+  const { client, stored } = storeRecordingClient();
+  setClientForTests(client);
+  const scheduled: (() => void | Promise<void>)[] = [];
+  setAfterForTests((callback) => {
+    scheduled.push(callback);
+  });
+  const realFetch = globalThis.fetch;
+  // sun reads only its timezone from Open-Meteo, so a refused archive still
+  // produces a stored envelope (partial), not an unavailable one.
+  globalThis.fetch = (async () =>
+    new Response("upstream failure", { status: 500 })) as typeof fetch;
+  try {
+    const response = await call("sun", `site=${UUID}`);
+    expect(response.status).toBe(200);
+    const envelope = (await response.json()) as { layer: string; status: string };
+    expect(envelope.layer).toBe("sun");
+    expect(envelope.status).not.toBe("unavailable");
+
+    // Exactly one write is scheduled, and nothing is written before it runs.
+    expect(scheduled.length).toBe(1);
+    expect(stored.length).toBe(0);
+
+    await scheduled[0]();
+    expect(stored.length).toBe(1);
+    expect(stored[0].site_id).toBe(UUID);
+    expect(stored[0].layer).toBe("sun");
+    expect(stored[0].status).toBe(envelope.status);
+    expect(stored[0].envelope).toEqual(envelope);
+  } finally {
+    globalThis.fetch = realFetch;
+    setAfterForTests(null);
+    setClientForTests(null);
+  }
+});
+
+test("a transient unavailable envelope schedules no write at all", async () => {
+  const { client, stored } = storeRecordingClient();
+  setClientForTests(client);
+  const scheduled: (() => void | Promise<void>)[] = [];
+  setAfterForTests((callback) => {
+    scheduled.push(callback);
+  });
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response("upstream failure", { status: 500 })) as typeof fetch;
+  try {
+    const response = await call("seismic", `site=${UUID}`);
+    expect(response.status).toBe(200);
+    const envelope = (await response.json()) as {
+      status: string;
+      unavailable?: { code: string };
+    };
+    expect(envelope.status).toBe("unavailable");
+    expect(envelope.unavailable?.code).not.toBe("no_coverage");
+
+    expect(scheduled.length).toBe(0);
+    expect(stored.length).toBe(0);
+  } finally {
+    globalThis.fetch = realFetch;
+    setAfterForTests(null);
+    setClientForTests(null);
+  }
 });

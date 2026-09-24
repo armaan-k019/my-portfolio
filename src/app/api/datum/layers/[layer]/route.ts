@@ -3,6 +3,7 @@
 // stores every envelope that is worth remembering.
 
 import { NextResponse } from "next/server";
+import { scheduleAfter } from "@/lib/datum/after";
 import {
   LAYER_PARAMS,
   LAYER_RESULT_TTL_SECONDS,
@@ -19,7 +20,7 @@ import {
   verifyLocalSiteId,
 } from "@/lib/datum/memory";
 import { isValidSiteClass } from "@/lib/datum/sources/usgsSeismic";
-import { isLayerName, type LayerInput } from "@/lib/datum/types";
+import { isLayerName, type LayerEnvelope, type LayerInput } from "@/lib/datum/types";
 
 export const maxDuration = 60;
 
@@ -47,6 +48,24 @@ export async function GET(
   if (!siteId) {
     return badRequest("site is required.");
   }
+
+  // The site row lookup and the api_cache read the fetcher does are two round
+  // trips to the same region. Start the lookup here, before the parameter work
+  // below, and await the row only where it is needed: for validation, and for
+  // the point a database backed id does not carry itself.
+  const sitePromise = isLocalSiteId(siteId) ? null : getSiteById(siteId);
+
+  const params: Record<string, string> = {};
+  for (const name of LAYER_PARAMS[layer]) {
+    const value = query.get(name);
+    if (value !== null) params[name] = value;
+  }
+
+  // An unsupported site class is a bad request, not an unavailable layer: no
+  // upstream is asked and the panel is not told a source failed.
+  // An absent or blank siteClass is the documented default, not a bad value.
+  const siteClass = params.siteClass?.trim() ?? "";
+  const siteClassValid = siteClass.length === 0 || isValidSiteClass(siteClass);
 
   let lat: number;
   let lng: number;
@@ -82,7 +101,7 @@ export async function GET(
       );
     }
   } else {
-    const site = await getSiteById(siteId);
+    const site = await sitePromise;
     if (!site) {
       return NextResponse.json(
         { error: { code: "not_found", message: "Unknown site." } },
@@ -93,33 +112,34 @@ export async function GET(
     lng = site.lng;
   }
 
-  const params: Record<string, string> = {};
-  for (const name of LAYER_PARAMS[layer]) {
-    const value = query.get(name);
-    if (value !== null) params[name] = value;
-  }
-
-  // An unsupported site class is a bad request, not an unavailable layer: no
-  // upstream is asked and the panel is not told a source failed.
-  // An absent or blank siteClass is the documented default, not a bad value.
-  const siteClass = params.siteClass?.trim() ?? "";
-  if (siteClass.length > 0 && !isValidSiteClass(siteClass)) {
+  if (!siteClassValid) {
     return badRequest("siteClass must be one of A, B, C, D, or E.");
   }
 
   const input: LayerInput = { lat, lng, siteId, params };
-  const envelope = await layerFetchers[layer](input, buildSourceContext());
+  const envelope: LayerEnvelope<unknown> = await layerFetchers[layer](
+    input,
+    buildSourceContext(),
+  );
 
   const worthStoring =
     envelope.status !== "unavailable" ||
     envelope.unavailable?.code === "no_coverage";
   if (worthStoring) {
-    await storeLayerResult(
-      siteId,
-      layer,
-      envelope,
-      LAYER_RESULT_TTL_SECONDS[layer],
-    );
+    // Never a floating promise and never awaited: `after` runs the write once
+    // the response is sent and keeps the instance alive for it.
+    scheduleAfter(async () => {
+      try {
+        await storeLayerResult(
+          siteId,
+          layer,
+          envelope,
+          LAYER_RESULT_TTL_SECONDS[layer],
+        );
+      } catch (error) {
+        console.error(`[datum] layer_results write failed for ${layer}`, error);
+      }
+    });
   }
 
   return NextResponse.json(envelope);
