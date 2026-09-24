@@ -6,6 +6,7 @@ import {
   createMemoryCacheApi,
 } from "../../src/lib/datum/cache";
 import { USER_AGENT } from "../../src/lib/datum/constants";
+import { isSourceError } from "../../src/lib/datum/http";
 import {
   ACS_VINTAGE,
   fetchCensus,
@@ -49,6 +50,7 @@ interface FakeFetch {
 function makeContext(options?: {
   censusApiKey?: string;
   acsBody?: string;
+  geocoderBody?: string;
   tigerStatus?: number;
 }): FakeFetch {
   clearMemoryCache();
@@ -60,7 +62,9 @@ function makeContext(options?: {
     calls.push(url);
     const respond = (status: number, body: string) =>
       new Response(body, { status });
-    if (url.includes("geocoding.geo.census.gov")) return respond(200, GEOCODER);
+    if (url.includes("geocoding.geo.census.gov")) {
+      return respond(200, options?.geocoderBody ?? GEOCODER);
+    }
     if (url.includes("api.census.gov")) return respond(200, acsBody);
     if (url.includes("tigerweb.geo.census.gov")) {
       const status = options?.tigerStatus ?? 200;
@@ -115,6 +119,59 @@ test("an HTML body from the ACS endpoint yields parse_error, not a crash", async
   expect(envelope.unavailable?.message).toBe(
     "Census ACS could not be reached (parse_error).",
   );
+});
+
+test("a geocoder error envelope is a parse error and is never cached", async () => {
+  // Without this the error body parsed to null, which read as "no tract here",
+  // was cached for 365 days, and reported the site as outside Census coverage.
+  const errorEnvelope = JSON.stringify({
+    errors: [{ status: "400", title: "Bad Request" }],
+  });
+  const { ctx } = makeContext({
+    censusApiKey: "fake-key",
+    geocoderBody: errorEnvelope,
+  });
+
+  const writes: string[] = [];
+  const inner = ctx.cache;
+  const watched: SourceContext = {
+    ...ctx,
+    cache: {
+      get: (key: string) => inner.get(key),
+      set: async (key, entry, ttl) => {
+        writes.push(key);
+        await inner.set(key, entry, ttl);
+      },
+    },
+  };
+
+  const error = await lookupTract(ATLANTA.lat, ATLANTA.lng, watched).catch(
+    (raw: unknown) => raw,
+  );
+  expect(isSourceError(error)).toBe(true);
+  expect(isSourceError(error) ? error.code : null).toBe("parse_error");
+  expect(writes).toEqual([]);
+
+  // The census layer reports the failure rather than a coverage gap.
+  const envelope = await fetchCensus(ATLANTA, watched);
+  expect(envelope.status).toBe("unavailable");
+  expect(envelope.unavailable?.code).toBe("parse_error");
+  expect(writes).toEqual([]);
+});
+
+test("an empty Census Tracts array is no tract, and that answer is cached", async () => {
+  const emptyTracts = JSON.stringify({
+    result: { geographies: { "Census Tracts": [] } },
+  });
+  const { ctx } = makeContext({
+    censusApiKey: "fake-key",
+    geocoderBody: emptyTracts,
+  });
+  expect(await lookupTract(ATLANTA.lat, ATLANTA.lng, ctx)).toBeNull();
+
+  const envelope = await fetchCensus(ATLANTA, ctx);
+  expect(envelope.status).toBe("unavailable");
+  expect(envelope.unavailable?.code).toBe("no_coverage");
 });
 
 test("the tract GEOID for the Atlanta fixture is 13121001002", async () => {

@@ -127,14 +127,42 @@ function extractTract(body: unknown): CensusTract | null {
       { source: "census_geocoder" },
     );
   }
+  // A body with no result block is a failure envelope or an error page, not an
+  // answer of "no tract here". Throwing keeps it out of the 365 day cache.
   const result = (body as { result?: unknown }).result;
-  if (!result || typeof result !== "object") return null;
+  if (!result || typeof result !== "object") {
+    throw new SourceError(
+      "parse_error",
+      "The Census geocoder returned a body with no result block.",
+      { source: "census_geocoder" },
+    );
+  }
   const geographies = (result as { geographies?: unknown }).geographies;
-  if (!geographies || typeof geographies !== "object") return null;
+  if (!geographies || typeof geographies !== "object") {
+    throw new SourceError(
+      "parse_error",
+      "The Census geocoder returned a result with no geographies block.",
+      { source: "census_geocoder" },
+    );
+  }
   const rows = (geographies as Record<string, unknown>)["Census Tracts"];
-  if (!Array.isArray(rows) || rows.length === 0) return null;
+  if (!Array.isArray(rows)) {
+    throw new SourceError(
+      "parse_error",
+      "The Census geocoder returned no Census Tracts array.",
+      { source: "census_geocoder" },
+    );
+  }
+  // An empty array is the real answer for a point outside the coverage.
+  if (rows.length === 0) return null;
   const row = rows[0] as GeocoderTractRow;
-  if (typeof row.GEOID !== "string" || row.GEOID.length === 0) return null;
+  if (typeof row.GEOID !== "string" || row.GEOID.length === 0) {
+    throw new SourceError(
+      "parse_error",
+      "The Census geocoder returned a tract row with no GEOID.",
+      { source: "census_geocoder" },
+    );
+  }
   const areaLand = Number(row.AREALAND);
   return {
     geoid: row.GEOID,
