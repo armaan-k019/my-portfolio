@@ -2,6 +2,9 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "e2e",
+  // The unit specs run under playwright.unit.config.ts with no browser and no
+  // server. Ignoring them here keeps `npm run e2e` from starting one for them.
+  testIgnore: ["**/unit/**"],
   timeout: 180_000,
   retries: 0,
   workers: 1,
