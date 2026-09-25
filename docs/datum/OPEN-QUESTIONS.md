@@ -113,3 +113,24 @@ BLOCKED by decision, and item 6 is deferred to after Phase 2.
     Resolved 2026-09-21: UTC with the partial flag, no timezone dependency.
 
 19. Renamed to Datum; resolved.
+
+20. **A dropped model stream leaves the page on "streaming".** Observed 2026-09-25 on a local
+    production build: the Anthropic stream terminated mid brief and the server logged
+    `[datum] brief stream failed Error: terminated / TypeError: terminated / Error: read
+    ECONNRESET`. The page never reached `data-brief-status="error"`; it sat on `streaming` past a
+    120 s wait, so a visitor sees a brief that never finishes and never fails. Transient in
+    itself (the same site passed on the run before and on a re run after), but the recovery is
+    the defect, not the drop.
+    `brief/route.ts` does send an `error` event from its catch, and `sseChannel.send` drops a
+    write only once the channel is `over`, so the path from that drop to a stuck client is not
+    established. Worth reproducing by killing the upstream connection deliberately before
+    choosing a fix. Candidate: a terminal state on the client when the reader ends without a
+    `done` or `error` event, which covers every way the stream can end early rather than this one.
+    Logged, not fixed: `src/app/api/datum/` and `src/app/projects/datum/analysis.ts` were outside
+    the file scope of the round that found it (owner instruction 2026-09-26).
+
+21. **FEMA is flaky, not recovered.** Owner correction 2026-09-26, replacing the "outage ended"
+    note in PROGRESS.md. One success and one failure minutes apart in a single session, and the
+    owner's good production sample is one sample. The flood layer is not to be treated as
+    reliable, and "all sites with FEMA up" is not an acceptance condition that can be met on
+    demand. No change requested.

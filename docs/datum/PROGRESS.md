@@ -1020,7 +1020,7 @@ the live model, then checks every number the model wrote against the precision t
 
 | Site | Sources | Brief | Terrain numbers as written |
 |---|---|---|---|
-| Atlanta | eight of nine; flood unavailable, upstream_error | 39 valid citations, 0 invalid | 281.7 m, 29.9 m, 275.2 to 297.1 m, 280.8 to 288.6 m, 6.2%, 311.6 degrees |
+| Atlanta | eight of nine; flood unavailable, upstream_error (see the FEMA note below) | 39 valid citations, 0 invalid | 281.7 m, 29.9 m, 275.2 to 297.1 m, 280.8 to 288.6 m, 6.2%, 311.6 degrees |
 | Miami | all nine | 38 valid citations, 0 invalid | 2 m, 0.7 percent, 4.4 m, 0.1 to 3.8 m, 1.7 to 3.2 m |
 
 Read against the four numbers the defect was reported at: "2.660512686 m", "0.777705908",
@@ -1030,13 +1030,19 @@ the check on two of two runs, Miami on two of three (the third is the flake belo
 No number in either brief carries more precision than its field allows. Both briefs are saved at
 `docs/datum/screenshots/viewer/<slug>.brief.txt`.
 
-FEMA: reachable from this machine on 2026-09-25, which ends the standing outage recorded earlier in
-this file. The Miami run returned flood data and the brief cites it: Zone X at the point, class
-moderate, with Zone AE and Zone VE polygons adjacent. That is the e2e Miami site (NE 25th St and
-Biscayne Blvd), not 1111 Brickell Bay Drive, so it is a different point and a different zone from
-the owner's own production run. The owner reports that run as Zone AE, SFHA yes, static BFE 13.0 ft,
-14 polygons, zone codes AE, VE, OPEN WATER and X; that is the owner's observation on production and
-is not re-derived here.
+FEMA: flaky, not recovered. Corrected by the owner 2026-09-26, and this entry previously said the
+standing outage had ended. It has not. The evidence in this one session is one success and one
+failure minutes apart: the Miami run returned flood data and the brief cites it (Zone X at the
+point, class moderate, Zone AE and Zone VE polygons adjacent), while the Atlanta run minutes earlier
+got `upstream_error` for the same layer. The owner's production run on 1111 Brickell Bay Drive (Zone
+AE, SFHA yes, static BFE 13.0 ft, 14 polygons, zone codes AE, VE, OPEN WATER and X) is the owner's
+observation, is a different point from the e2e Miami site (NE 25th St and Biscayne Blvd), and is one
+good sample rather than a recovery.
+
+Consequence: do not treat the flood layer as reliable. An `unavailable` flood panel on any run is
+expected behaviour, not a regression, and any acceptance condition of the form "all three sites with
+FEMA up" still cannot be demonstrated on demand. The constructed and labelled FEMA fixtures and the
+local stub (`e2e/tools/fema-stub.mjs`) remain how the flood rendering is actually exercised.
 
 Honest limit: the Atlanta run in this session did NOT return all nine sources. Flood came back
 `upstream_error` on that run while Miami's succeeded minutes later, so it reads as transient rather
