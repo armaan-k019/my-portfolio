@@ -132,9 +132,9 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
     if (!w || !h) return;
     renderer.setSize(w, h, false);
     const aspect = w / h;
-    const half = radius * 0.98;
+    const half = radius * 1.05;
     // Wide canvases put the model right of centre, clear of the hero text.
-    const c = aspect > 1.3 ? 0.68 : 0.5;
+    const c = aspect > 1.3 ? 0.72 : 0.5;
     const width = 2 * half * aspect;
     camera.left = -c * width; camera.right = (1 - c) * width;
     camera.top = half; camera.bottom = -half;
@@ -169,7 +169,7 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
 
-    const x = pointer ? cutMin + Math.min(1, Math.max(0, pointer.x)) * (cutMax - cutMin) : m.core;
+    const x = pointer ? cutMin + Math.min(1, Math.max(0, pointer.x)) * (cutMax - cutMin) : m.featured;
     setCut(x);
 
     if (mode === "live") {
