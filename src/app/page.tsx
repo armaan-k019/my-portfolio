@@ -40,7 +40,7 @@ export default function Home() {
           {/* Research */}
           <section id="research" className="py-20 md:py-24">
             <div className="max-w-5xl mx-auto px-6">
-              <h2 className="font-display display-md font-semibold text-darkblue mb-10">Research &amp; Publications</h2>
+              <h2 className="font-display display-md font-semibold text-darkblue mb-10">Publications</h2>
               <ResearchSection entries={researchEntries} />
             </div>
           </section>

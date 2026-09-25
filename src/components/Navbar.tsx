@@ -8,7 +8,7 @@ import { AnimatePresence, motion } from "framer-motion";
 const sections = [
   { id: "work", label: "Experience" },
   { id: "projects", label: "Projects" },
-  { id: "research", label: "Research" },
+  { id: "research", label: "Publications" },
 ];
 
 const pages = [
