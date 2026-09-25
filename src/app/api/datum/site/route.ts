@@ -111,6 +111,9 @@ export async function POST(request: NextRequest) {
         }
       : null,
     memoryStatus: memoryStatus(),
+    // How many times this point has been analyzed, so the page can say whether
+    // Site Memory has seen it before. Phase 3, SPEC section 14.
+    analysisCount: site.analysis_count,
     rateLimit: { remaining: rate.remaining },
   });
 }

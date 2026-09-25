@@ -13,6 +13,7 @@ import {
 } from "./constants";
 import { publicPoint, siteKey as siteKeyOf } from "./geo";
 import {
+  METRIC_LAYERS,
   PERCENTILE_METRICS,
   PERCENTILE_MIN_SITES,
   VECTOR_LENGTH,
@@ -20,6 +21,7 @@ import {
   l2Distance,
   matchPercent,
 } from "./metrics";
+import type { MetricName } from "./metrics";
 import type {
   LayerEnvelope,
   LayerName,
@@ -927,4 +929,154 @@ export async function storeBrief(
     return true;
   });
   return written === true;
+}
+
+// ─── Memory context (SPEC section 14, PHASE-3 step 3.3) ──────────────────────
+
+/**
+ * The copy for the states that have no numbers to show.
+ *
+ * The offline line and the "sites like this" line are verbatim from SPEC
+ * sections 13 and 14. The percentile line has no sentence in the spec; it
+ * follows the same register and is recorded as new user facing copy.
+ */
+export const MEMORY_COPY = {
+  offline: "Site Memory is offline; this analysis will not be saved.",
+  needsAllLayers: "Sites like this needs all layers; <layers> were unavailable.",
+  notEnoughSites:
+    "Percentiles need ten analyzed sites; Site Memory holds <n> so far.",
+};
+
+export interface MemoryContext {
+  memoryStatus: MemoryStatus;
+  /** Analyzed sites under the current test row gating, null when offline. */
+  n: number | null;
+  percentiles: PercentileEntry[] | null;
+  similar: SimilarSite[] | null;
+  reasonIfNull: string | null;
+}
+
+/** The stored metrics of one site, or null when there are none to read. */
+export async function readMetrics(
+  siteId: string,
+): Promise<{ named: Record<string, number | null>; vector: number[] | null } | null> {
+  if (isLocalSiteId(siteId)) return null;
+  const row = await withMemory(async (db) => {
+    const { data, error } = await db
+      .from("sites")
+      .select("metrics, metrics_vector")
+      .eq("id", siteId)
+      .maybeSingle();
+    if (error) throw new Error("sites metrics lookup failed");
+    return (data as { metrics: unknown; metrics_vector: unknown } | null) ?? null;
+  });
+  if (!row || !row.metrics || typeof row.metrics !== "object") return null;
+  const named: Record<string, number | null> = {};
+  for (const [name, value] of Object.entries(row.metrics as Record<string, unknown>)) {
+    if (typeof value === "number" && Number.isFinite(value)) named[name] = value;
+  }
+  return { named, vector: parseVector(row.metrics_vector) };
+}
+
+/** The distinct layers behind a set of missing metric components. */
+function layersBehind(missing: string[]): string[] {
+  const out: string[] = [];
+  for (const metric of missing) {
+    const layer = METRIC_LAYERS[metric as MetricName];
+    if (layer && !out.includes(layer)) out.push(layer);
+  }
+  return out;
+}
+
+/**
+ * Percentiles and similar sites for one analysis, with a sentence for whatever
+ * could not be shown. Nothing here invents a number: a percentile appears only
+ * when its metric has ten analyzed sites behind it, and "sites like this"
+ * appears only when this site has all fourteen components.
+ */
+export async function buildMemoryContext(
+  siteId: string,
+  named: Record<string, number | null>,
+  vector: number[] | null,
+  missing: string[],
+): Promise<MemoryContext> {
+  if (memoryStatus() === "offline" || getClient() === null) {
+    return {
+      memoryStatus: "offline",
+      n: null,
+      percentiles: null,
+      similar: null,
+      reasonIfNull: MEMORY_COPY.offline,
+    };
+  }
+
+  const [n, entries, similar] = await Promise.all([
+    countSites(),
+    percentiles(named),
+    vector === null ? Promise.resolve(null) : similarSites(vector, siteId),
+  ]);
+
+  // The count read can itself be what trips the offline guard.
+  if (memoryStatus() === "offline") {
+    return {
+      memoryStatus: "offline",
+      n: null,
+      percentiles: null,
+      similar: null,
+      reasonIfNull: MEMORY_COPY.offline,
+    };
+  }
+
+  const reasons: string[] = [];
+  if (entries.length === 0) {
+    reasons.push(MEMORY_COPY.notEnoughSites.replace("<n>", String(n ?? 0)));
+  }
+  if (vector === null) {
+    reasons.push(
+      MEMORY_COPY.needsAllLayers.replace("<layers>", layersBehind(missing).join(", ")),
+    );
+  }
+
+  return {
+    memoryStatus: "online",
+    n,
+    percentiles: entries.length > 0 ? entries : null,
+    similar,
+    reasonIfNull: reasons.length > 0 ? reasons.join(" ") : null,
+  };
+}
+
+// ─── Expired cache sweep (SPEC section 13, the daily ping) ───────────────────
+
+/** How many expired api_cache rows one ping removes. */
+export const CACHE_SWEEP_BATCH = 500;
+
+/**
+ * Delete up to CACHE_SWEEP_BATCH expired api_cache rows and report how many
+ * went. PostgREST cannot put a limit on a delete, so the batch is selected
+ * first and deleted by key. Returns null when Site Memory could not answer.
+ */
+export async function sweepExpiredCache(
+  limit = CACHE_SWEEP_BATCH,
+): Promise<number | null> {
+  const swept = await withMemory(async (db) => {
+    const nowIso = new Date().toISOString();
+    const { data, error } = await db
+      .from("api_cache")
+      .select("cache_key")
+      .lt("expires_at", nowIso)
+      .limit(limit);
+    if (error) throw new Error("api_cache sweep select failed");
+    const keys = ((data ?? []) as Array<{ cache_key: string }>).map(
+      (row) => row.cache_key,
+    );
+    if (keys.length === 0) return 0;
+    const { error: deleteError } = await db
+      .from("api_cache")
+      .delete()
+      .in("cache_key", keys);
+    if (deleteError) throw new Error("api_cache sweep delete failed");
+    return keys.length;
+  });
+  return swept === undefined ? null : swept;
 }
