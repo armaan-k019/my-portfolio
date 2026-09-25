@@ -251,6 +251,36 @@ test("a raw float never matches the four decimal value the model was sent", () =
   expect(raw.uncitedNumericSentences).toBe(1);
 });
 
+test("a value the serializer sent unrounded matches the string it sent", () => {
+  // flattenLayer rounds the leaves it flattens and nothing else: a collapsed
+  // array reports its min and max at full precision, and the site point is sent
+  // as it was geocoded. Those strings are what the model read.
+  const values = buildValueIndex({
+    site: { latitude: 25.8011588, longitude: -80.1890627 },
+    layers: {
+      topo: {
+        status: "ok",
+        fields: flattenLayer("topo", {
+          sections: { ew: Array.from({ length: 20 }, (_, index) => index + 0.060939878) },
+        }),
+      },
+    },
+  });
+  expect(values.has("0.060939878")).toBe(true);
+  expect(values.get("25.8011588")).toEqual(new Set(["site.latitude"]));
+
+  const check = validateCitations(
+    [
+      "The east-west section starts at 0.060939878 m [topo.sections.ew[]].",
+      "That 0.060939878 m low point sets the drainage fall.",
+    ].join("\n"),
+    ["topo.sections.ew[]"],
+    values,
+  );
+  expect(check.uncitedNumericSentences).toBe(0);
+  expect(check.valueMatchedSentences).toBe(1);
+});
+
 test("every decision is logged only when DATUM_DEBUG_CITATIONS is set", () => {
   const text = [
     "Mean slope across the frame is 6.2 percent [topo.meanSlopePct].",

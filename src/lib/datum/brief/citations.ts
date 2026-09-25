@@ -100,19 +100,25 @@ function groupThousands(plain: string): string {
 }
 
 /**
- * The forms of one dataset value a sentence is allowed to write. The serializer
- * rounds every leaf to four decimals before the model sees it, so the rounded
- * string with its trailing zeros stripped is the form the model was given; the
- * integer form and the thousands separated form are the same number written the
- * way an architect writes it. Nothing else is accepted: no unit conversion, no
- * further rounding, and never the raw float the round dropped.
+ * The forms of one dataset value a sentence is allowed to write: the string the
+ * serializer actually sent, its four decimal rounding with trailing zeros
+ * stripped, the integer form when the value is whole, and the thousands
+ * separated form. Nothing else is accepted: no unit conversion and no rounding
+ * beyond what the serializer did.
+ *
+ * Both the sent string and the rounded one are indexed because the serializer
+ * rounds the leaves it flattens and nothing else: the site point and the min and
+ * max of a collapsed array reach the model at full precision, and a value the
+ * model was given is a value it may quote.
  */
 function renderedForms(value: number): string[] {
   const rounded = round4(value);
-  const plain = String(rounded);
-  const forms = new Set<string>([plain]);
+  const forms = new Set<string>();
+  for (const written of [String(value), String(rounded)]) {
+    forms.add(written);
+    forms.add(groupThousands(written));
+  }
   if (Number.isInteger(rounded)) forms.add(rounded.toFixed(0));
-  forms.add(groupThousands(plain));
   return [...forms];
 }
 
