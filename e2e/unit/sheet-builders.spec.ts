@@ -545,3 +545,25 @@ test("the ACS vintage is read from the envelope, never defaulted", () => {
   expect(body).toContain("US Census Bureau ACS 5-year.");
   expect(body).not.toContain("2023");
 });
+
+// ─── Colour syntax ───────────────────────────────────────────────────────────
+
+test("no built sheet carries an eight digit hex colour", () => {
+  // #RRGGBBAA is valid CSS Color 4 and valid in a browser, and neither
+  // Illustrator nor Rhino accepts it. The export exists to open in those two,
+  // so alpha is written as a fill-opacity or stroke-opacity attribute.
+  for (const slug of ["atlanta", "miami", "wakeeney"]) {
+    const svg = buildSheet(makeCtx(slug));
+    const matches = svg.match(/#[0-9a-fA-F]{8}\b/g) ?? [];
+    expect(matches, `${slug}: eight digit hex colours`).toEqual([]);
+    // Every colour that is written is a six digit hex.
+    expect((svg.match(/#[0-9a-fA-F]{6}/g) ?? []).length).toBeGreaterThan(0);
+  }
+
+  // The wind rose is where the alpha form was: its bins still darken with speed.
+  const windRose = groupBody(buildSheet(makeCtx("atlanta")), "wind-rose");
+  const opacities = new Set(
+    Array.from(windRose.matchAll(/fill-opacity="([\d.]+)"/g), (match) => match[1]),
+  );
+  expect(opacities.size, "the speed bins read as rings").toBeGreaterThan(1);
+});

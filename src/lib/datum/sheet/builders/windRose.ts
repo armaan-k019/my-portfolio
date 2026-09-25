@@ -31,7 +31,7 @@ function wedge(
   inner: number,
   outer: number,
   centreDeg: number,
-  fill: string,
+  fillOpacity: number,
 ): string {
   const half = (SECTOR_WIDTH_DEG / 2) * 0.86;
   const a0 = ((centreDeg - half) * Math.PI) / 180;
@@ -50,15 +50,21 @@ function wedge(
     `L${r(x3)} ${r(y3)} ` +
     (inner > 0 ? `A${r(inner)} ${r(inner)} 0 0 0 ${r(x0)} ${r(y0)} ` : "") +
     "Z";
-  return `<path d="${d}" fill="${fill}" stroke="${COLOURS.terracotta}" stroke-width="0.2"/>`;
+  return (
+    `<path d="${d}" fill="${COLOURS.terracotta}" fill-opacity="${r(fillOpacity)}" ` +
+    `stroke="${COLOURS.terracotta}" stroke-width="0.2"/>`
+  );
 }
 
-/** Bin fill opacity rises with speed, so the outer bins read heavier. */
-function binFill(index: number, bins: number): string {
-  const opacity = 0.18 + (0.72 * (index + 1)) / bins;
-  return `${COLOURS.terracotta}${Math.round(opacity * 255)
-    .toString(16)
-    .padStart(2, "0")}`;
+/**
+ * Bin fill opacity rises with speed, so the outer bins read heavier. It is a
+ * `fill-opacity` attribute rather than an eight digit #RRGGBBAA fill: Illustrator
+ * and Rhino both reject the alpha form, and a fill they cannot parse is a wind
+ * rose that arrives as an empty outline in the one application the export exists
+ * for.
+ */
+function binOpacity(index: number, bins: number): number {
+  return 0.18 + (0.72 * (index + 1)) / bins;
 }
 
 function rose(
@@ -101,7 +107,9 @@ function rose(
       sector.binsPct.forEach((share, index) => {
         if (share <= 0) return;
         const outer = inner + (share / maxFrequency) * radius;
-        parts.push(wedge(cx, cy, inner, outer, sector.sectorDeg, binFill(index, bins)));
+        parts.push(
+          wedge(cx, cy, inner, outer, sector.sectorDeg, binOpacity(index, bins)),
+        );
         inner = outer;
       });
     }
