@@ -1,0 +1,39 @@
+/* One line color per section. Type in the line color passes AA on cream:
+   green 7.42:1, darkblue 10.58:1, rust 5.16:1. */
+.green { --line: var(--color-terracotta); }
+.blue { --line: var(--color-darkblue); }
+.rust { --line: var(--region-systems); }
+
+.line {
+  --rule: 1px solid color-mix(in srgb, var(--line) 30%, transparent);
+}
+.line :global(h2) {
+  color: var(--line);
+}
+
+/* The route: a heavy line above the section title. */
+.bar {
+  height: 6px;
+  width: 100%;
+  background: var(--line);
+  margin-bottom: 1.5rem;
+}
+
+/* Stations: a paper dot ringed in the line color at the start of each row. */
+.line :global(ul > li),
+.line :global(div > button.group) {
+  position: relative;
+  padding-left: 1.75rem;
+}
+.line :global(ul > li)::before,
+.line :global(div > button.group)::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 1.45rem;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  border: 3px solid var(--line);
+  background: var(--color-paper);
+}

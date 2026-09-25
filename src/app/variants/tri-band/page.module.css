@@ -1,0 +1,42 @@
+/* Green bands: paper type on --color-terracotta (7.84:1), tan-light meta (4.64:1). */
+.band {
+  --rule: 1px solid color-mix(in srgb, var(--color-paper) 30%, transparent);
+  background: var(--color-terracotta);
+  color: var(--color-paper);
+}
+.band :global(h1),
+.band :global(h2),
+.band :global(p:not(.text-red-500)),
+.band :global(label),
+.band :global(a) {
+  color: var(--color-paper);
+}
+.band :global(.meta),
+.band :global(summary) {
+  color: var(--color-tan-light);
+}
+/* Primary actions invert: paper fill, green type. */
+.band :global(a.bg-terracotta),
+.band :global(button[type="submit"]) {
+  background: var(--color-paper);
+  color: var(--color-terracotta);
+}
+.band :global(a.border) {
+  border-color: var(--color-paper);
+}
+
+/* Paper center band: green carries the headings and the rules. */
+.center {
+  --rule: 1px solid color-mix(in srgb, var(--color-terracotta) 35%, transparent);
+  background: var(--color-paper);
+}
+.center :global(h2) {
+  color: var(--color-terracotta);
+}
+.center :global(h3) {
+  color: var(--color-ink);
+}
+/* Active carousel dot is bg-terracotta, invisible on the green band. */
+.band :global(button.bg-terracotta) {
+  background: var(--color-paper);
+}
