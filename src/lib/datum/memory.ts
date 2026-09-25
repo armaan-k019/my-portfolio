@@ -617,8 +617,18 @@ const PUBLIC_SITES_CAP = 500;
 /** What one writeMetrics call did, for the route that asked for it. */
 export type MetricsWrite = "written" | "skipped" | "unavailable";
 
+/** The outcome of one writeMetrics call, with why it was skipped. */
+export interface MetricsWriteResult {
+  write: MetricsWrite;
+  /**
+   * Why the write was skipped, for whoever reads the result. Never copy, never
+   * rendered, and null on a write that happened or on a Site Memory failure.
+   */
+  reason: string | null;
+}
+
 /**
- * Write the named values and the vector onto the site row.
+ * Write the named values, the vector and the timestamp onto the site row.
  *
  * Only the named values that have one are stored. A null is left out of the
  * jsonb entirely rather than stored as `null`, because `metric_percentile`
@@ -626,38 +636,74 @@ export type MetricsWrite = "written" | "skipped" | "unavailable";
  * that metric and never satisfy `v < value`, which would drag every percentile
  * down by the count of the sites that could not measure it.
  *
- * Two things are never written. A computation that produced no named value at
- * all is not written, because an empty jsonb would replace a good row with a
- * record of the run where every layer happened to fail. And a null vector is
- * not written over a stored one: the column is simply left out of the update,
- * so a site that has a vector keeps it and a site that has none stays null.
- * Both are the same rule, that a failed measurement never overwrites a
- * successful one.
+ * The three columns move together or not at all. `metrics`, `metrics_vector`
+ * and `metrics_at` describe one computation, so a partial update would leave an
+ * older vector standing beside newer named values with a timestamp saying both
+ * were measured at once, and "sites like this" would then place the site by a
+ * vector nothing in the row still supports. So a computation with named values
+ * but no vector is written only when the stored row has no vector either, and
+ * both columns are written together with the vector null; when the stored row
+ * does have one, the whole write is skipped and the row keeps the complete
+ * computation it already had.
+ *
+ * A computation that produced no named value at all is not written either,
+ * because an empty jsonb would replace a good row with a record of the run
+ * where every layer happened to fail. Both rules are the same rule, that a
+ * failed measurement never overwrites a successful one.
  */
 export async function writeMetrics(
   siteId: string,
   named: Record<string, number | null>,
   vector: number[] | null,
-): Promise<MetricsWrite> {
-  if (isLocalSiteId(siteId)) return "skipped";
+): Promise<MetricsWriteResult> {
+  if (isLocalSiteId(siteId)) {
+    return { write: "skipped", reason: "a local site has no row to write to" };
+  }
   const metrics: Record<string, number> = {};
   for (const [name, value] of Object.entries(named)) {
     if (typeof value === "number" && Number.isFinite(value)) metrics[name] = value;
   }
-  if (Object.keys(metrics).length === 0) return "skipped";
+  if (Object.keys(metrics).length === 0) {
+    return { write: "skipped", reason: "the computation produced no named value" };
+  }
+
+  // A computation with no vector has to know what the row already holds before
+  // it can write anything, because the three columns go together.
+  if (vector === null) {
+    const stored = await withMemory(async (db) => {
+      const { data, error } = await db
+        .from("sites")
+        .select("metrics_vector")
+        .eq("id", siteId)
+        .maybeSingle();
+      if (error) throw new Error("sites metrics vector lookup failed");
+      const row = (data as { metrics_vector: unknown } | null) ?? null;
+      return { vector: row === null ? null : parseVector(row.metrics_vector) };
+    });
+    if (stored === undefined) return { write: "unavailable", reason: null };
+    if (stored.vector !== null) {
+      return {
+        write: "skipped",
+        reason: "would replace a complete vector with none",
+      };
+    }
+  }
+
   const update: Record<string, unknown> = {
     metrics,
+    // pgvector's text input form. PostgREST sends the column as a string and
+    // casts it, so the array is serialized rather than sent as JSON.
+    metrics_vector: vector === null ? null : JSON.stringify(vector),
     metrics_at: new Date().toISOString(),
   };
-  // pgvector's text input form. PostgREST sends the column as a string and
-  // casts it, so the array is serialized rather than sent as JSON.
-  if (vector !== null) update.metrics_vector = JSON.stringify(vector);
   const written = await withMemory(async (db) => {
     const { error } = await db.from("sites").update(update).eq("id", siteId);
     if (error) throw new Error("sites metrics write failed");
     return true;
   });
-  return written === true ? "written" : "unavailable";
+  return written === true
+    ? { write: "written", reason: null }
+    : { write: "unavailable", reason: null };
 }
 
 /**

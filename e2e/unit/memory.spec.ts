@@ -14,6 +14,7 @@ import {
   setClientForTests,
   verifyLocalSiteId,
   withMemory,
+  writeMetrics,
 } from "../../src/lib/datum/memory";
 import {
   PEEK_MEMO_MAX,
@@ -649,5 +650,132 @@ test("the peek memo is cleared at PEEK_MEMO_MAX rather than growing forever", as
   // The watched entry went with the clear, so this peek pays for a read again.
   await peekRateLimit(watched);
   expect(calls().length).toBeGreaterThan(afterFirst);
+  setClientForTests(null);
+});
+
+// ─── writeMetrics: the three columns move together ───────────────────────────
+
+/**
+ * A `sites` table for the metrics write: it answers the pre-read with whatever
+ * row it was given and records the update payload, so a test can see exactly
+ * which columns went.
+ */
+function metricsClient(options?: {
+  storedRow?: { metrics_vector: unknown } | null;
+  failRead?: boolean;
+}) {
+  const updates: Array<Record<string, unknown>> = [];
+  const reads: string[] = [];
+
+  const client = {
+    from(table: string) {
+      let mode: "select" | "update" = "select";
+      let payload: Record<string, unknown> = {};
+      const chain = {
+        select(columns: string) {
+          mode = "select";
+          reads.push(`${table}:${columns}`);
+          return chain;
+        },
+        update(row: Record<string, unknown>) {
+          mode = "update";
+          payload = row;
+          return chain;
+        },
+        eq: () => chain,
+        async maybeSingle() {
+          if (options?.failRead) {
+            return { data: null, error: { message: "read failed" } };
+          }
+          return { data: options?.storedRow ?? null, error: null };
+        },
+        then(resolve: (value: { error: unknown }) => void) {
+          if (mode === "update") updates.push(payload);
+          resolve({ error: null });
+        },
+      };
+      return chain;
+    },
+  } as unknown as SupabaseClient;
+
+  return { client, updates, reads: () => reads };
+}
+
+const SITE_ID = "11111111-2222-3333-4444-555555555555";
+const VECTOR = Array.from({ length: 14 }, (_, i) => i / 14);
+
+test("a fresh row gets the metrics, the vector and the timestamp in one update", async () => {
+  const fake = metricsClient();
+  setClientForTests(fake.client);
+
+  const result = await writeMetrics(SITE_ID, { reliefM: 0.4, sds: 0.1 }, VECTOR);
+
+  expect(result).toEqual({ write: "written", reason: null });
+  expect(fake.updates).toHaveLength(1);
+  const update = fake.updates[0];
+  expect(Object.keys(update).sort()).toEqual([
+    "metrics",
+    "metrics_at",
+    "metrics_vector",
+  ]);
+  expect(update.metrics).toEqual({ reliefM: 0.4, sds: 0.1 });
+  expect(update.metrics_vector).toBe(JSON.stringify(VECTOR));
+  // A computation that has a vector needs no pre-read: it replaces all three.
+  expect(fake.reads()).toEqual([]);
+  setClientForTests(null);
+});
+
+test("a computation with no vector never lands beside a stored one", async () => {
+  const fake = metricsClient({ storedRow: { metrics_vector: JSON.stringify(VECTOR) } });
+  setClientForTests(fake.client);
+
+  const result = await writeMetrics(SITE_ID, { reliefM: 0.9 }, null);
+
+  expect(result).toEqual({
+    write: "skipped",
+    reason: "would replace a complete vector with none",
+  });
+  // Nothing was written, so the row keeps the complete computation it had.
+  expect(fake.updates).toEqual([]);
+  expect(fake.reads()).toEqual(["sites:metrics_vector"]);
+  setClientForTests(null);
+});
+
+test("a row with no stored vector takes the metrics and a null vector together", async () => {
+  const fake = metricsClient({ storedRow: { metrics_vector: null } });
+  setClientForTests(fake.client);
+
+  const result = await writeMetrics(SITE_ID, { reliefM: 0.9 }, null);
+
+  expect(result).toEqual({ write: "written", reason: null });
+  expect(fake.updates).toHaveLength(1);
+  expect(Object.keys(fake.updates[0]).sort()).toEqual([
+    "metrics",
+    "metrics_at",
+    "metrics_vector",
+  ]);
+  expect(fake.updates[0].metrics_vector).toBeNull();
+  setClientForTests(null);
+});
+
+test("a stored row with no vector gains one when the computation has all fourteen", async () => {
+  const fake = metricsClient({ storedRow: { metrics_vector: null } });
+  setClientForTests(fake.client);
+
+  const result = await writeMetrics(SITE_ID, { reliefM: 0.9 }, VECTOR);
+
+  expect(result).toEqual({ write: "written", reason: null });
+  expect(fake.updates[0].metrics_vector).toBe(JSON.stringify(VECTOR));
+  setClientForTests(null);
+});
+
+test("a pre-read that fails is unavailable rather than a write with no vector", async () => {
+  const fake = metricsClient({ failRead: true });
+  setClientForTests(fake.client);
+
+  const result = await writeMetrics(SITE_ID, { reliefM: 0.9 }, null);
+
+  expect(result).toEqual({ write: "unavailable", reason: null });
+  expect(fake.updates).toEqual([]);
   setClientForTests(null);
 });

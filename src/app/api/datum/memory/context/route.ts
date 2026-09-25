@@ -119,11 +119,12 @@ export async function POST(request: NextRequest) {
   // hand Site Memory numbers and have them enter everyone else's percentiles.
   const layers = await loadStoredLayers(siteId);
   const { named, vector, missing } = computeMetrics(layers);
-  // What the write did travels with the answer: "skipped" is a computation with
-  // nothing in it, which is left out rather than written over a good row, and
+  // What the write did travels with the answer: "skipped" is a computation that
+  // is left out rather than written over a good row, either because it has
+  // nothing in it or because it has no vector where the row has one, and
   // "unavailable" is Site Memory declining the write. Neither is copy, and the
-  // panel does not read them.
-  const metricsWrite = await writeMetrics(siteId, named, vector);
+  // panel does not read them. The reason behind a skip stays on the server.
+  const { write: metricsWrite } = await writeMetrics(siteId, named, vector);
 
   const context = await buildMemoryContext(siteId, { named, vector, missing });
   return NextResponse.json({ ...context, metricsWrite });
