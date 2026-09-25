@@ -53,7 +53,9 @@ function lineMat(t: { color: THREE.Color; alpha: number }, clip: THREE.Plane[]) 
 // static: one axonometric frame, re-rendered only on resize.
 export type Mode = "live" | "reduced" | "static";
 
-export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode) {
+export interface Readout { cut: HTMLElement; view: HTMLElement; ptr: HTMLElement }
+
+export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, readout: Readout) {
   let renderer: THREE.WebGLRenderer;
   try {
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
@@ -146,14 +148,17 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode) 
   // just short of its far end, so some of the model always remains.
   const cutMin = bx.min[0] - 0.5, cutMax = bx.max[0] - 1;
   let pointer: { x: number; y: number } | null = null;
+  let client: { x: number; y: number } | null = null;   // null once the pointer leaves
   let lastMove = performance.now();
   const onMove = (e: PointerEvent) => {
     if (e.pointerType === "touch") return;
     const r = host.getBoundingClientRect();
     pointer = { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
+    client = { x: e.clientX, y: e.clientY };
     lastMove = performance.now();
     if (mode === "reduced") request();
   };
+  const onLeave = () => { client = null; if (mode === "reduced") request(); };
 
   // Camera state in degrees. Live mode eases toward the pointer's view and
   // adds an idle orbit; the other modes hold the axonometric.
@@ -180,6 +185,40 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode) 
     }
     aim(az + orbit, el);
     render();
+    report();
+  }
+
+  // Readout, derived from the scene as rendered this frame. The DOM is only
+  // written when a formatted string changes.
+  const shown = { cut: "", view: "", ptr: "" };
+  const write = (k: keyof Readout, v: string) => { if (shown[k] !== v) readout[k].textContent = shown[k] = v; };
+  const f = (n: number, d: number) => (n < 0 ? "-" : "+") + Math.abs(n).toFixed(d);
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), hit = new THREE.Vector3();
+  const cutPlane = new THREE.Plane(new THREE.Vector3(1, 0, 0), 0), ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  const offset = new THREE.Vector3();
+
+  function report() {
+    write("cut", `x ${f(station, 2)} m`);
+    offset.copy(camera.position).sub(center).normalize();
+    const cAz = THREE.MathUtils.radToDeg(Math.atan2(offset.x, offset.z));
+    const cEl = THREE.MathUtils.radToDeg(Math.asin(offset.y));
+    write("view", `az ${f(cAz, 1)}\u00b0  el ${f(cEl, 1)}\u00b0`);
+
+    let p = "";
+    if (client) {
+      const r = canvas.getBoundingClientRect();
+      ndc.set(((client.x - r.left) / r.width) * 2 - 1, -((client.y - r.top) / r.height) * 2 + 1);
+      ray.setFromCamera(ndc, camera);
+      // Intersect whichever plane faces the camera more squarely.
+      const d = ray.ray.direction;
+      cutPlane.constant = -station;
+      const plane = Math.abs(d.x) >= Math.abs(d.y) ? cutPlane : ground;
+      if (ray.ray.intersectPlane(plane, hit)) {
+        if (plane === cutPlane) hit.x = station; // on the plane by construction; avoid float drift
+        p = `${f(hit.x, 2)} ${f(hit.y, 2)} ${f(hit.z, 2)}`;
+      }
+    }
+    write("ptr", p);
   }
 
   // Loop control: live mode runs continuously while visible; the other modes
@@ -195,7 +234,10 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode) 
   io.observe(host);
   ro.observe(canvas);
   document.addEventListener("visibilitychange", onVis);
-  if (mode !== "static") host.addEventListener("pointermove", onMove);
+  if (mode !== "static") {
+    host.addEventListener("pointermove", onMove);
+    host.addEventListener("pointerleave", onLeave);
+  }
 
   resize();
   request();
@@ -205,6 +247,7 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode) 
     io.disconnect(); ro.disconnect();
     document.removeEventListener("visibilitychange", onVis);
     host.removeEventListener("pointermove", onMove);
+    host.removeEventListener("pointerleave", onLeave);
     renderer.dispose();
     geo.dispose(); siteGeo.dispose(); hatchGeo.dispose(); outlineGeo.dispose();
     outlineMat.dispose();
