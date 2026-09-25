@@ -53,6 +53,8 @@ function loadLayers(slug: string): Partial<Record<LayerName, LayerEnvelope<unkno
 }
 
 const ATLANTA = { lat: 33.7751258, lng: -84.391975 };
+// The Miami sun fixture's own site point (e2e/fixtures/layers/miami/sun.json).
+const MIAMI = { lat: 25.8011588, lng: -80.1890627 };
 
 // ─── validateCitations ───────────────────────────────────────────────────────
 
@@ -280,8 +282,9 @@ test("a negative value is read with its sign, and a hyphen is not a sign", () =>
 
 test("a value the serializer sent unrounded matches the string it sent", () => {
   // flattenLayer rounds the leaves it flattens and nothing else: a collapsed
-  // array reports its min and max at full precision, and the site point is sent
-  // as it was geocoded. Those strings are what the model read.
+  // array reports its min and max at full precision. (The site point is a
+  // separate case: serializeInput rounds it to the title block's precision,
+  // covered by the coordinate precision tests below.)
   const values = buildValueIndex({
     site: { latitude: 25.8011588, longitude: -80.1890627 },
     layers: {
@@ -430,9 +433,10 @@ test("the serializer never carries a locality, address, display name, or city", 
   for (const key of FORBIDDEN_KEYS) {
     expect(json, `the input must not carry a "${key}" key`).not.toContain(`"${key}"`);
   }
-  // The point is there, because the sun path depends on it.
-  expect(input.site.latitude).toBeCloseTo(ATLANTA.lat, 6);
-  expect(input.site.longitude).toBeCloseTo(ATLANTA.lng, 6);
+  // The point is there, because the sun path depends on it, rounded to the
+  // precision the title block prints it at (five decimals).
+  expect(input.site.latitude).toBe(Number(ATLANTA.lat.toFixed(5)));
+  expect(input.site.longitude).toBe(Number(ATLANTA.lng.toFixed(5)));
 });
 
 test("the serializer keys every leaf by the path the brief must cite", () => {
@@ -580,14 +584,27 @@ test("site latitude and longitude are citable paths per SPEC section 12", () => 
 });
 
 test("Miami sentence with site latitude and longitude citations passes", () => {
+  // The model can only quote the point it was given: serializeInput rounds it
+  // to five decimals (the title block's precision), so 25.8011588 becomes
+  // 25.80116, not the unrounded geocoded value.
   const layers = loadLayers("miami");
   const paths = citableFieldPaths(layers);
   const check = validateCitations(
-    "The site sits at latitude 25.8011588, longitude -80.1890627 [site.latitude][site.longitude].",
+    "The site sits at latitude 25.80116, longitude -80.18906 [site.latitude][site.longitude].",
     paths,
   );
   expect(check.invalidCitations).toEqual([]);
   expect(check.validCitations).toEqual(["site.latitude", "site.longitude"]);
+});
+
+test("the serialized site coordinates equal the title block's rendered coordinates for Miami", () => {
+  // titleBlock.ts prints `${ctx.site.lat.toFixed(5)}, ${ctx.site.lng.toFixed(5)}`.
+  // The brief must be sent the same point at the same precision, or a value
+  // cited here could disagree with what is printed next to it on the sheet.
+  const input = serializeInput(MIAMI, loadLayers("miami"));
+  const titleBlockRendered = `${MIAMI.lat.toFixed(5)}, ${MIAMI.lng.toFixed(5)}`;
+  const serializedRendered = `${input.site.latitude.toFixed(5)}, ${input.site.longitude.toFixed(5)}`;
+  expect(serializedRendered).toBe(titleBlockRendered);
 });
 
 test("invalid site citation paths like [site.elevation] still fail", () => {

@@ -165,6 +165,25 @@ export interface BriefInputSite {
   lng: number;
 }
 
+/**
+ * The number of decimals the title block prints the site point at
+ * (`titleBlock.ts`: `ctx.site.lat.toFixed(5)`). The brief must be sent the
+ * point at the same precision the sheet shows it at, or a value the model
+ * cites here could disagree with what is printed next to it.
+ */
+const COORDINATE_DECIMALS = 5;
+
+/**
+ * Rounds a coordinate the same way the title block renders it. Built on
+ * `toFixed` rather than a `Math.round(value * 10 ** n) / 10 ** n` formula: the
+ * two disagree at a trailing .5 (floating point representation makes
+ * -84.391975 round down through the multiply-and-divide form but up through
+ * `toFixed`), and this value has to match the sheet exactly, not just be close.
+ */
+function roundCoordinate(value: number): number {
+  return Number(value.toFixed(COORDINATE_DECIMALS));
+}
+
 export interface BriefInput {
   /** Only the point. No address, no locality, no city (SPEC section 12). */
   site: { latitude: number; longitude: number };
@@ -214,7 +233,10 @@ export function serializeInput(
     out[layer] = entry;
   }
   return {
-    site: { latitude: site.lat, longitude: site.lng },
+    site: {
+      latitude: roundCoordinate(site.lat),
+      longitude: roundCoordinate(site.lng),
+    },
     layers: out,
   };
 }
