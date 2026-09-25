@@ -14,13 +14,15 @@ import {
 import type { CitationCheck } from "./brief/citations";
 import { publicPoint, siteKey as siteKeyOf } from "./geo";
 import {
+  METRICS_MIN_PRESENT,
   METRIC_LAYERS,
   PERCENTILE_METRICS,
   PERCENTILE_MIN_SITES,
   VECTOR_LENGTH,
   closestComponents,
-  l2Distance,
+  maskedDistance,
   matchPercent,
+  presentCount,
 } from "./metrics";
 import type { MetricName } from "./metrics";
 import type {
@@ -157,7 +159,18 @@ export function clientIpFrom(headerValue: string | null): string {
 
 // ─── Sites ───────────────────────────────────────────────────────────────────
 
+/**
+ * The offline site rows this instance holds, keyed the way the table is now
+ * keyed: (site_key, is_test) is unique since migration 0002, so a test row and
+ * a real row may sit at the same rounded point and the local map has to be able
+ * to hold both.
+ */
 const localSites = new Map<string, SiteRecord>();
+
+/** The composite key of the unique constraint, as one map key. */
+function localKey(key: string, isTest: boolean): string {
+  return `${key}|${isTest ? "test" : "live"}`;
+}
 
 /**
  * Database site rows this instance has already seen, keyed by site id.
@@ -275,18 +288,27 @@ export interface SiteInput {
   isTest?: boolean;
 }
 
-export async function findSite(key: string): Promise<SiteRecord | null> {
+/**
+ * The row for one point, under the composite key migration 0002 made unique.
+ * `site_key` alone is no longer unique, so a lookup that named only the key
+ * could return a test row to a real analysis and the other way round.
+ */
+export async function findSite(
+  key: string,
+  isTest = false,
+): Promise<SiteRecord | null> {
   const row = await withMemory(async (db) => {
     const { data, error } = await db
       .from("sites")
       .select("*")
       .eq("site_key", key)
+      .eq("is_test", isTest)
       .maybeSingle();
     if (error) throw new Error("sites lookup failed");
     return (data as SiteRecord | null) ?? null;
   });
   if (row !== undefined) return row;
-  return localSites.get(key) ?? null;
+  return localSites.get(localKey(key, isTest)) ?? null;
 }
 
 export async function getOrCreateSite(input: SiteInput): Promise<SiteRecord> {
@@ -294,36 +316,45 @@ export async function getOrCreateSite(input: SiteInput): Promise<SiteRecord> {
   const pub = publicPoint(input.lat, input.lng);
   const nowIso = new Date().toISOString();
 
-  const existing = await findSite(key);
+  const isTest = input.isTest === true;
+
+  const existing = await findSite(key, isTest);
   if (existing) return await reuseSite(existing, input);
+
+  // The row is created with an upsert on the composite unique key migration
+  // 0002 introduced, so a concurrent create of the same point resolves in the
+  // database rather than in a second round trip. A column is written only when
+  // this request has a value for it: a locality already on the row must not be
+  // replaced with the null of a request whose reverse lookup failed.
+  const row: Record<string, unknown> = {
+    site_key: key,
+    lat: input.lat,
+    lng: input.lng,
+    public_lat: pub.lat,
+    public_lng: pub.lng,
+    is_test: isTest,
+  };
+  if (typeof input.locality === "string") row.locality = input.locality;
+  if (typeof input.tractGeoid === "string") row.tract_geoid = input.tractGeoid;
 
   const inserted = await withMemory(async (db) => {
     const { data, error } = await db
       .from("sites")
-      .insert({
-        site_key: key,
-        lat: input.lat,
-        lng: input.lng,
-        public_lat: pub.lat,
-        public_lng: pub.lng,
-        locality: input.locality ?? null,
-        tract_geoid: input.tractGeoid ?? null,
-        is_test: input.isTest === true,
-      })
+      .upsert(row, { onConflict: "site_key,is_test" })
       .select("*")
       .single();
     if (error) {
-      // A concurrent request inserted the same site_key between the lookup
+      // A concurrent request inserted the same (site_key, is_test) between the lookup
       // above and this insert. Losing that race is not a failure of Site
       // Memory, so it must not flip the module offline and must not fall back
       // to a local id: the winner's row is the row this request wants.
       if (isUniqueViolation(error)) return RACED;
-      throw new Error("sites insert failed");
+      throw new Error("sites upsert failed");
     }
     return data as SiteRecord;
   });
   if (inserted === RACED) {
-    const winner = await findSite(key);
+    const winner = await findSite(key, isTest);
     if (winner) return await reuseSite(winner, input);
   } else if (inserted) {
     remember(inserted);
@@ -339,13 +370,13 @@ export async function getOrCreateSite(input: SiteInput): Promise<SiteRecord> {
     public_lng: pub.lng,
     locality: input.locality ?? null,
     tract_geoid: input.tractGeoid ?? null,
-    is_test: input.isTest === true,
+    is_test: isTest,
     created_at: nowIso,
     last_analyzed_at: nowIso,
     analysis_count: 1,
     schema_version: 1,
   };
-  localSites.set(key, fallback);
+  localSites.set(localKey(key, isTest), fallback);
   return fallback;
 }
 
@@ -629,33 +660,35 @@ export interface MetricsWriteResult {
 }
 
 /**
- * Write the named values, the vector and the timestamp onto the site row.
+ * Write the named values, the vector, the mask and the timestamp onto the site
+ * row.
  *
- * Only the named values that have one are stored. A null is left out of the
- * jsonb entirely rather than stored as `null`, because `metric_percentile`
- * selects on `metrics ? metric`: a stored null would join the population for
- * that metric and never satisfy `v < value`, which would drag every percentile
- * down by the count of the sites that could not measure it.
+ * Only the components that were measured are stored in `metrics`. An absent one
+ * is left out of the jsonb entirely rather than stored as `null`, because
+ * `metric_percentile` selects on `metrics ? metric`: a stored null would join
+ * the population for that metric and never satisfy `v < value`, which would
+ * drag every percentile down by the count of the sites that could not measure
+ * it.
  *
- * The three columns move together or not at all. `metrics`, `metrics_vector`
- * and `metrics_at` describe one computation, so a partial update would leave an
- * older vector standing beside newer named values with a timestamp saying both
- * were measured at once, and "sites like this" would then place the site by a
- * vector nothing in the row still supports. So a computation with named values
- * but no vector is written only when the stored row has no vector either, and
- * both columns are written together with the vector null; when the stored row
- * does have one, the whole write is skipped and the row keeps the complete
- * computation it already had.
+ * The four columns move together or not at all. `metrics`, `metrics_vector`,
+ * `metrics_mask` and `metrics_at` describe one computation, so a partial update
+ * would leave an older vector standing beside a newer mask with a timestamp
+ * saying both were measured at once, and "sites like this" would then place the
+ * site by entries nothing in the row still supports.
  *
- * A computation that produced no named value at all is not written either,
- * because an empty jsonb would replace a good row with a record of the run
- * where every layer happened to fail. Both rules are the same rule, that a
- * failed measurement never overwrites a successful one.
+ * A computation that produced no named value at all is not written, because an
+ * empty jsonb would replace a good row with a record of the run where every
+ * layer happened to fail. Neither is a computation with fewer than
+ * METRICS_MIN_PRESENT components present when the row already holds one that
+ * has at least that many: an ineligible measurement never overwrites an
+ * eligible one. Both rules are the same rule, that a failed measurement never
+ * overwrites a successful one.
  */
 export async function writeMetrics(
   siteId: string,
   named: Record<string, number | null>,
-  vector: number[] | null,
+  vector: number[],
+  mask: number,
 ): Promise<MetricsWriteResult> {
   if (isLocalSiteId(siteId)) {
     return { write: "skipped", reason: "a local site has no row to write to" };
@@ -668,24 +701,24 @@ export async function writeMetrics(
     return { write: "skipped", reason: "the computation produced no named value" };
   }
 
-  // A computation with no vector has to know what the row already holds before
-  // it can write anything, because the three columns go together.
-  if (vector === null) {
+  // An ineligible computation has to know what the row already holds before it
+  // can write anything, because the four columns go together.
+  if (presentCount(mask) < METRICS_MIN_PRESENT) {
     const stored = await withMemory(async (db) => {
       const { data, error } = await db
         .from("sites")
-        .select("metrics_vector")
+        .select("metrics_mask")
         .eq("id", siteId)
         .maybeSingle();
-      if (error) throw new Error("sites metrics vector lookup failed");
-      const row = (data as { metrics_vector: unknown } | null) ?? null;
-      return { vector: row === null ? null : parseVector(row.metrics_vector) };
+      if (error) throw new Error("sites metrics mask lookup failed");
+      const row = (data as { metrics_mask: unknown } | null) ?? null;
+      return { mask: parseMask(row === null ? null : row.metrics_mask) };
     });
     if (stored === undefined) return { write: "unavailable", reason: null };
-    if (stored.vector !== null) {
+    if (presentCount(stored.mask) >= METRICS_MIN_PRESENT) {
       return {
         write: "skipped",
-        reason: "would replace a complete vector with none",
+        reason: "would replace an eligible vector with fewer than ten measures",
       };
     }
   }
@@ -694,7 +727,8 @@ export async function writeMetrics(
     metrics,
     // pgvector's text input form. PostgREST sends the column as a string and
     // casts it, so the array is serialized rather than sent as JSON.
-    metrics_vector: vector === null ? null : JSON.stringify(vector),
+    metrics_vector: JSON.stringify(vector),
+    metrics_mask: mask,
     metrics_at: new Date().toISOString(),
   };
   const written = await withMemory(async (db) => {
@@ -859,10 +893,16 @@ export interface SimilarSite {
   locality: string | null;
   publicLat: number;
   publicLng: number;
-  /** round((1 - d / sqrt(14)) * 100), SPEC section 14. */
+  /** round((1 - d / sqrt(14)) * 100) on the scaled distance, SPEC section 14. */
   match: number;
-  /** The three components that differ least, closest first. */
+  /** The three shared components that differ least, closest first. */
   closest: string[];
+  /**
+   * How many components the two sites both measured, which is the k of the
+   * masked distance. Data, not copy: it is here so the basis of a match is
+   * visible to whoever reads the response.
+   */
+  sharedComponents: number;
 }
 
 interface VectorRow {
@@ -870,6 +910,18 @@ interface VectorRow {
   public_lat: number;
   public_lng: number;
   metrics_vector: unknown;
+  metrics_mask: unknown;
+}
+
+/**
+ * A stored `metrics_mask`, or 0 when the column holds nothing readable. Zero is
+ * no component present, which is the only safe reading of a mask that is not a
+ * number: it excludes the row from every comparison rather than inventing one.
+ */
+function parseMask(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isInteger(n) || n < 0) return 0;
+  return n;
 }
 
 /** pgvector comes back over PostgREST as its text form, "[1,2,3]". */
@@ -893,23 +945,25 @@ function parseVector(value: unknown): number[] | null {
 }
 
 /**
- * The nearest sites by L2 distance over the metrics vector.
+ * The nearest sites by the masked distance of SPEC section 14.
  *
- * SPEC section 14 writes this as `order by metrics_vector <-> $1 limit 5`.
- * PostgREST cannot express a vector operator and migration 0002 is fixed to the
- * SQL in SPEC section 13, which carries no similarity function, so the ordering
- * runs here over a capped select of the candidate vectors. The index in 0002
- * stays for the day a function is added; the result is the same ordering.
+ * The `<->` operator is not used while masks exist, because pgvector would
+ * compare the placeholder entries of absent components as if they were
+ * measurements. The candidate vectors and their masks are read in one capped
+ * select and the distance is computed here, over the components both sites
+ * measured; a candidate with fewer than METRICS_MIN_PRESENT of its own, or
+ * fewer than that in common with the query site, is not compared at all.
  */
 export async function similarSites(
   vector: number[],
+  mask: number,
   siteId: string,
   limit = 5,
 ): Promise<{ sites: SimilarSite[] | null; truncated: boolean }> {
   const rows = await withMemory(async (db) => {
     let query = db
       .from("sites")
-      .select("locality, public_lat, public_lng, metrics_vector")
+      .select("locality, public_lat, public_lng, metrics_vector, metrics_mask")
       .not("metrics_vector", "is", null)
       .neq("id", siteId);
     if (!includeTestSites()) query = query.eq("is_test", false);
@@ -927,11 +981,29 @@ export async function similarSites(
   // "nothing is like this site", which nobody established.
   if (!rows) return { sites: null, truncated: false };
 
-  const scored: Array<{ row: VectorRow; other: number[]; distance: number }> = [];
+  const scored: Array<{
+    row: VectorRow;
+    other: number[];
+    distance: number;
+    shared: number;
+    sharedCount: number;
+  }> = [];
   for (const row of rows) {
     const other = parseVector(row.metrics_vector);
     if (!other) continue;
-    scored.push({ row, other, distance: l2Distance(vector, other) });
+    const otherMask = parseMask(row.metrics_mask);
+    // A candidate that measured fewer than ten of its own components is not a
+    // site anything is placed against (SPEC section 14).
+    if (presentCount(otherMask) < METRICS_MIN_PRESENT) continue;
+    const scaled = maskedDistance(vector, mask, other, otherMask);
+    if (scaled === null) continue;
+    scored.push({
+      row,
+      other,
+      distance: scaled.distance,
+      shared: scaled.shared,
+      sharedCount: scaled.sharedCount,
+    });
   }
   scored.sort((left, right) => left.distance - right.distance);
 
@@ -944,7 +1016,8 @@ export async function similarSites(
       publicLat: entry.row.public_lat,
       publicLng: entry.row.public_lng,
       match: matchPercent(entry.distance),
-      closest: closestComponents(vector, entry.other),
+      closest: closestComponents(vector, entry.other, entry.shared),
+      sharedComponents: entry.sharedCount,
     })),
     truncated: rows.length === SIMILAR_CANDIDATE_CAP,
   };
@@ -1107,7 +1180,9 @@ export async function storeBrief(
  */
 export const MEMORY_COPY = {
   offline: "Site Memory is offline; this analysis will not be saved.",
-  needsAllLayers: "Sites like this needs all layers; <layers> were unavailable.",
+  /** Verbatim from SPEC section 14 as amended 2026-09-25. */
+  needsTenMeasures:
+    "Sites like this needs at least ten measures; <layers or components> were unavailable.",
   notEnoughSites:
     "Percentiles need ten analyzed sites; Site Memory holds <n> so far.",
 };
@@ -1118,6 +1193,12 @@ export interface MemoryContext {
   n: number | null;
   percentiles: PercentileEntry[] | null;
   similar: SimilarSite[] | null;
+  /**
+   * The components this site could not measure, in vector order. Data, not
+   * copy: the panel does not render it, and it says which measures are behind
+   * the sentence rather than leaving a reader to infer them.
+   */
+  missing: string[];
   reasonIfNull: string | null;
   /**
    * True when a capped read came back full, so the population behind the
@@ -1131,30 +1212,44 @@ export interface MemoryContext {
 /** The computed metrics of one analysis, or null when there is no metrics row. */
 export interface SiteMetrics {
   named: Record<string, number | null>;
-  vector: number[] | null;
+  vector: number[];
+  /** Bit i set when component i was measured (SPEC section 14). */
+  mask: number;
   missing: string[];
 }
 
 /** The stored metrics of one site, or null when there are none to read. */
 export async function readMetrics(
   siteId: string,
-): Promise<{ named: Record<string, number | null>; vector: number[] | null } | null> {
+): Promise<{
+  named: Record<string, number | null>;
+  vector: number[] | null;
+  mask: number;
+} | null> {
   if (isLocalSiteId(siteId)) return null;
   const row = await withMemory(async (db) => {
     const { data, error } = await db
       .from("sites")
-      .select("metrics, metrics_vector")
+      .select("metrics, metrics_vector, metrics_mask")
       .eq("id", siteId)
       .maybeSingle();
     if (error) throw new Error("sites metrics lookup failed");
-    return (data as { metrics: unknown; metrics_vector: unknown } | null) ?? null;
+    return (
+      (data as
+        | { metrics: unknown; metrics_vector: unknown; metrics_mask: unknown }
+        | null) ?? null
+    );
   });
   if (!row || !row.metrics || typeof row.metrics !== "object") return null;
   const named: Record<string, number | null> = {};
   for (const [name, value] of Object.entries(row.metrics as Record<string, unknown>)) {
     if (typeof value === "number" && Number.isFinite(value)) named[name] = value;
   }
-  return { named, vector: parseVector(row.metrics_vector) };
+  return {
+    named,
+    vector: parseVector(row.metrics_vector),
+    mask: parseMask(row.metrics_mask),
+  };
 }
 
 /** The distinct layers behind a set of missing metric components. */
@@ -1171,7 +1266,8 @@ function layersBehind(missing: string[]): string[] {
  * Percentiles and similar sites for one analysis, with a sentence for whatever
  * could not be shown. Nothing here invents a number: a percentile appears only
  * when its metric has ten analyzed sites behind it, and "sites like this"
- * appears only when this site has all fourteen components.
+ * appears only when this site measured at least ten of the fourteen components
+ * (SPEC section 14).
  */
 export async function buildMemoryContext(
   siteId: string,
@@ -1182,6 +1278,7 @@ export async function buildMemoryContext(
     n: null,
     percentiles: null,
     similar: null,
+    missing: metrics ? [...metrics.missing] : [],
     reasonIfNull: MEMORY_COPY.offline,
     truncated: false,
   });
@@ -1200,19 +1297,23 @@ export async function buildMemoryContext(
       n,
       percentiles: null,
       similar: null,
+      missing: [],
       reasonIfNull: null,
       truncated: false,
     };
   }
 
-  const { named, vector, missing } = metrics;
+  const { named, vector, mask, missing } = metrics;
+  // Ten of the fourteen is what makes a site comparable at all. Below it the
+  // site is not placed, and the sentence below says so.
+  const eligible = presentCount(mask) >= METRICS_MIN_PRESENT;
 
   const [n, population, similar] = await Promise.all([
     countSites(),
     percentiles(named),
-    vector === null
-      ? Promise.resolve({ sites: null, truncated: false })
-      : similarSites(vector, siteId),
+    eligible
+      ? similarSites(vector, mask, siteId)
+      : Promise.resolve({ sites: null, truncated: false }),
   ]);
   const populations = population.entries;
 
@@ -1240,9 +1341,12 @@ export async function buildMemoryContext(
     const measured = populations.reduce((best, entry) => Math.max(best, entry.n), 0);
     reasons.push(MEMORY_COPY.notEnoughSites.replace("<n>", String(measured)));
   }
-  if (vector === null) {
+  if (!eligible) {
     reasons.push(
-      MEMORY_COPY.needsAllLayers.replace("<layers>", layersBehind(missing).join(", ")),
+      MEMORY_COPY.needsTenMeasures.replace(
+        "<layers or components>",
+        layersBehind(missing).join(", "),
+      ),
     );
   }
 
@@ -1251,6 +1355,7 @@ export async function buildMemoryContext(
     n,
     percentiles: entries.length > 0 ? entries : null,
     similar: similar.sites,
+    missing: [...missing],
     reasonIfNull: reasons.length > 0 ? reasons.join(" ") : null,
     truncated: population.truncated || similar.truncated,
   };

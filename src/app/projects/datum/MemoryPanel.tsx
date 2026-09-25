@@ -24,6 +24,8 @@ export interface SimilarSite {
   publicLng: number;
   match: number;
   closest: string[];
+  /** How many components the two sites both measured. Carried, not rendered. */
+  sharedComponents?: number;
 }
 
 export interface MemoryContext {
@@ -31,6 +33,8 @@ export interface MemoryContext {
   n: number | null;
   percentiles: PercentileEntry[] | null;
   similar: SimilarSite[] | null;
+  /** The components this site could not measure. Carried, not rendered. */
+  missing?: string[];
   reasonIfNull: string | null;
   /** Set when a capped read came back full. Carried, not rendered. */
   truncated?: boolean;

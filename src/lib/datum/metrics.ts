@@ -1,10 +1,12 @@
 // Site metrics and the similarity vector. SPEC.md section 14.
 //
 // Fourteen components, each normalized to 0..1 with a fixed constant so the
-// vectors never drift as the dataset grows. A site gets a vector only when all
-// fourteen are available; anything missing leaves the vector null, and the
-// named values that were computed are still returned so the site can still be
-// placed in a percentile for the metrics it does have.
+// vectors never drift as the dataset grows. A component that cannot be measured
+// is recorded as absent rather than as a value (SPEC section 14, amended
+// 2026-09-25): the vector always has fourteen entries, an absent one holds a
+// storage placeholder that is never read as a value, and a companion mask says
+// which entries are real. A site is eligible for similarity once at least ten
+// of the fourteen are present.
 //
 // Erasable TypeScript only, and no "@/" alias: this module is imported by the
 // routes and by the unit tests alike.
@@ -155,6 +157,30 @@ export const VECTOR_LENGTH = METRIC_NAMES.length;
  */
 export const PERCENTILE_MIN_SITES = 10;
 
+/**
+ * How many of the fourteen components a site needs before it can be compared
+ * to another one (SPEC section 14). Below this the site is not placed at all,
+ * and a pair with fewer than this many components in common is not compared.
+ */
+export const METRICS_MIN_PRESENT = 10;
+
+/** Every component present: the mask a complete computation carries. */
+export const FULL_MASK = (1 << VECTOR_LENGTH) - 1;
+
+/** How many components a mask marks present. */
+export function presentCount(mask: number): number {
+  let count = 0;
+  for (let i = 0; i < VECTOR_LENGTH; i++) {
+    if ((mask & (1 << i)) !== 0) count += 1;
+  }
+  return count;
+}
+
+/** The names a mask marks present, in vector order. */
+export function presentComponents(mask: number): MetricName[] {
+  return METRIC_NAMES.filter((_, index) => (mask & (1 << index)) !== 0);
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function clamp01(value: number): number {
@@ -235,12 +261,21 @@ export function sfhaShareOf(flood: FloodData | null): number | null {
 // ─── The fourteen components ─────────────────────────────────────────────────
 
 export interface ComputedMetrics {
-  /** The unnormalized value of each of the fourteen, null where unavailable. */
-  named: Record<string, number | null>;
-  /** Fourteen numbers in 0..1, or null when any component is unavailable. */
-  vector: number[] | null;
+  /** The unnormalized value of every component that was measured. Absent ones are omitted. */
+  named: Record<string, number>;
+  /**
+   * Fourteen numbers in 0..1. An absent component holds a placeholder 0, which
+   * is never read as a value: only `mask` says which entries are real.
+   */
+  vector: number[];
+  /** Bit i is set when component i was measured (SPEC section 14). */
+  mask: number;
+  /** How many components were measured, which is the popcount of `mask`. */
+  present: number;
   /** The names of the components that had no value, in vector order. */
   missing: MetricName[];
+  /** True once at least METRICS_MIN_PRESENT components are present. */
+  eligible: boolean;
 }
 
 type Normalizer = (value: number) => number;
@@ -273,12 +308,14 @@ export function normalizeMetric(metric: MetricName, value: number): number {
 }
 
 /**
- * The fourteen named values for one analysis, and the vector when every one of
- * them is present.
+ * The named values for one analysis, the fourteen entry vector, and the mask
+ * that says which of those entries were measured.
  *
  * Nothing here substitutes a default. A layer that failed, a field the source
- * suppressed, and a soil component with no hydrologic group all produce null,
- * and a null anywhere means no vector (SPEC section 14).
+ * suppressed, and a soil component with no hydrologic group all produce no
+ * value: the name is left out of `named`, its vector entry holds the storage
+ * placeholder, and its mask bit stays clear, so no distance ever reads it
+ * (SPEC section 14, amended 2026-09-25).
  */
 export function computeMetrics(
   layers: Partial<Record<LayerName, LayerEnvelope<unknown>>>,
@@ -309,7 +346,7 @@ export function computeMetrics(
     if (candidate > best) topComponent = component;
   }
 
-  const named: Record<string, number | null> = {
+  const measured: Record<MetricName, number | null> = {
     annualMeanTempC: meanOrNull(months.map((month) => month.meanC)),
     annualTempRangeC:
       maxima.length > 0 && minima.length > 0
@@ -331,33 +368,75 @@ export function computeMetrics(
     hydrologicGroup: hydrologicGroupValue(topComponent?.hydrologicGroup ?? null),
   };
 
+  const named: Record<string, number> = {};
   const missing: MetricName[] = [];
   const vector: number[] = [];
-  for (const metric of METRIC_NAMES) {
-    const value = named[metric];
+  let mask = 0;
+  for (let index = 0; index < METRIC_NAMES.length; index++) {
+    const metric = METRIC_NAMES[index];
+    const value = measured[metric];
     if (value === null) {
+      // The storage placeholder SPEC section 14 defines. The bit stays clear,
+      // so nothing ever reads this entry as a measurement.
+      vector.push(0);
       missing.push(metric);
       continue;
     }
+    named[metric] = value;
     vector.push(normalizeMetric(metric, value));
+    mask |= 1 << index;
   }
 
-  return { named, vector: missing.length === 0 ? vector : null, missing };
+  const present = presentCount(mask);
+  return {
+    named,
+    vector,
+    mask,
+    present,
+    missing,
+    eligible: present >= METRICS_MIN_PRESENT,
+  };
+}
+
+/** What a masked comparison of two sites produced. */
+export interface MaskedDistance {
+  /** sqrt((14 / k) * sum over the shared components of (a - b)^2). */
+  distance: number;
+  /** The mask of the components both sites measured. */
+  shared: number;
+  /** How many components that is, which is k above. */
+  sharedCount: number;
 }
 
 /**
- * Euclidean distance between two vectors. Both callers hold vectors of
- * VECTOR_LENGTH: `computeMetrics` builds one of exactly that length and
- * `parseVector` in memory.ts rejects a stored vector of any other, so there is
- * no shorter side to substitute a zero for.
+ * The distance SPEC section 14 defines over the components both sites measured.
+ *
+ * Only shared components enter the sum, so an absent component contributes
+ * nothing on either side and two sites are never made similar by a shared
+ * absence; the 14 / k scaling puts the result back on the scale of a complete
+ * comparison. Null when the two sites share fewer than METRICS_MIN_PRESENT
+ * components, which is the pair not being compared at all.
  */
-export function l2Distance(a: number[], b: number[]): number {
+export function maskedDistance(
+  a: number[],
+  maskA: number,
+  b: number[],
+  maskB: number,
+): MaskedDistance | null {
+  const shared = maskA & maskB;
+  const sharedCount = presentCount(shared);
+  if (sharedCount < METRICS_MIN_PRESENT) return null;
   let sum = 0;
-  for (let i = 0; i < a.length; i++) {
+  for (let i = 0; i < VECTOR_LENGTH; i++) {
+    if ((shared & (1 << i)) === 0) continue;
     const delta = a[i] - b[i];
     sum += delta * delta;
   }
-  return Math.sqrt(sum);
+  return {
+    distance: Math.sqrt((VECTOR_LENGTH / sharedCount) * sum),
+    shared,
+    sharedCount,
+  };
 }
 
 /**
@@ -369,16 +448,25 @@ export function matchPercent(distance: number): number {
   return Math.round((1 - distance / Math.sqrt(VECTOR_LENGTH)) * 100);
 }
 
-/** The components that differ least between two vectors, closest first. */
+/**
+ * The components that differ least between two vectors, closest first.
+ *
+ * Only the components `shared` marks are considered: an entry both sites left
+ * absent holds the placeholder on both sides, so it would otherwise read as a
+ * perfect agreement about a measurement neither site has.
+ */
 export function closestComponents(
   a: number[],
   b: number[],
+  shared: number = FULL_MASK,
   limit = 3,
 ): MetricName[] {
-  return METRIC_NAMES.map((metric, index) => ({
-    metric,
-    delta: Math.abs(a[index] - b[index]),
-  }))
+  return METRIC_NAMES.map((metric, index) => ({ metric, index }))
+    .filter((entry) => (shared & (1 << entry.index)) !== 0)
+    .map((entry) => ({
+      metric: entry.metric,
+      delta: Math.abs(a[entry.index] - b[entry.index]),
+    }))
     .sort((left, right) => left.delta - right.delta)
     .slice(0, limit)
     .map((entry) => entry.metric);

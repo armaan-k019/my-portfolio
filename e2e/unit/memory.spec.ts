@@ -26,6 +26,7 @@ import {
   PEEK_MEMO_MAX,
   RATE_LIMIT_PEEK_MEMO_MS,
 } from "../../src/lib/datum/constants";
+import { FULL_MASK, VECTOR_LENGTH } from "../../src/lib/datum/metrics";
 
 /** A client whose every query rejects, which is what a paused project looks like. */
 function rejectingClient(): SupabaseClient {
@@ -36,7 +37,9 @@ function rejectingClient(): SupabaseClient {
         select: () => chain,
         insert: () => chain,
         update: () => chain,
-        upsert: () => fail(),
+        // Chainable, because getOrCreateSite upserts and then selects the row
+        // back; the terminal single() is what rejects.
+        upsert: () => chain,
         eq: () => chain,
         maybeSingle: () => fail(),
         single: () => fail(),
@@ -398,6 +401,7 @@ function sitesClient(options?: {
 }) {
   const rows = [...(options?.rows ?? [])];
   const updates: Array<Record<string, unknown>> = [];
+  const conflictTargets: string[] = [];
   let inserts = 0;
   let failing = false;
 
@@ -422,6 +426,12 @@ function sitesClient(options?: {
         insert(row: Record<string, unknown>) {
           mode = "insert";
           payload = row;
+          return chain;
+        },
+        upsert(row: Record<string, unknown>, options?: { onConflict?: string }) {
+          mode = "insert";
+          payload = row;
+          conflictTargets.push(options?.onConflict ?? "");
           return chain;
         },
         update(row: Record<string, unknown>) {
@@ -479,6 +489,7 @@ function sitesClient(options?: {
     rows,
     updates,
     inserts: () => inserts,
+    conflictTargets: () => conflictTargets,
     breakNow: () => {
       failing = true;
     },
@@ -659,7 +670,7 @@ test("the peek memo is cleared at PEEK_MEMO_MAX rather than growing forever", as
   setClientForTests(null);
 });
 
-// ─── writeMetrics: the three columns move together ───────────────────────────
+// ─── writeMetrics: the four columns move together ────────────────────────────
 
 /**
  * A `sites` table for the metrics write: it answers the pre-read with whatever
@@ -667,7 +678,7 @@ test("the peek memo is cleared at PEEK_MEMO_MAX rather than growing forever", as
  * which columns went.
  */
 function metricsClient(options?: {
-  storedRow?: { metrics_vector: unknown } | null;
+  storedRow?: { metrics_mask: unknown } | null;
   failRead?: boolean;
 }) {
   const updates: Array<Record<string, unknown>> = [];
@@ -714,7 +725,7 @@ test("a fresh row gets the metrics, the vector and the timestamp in one update",
   const fake = metricsClient();
   setClientForTests(fake.client);
 
-  const result = await writeMetrics(SITE_ID, { reliefM: 0.4, sds: 0.1 }, VECTOR);
+  const result = await writeMetrics(SITE_ID, { reliefM: 0.4, sds: 0.1 }, VECTOR, FULL_MASK);
 
   expect(result).toEqual({ write: "written", reason: null });
   expect(fake.updates).toHaveLength(1);
@@ -722,64 +733,73 @@ test("a fresh row gets the metrics, the vector and the timestamp in one update",
   expect(Object.keys(update).sort()).toEqual([
     "metrics",
     "metrics_at",
+    "metrics_mask",
     "metrics_vector",
   ]);
   expect(update.metrics).toEqual({ reliefM: 0.4, sds: 0.1 });
   expect(update.metrics_vector).toBe(JSON.stringify(VECTOR));
-  // A computation that has a vector needs no pre-read: it replaces all three.
+  expect(update.metrics_mask).toBe(FULL_MASK);
+  // An eligible computation needs no pre-read: it replaces all four.
   expect(fake.reads()).toEqual([]);
   setClientForTests(null);
 });
 
-test("a computation with no vector never lands beside a stored one", async () => {
-  const fake = metricsClient({ storedRow: { metrics_vector: JSON.stringify(VECTOR) } });
+/** A mask with the given number of low bits set. */
+function maskOf(present: number): number {
+  return (1 << present) - 1;
+}
+
+test("an ineligible computation never lands on an eligible row", async () => {
+  const fake = metricsClient({ storedRow: { metrics_mask: FULL_MASK } });
   setClientForTests(fake.client);
 
-  const result = await writeMetrics(SITE_ID, { reliefM: 0.9 }, null);
+  const result = await writeMetrics(SITE_ID, { reliefM: 0.9 }, VECTOR, maskOf(9));
 
   expect(result).toEqual({
     write: "skipped",
-    reason: "would replace a complete vector with none",
+    reason: "would replace an eligible vector with fewer than ten measures",
   });
-  // Nothing was written, so the row keeps the complete computation it had.
+  // Nothing was written, so the row keeps the computation it had.
   expect(fake.updates).toEqual([]);
-  expect(fake.reads()).toEqual(["sites:metrics_vector"]);
+  expect(fake.reads()).toEqual(["sites:metrics_mask"]);
   setClientForTests(null);
 });
 
-test("a row with no stored vector takes the metrics and a null vector together", async () => {
-  const fake = metricsClient({ storedRow: { metrics_vector: null } });
+test("an ineligible computation lands on a row that has nothing better", async () => {
+  const fake = metricsClient({ storedRow: { metrics_mask: 0 } });
   setClientForTests(fake.client);
 
-  const result = await writeMetrics(SITE_ID, { reliefM: 0.9 }, null);
+  const result = await writeMetrics(SITE_ID, { reliefM: 0.9 }, VECTOR, maskOf(9));
 
   expect(result).toEqual({ write: "written", reason: null });
   expect(fake.updates).toHaveLength(1);
   expect(Object.keys(fake.updates[0]).sort()).toEqual([
     "metrics",
     "metrics_at",
+    "metrics_mask",
     "metrics_vector",
   ]);
-  expect(fake.updates[0].metrics_vector).toBeNull();
+  expect(fake.updates[0].metrics_mask).toBe(maskOf(9));
   setClientForTests(null);
 });
 
-test("a stored row with no vector gains one when the computation has all fourteen", async () => {
-  const fake = metricsClient({ storedRow: { metrics_vector: null } });
+test("a ten component computation is eligible and needs no pre-read", async () => {
+  const fake = metricsClient({ storedRow: { metrics_mask: FULL_MASK } });
   setClientForTests(fake.client);
 
-  const result = await writeMetrics(SITE_ID, { reliefM: 0.9 }, VECTOR);
+  const result = await writeMetrics(SITE_ID, { reliefM: 0.9 }, VECTOR, maskOf(10));
 
   expect(result).toEqual({ write: "written", reason: null });
-  expect(fake.updates[0].metrics_vector).toBe(JSON.stringify(VECTOR));
+  expect(fake.reads(), "ten present is eligible, so nothing is read first").toEqual([]);
+  expect(fake.updates[0].metrics_mask).toBe(maskOf(10));
   setClientForTests(null);
 });
 
-test("a pre-read that fails is unavailable rather than a write with no vector", async () => {
+test("a pre-read that fails is unavailable rather than a write over an unknown row", async () => {
   const fake = metricsClient({ failRead: true });
   setClientForTests(fake.client);
 
-  const result = await writeMetrics(SITE_ID, { reliefM: 0.9 }, null);
+  const result = await writeMetrics(SITE_ID, { reliefM: 0.9 }, VECTOR, maskOf(9));
 
   expect(result).toEqual({ write: "unavailable", reason: null });
   expect(fake.updates).toEqual([]);
@@ -794,6 +814,7 @@ interface FakeVectorRow {
   public_lat: number;
   public_lng: number;
   metrics_vector: unknown;
+  metrics_mask: unknown;
 }
 
 /**
@@ -855,6 +876,7 @@ function vectorRow(overrides: Partial<FakeVectorRow> = {}): FakeVectorRow {
     public_lat: 33.78,
     public_lng: -84.39,
     metrics_vector: JSON.stringify(VECTOR),
+    metrics_mask: FULL_MASK,
     ...overrides,
   };
 }
@@ -876,7 +898,7 @@ async function withoutTestSiteFlag(run: () => Promise<void>): Promise<void> {
 test("a failed similarity read is null, not an empty neighbourhood", async () => {
   setClientForTests(contextClient({ failVectorRead: true }));
 
-  const result = await similarSites(VECTOR, SITE_ID);
+  const result = await similarSites(VECTOR, FULL_MASK, SITE_ID);
 
   expect(result.sites).toBeNull();
   expect(result.truncated).toBe(false);
@@ -886,7 +908,7 @@ test("a failed similarity read is null, not an empty neighbourhood", async () =>
 test("a similar site carries no id out of the function", async () => {
   setClientForTests(contextClient({ vectorRows: [vectorRow()] }));
 
-  const result = await similarSites(VECTOR, SITE_ID);
+  const result = await similarSites(VECTOR, FULL_MASK, SITE_ID);
 
   expect(result.sites).not.toBeNull();
   expect(result.sites).toHaveLength(1);
@@ -897,7 +919,11 @@ test("a similar site carries no id out of the function", async () => {
     "match",
     "publicLat",
     "publicLng",
+    "sharedComponents",
   ]);
+  expect(result.sites![0].sharedComponents, "every component in common").toBe(
+    VECTOR_LENGTH,
+  );
   expect("id" in result.sites![0]).toBe(false);
   setClientForTests(null);
 });
@@ -905,10 +931,50 @@ test("a similar site carries no id out of the function", async () => {
 test("truncated is true when the candidate read comes back at the cap", async () => {
   const full = Array.from({ length: SIMILAR_CANDIDATE_CAP }, () => vectorRow());
   setClientForTests(contextClient({ vectorRows: full }));
-  expect((await similarSites(VECTOR, SITE_ID)).truncated).toBe(true);
+  expect((await similarSites(VECTOR, FULL_MASK, SITE_ID)).truncated).toBe(true);
 
   setClientForTests(contextClient({ vectorRows: full.slice(0, SIMILAR_CANDIDATE_CAP - 1) }));
-  expect((await similarSites(VECTOR, SITE_ID)).truncated).toBe(false);
+  expect((await similarSites(VECTOR, FULL_MASK, SITE_ID)).truncated).toBe(false);
+  setClientForTests(null);
+});
+
+test("a candidate with fewer than ten of its own components is not compared", async () => {
+  setClientForTests(
+    contextClient({
+      vectorRows: [
+        vectorRow({ locality: "nine of fourteen", metrics_mask: (1 << 9) - 1 }),
+        vectorRow({ locality: "ten of fourteen", metrics_mask: (1 << 10) - 1 }),
+      ],
+    }),
+  );
+
+  const result = await similarSites(VECTOR, FULL_MASK, SITE_ID);
+
+  expect(result.sites!.map((site) => site.locality)).toEqual(["ten of fourteen"]);
+  expect(result.sites![0].sharedComponents, "ten in common").toBe(10);
+  setClientForTests(null);
+});
+
+test("a shared absence never enters the closest components", async () => {
+  // Both sides are missing component 13, and both hold the placeholder there,
+  // so an unmasked comparison would rank it as a perfect agreement.
+  const withoutSoil = FULL_MASK & ~(1 << 13);
+  const other = VECTOR.slice();
+  other[13] = 0;
+  const mine = VECTOR.slice();
+  mine[13] = 0;
+  setClientForTests(
+    contextClient({
+      vectorRows: [
+        vectorRow({ metrics_vector: JSON.stringify(other), metrics_mask: withoutSoil }),
+      ],
+    }),
+  );
+
+  const result = await similarSites(mine, withoutSoil, SITE_ID);
+
+  expect(result.sites![0].sharedComponents, "thirteen in common").toBe(13);
+  expect(result.sites![0].closest).not.toContain("hydrologicGroup");
   setClientForTests(null);
 });
 
@@ -943,6 +1009,7 @@ test("the needs ten sentence takes the largest per metric population", async () 
     const context = await buildMemoryContext(SITE_ID, {
       named: { dailyRadiationKwhM2: 4.4, buildingCoverage: 0.3 },
       vector: VECTOR,
+      mask: FULL_MASK,
       missing: [],
     });
 
@@ -972,6 +1039,7 @@ test("a metric whose population is not a number is discarded, not counted", asyn
     const context = await buildMemoryContext(SITE_ID, {
       named: { dailyRadiationKwhM2: 4.4, buildingCoverage: 0.3 },
       vector: VECTOR,
+      mask: FULL_MASK,
       missing: [],
     });
 
@@ -1028,6 +1096,93 @@ function filterRecordingClient(options?: {
   } as unknown as SupabaseClient;
   return { client, filters: () => filters };
 }
+
+test("fewer than ten measures gets the amended sentence and no similar sites", async () => {
+  await withoutTestSiteFlag(async () => {
+    setClientForTests(
+      contextClient({
+        count: 40,
+        vectorRows: [vectorRow()],
+        percentile: { dailyRadiationKwhM2: { percentile: 0.9, n: 30 } },
+      }),
+    );
+
+    // Nine present: the sfhaShare and hydrologicGroup components are absent
+    // along with three more, so the site is not placed at all.
+    const missing = ["sfhaShare", "hydrologicGroup", "reliefM", "meanSlopePct", "sds"];
+    const context = await buildMemoryContext(SITE_ID, {
+      named: { dailyRadiationKwhM2: 4.4 },
+      vector: VECTOR,
+      mask: (1 << 9) - 1,
+      missing,
+    });
+
+    expect(context.similar, "an ineligible site is placed against nothing").toBeNull();
+    expect(context.missing, "the absent components travel as data").toEqual(missing);
+    expect(context.reasonIfNull).toBe(
+      MEMORY_COPY.needsTenMeasures.replace(
+        "<layers or components>",
+        "flood, soil, topo, seismic",
+      ),
+    );
+    setClientForTests(null);
+  });
+});
+
+test("ten measures is placed, and the amended sentence is not shown", async () => {
+  await withoutTestSiteFlag(async () => {
+    setClientForTests(
+      contextClient({
+        count: 40,
+        vectorRows: [vectorRow()],
+        percentile: { dailyRadiationKwhM2: { percentile: 0.9, n: 30 } },
+      }),
+    );
+
+    const context = await buildMemoryContext(SITE_ID, {
+      named: { dailyRadiationKwhM2: 4.4 },
+      vector: VECTOR,
+      mask: (1 << 10) - 1,
+      missing: ["sfhaShare", "sds", "densityPerKm2", "hydrologicGroup"],
+    });
+
+    expect(context.similar, "ten present is eligible").not.toBeNull();
+    expect(context.similar![0].sharedComponents, "ten in common with a full row").toBe(10);
+    expect(context.reasonIfNull, "nothing to explain").toBeNull();
+    setClientForTests(null);
+  });
+});
+
+test("the site row is upserted on the composite key, so a test row and a real row coexist", async () => {
+  const fake = sitesClient();
+  setClientForTests(fake.client);
+
+  await getOrCreateSite({ lat: 33.7751258, lng: -84.391975, isTest: true });
+
+  expect(
+    fake.conflictTargets(),
+    "the unique constraint is (site_key, is_test) since migration 0002",
+  ).toEqual(["site_key,is_test"]);
+  setClientForTests(null);
+});
+
+test("a lookup names is_test, so a test row is never served to a real analysis", async () => {
+  const real = siteRow({ id: "aaaaaaaa-0000-0000-0000-000000000001", is_test: false });
+  const fake = sitesClient({ rows: [real] });
+  setClientForTests(fake.client);
+
+  // The same point, asked for as a test site: the real row must not answer, so
+  // a second row is created rather than the first one reused.
+  const site = await getOrCreateSite({ lat: 33.7751258, lng: -84.391975, isTest: true });
+  expect(site.id).not.toBe(real.id);
+  expect(site.is_test).toBe(true);
+  expect(fake.inserts(), "the real row did not answer, so a row was created").toBe(1);
+
+  // And the real one is still found when it is the one asked for.
+  const again = await getOrCreateSite({ lat: 33.7751258, lng: -84.391975 });
+  expect(again.id).toBe(real.id);
+  setClientForTests(null);
+});
 
 test("the site count asks only for rows that finished an analysis", async () => {
   await withoutTestSiteFlag(async () => {

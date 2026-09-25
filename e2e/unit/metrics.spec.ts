@@ -10,6 +10,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { test, expect } from "@playwright/test";
 import {
+  FULL_MASK,
+  METRICS_MIN_PRESENT,
   METRIC_NAMES,
   NORMALIZATION,
   PERCENTILE_METRICS,
@@ -17,9 +19,10 @@ import {
   closestComponents,
   computeMetrics,
   hydrologicGroupValue,
-  l2Distance,
+  maskedDistance,
   matchPercent,
   normalizeMetric,
+  presentCount,
   sfhaShareOf,
 } from "../../src/lib/datum/metrics";
 import type {
@@ -59,12 +62,10 @@ function siteLayers(site: string): Layers {
  * The Atlanta set with the soil top component given a hydrologic group.
  *
  * Atlanta's map unit is "Urban land" with no group at all, which SPEC section
- * 14 row 13 makes null, so the real Atlanta site has no vector. This variant
- * changes exactly that one field and nothing else, so the "all fourteen inside
- * 0..1" property is checked on real values for thirteen components and one
- * substituted letter for the fourteenth. Recorded in the report: PHASE-3 step
- * 3.2 asks for the property on the Atlanta fixtures unchanged, and SPEC section
- * 14 makes that impossible for this map unit.
+ * 14 row 13 records as absent. This variant changes exactly that one field and
+ * nothing else, so the "all fourteen inside 0..1" property is checked on real
+ * values for thirteen components and one substituted letter for the
+ * fourteenth.
  */
 function atlantaWithSoilGroup(group: string): Layers {
   const layers = siteLayers("atlanta");
@@ -76,12 +77,15 @@ function atlantaWithSoilGroup(group: string): Layers {
 }
 
 test("metrics: every component of the Atlanta vector lies in 0 to 1", () => {
-  const { vector, named, missing } = computeMetrics(atlantaWithSoilGroup("B"));
+  const { vector, named, missing, mask, present } = computeMetrics(
+    atlantaWithSoilGroup("B"),
+  );
   expect(missing, "no component should be missing once soil carries a group").toEqual([]);
-  expect(vector, "a complete site gets a vector").not.toBeNull();
-  expect(vector!.length, "the vector has fourteen components").toBe(VECTOR_LENGTH);
+  expect(mask, "every bit is set on a complete computation").toBe(FULL_MASK);
+  expect(present, "fourteen components present").toBe(VECTOR_LENGTH);
+  expect(vector.length, "the vector has fourteen components").toBe(VECTOR_LENGTH);
   for (let index = 0; index < VECTOR_LENGTH; index++) {
-    const value = vector![index];
+    const value = vector[index];
     expect(
       Number.isFinite(value),
       `component ${index} (${METRIC_NAMES[index]}) should be a number`,
@@ -105,48 +109,88 @@ test("metrics: every component of the Atlanta vector lies in 0 to 1", () => {
   expect(named.sds, "Atlanta SDS from the seismic fixture").toBeCloseTo(0.21, 6);
 });
 
-test("metrics: the real Atlanta fixtures have no vector, because Urban land has no hydrologic group", () => {
-  const { vector, named, missing } = computeMetrics(siteLayers("atlanta"));
-  expect(named.hydrologicGroup, "Urban land carries no group").toBeNull();
-  expect(missing, "the soil component is the only one missing").toEqual([
-    "hydrologicGroup",
-  ]);
-  expect(vector, "any missing component means no vector").toBeNull();
-  // Everything else was still measured, so the site can still be placed in a
-  // percentile for the metrics it does have.
-  expect(named.dailyRadiationKwhM2, "radiation is still named").not.toBeNull();
-  expect(named.densityPerKm2, "density is still named").not.toBeNull();
+test("metrics: the unchanged Atlanta and Miami fixtures are eligible with soil absent", () => {
+  // Urban land carries no hydrologic group at either site, so component 13 is
+  // absent. SPEC section 14 as amended makes that a narrower comparison, not a
+  // site that cannot be placed.
+  for (const slug of ["atlanta", "miami"]) {
+    const { vector, named, missing, mask, present, eligible } = computeMetrics(
+      siteLayers(slug),
+    );
+    expect(named.hydrologicGroup, `${slug}: Urban land carries no group`).toBeUndefined();
+    expect(missing, `${slug}: the soil component is the only one absent`).toEqual([
+      "hydrologicGroup",
+    ]);
+    expect(present, `${slug}: thirteen components present`).toBe(13);
+    expect(present, `${slug}: between twelve and fourteen`).toBeGreaterThanOrEqual(12);
+    expect(presentCount(mask), `${slug}: the mask agrees with the count`).toBe(present);
+    expect(mask & (1 << 13), `${slug}: the soil bit is clear`).toBe(0);
+    expect(eligible, `${slug}: ten or more present is eligible`).toBe(true);
+    // The absent entry holds the storage placeholder SPEC section 14 defines,
+    // which nothing ever reads as a value.
+    expect(vector.length, `${slug}: still fourteen entries`).toBe(VECTOR_LENGTH);
+    expect(vector[13], `${slug}: the absent entry is the placeholder`).toBe(0);
+    // Everything else was still measured.
+    expect(named.dailyRadiationKwhM2, `${slug}: radiation is still named`).toBeGreaterThan(0);
+    expect(named.densityPerKm2, `${slug}: density is still named`).toBeGreaterThan(0);
+  }
 });
 
-test("metrics: removing flood gives a null vector and a null sfhaShare, and keeps the rest", () => {
+test("metrics: a site with only nine components present is not eligible", () => {
+  // Atlanta is short the soil component already, so thirteen are present.
+  // Dropping climate takes six of those and leaves seven, which is well under
+  // the threshold.
+  const layers = siteLayers("atlanta");
+  delete layers.climate;
+  const seven = computeMetrics(layers);
+  expect(seven.present, "climate carries six of the fourteen").toBe(7);
+  expect(seven.eligible, "seven is fewer than ten").toBe(false);
+
+  // Exactly nine, which is the one short case: topo is two components, osm one
+  // and walkshed one, so dropping the three takes four off the thirteen.
+  const short = siteLayers("atlanta");
+  delete short.topo;
+  delete short.osm;
+  delete short.walkshed;
+  const result = computeMetrics(short);
+  expect(result.present, "nine of the fourteen were measured").toBe(9);
+  expect(result.present, "one short of the threshold").toBe(METRICS_MIN_PRESENT - 1);
+  expect(result.eligible, "nine is not enough to place a site").toBe(false);
+});
+
+test("metrics: removing flood clears its bit and keeps the rest", () => {
   const complete = atlantaWithSoilGroup("B");
   const withoutFlood: Layers = { ...complete };
   delete withoutFlood.flood;
 
-  const { vector, named, missing } = computeMetrics(withoutFlood);
-  expect(vector, "an unavailable layer means no vector").toBeNull();
-  expect(named.sfhaShare, "no flood answer is null, not zero").toBeNull();
-  expect(missing, "flood is the only missing component").toEqual(["sfhaShare"]);
+  const { vector, named, missing, mask, eligible } = computeMetrics(withoutFlood);
+  expect(named.sfhaShare, "no flood answer is absent, not zero").toBeUndefined();
+  expect(missing, "flood is the only absent component").toEqual(["sfhaShare"]);
+  expect(mask & (1 << 10), "the flood bit is clear").toBe(0);
+  expect(vector[10], "the flood entry is the placeholder").toBe(0);
+  expect(eligible, "thirteen present is still eligible").toBe(true);
   for (const metric of METRIC_NAMES) {
     if (metric === "sfhaShare") continue;
-    expect(named[metric], `${metric} should survive flood being removed`).not.toBeNull();
+    expect(named[metric], `${metric} should survive flood being removed`).not.toBeUndefined();
   }
 
-  // With flood present the same set does produce one, which is what makes the
+  // With flood present the same set sets every bit, which is what makes the
   // assertion above about flood rather than about something else.
-  expect(computeMetrics(complete).vector, "the complete set has a vector").not.toBeNull();
+  expect(computeMetrics(complete).mask, "the complete set has every bit").toBe(FULL_MASK);
 });
 
-test("metrics: WaKeeney flood no_coverage gives a null vector, not a zero share", () => {
+test("metrics: WaKeeney flood no_coverage is an absent component, not a zero share", () => {
   const layers = siteLayers("wakeeney");
   expect(
     layers.flood!.unavailable?.code,
     "the WaKeeney flood fixture is the no coverage answer",
   ).toBe("no_coverage");
 
-  const { vector, named } = computeMetrics(layers);
-  expect(named.sfhaShare, "no coverage is not zero").toBeNull();
-  expect(vector, "a null component means no vector").toBeNull();
+  const { vector, named, mask, eligible } = computeMetrics(layers);
+  expect(named.sfhaShare, "no coverage is not zero").toBeUndefined();
+  expect(mask & (1 << 10), "the flood bit is clear").toBe(0);
+  expect(vector[10], "and its entry is the placeholder").toBe(0);
+  expect(eligible, "the other thirteen still place the site").toBe(true);
 });
 
 test("metrics: an SFHA polygon covering the frame gives a share of 1, and none gives 0", () => {
@@ -221,30 +265,119 @@ test("metrics: every normalization clamps to 0 and 1 at the edges of its constan
   }
 });
 
+function distanceOf(
+  a: number[],
+  maskA: number,
+  b: number[],
+  maskB: number,
+): number {
+  const scaled = maskedDistance(a, maskA, b, maskB);
+  expect(scaled, "the pair should be comparable").not.toBeNull();
+  return scaled!.distance;
+}
+
 test("metrics: the match percent and the closest components follow SPEC section 14", () => {
   const a = new Array<number>(VECTOR_LENGTH).fill(0);
   const b = new Array<number>(VECTOR_LENGTH).fill(0);
 
-  expect(matchPercent(l2Distance(a, b)), "identical vectors match at 100").toBe(100);
+  expect(
+    matchPercent(distanceOf(a, FULL_MASK, b, FULL_MASK)),
+    "identical vectors match at 100",
+  ).toBe(100);
 
   const farthest = new Array<number>(VECTOR_LENGTH).fill(1);
   expect(
-    matchPercent(l2Distance(a, farthest)),
+    matchPercent(distanceOf(a, FULL_MASK, farthest, FULL_MASK)),
     "opposite corners of the unit cube match at 0",
   ).toBe(0);
 
-  // One component apart by 1 and the rest identical: d = 1, so the match is
+  // One component apart by 1 and the rest identical, every component shared:
+  // the 14 / k factor is 1, d = 1, so the match is
   // round((1 - 1 / sqrt(14)) * 100).
   const oneApart = a.slice();
   oneApart[6] = 1;
-  expect(matchPercent(l2Distance(a, oneApart)), "one component apart").toBe(
-    Math.round((1 - 1 / Math.sqrt(VECTOR_LENGTH)) * 100),
-  );
   expect(
-    closestComponents(a, oneApart),
+    matchPercent(distanceOf(a, FULL_MASK, oneApart, FULL_MASK)),
+    "one component apart",
+  ).toBe(Math.round((1 - 1 / Math.sqrt(VECTOR_LENGTH)) * 100));
+  expect(
+    closestComponents(a, oneApart, FULL_MASK),
     "the one differing component is never among the three closest",
   ).not.toContain(METRIC_NAMES[6]);
-  expect(closestComponents(a, oneApart).length, "three closest components").toBe(3);
+  expect(closestComponents(a, oneApart, FULL_MASK).length, "three closest").toBe(3);
+});
+
+// ─── The masked distance, SPEC section 14 as amended 2026-09-25 ──────────────
+
+test("metrics: a masked distance reads only the components both sites measured", () => {
+  // Two sites with disjoint absences: A is short component 0, B is short
+  // component 1, so twelve are shared. The entries under the cleared bits are
+  // set as far apart as they can be, and they must not move the distance.
+  const a = new Array<number>(VECTOR_LENGTH).fill(0.5);
+  const b = new Array<number>(VECTOR_LENGTH).fill(0.5);
+  a[0] = 0;
+  b[0] = 1;
+  a[1] = 1;
+  b[1] = 0;
+  const maskA = FULL_MASK & ~(1 << 0);
+  const maskB = FULL_MASK & ~(1 << 1);
+
+  const scaled = maskedDistance(a, maskA, b, maskB);
+  expect(scaled, "twelve shared components is enough to compare").not.toBeNull();
+  expect(scaled!.sharedCount, "twelve components in common").toBe(12);
+  expect(scaled!.shared & (1 << 0), "component 0 is not shared").toBe(0);
+  expect(scaled!.shared & (1 << 1), "component 1 is not shared").toBe(0);
+  // Every shared component is identical, so the distance is exactly zero even
+  // though the two unshared entries are a whole unit apart.
+  expect(scaled!.distance, "an unshared component contributes nothing").toBeCloseTo(0, 12);
+  expect(
+    closestComponents(a, b, scaled!.shared),
+    "the unshared components are never among the closest",
+  ).not.toContain(METRIC_NAMES[0]);
+});
+
+test("metrics: an absent component contributes zero and the scaling is 14 over k", () => {
+  const a = new Array<number>(VECTOR_LENGTH).fill(0);
+  const b = new Array<number>(VECTOR_LENGTH).fill(0);
+  // One shared component apart by 1, and one component that only A measured,
+  // set as far apart as it can be.
+  b[2] = 1;
+  a[0] = 0;
+  b[0] = 1;
+  const maskA = FULL_MASK;
+  const maskB = FULL_MASK & ~(1 << 0);
+
+  const scaled = maskedDistance(a, maskA, b, maskB);
+  expect(scaled!.sharedCount, "thirteen shared").toBe(13);
+  // sum over shared = 1 (component 2 alone), so d = sqrt(14 / 13).
+  expect(scaled!.distance, "sqrt((14 / k) * 1)").toBeCloseTo(
+    Math.sqrt(VECTOR_LENGTH / 13),
+    12,
+  );
+
+  // The same pair with component 0 present on both sides and identical: the
+  // shared sum is unchanged, k is 14, and the scaling is 1.
+  const bothPresent = b.slice();
+  bothPresent[0] = 0;
+  const complete = maskedDistance(a, FULL_MASK, bothPresent, FULL_MASK);
+  expect(complete!.sharedCount, "fourteen shared").toBe(VECTOR_LENGTH);
+  expect(complete!.distance, "sqrt((14 / 14) * 1)").toBeCloseTo(1, 12);
+  // Sharing the absence made the pair no closer: the scaled distance with the
+  // component absent is the larger of the two, never the smaller.
+  expect(scaled!.distance).toBeGreaterThan(complete!.distance);
+});
+
+test("metrics: a pair with fewer than ten shared components is not compared", () => {
+  const a = new Array<number>(VECTOR_LENGTH).fill(0.5);
+  const b = new Array<number>(VECTOR_LENGTH).fill(0.5);
+  // Ten shared is the floor and is compared.
+  const tenShared = (1 << 10) - 1;
+  expect(presentCount(tenShared), "ten bits").toBe(METRICS_MIN_PRESENT);
+  expect(maskedDistance(a, tenShared, b, FULL_MASK), "ten is enough").not.toBeNull();
+  // Nine is not.
+  const nineShared = (1 << 9) - 1;
+  expect(presentCount(nineShared), "nine bits").toBe(METRICS_MIN_PRESENT - 1);
+  expect(maskedDistance(a, nineShared, b, FULL_MASK), "nine is not").toBeNull();
 });
 
 test("metrics: the percentile metrics are the six SPEC section 14 names", () => {
@@ -280,5 +413,5 @@ test("metrics: the stored density is the raw one, and only the normalizer takes 
     expected,
     9,
   );
-  expect(vector![12], "component 12 is the normalized density").toBeCloseTo(expected, 9);
+  expect(vector[12], "component 12 is the normalized density").toBeCloseTo(expected, 9);
 });

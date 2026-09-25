@@ -32,8 +32,9 @@ function badRequest(message: string) {
 }
 
 /**
- * Which components a stored metrics row is short of. writeMetrics leaves a
- * null out of the jsonb, so a name that is absent is a name that had no value.
+ * Which components a stored metrics row is short of. writeMetrics leaves an
+ * absent component out of the jsonb, so a name that is not there is a name that
+ * had no value.
  */
 function missingFrom(named: Record<string, number | null>): string[] {
   return METRIC_NAMES.filter((metric) => typeof named[metric] !== "number");
@@ -46,6 +47,7 @@ function offlineContext(): MemoryContext {
     n: null,
     percentiles: null,
     similar: null,
+    missing: [],
     reasonIfNull: MEMORY_COPY.offline,
     truncated: false,
   };
@@ -89,8 +91,12 @@ export async function GET(request: NextRequest) {
       ? null
       : {
           named: stored.named,
-          vector: stored.vector,
-          missing: stored.vector === null ? missingFrom(stored.named) : [],
+          // A row whose vector is unreadable is placed on nothing: the mask is
+          // cleared with it, so no component of a vector of zeroes is ever
+          // compared as if it were a measurement.
+          vector: stored.vector ?? new Array<number>(METRIC_NAMES.length).fill(0),
+          mask: stored.vector === null ? 0 : stored.mask,
+          missing: missingFrom(stored.named),
         };
   return NextResponse.json(await buildMemoryContext(siteId, metrics));
 }
@@ -118,15 +124,15 @@ export async function POST(request: NextRequest) {
   // answered. Nothing on the request body reaches the metrics: a caller cannot
   // hand Site Memory numbers and have them enter everyone else's percentiles.
   const layers = await loadStoredLayers(siteId);
-  const { named, vector, missing } = computeMetrics(layers);
+  const { named, vector, mask, missing } = computeMetrics(layers);
   // What the write did travels with the answer: "skipped" is a computation that
   // is left out rather than written over a good row, either because it has
   // nothing in it or because it has no vector where the row has one, and
   // "unavailable" is Site Memory declining the write. Neither is copy, and the
   // panel does not read them. The reason behind a skip stays on the server.
-  const { write: metricsWrite } = await writeMetrics(siteId, named, vector);
+  const { write: metricsWrite } = await writeMetrics(siteId, named, vector, mask);
 
-  const context = await buildMemoryContext(siteId, { named, vector, missing });
+  const context = await buildMemoryContext(siteId, { named, vector, mask, missing });
   return NextResponse.json({ ...context, metricsWrite });
 }
 
