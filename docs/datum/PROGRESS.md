@@ -782,6 +782,26 @@ or n value has been measured yet.
     The builder used a random value for the run only. Dashboard action.
 15. `e2e/README.md` is out of date for the memory spec and its flags; outside the Phase 3 list.
 
+### Review round 1 (Opus, 2026-09-25)
+
+Three high: (1) the similar sites payload exposed other sites' UUIDs, which the unauthenticated
+layer routes would trade for metre precision coordinates, undoing the map's snapping; (2)
+DATUM_INCLUDE_TEST_SITES requires NODE_ENV not production, but the phase file's acceptance command
+runs `next start` (production), so the database assertions that rely on the twelve is_test seeds
+cannot pass as written, the same collision decision 6 settled for the source overrides (open
+question 16 below); (3) the percentile sentences quoted the total site count while the
+percentile was computed over the smaller per metric population. Nine medium and five low,
+including: a GET before any POST named eight layers as unavailable; an expired recompute could
+overwrite good metrics with empty ones; the brief replay test carried an escape; the ping was
+distinguishable without the secret and reported ok when it had not queried; a stored brief with
+an unreadable verdict replayed as passed. The full copy inventory of the memory panel and map is
+in the reviewer's report and is open question 12.
+
+Fix round 1 dispatched for everything in owned code (findings 1, 3 to 11, 13 to 16). Open
+question 16: run the memory spec against `npm run dev` with the flag, as decision 6 did for the
+overrides, which changes the phase file's acceptance command text; or gate the flag on
+DATUM_ALLOW_TEST_FLAG alone. Not changed until answered.
+
 ### Next action
 
 Owner applies migration 0002 (SQL handed over in chat), then the orchestrator runs the step 3.1
