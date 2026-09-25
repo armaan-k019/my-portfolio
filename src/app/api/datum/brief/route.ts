@@ -27,6 +27,7 @@ import {
   selectLayers,
 } from "@/lib/datum/brief/store";
 import { SITE_FREE_LAYER_WINDOW_MS } from "@/lib/datum/constants";
+import { sse, sseChannel } from "@/lib/datum/brief/stream";
 import { briefFailedChecks } from "@/lib/datum/brief/citations";
 import {
   clientIpFrom,
@@ -63,10 +64,6 @@ const SSE_HEADERS = {
   "cache-control": "no-cache, no-transform",
   connection: "keep-alive",
 };
-
-function sse(event: string, data: unknown): string {
-  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-}
 
 function badRequest(message: string) {
   return NextResponse.json(
@@ -200,8 +197,13 @@ export async function POST(request: NextRequest) {
 
   const client = new Anthropic();
 
+  // The channel outlives the start body, because `cancel` fires on it while the
+  // model loop below is still running.
+  let channel: ReturnType<typeof sseChannel> | null = null;
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      channel = sseChannel(controller);
       let text = "";
       try {
         const message = client.messages.stream({
@@ -217,7 +219,7 @@ export async function POST(request: NextRequest) {
             event.delta.type === "text_delta"
           ) {
             text += event.delta.text;
-            controller.enqueue(encoder.encode(sse("delta", { text: event.delta.text })));
+            channel.send("delta", { text: event.delta.text });
           }
         }
 
@@ -242,37 +244,34 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        controller.enqueue(
-          encoder.encode(
-            sse("done", {
-              invalidCitations: check.invalidCitations,
-              validCitations: check.validCitations,
-              uncitedNumericSentences: check.uncitedNumericSentences,
-              valueMatchedSentences: check.valueMatchedSentences,
-              model: MODEL,
-              inputHash: hash,
-              cached: false,
-            }),
-          ),
-        );
+        channel.send("done", {
+          invalidCitations: check.invalidCitations,
+          validCitations: check.validCitations,
+          uncitedNumericSentences: check.uncitedNumericSentences,
+          valueMatchedSentences: check.valueMatchedSentences,
+          model: MODEL,
+          inputHash: hash,
+          cached: false,
+        });
       } catch (raw) {
         // The key must never reach the client, so only a code and a sentence go
         // out. The detail goes to the server log.
         console.error("[datum] brief stream failed", raw);
         const code =
           raw instanceof Anthropic.RateLimitError ? "rate_limited" : "upstream_error";
-        controller.enqueue(
-          encoder.encode(
-            sse("error", {
-              code,
-              message:
-                "The site brief could not be written. The sheet and its data are unaffected.",
-            }),
-          ),
-        );
+        channel.send("error", {
+          code,
+          message:
+            "The site brief could not be written. The sheet and its data are unaffected.",
+        });
       } finally {
-        controller.close();
+        channel.close();
       }
+    },
+    cancel() {
+      // The reader is gone. Everything still in flight keeps running to
+      // completion, including the store, but nothing it produces is written.
+      channel?.cancel();
     },
   });
 

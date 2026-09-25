@@ -21,6 +21,7 @@ import {
   parseClientLayers,
   selectLayers,
 } from "../../src/lib/datum/brief/store";
+import { sseChannel } from "../../src/lib/datum/brief/stream";
 import { NextRequest } from "next/server";
 import { POST } from "../../src/app/api/datum/brief/route";
 import { RATE_LIMIT_PER_DAY } from "../../src/lib/datum/constants";
@@ -980,6 +981,104 @@ test("a client envelope carrying data is dropped, one carrying only a reason is 
   const citable = citableFieldPaths(chosen.layers);
   expect(citable.some((path) => path.startsWith("osm."))).toBe(false);
   expect(citable.some((path) => path.startsWith("census."))).toBe(false);
+});
+
+// ─── The SSE channel (the brief route's writes) ──────────────────────────────
+//
+// The offline run logged "Invalid state: Controller is already closed" because
+// the catch path sent its error event after the reader had gone. Every write
+// the route makes now goes through the channel, so a write after a close or a
+// cancel is dropped rather than thrown.
+
+/** A controller that records its calls and refuses to be used after close. */
+function fakeController() {
+  const chunks: string[] = [];
+  let closed = false;
+  let closeCalls = 0;
+  const decoder = new TextDecoder();
+  return {
+    controller: {
+      enqueue(chunk: Uint8Array) {
+        if (closed) throw new TypeError("Invalid state: Controller is already closed");
+        chunks.push(decoder.decode(chunk));
+      },
+      close() {
+        closeCalls += 1;
+        if (closed) throw new TypeError("Invalid state: Controller is already closed");
+        closed = true;
+      },
+    },
+    chunks: () => chunks,
+    closeCalls: () => closeCalls,
+  };
+}
+
+test("a send before the close writes one SSE frame", () => {
+  const fake = fakeController();
+  const channel = sseChannel(fake.controller);
+
+  channel.send("delta", { text: "Ground." });
+  expect(fake.chunks()).toEqual(['event: delta\ndata: {"text":"Ground."}\n\n']);
+  expect(channel.over).toBe(false);
+});
+
+test("nothing is enqueued after the channel has closed", () => {
+  const fake = fakeController();
+  const channel = sseChannel(fake.controller);
+
+  channel.send("delta", { text: "Ground." });
+  channel.close();
+  expect(channel.over).toBe(true);
+
+  // The shape of the bug: the catch path sending an error event after close.
+  expect(() => channel.send("error", { code: "upstream_error" })).not.toThrow();
+  expect(fake.chunks()).toHaveLength(1);
+});
+
+test("the close happens once, however many times it is called", () => {
+  const fake = fakeController();
+  const channel = sseChannel(fake.controller);
+
+  channel.close();
+  channel.close();
+  expect(fake.closeCalls()).toBe(1);
+});
+
+test("a cancelled channel writes nothing and never closes the controller", () => {
+  const fake = fakeController();
+  const channel = sseChannel(fake.controller);
+
+  // The reader went away while the model was still streaming.
+  channel.cancel();
+  expect(channel.over).toBe(true);
+  expect(() => channel.send("delta", { text: "Ground." })).not.toThrow();
+  expect(() => channel.send("done", { cached: false })).not.toThrow();
+  // The finally block still runs.
+  expect(() => channel.close()).not.toThrow();
+
+  expect(fake.chunks()).toEqual([]);
+  expect(fake.closeCalls()).toBe(0);
+});
+
+test("a controller that closes under the write swallows the throw and ends the channel", () => {
+  // The reader can go away between the guard and the enqueue, which no flag can
+  // prevent, so the throw has to be caught rather than only avoided.
+  let closed = false;
+  const channel = sseChannel({
+    enqueue() {
+      if (closed) throw new TypeError("Invalid state: Controller is already closed");
+      closed = true;
+    },
+    close() {
+      throw new TypeError("Invalid state: Controller is already closed");
+    },
+  });
+
+  channel.send("delta", { text: "Ground." });
+  expect(channel.over).toBe(false);
+  expect(() => channel.send("done", { cached: false })).not.toThrow();
+  expect(channel.over).toBe(true);
+  expect(() => channel.close()).not.toThrow();
 });
 
 // ─── The brief route's rate limit ────────────────────────────────────────────
