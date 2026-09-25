@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import Carousel from "./Carousel";
+import SectionCut from "./section-cut/SectionCut";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
@@ -11,8 +11,8 @@ const fadeUp = {
 
 export default function AboutSection() {
   return (
-    <section id="about" className="max-w-5xl mx-auto px-6 pt-16 md:pt-24 pb-16">
-      <div className="grid grid-cols-1 md:grid-cols-[47fr_53fr] gap-12 items-center">
+    <section id="about" className="relative overflow-hidden flex flex-col md:justify-center md:min-h-[calc(100svh-4rem)]">
+      <div className="relative w-full max-w-5xl mx-auto px-6 pt-16 md:pt-0 pb-8 md:pb-0 z-10">
         {/* Left column - Bio */}
         <motion.div
           variants={fadeUp}
@@ -20,6 +20,7 @@ export default function AboutSection() {
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          className="max-w-md"
         >
           <h1 className="font-display display-lg font-semibold text-ink mb-5">
             {["Armaan", "Kazi"].map((word, i) => (
@@ -58,20 +59,9 @@ export default function AboutSection() {
             </Link>
           </div>
         </motion.div>
-
-        {/* Right column - Carousel */}
-        <motion.div
-          variants={fadeUp}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-80px" }}
-          transition={{ duration: 0.5, delay: 0.15, ease: "easeOut" }}
-          className="flex items-center justify-center"
-        >
-          <div className="w-full">
-            <Carousel />
-          </div>
-        </motion.div>
+      </div>
+      <div className="relative h-[85vw] md:absolute md:inset-0 md:h-auto">
+        <SectionCut />
       </div>
     </section>
   );
