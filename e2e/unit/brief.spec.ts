@@ -1186,3 +1186,56 @@ test("each unreadable field makes the stored verdict a cache miss", () => {
   // And the whole payload being something else is a miss too.
   expect(storedBriefCheck({})).toBeNull();
 });
+
+test("a cold instance offline resolves the brief's site through its fallback id", async () => {
+  // Offline with no remembered row, which is the cold instance case: without a
+  // fallback the brief is a 404, and with a valid one the route gets past the
+  // site resolution and on to the layers it has (none here, so the 409 that
+  // says there is nothing to write a brief from). Nothing is stored either way.
+  setClientForTests(null);
+  const uuid = "22222222-2222-2222-2222-222222222222";
+  await getSiteById(uuid);
+  expect(memoryStatus()).toBe("offline");
+
+  const fallback = issueLocalSiteId("33.775,-84.392");
+  const hadKey = process.env.ANTHROPIC_API_KEY;
+  process.env.ANTHROPIC_API_KEY = "unit-test-placeholder";
+  const ip = "198.51.100.31";
+  try {
+    const withFallback = await POST(
+      new NextRequest(
+        `https://datum.test/api/datum/brief?fallback=${encodeURIComponent(fallback)}`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-forwarded-for": ip },
+          body: JSON.stringify({ siteId: uuid, layers: {} }),
+        },
+      ),
+    );
+    expect(
+      withFallback.status,
+      "past the site resolution: no layer answered, so 409 rather than 404",
+    ).toBe(409);
+    expect(
+      ((await withFallback.json()) as { error: { code: string } }).error.code,
+    ).toBe("dependency_unavailable");
+
+    // A forged fallback is refused outright rather than taken on trust.
+    const forged = `${fallback.slice(0, -1)}${fallback.endsWith("0") ? "1" : "0"}`;
+    const tampered = await POST(
+      new NextRequest(
+        `https://datum.test/api/datum/brief?fallback=${encodeURIComponent(forged)}`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-forwarded-for": ip },
+          body: JSON.stringify({ siteId: uuid, layers: {} }),
+        },
+      ),
+    );
+    expect(tampered.status).toBe(400);
+  } finally {
+    if (hadKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+    else process.env.ANTHROPIC_API_KEY = hadKey;
+    setClientForTests(null);
+  }
+});

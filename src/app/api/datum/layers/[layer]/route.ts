@@ -16,6 +16,7 @@ import {
   getSiteById,
   hashIp,
   isLocalSiteId,
+  memoryStatus,
   peekRateLimit,
   storeLayerResult,
   verifyLocalSiteId,
@@ -86,6 +87,9 @@ export async function GET(
 
   let lat: number;
   let lng: number;
+  // True when the point came from the signed fallback id rather than from a
+  // row, which is the one case where nothing is written back.
+  let fromFallback = false;
 
   if (local) {
     // A local id is the offline fallback the site route hands out when Site
@@ -113,23 +117,57 @@ export async function GET(
     if (!rate.allowed) return rateLimited();
   } else {
     const site = resolved && "site_key" in resolved ? resolved : null;
-    if (!site) {
-      return NextResponse.json(
-        { error: { code: "not_found", message: "Unknown site." } },
-        { status: 404 },
-      );
-    }
-    lat = site.lat;
-    lng = site.lng;
+    if (site) {
+      lat = site.lat;
+      lng = site.lng;
 
-    // SPEC section 13 exempts layer calls for a site created in the last 24
-    // hours, and only those. An older id is a saved link, so it is subject to
-    // the cap like anything else.
-    const createdAt = Date.parse(site.created_at);
-    const older =
-      Number.isFinite(createdAt) &&
-      Date.now() - createdAt > SITE_FREE_LAYER_WINDOW_MS;
-    if (older && !rate.allowed) return rateLimited();
+      // SPEC section 13 exempts layer calls for a site created in the last 24
+      // hours, and only those. An older id is a saved link, so it is subject to
+      // the cap like anything else.
+      const createdAt = Date.parse(site.created_at);
+      const older =
+        Number.isFinite(createdAt) &&
+        Date.now() - createdAt > SITE_FREE_LAYER_WINDOW_MS;
+      if (older && !rate.allowed) return rateLimited();
+    } else {
+      // The row could not be read: Site Memory is offline, or this instance is
+      // cold and never saw it. The site route hands the client a signed
+      // fallback id for the point, and it carries its own HMAC, so the point
+      // can be verified here rather than trusted (SPEC section 13, amended
+      // 2026-09-25). Nothing is stored against it.
+      const offered = query.get("fallback");
+      const fallback = offered === null ? null : verifyLocalSiteId(offered);
+      if (offered !== null && fallback === null) {
+        return badRequest("Unknown site.");
+      }
+      if (!fallback) {
+        // Offline is not the same as unknown: with no row to read and no
+        // fallback to verify, this instance has no point, and calling a site
+        // that may well exist imaginary would be a different claim.
+        if (memoryStatus() === "offline") {
+          return NextResponse.json(
+            {
+              error: {
+                code: "dependency_unavailable",
+                message: "Site Memory is offline and no fallback id was sent.",
+              },
+            },
+            { status: 503 },
+          );
+        }
+        return NextResponse.json(
+          { error: { code: "not_found", message: "Unknown site." } },
+          { status: 404 },
+        );
+      }
+      lat = fallback.lat;
+      lng = fallback.lng;
+      fromFallback = true;
+      // The site route charged the analysis when it issued the fallback, but
+      // this instance cannot see that, so the peek applies as it does to a
+      // local id. The peek never increments.
+      if (!rate.allowed) return rateLimited();
+    }
   }
 
   if (!siteClassValid) {
@@ -147,6 +185,9 @@ export async function GET(
   // all would only keep the instance alive to do nothing.
   const worthStoring =
     !isLocalSiteId(siteId) &&
+    // A fallback resolved site has no row this instance can reach, so a write
+    // would either fail or land against a row nothing here has read.
+    !fromFallback &&
     (envelope.status !== "unavailable" ||
       envelope.unavailable?.code === "no_coverage");
   if (worthStoring) {

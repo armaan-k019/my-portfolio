@@ -591,6 +591,66 @@ test("datum memory: an analysis completes with Site Memory offline", async ({ pa
   expect(serverErrors, `no request should answer 5xx: ${serverErrors.join(", ")}`).toEqual([]);
 });
 
+// ─── The signed fallback id, offline (SPEC section 13, amended 2026-09-25) ───
+
+test("datum memory: a layer resolves through the fallback id with Site Memory offline", async ({
+  request,
+}) => {
+  test.skip(!OFFLINE_RUN, "set DATUM_E2E_OFFLINE=1 with a server pointed at a dead Supabase URL");
+
+  const atlanta = seedSites.find((site) => site.slug === "atlanta")!;
+
+  // Request 1 proves the site route returns a fallback id while Site Memory is
+  // offline, and reports itself offline.
+  const created = await request.post("/api/datum/site", {
+    data: { lat: atlanta.lat, lng: atlanta.lng, isTest: true },
+    headers: HEADERS,
+    timeout: 60_000,
+  });
+  expect(created.status(), "the site route answers with no database behind it").toBe(200);
+  const body = (await created.json()) as SiteResponse & { fallbackId?: string };
+  expect(body.memoryStatus, "this run is the offline one").toBe("offline");
+  const siteId = body.siteId ?? "";
+  const fallbackId = body.fallbackId ?? "";
+  expect(fallbackId.length, "the site route always returns a fallback id").toBeGreaterThan(0);
+  expect(fallbackId.startsWith("local-"), "it is the signed local id for the point").toBe(true);
+
+  // Request 2 proves the pair the client now sends is accepted: the site id
+  // this run was given, with its fallback alongside it.
+  const paired = await request.get(
+    `/api/datum/layers/sun?site=${encodeURIComponent(siteId)}` +
+      `&fallback=${encodeURIComponent(fallbackId)}`,
+    { headers: HEADERS, timeout: LAYER_TIMEOUT_MS },
+  );
+  expect(paired.status(), "the site id and its fallback together").toBe(200);
+  expect(((await paired.json()) as { layer?: string }).layer).toBe("sun");
+
+  // Request 3 is the cold instance case, and it is the one the fallback exists
+  // for: a database shaped id this server has no row for and cannot look up,
+  // sent with a valid fallback. It proves the route continues on the fallback's
+  // point rather than calling the site imaginary.
+  const unknownId = "33333333-3333-3333-3333-333333333333";
+  const viaFallback = await request.get(
+    `/api/datum/layers/sun?site=${unknownId}&fallback=${encodeURIComponent(fallbackId)}`,
+    { headers: HEADERS, timeout: LAYER_TIMEOUT_MS },
+  );
+  expect(viaFallback.status(), "an unreadable row plus a valid fallback").toBe(200);
+  expect(((await viaFallback.json()) as { layer?: string }).layer).toBe("sun");
+
+  // Request 4 is the same request with the fallback stripped. It proves the
+  // 200 above came from the fallback and from nothing else: with no row to read
+  // and no fallback to verify, the route has no point at all. It is not a 404,
+  // because offline is not the same as unknown.
+  const stripped = await request.get(`/api/datum/layers/sun?site=${unknownId}`, {
+    headers: HEADERS,
+    timeout: LAYER_TIMEOUT_MS,
+  });
+  expect(stripped.status(), "no row and no fallback is not served").not.toBe(200);
+  expect(stripped.status(), "and it is not a 404 while memory is offline").toBe(503);
+  const strippedBody = (await stripped.json()) as { error?: { code?: string } };
+  expect(strippedBody.error?.code).toBe("dependency_unavailable");
+});
+
 // ─── The browser flow, trimmed from e2e/sheet.spec.ts ────────────────────────
 
 /** Type the address, submit, confirm the point, and wait for every layer. */

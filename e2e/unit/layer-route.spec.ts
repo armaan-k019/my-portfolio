@@ -460,3 +460,89 @@ test("a transient unavailable envelope schedules no write at all", async () => {
     setClientForTests(null);
   }
 });
+
+// ─── The signed fallback id (SPEC section 13, amended 2026-09-25) ────────────
+//
+// The site route returns a fallback id for the point on every response, online
+// or offline. When a layer route cannot read the site row, because Site Memory
+// is offline or because this instance is cold and never saw it, the fallback is
+// verified and the analysis continues on its point. Nothing is stored.
+
+test("a cold instance offline serves the layer through a valid fallback id", async () => {
+  // Offline, and the remembered row map was cleared with the client, so this
+  // instance has never seen the UUID. Without a fallback this is the 404 the
+  // fourth round could not fix without inventing a row.
+  await goOffline();
+
+  const scheduled: Array<() => void | Promise<void>> = [];
+  setAfterForTests((callback) => {
+    scheduled.push(callback);
+  });
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response("upstream failure", { status: 500 })) as typeof fetch;
+  try {
+    const response = await call("sun", `${site(UUID)}&fallback=${encodeURIComponent(LOCAL_ID)}`, {
+      "x-forwarded-for": "198.51.100.21",
+    });
+    expect(response.status, "the normal envelope, not a 404").toBe(200);
+    const envelope = (await response.json()) as { layer: string; status: string };
+    expect(envelope.layer).toBe("sun");
+    // sun is computed and never unavailable, so this envelope is one the route
+    // would store for a real row. Through a fallback it stores nothing, which
+    // is what the empty schedule proves.
+    expect(envelope.status).not.toBe("unavailable");
+    expect(scheduled, "nothing is written back for a fallback site").toEqual([]);
+  } finally {
+    globalThis.fetch = realFetch;
+    setAfterForTests(null);
+  }
+});
+
+test("a forged fallback id is a 400, not a point the route takes on trust", async () => {
+  await goOffline();
+  const forged = forgeSignature(LOCAL_ID);
+  const response = await call("sun", `${site(UUID)}&fallback=${encodeURIComponent(forged)}`, {
+    "x-forwarded-for": "198.51.100.22",
+  });
+  expect(response.status).toBe(400);
+  const body = (await response.json()) as { error: { code: string } };
+  expect(body.error.code).toBe("bad_request");
+
+  // And a fallback that is not a local id at all.
+  const notLocal = await call("sun", `${site(UUID)}&fallback=${UUID}`, {
+    "x-forwarded-for": "198.51.100.22",
+  });
+  expect(notLocal.status).toBe(400);
+});
+
+test("online with no row and no fallback is still a 404", async () => {
+  // A client that answers "no such row" rather than failing, so Site Memory is
+  // online and the absence is the database's own answer.
+  const emptyClient = {
+    from() {
+      const chain = {
+        select: () => chain,
+        eq: () => chain,
+        gt: () => chain,
+        async maybeSingle() {
+          return { data: null, error: null };
+        },
+      };
+      return chain;
+    },
+    rpc: async () => ({ data: 1, error: null }),
+  } as unknown as SupabaseClient;
+  setClientForTests(emptyClient);
+  try {
+    const response = await call("sun", site(UUID), {
+      "x-forwarded-for": "198.51.100.23",
+    });
+    expect(memoryStatus(), "the absence is an answer, not a failure").toBe("online");
+    expect(response.status).toBe(404);
+    const body = (await response.json()) as { error: { code: string } };
+    expect(body.error.code).toBe("not_found");
+  } finally {
+    setClientForTests(null);
+  }
+});

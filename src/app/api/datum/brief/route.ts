@@ -35,6 +35,7 @@ import {
   getSiteById,
   hashIp,
   isLocalSiteId,
+  memoryStatus,
   peekRateLimit,
   storeBrief,
   storedBriefCheck,
@@ -101,10 +102,38 @@ export async function POST(request: NextRequest) {
   // any model token is spent, and neither needs the other's answer.
   const local = isLocalSiteId(siteId);
   const ipHash = hashIp(clientIpFrom(request.headers.get("x-forwarded-for")));
-  const [resolved, rate] = await Promise.all([
+  const [row, rate] = await Promise.all([
     local ? verifyLocalSiteId(siteId) : getSiteById(siteId),
     peekRateLimit(ipHash),
   ]);
+
+  // When the row cannot be read, because Site Memory is offline or this
+  // instance is cold and never saw it, the signed fallback id the site route
+  // issued carries the point and is verified here rather than trusted (SPEC
+  // section 13, amended 2026-09-25). Nothing is stored against it.
+  let resolved = row;
+  let fromFallback = false;
+  if (!resolved && !local) {
+    const offered = new URL(request.url).searchParams.get("fallback");
+    const fallback = offered === null ? null : verifyLocalSiteId(offered);
+    if (offered !== null && fallback === null) {
+      return badRequest("Unknown site.");
+    }
+    if (fallback) {
+      resolved = fallback;
+      fromFallback = true;
+    } else if (memoryStatus() === "offline") {
+      return NextResponse.json(
+        {
+          error: {
+            code: "dependency_unavailable",
+            message: "Site Memory is offline and no fallback id was sent.",
+          },
+        },
+        { status: 503 },
+      );
+    }
+  }
   if (!resolved) {
     return NextResponse.json(
       { error: { code: "not_found", message: "Unknown site." } },
@@ -231,7 +260,9 @@ export async function POST(request: NextRequest) {
         // awaited inside the stream rather than scheduled after it, because the
         // response has not been closed yet and a floating promise on a
         // serverless instance can be frozen before it runs.
-        if (!briefFailedChecks(check)) {
+        // A fallback resolved site has no row this instance can reach, so the
+        // brief is written and checked but never stored against it.
+        if (!briefFailedChecks(check) && !fromFallback) {
           try {
             await storeBrief(siteId, hash, MODEL, text, {
               invalidCitations: check.invalidCitations,
