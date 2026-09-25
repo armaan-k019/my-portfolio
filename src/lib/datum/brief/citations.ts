@@ -106,10 +106,12 @@ function groupThousands(plain: string): string {
  * separated form. Nothing else is accepted: no unit conversion and no rounding
  * beyond what the serializer did.
  *
- * Both the sent string and the rounded one are indexed because the serializer
- * rounds the leaves it flattens and nothing else: the site point and the min and
- * max of a collapsed array reach the model at full precision, and a value the
- * model was given is a value it may quote.
+ * Both the sent string and the rounded one are indexed because the four decimal
+ * backstop in prompt.ts applies only to the leaves it flattens. Since the
+ * precision table (SPEC section 8 rule 7) the two forms are the same number for
+ * every field it covers: the value is already rounded when it reaches the
+ * serializer, so the string the model was sent is the string the brief may
+ * quote, and rounding correctly is what passes rather than what fails.
  */
 function renderedForms(value: number): string[] {
   const rounded = round4(value);

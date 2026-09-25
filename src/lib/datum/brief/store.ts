@@ -6,6 +6,7 @@
 // this module only reads through its client and its timeout wrapper.
 
 import { fieldPathsOf } from "../http";
+import { roundEnvelope } from "../precision";
 import { getClient, isLocalSiteId, memoryStatus, withMemory } from "../memory";
 import { LAYER_NAMES, type LayerEnvelope, type LayerName } from "../types";
 
@@ -38,7 +39,11 @@ export async function loadStoredLayers(
 
   for (const row of rows ?? []) {
     if ((LAYER_NAMES as string[]).includes(row.layer) && row.envelope) {
-      out[row.layer as LayerName] = row.envelope;
+      // Rounded on the way out as well as on the way in. A row written before
+      // the precision table existed, and any row still inside its TTL from
+      // then, carries the source's own precision, and the brief must not see
+      // it (SPEC section 8 rule 7).
+      out[row.layer as LayerName] = roundEnvelope(row.envelope);
     }
   }
   return out;
@@ -80,14 +85,16 @@ export function parseClientLayers(
     if (!(LAYER_NAMES as string[]).includes(name)) continue;
     if (!isEnvelopeLike(candidate)) continue;
     if (candidate.layer !== name) continue;
-    // fieldPaths is what the citation check validates against, so a client copy
-    // of it would let the caller decide which citations are valid and the check
-    // would mean nothing. It is recomputed from the data the same way the layer
-    // routes compute it.
-    out[name as LayerName] = {
+    // This is the trust boundary, so a caller chooses neither the citable paths
+    // nor the precision of the numbers behind them. fieldPaths is recomputed
+    // from the data the same way the layer routes compute it, because a client
+    // copy of it would let the caller decide which citations are valid and the
+    // check would mean nothing, and the values are rounded to the same table
+    // the layer routes round to (SPEC section 8 rule 7).
+    out[name as LayerName] = roundEnvelope({
       ...candidate,
       fieldPaths: candidate.data === null ? [] : fieldPathsOf(candidate.data),
-    };
+    });
   }
   return out;
 }

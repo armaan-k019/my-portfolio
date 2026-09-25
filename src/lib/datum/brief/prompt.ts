@@ -112,17 +112,28 @@ function flatten(
 }
 
 /**
- * Leaf numbers are rounded to four decimals before they are sent. The brief is
- * told to quote what it is given exactly, and 79.66248616336355 degrees is not
- * a number anyone writes on a drawing. Four decimals is finer than any of these
- * sources measures, so nothing meaningful is lost.
+ * A backstop, not the rounding. Every value is rounded to its field's own
+ * precision at the layer now (precision.ts, SPEC section 8 rule 7), which is
+ * what stops "1.8284 m" appearing on a terrain section: four decimals is the
+ * same rule for a metre, a degree and a percent, and is too fine for all three.
+ * This stays because a field the table does not know would otherwise reach the
+ * model at whatever precision the source sent, and four decimals is a better
+ * failure than seventeen.
  */
 function roundLeaf(value: unknown): unknown {
   if (typeof value !== "number" || !Number.isFinite(value)) return value;
   return Math.round(value * 10_000) / 10_000;
 }
 
-/** Summarise a bucket that is too long to send in full. */
+/**
+ * Summarise a bucket that is too long to send in full.
+ *
+ * This is where "2.660512686 m" came from. The 21 point terrain sections are
+ * past MAX_VALUES_PER_PATH, so each collapsed to a count, a min and a max, and
+ * the min and max were taken straight off the values with no rounding at all.
+ * They are rounded now because the values reaching here are rounded: the
+ * extreme of a set of values at 0.1 m is itself at 0.1 m.
+ */
 function summarise(values: unknown[]): unknown {
   const numbers = values.filter(
     (value): value is number => typeof value === "number" && Number.isFinite(value),
