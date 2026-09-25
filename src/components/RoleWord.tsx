@@ -29,15 +29,10 @@ export default function RoleWord() {
   }, []);
 
   const word = ROLE_WORDS[i];
-  // The word sits in a box as wide as the longest word, so the sentence
-  // never reflows as words change. The sizer is drawn from CSS content, so it
-  // is not part of the page text.
   return (
     <span className="inline-block transition-opacity duration-300" style={{ opacity: shown ? 1 : 0 }}>
       {/^[aeiou]/i.test(word) ? "an" : "a"}{" "}
-      <span className="inline-grid font-semibold text-terracotta after:content-['researcher'] after:[grid-area:1/1] after:invisible after:h-0">
-        <span className="[grid-area:1/1] justify-self-start border-b-2 border-current pb-px">{word}</span>
-      </span>
+      <span className="font-semibold text-terracotta border-b-2 border-current pb-px">{word}</span>
     </span>
   );
 }
