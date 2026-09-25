@@ -12,7 +12,7 @@
 // Estimated: the prayer hall's small rotation, the size and height of each
 // opening, and which faces carry which openings (the published elevation does
 // not name its facade, so its compositions are placed on the north and south).
-import { circle, rect, ring, seg, bounds, siteAround, type Model, type Prism, type Pt } from "../geometry";
+import { circle, rect, ring, rng, seg, bounds, siteAround, type Model, type Pose, type Prism, type Pt } from "../geometry";
 
 const FT = 0.3048;
 const H_BLOCK = 110 * FT;      // 33.5 m
@@ -208,6 +208,34 @@ export function build(): Model {
   floors(east, 3.72, H_BLOCK, 3.72);
   for (const z of [7.4, -13.7]) walls(ccw(circle(52, z, 8, 16)), 0, H_BLOCK);
 
+  // People: members on the assembly floor and the seating tiers, and people
+  // walking the ambulatory ring between the chamber and the octagon.
+  const rand = rng(1982);
+  const TAU = Math.PI * 2;
+  const walkers: ((t: number) => Pose)[] = [];
+  for (const y of [0, 5.9, 11.8]) {
+    for (let i = 0; i < 4; i++) {
+      const r = 27.5 + rand() * 2.5, w = (1 + rand() * 0.3) / r * (rand() < 0.5 ? 1 : -1), ph = rand() * TAU;
+      walkers.push((t) => {
+        const a = w * t + ph;
+        return { p: [r * Math.cos(a), y, r * Math.sin(a)], dir: a + (w > 0 ? 1 : -1) * Math.PI / 2, phase: t * 5.5 + ph };
+      });
+    }
+  }
+  for (let i = 0; i < 4; i++) {
+    const x0 = (rand() - 0.5) * 12, span = 3 + rand() * 3, w = 1 / span, ph = rand() * TAU, z = (rand() - 0.5) * 10;
+    walkers.push((t) => {
+      const u = Math.sin(w * t + ph);
+      return { p: [x0 + span * u, 7.5, z], dir: Math.cos(w * t + ph) >= 0 ? 0 : Math.PI, phase: t * 5.5 + ph };
+    });
+  }
+  const standing: Pose[] = [];
+  for (let i = 0; i < 4; i++) standing.push({ p: [(rand() - 0.5) * 12, 7.5, (rand() - 0.5) * 12], dir: rand() * TAU });
+  for (let i = 0; i < 16; i++) {
+    const k = Math.floor(rand() * 8), side = rand() < 0.5 ? -1 : 1;
+    standing.push({ p: [(rand() - 0.5) * 20, 7.5 + (k + 1) * 0.55, side * (9.8 + k * 1.6)], dir: side > 0 ? -Math.PI / 2 : Math.PI / 2 });
+  }
+
   const bx = bounds([lines]);
-  return { lines, solids, site: siteAround(bx, 12, 8), bounds: bx, featured: 2 };
+  return { lines, solids, site: siteAround(bx, 12, 8), bounds: bx, featured: 2, people: { walkers, standing } };
 }

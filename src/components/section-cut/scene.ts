@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
-import { crossings, type Model } from "./geometry";
+import { crossings, figure, type Model } from "./geometry";
 
 const NEAR_BAND = 8;        // metres behind the cut drawn in ink, the rest in hairline
 const HATCH = 0.16;         // poché hatch spacing in metres
@@ -99,6 +99,29 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
   const outline = new LineSegments2(outlineGeo, outlineMat);
   site.renderOrder = 0; far.renderOrder = 1; near.renderOrder = 2; hatch.renderOrder = 3; outline.renderOrder = 4;
   scene.add(site, far, near, hatch, outline);
+
+  // People share the building's near and far materials and cutting planes,
+  // so the cut reveals them exactly as it reveals the structure. Walkers only
+  // move in live mode; the other modes show the standing figures alone.
+  const walkers = mode === "live" ? m.people?.walkers ?? [] : [];
+  const standing = m.people?.standing ?? [];
+  const peopleGeo = new THREE.BufferGeometry();
+  const peopleBuf = new Float32Array((walkers.length + standing.length) * 8 * 6);
+  peopleGeo.setAttribute("position", new THREE.BufferAttribute(peopleBuf, 3));
+  const peopleNear = new THREE.LineSegments(peopleGeo, near.material);
+  const peopleFar = new THREE.LineSegments(peopleGeo, far.material);
+  peopleNear.frustumCulled = peopleFar.frustumCulled = false;
+  peopleNear.renderOrder = 2; peopleFar.renderOrder = 1;
+  scene.add(peopleNear, peopleFar);
+  const figs: number[] = [];
+  function placePeople(t: number) {
+    figs.length = 0;
+    for (const w of walkers) figure(figs, w(t));
+    for (const s of standing) figure(figs, s);
+    peopleBuf.set(figs);
+    (peopleGeo.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
+  }
+  placePeople(0);
 
   const bx = m.bounds;
   const center = new THREE.Vector3(
@@ -291,6 +314,7 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
     if (pointer && client) setCut(stationUnder(client.x, client.y, pointer.x));
     else if (!pointer) setCut(m.featured);
     fadeWake(now);
+    if (walkers.length) placePeople(now / 1000);
     render();
     report();
   }
@@ -361,7 +385,7 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
     host.removeEventListener("pointermove", onMove);
     host.removeEventListener("pointerleave", onLeave);
     renderer.dispose();
-    geo.dispose(); siteGeo.dispose(); hatchGeo.dispose(); outline.geometry.dispose();
+    geo.dispose(); siteGeo.dispose(); hatchGeo.dispose(); outline.geometry.dispose(); peopleGeo.dispose();
     for (const t of trail) { t.obj.geometry.dispose(); t.mat.dispose(); }
     outlineMat.dispose();
   };

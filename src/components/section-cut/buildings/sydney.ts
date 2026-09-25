@@ -22,7 +22,7 @@
 // Left out because no published drawing defines them well enough: the Opera
 // Theatre and restaurant shells, the side and louvre shells, the podium and
 // the glass walls. Y is measured from the podium deck.
-import { seg, bounds, siteAround, type Model, type Vec3 } from "../geometry";
+import { rng, seg, bounds, siteAround, type Model, type Pose, type Vec3 } from "../geometry";
 
 const R = 75;
 const SPRING = 6.9;                 // arc from pole to springing point
@@ -129,7 +129,26 @@ export function build(): Model {
     }
   }
 
+  // People on the podium deck (+42 ft, the model's datum): an audience
+  // gathered under the shells and people walking the deck alongside them.
+  // The podium steps and the hall's interior floors are not modelled, so no
+  // one is placed on them.
+  const rand = rng(1973);
+  const TAU = Math.PI * 2;
+  const walkers: ((t: number) => Pose)[] = [];
+  for (let i = 0; i < 18; i++) {
+    const inside = i < 8;
+    const z = inside ? (rand() - 0.5) * 18 : (rand() < 0.5 ? -1 : 1) * (21 + rand() * 6);
+    const x0 = 20 + rand() * 90, span = 4 + rand() * 8, w = 1.1 / span, ph = rand() * TAU;
+    walkers.push((t) => {
+      const u = Math.sin(w * t + ph);
+      return { p: [x0 + span * u, 0, z], dir: Math.cos(w * t + ph) >= 0 ? 0 : Math.PI, phase: t * 5.5 + ph };
+    });
+  }
+  const standing: Pose[] = [];
+  for (let i = 0; i < 18; i++) standing.push({ p: [35 + rand() * 60, 0, (rand() - 0.5) * 22], dir: (rand() - 0.5) * 0.8 });
+
   const bx = bounds([lines]);
   bx.min[1] = 0;
-  return { lines, solids: [], shells: { outer, inner }, site: siteAround(bx, 10, 6), bounds: bx, featured: 12 };
+  return { lines, solids: [], shells: { outer, inner }, site: siteAround(bx, 10, 6), bounds: bx, featured: 12, people: { walkers, standing } };
 }

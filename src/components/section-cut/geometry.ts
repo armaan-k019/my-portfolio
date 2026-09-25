@@ -12,6 +12,10 @@ export type Pt = [number, number];                 // plan point: [x, z]
 export interface Prism { poly: Pt[]; y0: number; y1: number }
 export interface Box { min: Vec3; max: Vec3 }
 
+// A person: where they stand, the direction they face (radians in plan,
+// from +X towards +Z) and, for walkers, the stride phase.
+export interface Pose { p: Vec3; dir: number; phase?: number }
+
 export interface Model {
   lines: number[];       // flat xyz pairs, drawn and depth-graded
   solids: Prism[];       // cut only, never drawn directly
@@ -20,6 +24,9 @@ export interface Model {
   // meshes (flat xyz, nine numbers a triangle). The cut draws both surfaces'
   // traces and rungs between them as the poché.
   shells?: { outer: number[]; inner: number[] };
+  // People: walkers are sampled each frame (t in seconds); standing figures
+  // are fixed. Both are placed only where the building puts people.
+  people?: { walkers: ((t: number) => Pose)[]; standing: Pose[] };
   bounds: Box;           // building extent (site excluded)
   featured: number;      // X station shown before the pointer moves
 }
@@ -111,4 +118,34 @@ export function siteAround(b: Box, margin = 9, grid = 6): number[] {
   for (let x = x0; x <= x1; x += grid) out.push(x, 0, z0 - 6, x, 0, z1 + 6);
   for (let z = z0; z <= z1; z += grid) out.push(x0 - 6, 0, z, x1 + 6, 0, z);
   return out;
+}
+
+// Seeded random numbers, so every visitor sees the same people.
+export function rng(seed: number) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// A figure 1.75 m tall in eight segments: head (3), torso, two arms, two
+// legs. A walking figure swings its legs and arms with the stride phase.
+export function figure(out: number[], { p, dir, phase }: Pose) {
+  const f: Vec3 = [Math.cos(dir), 0, Math.sin(dir)], s: Vec3 = [-f[2], 0, f[0]];
+  const at = (fw: number, up: number, side: number): Vec3 =>
+    [p[0] + f[0] * fw + s[0] * side, p[1] + up, p[2] + f[2] * fw + s[2] * side];
+  const swing = phase === undefined ? 0 : Math.sin(phase) * 0.3;
+  const stance = phase === undefined ? 0.13 : 0.08;
+  const hip = at(0, 0.95, 0), neck = at(0, 1.45, 0), shoulder = at(0, 1.4, 0);
+  seg(out, hip, neck);
+  seg(out, hip, at(swing, 0, stance));
+  seg(out, hip, at(-swing, 0, -stance));
+  seg(out, shoulder, at(-swing * 0.8, 0.85, 0.2));
+  seg(out, shoulder, at(swing * 0.8, 0.85, -0.2));
+  const h0 = at(0, 1.5, -0.1), h1 = at(0, 1.5, 0.1), h2 = at(0, 1.75, 0);
+  seg(out, h0, h1); seg(out, h1, h2); seg(out, h2, h0);
 }

@@ -17,7 +17,7 @@
 // direction, the monitor's distance from the rotunda, the triangular service
 // core's size and the height of the connecting base. The 1992 tower is not
 // Wright's and is left out.
-import { annulus, circle, prismEdges, rect, ring, sector, seg, bounds, siteAround, type Model, type Prism, type Vec3 } from "../geometry";
+import { annulus, circle, prismEdges, rect, ring, rng, sector, seg, bounds, siteAround, type Model, type Pose, type Prism, type Vec3 } from "../geometry";
 
 const FT = 0.3048;
 
@@ -126,6 +126,42 @@ export function build(): Model {
   prismEdges(lines, base);
   for (let x = R_BASE; x < MX - MR; x += 1.8) seg(lines, [x, 0.9, -10], [x, 3.6, -10] as Vec3);
 
+  // People: visitors pace stretches of the ramp at mid-width and stand at the
+  // outer wall where the work hangs; a few cross the rotunda floor.
+  const rand = rng(1959);
+  const TAU = Math.PI * 2;
+  const onRamp = (a: number, rr: (y: number) => number): Vec3 => {
+    const y = (a / TAU) * TURN_H, r = rr(y);
+    return [r * Math.cos(a), y, r * Math.sin(a)];
+  };
+  const mid = (y: number) => (rIn(y) + 0.4 + rOut(y) - SKIN) / 2;
+  const walkers: ((t: number) => Pose)[] = [];
+  for (let i = 0; i < 16; i++) {
+    const a0 = rand() * TURNS * TAU * 0.96, span = 0.25 + rand() * 0.35, speed = 0.9 + rand() * 0.4, ph = rand() * TAU;
+    const w = speed / (mid(0) * span);
+    walkers.push((t) => {
+      const a = a0 + span * Math.sin(w * t + ph);
+      const back = Math.cos(w * t + ph) < 0 ? Math.PI : 0;
+      return { p: onRamp(a, mid), dir: a + Math.PI / 2 + back, phase: t * 5.5 + ph };
+    });
+  }
+  for (let i = 0; i < 6; i++) {
+    const r = 2 + rand() * 3.5, w = (0.8 + rand() * 0.4) / r, ph = rand() * TAU;
+    walkers.push((t) => {
+      const a = w * t + ph;
+      return { p: [r * Math.cos(a), 0, r * Math.sin(a)], dir: a + Math.PI / 2, phase: t * 5.5 + ph };
+    });
+  }
+  const standing: Pose[] = [];
+  for (let i = 0; i < 12; i++) {
+    const a = rand() * TURNS * TAU * 0.96;
+    standing.push({ p: onRamp(a, (y) => rOut(y) - SKIN - 1.3), dir: a });
+  }
+  for (let i = 0; i < 4; i++) {
+    const a = rand() * TAU, r = rand() * (rIn(0) - 1.5);
+    standing.push({ p: [r * Math.cos(a), 0, r * Math.sin(a)], dir: rand() * TAU });
+  }
+
   const bx = bounds([lines]);
-  return { lines, solids, site: siteAround(bx), bounds: bx, featured: 3 };
+  return { lines, solids, site: siteAround(bx), bounds: bx, featured: 3, people: { walkers, standing } };
 }
