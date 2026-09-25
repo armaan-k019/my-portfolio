@@ -68,22 +68,40 @@ function sse(event: string, data: unknown): string {
 }
 
 /**
- * The stored citation verdicts, read back defensively. The row was written by
- * this route from a CitationCheck, but a shape change must not be able to turn
- * a replay into a brief with no verdict at all, so anything unreadable comes
- * back as an empty verdict and the chips render as nothing rather than as
- * something that was never checked.
+ * The stored citation verdicts, or null when the payload cannot be read.
+ *
+ * The row was written by this route from a CitationCheck, but a shape change
+ * must never be able to turn an unreadable payload into a passing verdict: an
+ * empty invalidCitations and a zero uncited count is exactly what a brief that
+ * passed its checks looks like, and reading it out of a row nobody could parse
+ * would be a verdict the server never reached. Null instead, and the caller
+ * treats it as a cache miss and writes a new brief from the model.
  */
-function storedCheck(citations: Record<string, unknown>): CitationCheck {
-  const strings = (value: unknown): string[] =>
-    Array.isArray(value) ? value.filter((entry) => typeof entry === "string") : [];
-  const count = (value: unknown): number =>
-    typeof value === "number" && Number.isFinite(value) ? value : 0;
+function storedCheck(citations: Record<string, unknown>): CitationCheck | null {
+  const strings = (value: unknown): string[] | null =>
+    Array.isArray(value) && value.every((entry) => typeof entry === "string")
+      ? (value as string[])
+      : null;
+  const count = (value: unknown): number | null =>
+    typeof value === "number" && Number.isFinite(value) ? value : null;
+
+  const invalidCitations = strings(citations.invalidCitations);
+  const validCitations = strings(citations.validCitations);
+  const uncitedNumericSentences = count(citations.uncitedNumericSentences);
+  const valueMatchedSentences = count(citations.valueMatchedSentences);
+  if (
+    invalidCitations === null ||
+    validCitations === null ||
+    uncitedNumericSentences === null ||
+    valueMatchedSentences === null
+  ) {
+    return null;
+  }
   return {
-    invalidCitations: strings(citations.invalidCitations),
-    validCitations: strings(citations.validCitations),
-    uncitedNumericSentences: count(citations.uncitedNumericSentences),
-    valueMatchedSentences: count(citations.valueMatchedSentences),
+    invalidCitations,
+    validCitations,
+    uncitedNumericSentences,
+    valueMatchedSentences,
   };
 }
 
@@ -195,15 +213,21 @@ export async function POST(request: NextRequest) {
 
   const encoder = new TextEncoder();
 
-  if (storedBrief) {
-    const check = storedCheck(storedBrief.citations);
+  // An unreadable stored verdict is a cache miss, not a pass: the replay is
+  // skipped and the model writes the brief again, which also replaces the row.
+  const storedVerdict = storedBrief ? storedCheck(storedBrief.citations) : null;
+  if (storedBrief && storedVerdict === null) {
+    console.error("[datum] stored brief citations unreadable, writing a new brief");
+  }
+
+  if (storedBrief && storedVerdict !== null) {
     const replay =
       sse("delta", { text: storedBrief.text }) +
       sse("done", {
-        invalidCitations: check.invalidCitations,
-        validCitations: check.validCitations,
-        uncitedNumericSentences: check.uncitedNumericSentences,
-        valueMatchedSentences: check.valueMatchedSentences,
+        invalidCitations: storedVerdict.invalidCitations,
+        validCitations: storedVerdict.validCitations,
+        uncitedNumericSentences: storedVerdict.uncitedNumericSentences,
+        valueMatchedSentences: storedVerdict.valueMatchedSentences,
         model: storedBrief.model,
         inputHash: hash,
         cached: true,
