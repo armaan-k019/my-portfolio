@@ -497,10 +497,13 @@ async function readBrief(
 
 // ─── Step 3.6 item 6: the daily ping ─────────────────────────────────────────
 
-test("datum memory: the ping refuses everything but the cron secret", async ({ request }) => {
+test("datum memory: the ping refuses a missing, wrong, or wrongly schemed bearer", async ({
+  request,
+}) => {
   // These three need neither the database nor the secret: whatever the server
-  // is configured with, a caller without the secret gets the same 401, so the
-  // assertions run on every shape of run.
+  // is configured with, a caller without the secret gets the same 401. So this
+  // test has no skip at all and runs on every shape of run, including the
+  // offline one, where the refusals are the only ping behaviour there is.
   const bare = await request.get("/api/datum/memory/ping", { timeout: 60_000 });
   expect(bare.status(), "a request with no Authorization header is refused").toBe(401);
 
@@ -515,7 +518,9 @@ test("datum memory: the ping refuses everything but the cron secret", async ({ r
     timeout: 60_000,
   });
   expect(scheme.status(), "a request with another scheme is refused").toBe(401);
+});
 
+test("datum memory: the ping answers the cron secret", async ({ request }) => {
   const secret = process.env.CRON_SECRET;
   test.skip(
     !secret,
