@@ -25,15 +25,26 @@ interface Props {
   groups: Record<string, string>;
   loadingCount: number;
   briefStatus: string;
+  /** The server's verdict on the brief's citations, for the acceptance checks. */
+  validCitations: string[];
+  invalidCitations: string[];
 }
 
-export default function SheetCanvas({ groups, loadingCount, briefStatus }: Props) {
+export default function SheetCanvas({
+  groups,
+  loadingCount,
+  briefStatus,
+  validCitations,
+  invalidCitations,
+}: Props) {
   return (
     <div
       className="card overflow-hidden p-0"
       data-datum-sheet
       data-loading-count={loadingCount}
       data-brief-status={briefStatus}
+      data-brief-valid={validCitations.join(" ")}
+      data-brief-invalid={invalidCitations.join(" ")}
     >
       <svg
         viewBox="0 0 2592 1728"

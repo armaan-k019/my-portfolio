@@ -87,6 +87,7 @@ export default function AddressField({ onSubmit, suggest, busy }: Props) {
         />
         <button
           type="submit"
+          data-datum-submit
           disabled={busy || query.trim().length === 0}
           className="shrink-0 rounded-full bg-[var(--color-terracotta)] px-6 py-3 text-sm font-medium text-[var(--color-paper)] transition-opacity disabled:opacity-40"
         >

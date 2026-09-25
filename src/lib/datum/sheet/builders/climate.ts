@@ -81,10 +81,14 @@ export function build(ctx: SheetContext): string {
   }
 
   const rhPoints: Array<[number, number]> = [];
-  const maxRadiation = climate.monthly.reduce(
-    (peak, month) => Math.max(peak, month.meanDailyRadiationKwhM2 ?? 0),
-    0,
-  );
+  // Months the archive left empty are skipped rather than counted as zero: a
+  // null is not a measurement, and a zero would scale every other bar against
+  // a value nothing reported.
+  const radiationValues = climate.monthly
+    .map((month) => month.meanDailyRadiationKwhM2)
+    .filter((value): value is number => value !== null);
+  const maxRadiation =
+    radiationValues.length > 0 ? Math.max(...radiationValues) : 0;
 
   climate.monthly.forEach((month, index) => {
     const cx = plotX + columnW * (index + 0.5);

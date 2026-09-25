@@ -213,6 +213,8 @@ export default function SiteSheetApp() {
               groups={groups}
               loadingCount={loadingCount}
               briefStatus={brief.status}
+              validCitations={brief.validCitations}
+              invalidCitations={brief.invalidCitations}
             />
             <LayerRail layers={layers} onRetry={retry} />
           </div>
