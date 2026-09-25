@@ -57,24 +57,24 @@ export default function SectionCut() {
       </div>
       <div className="max-w-5xl mx-auto px-6 pb-8 md:pb-0 md:absolute md:inset-x-0 md:bottom-6 flex justify-end">
         <div className="grid justify-items-end gap-2">
-          {b && (
-            <div className="flex items-center gap-2">
-              <p className="meta uppercase">
-                {b.name} &middot; after {b.architect} &middot; {b.year}
-              </p>
-              {BUILDINGS.length > 1 && (
-                <span className="pointer-events-auto flex">
-                  <button type="button" onClick={() => setIndex(at(-1))} aria-label={BUILDINGS[at(-1)].name} className="coord px-1.5 py-1 hover:text-terracotta-dark">&larr;</button>
-                  <button type="button" onClick={() => setIndex(at(1))} aria-label={BUILDINGS[at(1)].name} className="coord px-1.5 py-1 hover:text-terracotta-dark">&rarr;</button>
-                </span>
-              )}
-            </div>
-          )}
+          {/* The row is always rendered so the readout does not shift when
+              the day's building is chosen after mount. */}
+          <div className="flex items-center gap-2 min-h-7">
+            <p className="meta uppercase">
+              {b ? <>{b.name} &middot; after {b.architect} &middot; {b.year}</> : "\u00a0"}
+            </p>
+            {b && BUILDINGS.length > 1 && (
+              <span className="pointer-events-auto flex">
+                <button type="button" onClick={() => setIndex(at(-1))} aria-label={BUILDINGS[at(-1)].name} className="coord px-1.5 py-1 hover:text-terracotta-dark">&larr;</button>
+                <button type="button" onClick={() => setIndex(at(1))} aria-label={BUILDINGS[at(1)].name} className="coord px-1.5 py-1 hover:text-terracotta-dark">&rarr;</button>
+              </span>
+            )}
+          </div>
           <dl aria-hidden className="grid grid-cols-[auto_auto] gap-x-3 gap-y-1 items-baseline">
-            <dt className="meta">CUT</dt><dd className="coord whitespace-pre" ref={cutRef} />
-            <dt className="meta">VIEW</dt><dd className="coord whitespace-pre" ref={viewRef} />
+            <dt className="meta">CUT</dt><dd className="coord whitespace-pre min-w-[21ch]" ref={cutRef} />
+            <dt className="meta">VIEW</dt><dd className="coord whitespace-pre min-w-[21ch]" ref={viewRef} />
             <dt className="meta" hidden={!hasPointer}>PTR</dt>
-            <dd className="coord whitespace-pre" ref={ptrRef} hidden={!hasPointer} />
+            <dd className="coord whitespace-pre min-w-[21ch]" ref={ptrRef} hidden={!hasPointer} />
           </dl>
         </div>
       </div>
