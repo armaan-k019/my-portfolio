@@ -54,27 +54,31 @@ export default function WorkSection() {
                   <li key={entry.name}>
                     <button
                       onClick={() => setSelected(entry)}
-                      className="group flex w-full flex-wrap items-baseline gap-x-3 gap-y-1 py-4 text-left"
+                      aria-haspopup="dialog"
+                      className="group grid w-full grid-cols-[1fr_auto] items-baseline gap-x-3 -mx-2 px-2 py-4 text-left cursor-pointer transition-colors hover:bg-terracotta/5 focus-visible:bg-terracotta/5"
                     >
-                      <span className="font-display text-lg font-semibold text-ink group-hover:text-terracotta transition-colors">
-                        {entry.name}
-                      </span>
-                      {roles.length === 1 ? (
-                        <>
-                          <span className="text-sm text-brown-light">{entry.role}</span>
-                          <span className="meta whitespace-nowrap basis-full">{entry.dates}</span>
-                        </>
-                      ) : (
-                        <span className="flex flex-col gap-0.5">
-                          {roles.map((r, i) => (
-                            <span key={r} className="text-sm text-brown-light" style={{ paddingLeft: `${i}rem` }}>
-                              {i > 0 && <span className="text-terracotta mr-1.5">&rarr;</span>}
-                              {r}
-                            </span>
-                          ))}
-                          <span className="meta whitespace-nowrap mt-1">{entry.dates}</span>
+                      <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                        <span className="font-display text-lg font-semibold text-ink group-hover:text-terracotta group-focus-visible:text-terracotta transition-colors">
+                          {entry.name}
                         </span>
-                      )}
+                        {roles.length === 1 ? (
+                          <>
+                            <span className="text-sm text-brown-light">{entry.role}</span>
+                            <span className="meta whitespace-nowrap basis-full">{entry.dates}</span>
+                          </>
+                        ) : (
+                          <span className="flex flex-col gap-0.5">
+                            {roles.map((r, i) => (
+                              <span key={r} className="text-sm text-brown-light" style={{ paddingLeft: `${i}rem` }}>
+                                {i > 0 && <span className="text-terracotta mr-1.5">&rarr;</span>}
+                                {r}
+                              </span>
+                            ))}
+                            <span className="meta whitespace-nowrap mt-1">{entry.dates}</span>
+                          </span>
+                        )}
+                      </span>
+                      <span aria-hidden className="meta text-sm leading-none group-hover:text-terracotta group-focus-visible:text-terracotta transition-colors">+</span>
                     </button>
                   </li>
                 );
