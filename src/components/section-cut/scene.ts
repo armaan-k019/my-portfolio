@@ -9,6 +9,9 @@ import { crossings, type Model } from "./geometry";
 const NEAR_BAND = 8;        // metres behind the cut drawn in ink, the rest in hairline
 const HATCH = 0.16;         // poché hatch spacing in metres
 const CUT_WIDTH = 2.5;      // cut outline, CSS px
+const TRAIL = 8;            // earlier cut positions kept as a fading wake
+const TRAIL_MS = 600;       // how long a wake section takes to fade out
+const TRAIL_STEP = 1.2;     // metres the cut must move before it leaves a wake
 const IDLE_AFTER = 8000;    // ms without pointer movement before the model turns
 const IDLE_RAMP = 2500;     // ms over which the idle turn eases up to speed
 const IDLE_SPEED = 5;       // degrees of azimuth per second at full speed
@@ -104,7 +107,7 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
   const radius = new THREE.Vector3(...bx.max).sub(new THREE.Vector3(...bx.min)).length() / 2;
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, radius * 8);
 
-  let hatchCap = 0, outlineCap = 0;
+  let hatchCap = 0;
   hatch.frustumCulled = false;
   outline.frustumCulled = false;
   function writeHatch(pts: number[]) {
@@ -119,22 +122,56 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
     attr.needsUpdate = true;
     hatchGeo.setDrawRange(0, n);
   }
-  function writeOutline(segs: number[]) {
+  // Write heavy-line segments into a LineSegments2 in place; its buffer only
+  // grows (by doubling, disposing the old one) when it runs out of room.
+  const caps = new WeakMap<LineSegments2, number>();
+  function fillSegs(obj: LineSegments2, segs: number[]) {
     const n = segs.length / 6;
-    if (n > outlineCap) {
-      outlineCap = Math.max(n, outlineCap * 2, 256);
-      outline.geometry.dispose();
+    const cap = caps.get(obj) ?? 0;
+    // A fresh geometry has no instance buffer yet, so allocate on first use
+    // even when there is nothing to draw.
+    if (n > cap || cap === 0) {
+      const next = Math.max(n, cap * 2, 256);
+      caps.set(obj, next);
+      obj.geometry.dispose();
       const g = new LineSegmentsGeometry();
-      g.setPositions(new Float32Array(outlineCap * 6));
-      outline.geometry = g;
+      g.setPositions(new Float32Array(next * 6));
+      obj.geometry = g;
     }
-    const g = outline.geometry as LineSegmentsGeometry;
+    const g = obj.geometry as LineSegmentsGeometry;
     // setPositions lays each segment out as start xyz then end xyz, the same
     // order the cut writes, in one interleaved buffer.
     const data = (g.getAttribute("instanceStart") as THREE.InterleavedBufferAttribute).data;
     (data.array as Float32Array).set(segs);
     data.needsUpdate = true;
     g.instanceCount = n;
+  }
+
+  // The wake: earlier cut sections that fade out over TRAIL_MS, live mode only.
+  const trail = mode === "live" ? Array.from({ length: TRAIL }, () => {
+    const mat = new LineMaterial({ color: cut.color, linewidth: 1.25, transparent: true, depthTest: false, opacity: 0 });
+    const obj = new LineSegments2(new LineSegmentsGeometry(), mat);
+    obj.frustumCulled = false;
+    obj.renderOrder = 3.5;
+    obj.visible = false;
+    scene.add(obj);
+    return { obj, mat, born: -Infinity };
+  }) : [];
+  let trailAt = NaN, trailNext = 0;
+  function leaveWake(x: number, segs: number[]) {
+    if (!trail.length || Math.abs(x - trailAt) < TRAIL_STEP) return;
+    trailAt = x;
+    const slot = trail[trailNext];
+    trailNext = (trailNext + 1) % TRAIL;
+    fillSegs(slot.obj, segs);
+    slot.born = performance.now();
+  }
+  function fadeWake(now: number) {
+    for (const t of trail) {
+      const k = 1 - (now - t.born) / TRAIL_MS;
+      t.obj.visible = k > 0;
+      t.mat.opacity = Math.max(0, k) * 0.55;
+    }
   }
 
   let station = NaN;
@@ -160,8 +197,9 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
         hatchPts.push((a[0] + a[3]) / 2, (a[1] + a[4]) / 2, (a[2] + a[5]) / 2, (b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2);
       }
     }
-    writeOutline(rects);
+    fillSegs(outline, rects);
     writeHatch(hatchPts);
+    leaveWake(x, rects);
   }
 
   function aim(azDeg: number, elDeg: number) {
@@ -185,6 +223,7 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
     camera.top = half; camera.bottom = -half;
     camera.updateProjectionMatrix();
     outlineMat.resolution.set(w, h);
+    for (const t of trail) t.mat.resolution.set(w, h);
   }
 
   function render() { renderer.render(scene, camera); }
@@ -251,6 +290,7 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
     // Once the pointer leaves the hero the cut stays where it was left.
     if (pointer && client) setCut(stationUnder(client.x, client.y, pointer.x));
     else if (!pointer) setCut(m.featured);
+    fadeWake(now);
     render();
     report();
   }
@@ -322,6 +362,7 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
     host.removeEventListener("pointerleave", onLeave);
     renderer.dispose();
     geo.dispose(); siteGeo.dispose(); hatchGeo.dispose(); outline.geometry.dispose();
+    for (const t of trail) { t.obj.geometry.dispose(); t.mat.dispose(); }
     outlineMat.dispose();
   };
 }
