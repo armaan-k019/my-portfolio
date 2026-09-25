@@ -824,6 +824,23 @@ changes: `truncated` and `metricsWrite` on the context response, `n` on Percenti
 Fix round 2 (final for Phase 3): metrics and vector written together or not at all; unit
 coverage for the fix round 1 changes; the ping refusals split into their own test. In flight.
 
+### Greptile on PR #27 (and one new on #26), 2026-09-25
+
+Nine comments, all answered. Three already fixed by fix round 1 (site id leak, ping ok, stored
+verdict), one in flight (metrics and vector together, fix round 2), two map to open questions
+(16; and the new 17 below), three queued for a Greptile fix round after fix round 2 lands:
+MemoryPanel can stay stuck loading after a Strict Mode remount or a retry (clear the asked ref
+on cleanup); the public map and the site count include rows that never finished an analysis
+(filter on metrics_at not null); the citation percent form is indexed only for paths ending in
+Pct, so a restated soil component `percent` fails the value check (broaden to `percent`).
+
+17. Similar sites: the TypeScript ordering over a capped candidate set (2000, newest first) can
+    omit the true nearest neighbour once the corpus passes the cap, and `truncated` is not
+    rendered. Options: (a) add a `similar_sites(query vector, limit)` SQL function using `<->` to
+    migration 0002, which is unapplied and at the human gate right now, so this is the cheapest
+    moment (SPEC section 13 change); (b) render `truncated` (new copy); (c) accept as recorded
+    debt while the corpus is twelve sites. Recommended: (a).
+
 ### Next action
 
 Owner applies migration 0002 (SQL handed over in chat), then the orchestrator runs the step 3.1
