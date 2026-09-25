@@ -1,9 +1,11 @@
 import { test, expect } from "@playwright/test";
+import { createHmac } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   checkRateLimit,
   clientIpFrom,
   getOrCreateSite,
+  getSiteById,
   hashIp,
   isLocalSiteId,
   issueLocalSiteId,
@@ -13,7 +15,10 @@ import {
   verifyLocalSiteId,
   withMemory,
 } from "../../src/lib/datum/memory";
-import { RATE_LIMIT_PEEK_MEMO_MS } from "../../src/lib/datum/constants";
+import {
+  PEEK_MEMO_MAX,
+  RATE_LIMIT_PEEK_MEMO_MS,
+} from "../../src/lib/datum/constants";
 
 /** A client whose every query rejects, which is what a paused project looks like. */
 function rejectingClient(): SupabaseClient {
@@ -335,4 +340,314 @@ test("yesterday's signature verifies and the day before does not", () => {
   expect(
     verifyLocalSiteId(issueLocalSiteId(ATLANTA_KEY, new Date(now - 2 * DAY_MS))),
   ).toBeNull();
+});
+
+// ─── Site rows: insert races, locality write back, and the offline flip ──────
+
+interface FakeSiteRow {
+  id: string;
+  site_key: string;
+  lat: number;
+  lng: number;
+  public_lat: number;
+  public_lng: number;
+  locality: string | null;
+  tract_geoid: string | null;
+  is_test: boolean;
+  created_at: string;
+  last_analyzed_at: string;
+  analysis_count: number;
+  schema_version: number;
+}
+
+function siteRow(overrides: Partial<FakeSiteRow> = {}): FakeSiteRow {
+  return {
+    id: "11111111-2222-3333-4444-555555555555",
+    site_key: "33.775,-84.392",
+    lat: 33.7751258,
+    lng: -84.391975,
+    public_lat: 33.78,
+    public_lng: -84.39,
+    locality: null,
+    tract_geoid: null,
+    is_test: true,
+    created_at: "2026-09-25T00:00:00.000Z",
+    last_analyzed_at: "2026-09-25T00:00:00.000Z",
+    analysis_count: 1,
+    schema_version: 1,
+    ...overrides,
+  };
+}
+
+/**
+ * A `sites` table that answers selects, records updates, and can be told to
+ * reject an insert with the Postgres unique violation code or to start failing
+ * every call, which is what the offline flip looks like from here.
+ */
+function sitesClient(options?: {
+  rows?: FakeSiteRow[];
+  /** A row that "another request" inserted; the insert then loses the race. */
+  raceWinner?: FakeSiteRow;
+}) {
+  const rows = [...(options?.rows ?? [])];
+  const updates: Array<Record<string, unknown>> = [];
+  let inserts = 0;
+  let failing = false;
+
+  const client = {
+    from() {
+      let mode: "select" | "insert" | "update" = "select";
+      let payload: Record<string, unknown> = {};
+      const filters: Array<[string, unknown]> = [];
+
+      const match = () =>
+        rows.find((row) =>
+          filters.every(
+            ([column, value]) => (row as unknown as Record<string, unknown>)[column] === value,
+          ),
+        ) ?? null;
+
+      const chain = {
+        select() {
+          if (mode !== "insert") mode = "select";
+          return chain;
+        },
+        insert(row: Record<string, unknown>) {
+          mode = "insert";
+          payload = row;
+          return chain;
+        },
+        update(row: Record<string, unknown>) {
+          mode = "update";
+          payload = row;
+          return chain;
+        },
+        eq(column: string, value: unknown) {
+          filters.push([column, value]);
+          return chain;
+        },
+        async maybeSingle() {
+          if (failing) throw new Error("connection refused");
+          return { data: match(), error: null };
+        },
+        async single() {
+          if (failing) throw new Error("connection refused");
+          if (mode === "insert") {
+            inserts += 1;
+            if (options?.raceWinner) {
+              // The winner is visible from now on, exactly as it would be.
+              if (!rows.includes(options.raceWinner)) rows.push(options.raceWinner);
+              return { data: null, error: { code: "23505", message: "duplicate key" } };
+            }
+            const created = siteRow(payload as Partial<FakeSiteRow>);
+            rows.push(created);
+            return { data: created, error: null };
+          }
+          return { data: match(), error: null };
+        },
+        // touchSite awaits the update directly, with no terminal method.
+        then(
+          resolve: (value: { error: unknown }) => void,
+          reject: (reason: unknown) => void,
+        ) {
+          if (failing) {
+            reject(new Error("connection refused"));
+            return;
+          }
+          if (mode === "update") {
+            updates.push(payload);
+            const row = match();
+            if (row) Object.assign(row, payload);
+          }
+          resolve({ error: null });
+        },
+      };
+      return chain;
+    },
+    rpc: async () => ({ data: 1, error: null }),
+  } as unknown as SupabaseClient;
+
+  return {
+    client,
+    rows,
+    updates,
+    inserts: () => inserts,
+    breakNow: () => {
+      failing = true;
+    },
+  };
+}
+
+test("a lost insert race re-reads the winner instead of issuing a local id", async () => {
+  const winner = siteRow({ id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee" });
+  const fake = sitesClient({ raceWinner: winner });
+  setClientForTests(fake.client);
+
+  const site = await getOrCreateSite({ lat: 33.7751258, lng: -84.391975, isTest: true });
+
+  expect(fake.inserts()).toBe(1);
+  expect(site.id).toBe(winner.id);
+  expect(isLocalSiteId(site.id)).toBe(false);
+  // Losing a race is not a failure of Site Memory, so the guard stays online.
+  expect(memoryStatus()).toBe("online");
+  setClientForTests(null);
+});
+
+test("the re-read after a race touches the winner exactly once", async () => {
+  const winner = siteRow({ id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee" });
+  const fake = sitesClient({ raceWinner: winner });
+  setClientForTests(fake.client);
+
+  await getOrCreateSite({ lat: 33.7751258, lng: -84.391975, isTest: true });
+
+  expect(fake.updates).toHaveLength(1);
+  expect(fake.updates[0]).toHaveProperty("last_analyzed_at");
+  setClientForTests(null);
+});
+
+test("a null locality and tract are written back when the input supplies them", async () => {
+  const existing = siteRow({ locality: null, tract_geoid: null });
+  const fake = sitesClient({ rows: [existing] });
+  setClientForTests(fake.client);
+
+  const site = await getOrCreateSite({
+    lat: 33.7751258,
+    lng: -84.391975,
+    locality: "Atlanta, Georgia",
+    tractGeoid: "13121001100",
+    isTest: true,
+  });
+
+  expect(fake.updates).toHaveLength(1);
+  expect(fake.updates[0].locality).toBe("Atlanta, Georgia");
+  expect(fake.updates[0].tract_geoid).toBe("13121001100");
+  // The row the caller gets back carries what was just written.
+  expect(site.locality).toBe("Atlanta, Georgia");
+  expect(site.tract_geoid).toBe("13121001100");
+  setClientForTests(null);
+});
+
+test("a locality already on the row is never overwritten by a later input", async () => {
+  const existing = siteRow({ locality: "Atlanta, Georgia", tract_geoid: "13121001100" });
+  const fake = sitesClient({ rows: [existing] });
+  setClientForTests(fake.client);
+
+  const site = await getOrCreateSite({
+    lat: 33.7751258,
+    lng: -84.391975,
+    locality: "Somewhere Else",
+    tractGeoid: "99999999999",
+    isTest: true,
+  });
+
+  expect(fake.updates).toHaveLength(1);
+  expect(fake.updates[0]).not.toHaveProperty("locality");
+  expect(fake.updates[0]).not.toHaveProperty("tract_geoid");
+  expect(site.locality).toBe("Atlanta, Georgia");
+  setClientForTests(null);
+});
+
+test("a touch with nothing to backfill writes only last_analyzed_at", async () => {
+  const existing = siteRow({ locality: null });
+  const fake = sitesClient({ rows: [existing] });
+  setClientForTests(fake.client);
+
+  await getOrCreateSite({ lat: 33.7751258, lng: -84.391975, isTest: true });
+
+  expect(Object.keys(fake.updates[0])).toEqual(["last_analyzed_at"]);
+  setClientForTests(null);
+});
+
+test("a database site id keeps working through an offline flip mid analysis", async () => {
+  const existing = siteRow({ id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee" });
+  const fake = sitesClient({ rows: [existing] });
+  setClientForTests(fake.client);
+
+  const first = await getSiteById(existing.id);
+  expect(first?.id).toBe(existing.id);
+
+  // Site Memory flips offline part way through the run. The layer routes go on
+  // resolving the same id rather than answering 404.
+  fake.breakNow();
+  const during = await getSiteById(existing.id);
+  expect(memoryStatus()).toBe("offline");
+  expect(during?.id).toBe(existing.id);
+  setClientForTests(null);
+});
+
+test("a site created on this instance survives the flip too", async () => {
+  const fake = sitesClient();
+  setClientForTests(fake.client);
+
+  const created = await getOrCreateSite({ lat: 33.7751258, lng: -84.391975, isTest: true });
+  fake.breakNow();
+
+  expect(await getSiteById(created.id)).toEqual(created);
+  setClientForTests(null);
+});
+
+test("a cold instance that never saw the row still answers null", async () => {
+  // The residual recorded in memory.ts: nothing is invented for a row this
+  // process has not read.
+  setClientForTests(rejectingClient());
+  expect(await getSiteById("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")).toBeNull();
+  setClientForTests(null);
+});
+
+test("the remembered rows are dropped by the test seam", async () => {
+  const existing = siteRow({ id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee" });
+  const fake = sitesClient({ rows: [existing] });
+  setClientForTests(fake.client);
+  await getSiteById(existing.id);
+
+  setClientForTests(rejectingClient());
+  expect(await getSiteById(existing.id)).toBeNull();
+  setClientForTests(null);
+});
+
+// ─── The fallback signing key ────────────────────────────────────────────────
+
+test("the fallback local id signing key is not a fixed constant in the source", async () => {
+  // The retired fallback. An id signed with a published constant could be
+  // minted by anyone for any point, without passing the site route.
+  const retired = "datum.local-site-id.unconfigured";
+  const key = "33.775,-84.392";
+  const day = new Date().toISOString().slice(0, 10);
+  const forged = createHmac("sha256", retired)
+    .update(`${key}|${day}`)
+    .digest("hex")
+    .slice(0, 32);
+
+  const id = issueLocalSiteId(key);
+  expect(id.endsWith(forged)).toBe(false);
+  // It still verifies inside this process, which is all a per instance map needs.
+  expect(verifyLocalSiteId(id)).toEqual({ siteKey: key, lat: 33.775, lng: -84.392 });
+});
+
+test("the signing key is stable within the process", () => {
+  const key = "33.775,-84.392";
+  expect(issueLocalSiteId(key)).toBe(issueLocalSiteId(key));
+});
+
+// ─── The peek memo is bounded ────────────────────────────────────────────────
+
+test("the peek memo is cleared at PEEK_MEMO_MAX rather than growing forever", async () => {
+  const { client, calls } = recordingClient();
+  setClientForTests(client);
+  const watched = hashIp("198.51.100.4");
+
+  await peekRateLimit(watched);
+  const afterFirst = calls().length;
+  await peekRateLimit(watched);
+  expect(calls().length, "the second peek is memoised").toBe(afterFirst);
+
+  // Fill the memo past its bound with distinct hashes.
+  for (let i = 0; i < PEEK_MEMO_MAX; i++) {
+    await peekRateLimit(hashIp(`10.0.0.${i}`));
+  }
+
+  // The watched entry went with the clear, so this peek pays for a read again.
+  await peekRateLimit(watched);
+  expect(calls().length).toBeGreaterThan(afterFirst);
+  setClientForTests(null);
 });

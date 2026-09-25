@@ -3,10 +3,11 @@
 // SPEC.md section 13. Key values are never logged and never returned.
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { createHash, createHmac } from "node:crypto";
+import { createHash, createHmac, randomBytes } from "node:crypto";
 import {
   MEMORY_OFFLINE_COOLDOWN_MS,
   MEMORY_TIMEOUT_MS,
+  PEEK_MEMO_MAX,
   RATE_LIMIT_PEEK_MEMO_MS,
   RATE_LIMIT_PER_DAY,
 } from "./constants";
@@ -52,6 +53,7 @@ export function setClientForTests(fake: SupabaseClient | null): void {
   status = "online";
   offlineUntil = 0;
   localSites.clear();
+  seenSites.clear();
   localRateLimits.clear();
   peekMemo.clear();
 }
@@ -146,6 +148,28 @@ export function clientIpFrom(headerValue: string | null): string {
 
 const localSites = new Map<string, SiteRecord>();
 
+/**
+ * Database site rows this instance has already seen, keyed by site id.
+ *
+ * Site Memory can flip offline in the middle of an analysis (observed twice in
+ * six runs on a slow link, PROGRESS.md fourth round). The layer routes resolve
+ * their site by id on every call, so the flip turned a site the instance had
+ * just created into a 404 and the run died halfway through. Remembering the row
+ * lets the run finish on data the instance has already read from the database.
+ *
+ * Residual, deliberately not fixed here: an instance that never saw the row
+ * still answers null while the guard is tripped. Serving a row this process
+ * never read would mean inventing one, so a cold instance waits out the 60 s
+ * cool down instead.
+ */
+const seenSites = new Map<string, SiteRecord>();
+
+/** Bounded the same way as the peek memo: cleared whole at the bound. */
+function remember(record: SiteRecord): void {
+  if (seenSites.size >= PEEK_MEMO_MAX) seenSites.clear();
+  seenSites.set(record.id, record);
+}
+
 const LOCAL_ID_PREFIX = "local-";
 const LOCAL_ID_SIG_LENGTH = 32;
 const DAY_MS = 86_400_000;
@@ -154,15 +178,23 @@ let localIdSecret: string | null = null;
 
 /**
  * The signing key for local site ids. Read once, never logged, never returned.
+ *
  * When SUPABASE_SECRET_KEY is absent Site Memory is not configured at all, so
- * there is no project behind the id to protect and a fixed in code string
- * stands in rather than leaving the id unsigned.
+ * there is no project behind the id to protect. The fallback is nonetheless a
+ * fresh 32 random bytes, generated once per process, never a fixed constant: a
+ * constant in the source is a published signing key, and anyone could then mint
+ * an id for any point and spend layer calls without passing the site route.
+ *
+ * The cost of a per process key is that an id issued in the unconfigured
+ * configuration does not verify after a cold start. That is the behaviour the
+ * in memory site map already has, since it is per instance too, so an id whose
+ * signature survived would have found no row to resolve against anyway.
  */
 function localIdKey(): string {
   if (localIdSecret !== null) return localIdSecret;
   const secret = process.env.SUPABASE_SECRET_KEY;
   localIdSecret =
-    secret && secret.length > 0 ? secret : "datum.local-site-id.unconfigured";
+    secret && secret.length > 0 ? secret : randomBytes(32).toString("hex");
   return localIdSecret;
 }
 
@@ -252,12 +284,9 @@ export async function getOrCreateSite(input: SiteInput): Promise<SiteRecord> {
   const nowIso = new Date().toISOString();
 
   const existing = await findSite(key);
-  if (existing) {
-    await touchSite(existing.id);
-    return existing;
-  }
+  if (existing) return await reuseSite(existing, input);
 
-  const row = await withMemory(async (db) => {
+  const inserted = await withMemory(async (db) => {
     const { data, error } = await db
       .from("sites")
       .insert({
@@ -272,10 +301,23 @@ export async function getOrCreateSite(input: SiteInput): Promise<SiteRecord> {
       })
       .select("*")
       .single();
-    if (error) throw new Error("sites insert failed");
+    if (error) {
+      // A concurrent request inserted the same site_key between the lookup
+      // above and this insert. Losing that race is not a failure of Site
+      // Memory, so it must not flip the module offline and must not fall back
+      // to a local id: the winner's row is the row this request wants.
+      if (isUniqueViolation(error)) return RACED;
+      throw new Error("sites insert failed");
+    }
     return data as SiteRecord;
   });
-  if (row) return row;
+  if (inserted === RACED) {
+    const winner = await findSite(key);
+    if (winner) return await reuseSite(winner, input);
+  } else if (inserted) {
+    remember(inserted);
+    return inserted;
+  }
 
   const fallback: SiteRecord = {
     id: issueLocalSiteId(key),
@@ -296,6 +338,36 @@ export async function getOrCreateSite(input: SiteInput): Promise<SiteRecord> {
   return fallback;
 }
 
+/** The sentinel a lost insert race returns, distinct from a row and from undefined. */
+const RACED = Symbol("sites insert raced");
+
+/** Postgres unique violation, as Supabase reports it on the error object. */
+function isUniqueViolation(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const code = (error as { code?: unknown }).code;
+  return code === "23505";
+}
+
+/**
+ * An existing row is touched and returned. A row that predates a locality or a
+ * tract this request now has gets them written back in the same update: the
+ * first analysis of a point can run before the Census geocoder has answered,
+ * and without this the columns stay null for the life of the row.
+ */
+async function reuseSite(existing: SiteRecord, input: SiteInput): Promise<SiteRecord> {
+  const backfill: { locality?: string; tract_geoid?: string } = {};
+  if (existing.locality === null && typeof input.locality === "string") {
+    backfill.locality = input.locality;
+  }
+  if (existing.tract_geoid === null && typeof input.tractGeoid === "string") {
+    backfill.tract_geoid = input.tractGeoid;
+  }
+  await touchSite(existing.id, backfill);
+  const updated = { ...existing, ...backfill };
+  if (!isLocalSiteId(updated.id)) remember(updated);
+  return updated;
+}
+
 export async function getSiteById(id: string): Promise<SiteRecord | null> {
   if (isLocalSiteId(id)) {
     for (const record of localSites.values()) {
@@ -312,15 +384,27 @@ export async function getSiteById(id: string): Promise<SiteRecord | null> {
     if (error) throw new Error("sites lookup failed");
     return (data as SiteRecord | null) ?? null;
   });
-  return row ?? null;
+  if (row === undefined) {
+    // Offline, or the guard is in its cool down. A row this instance has
+    // already read is served rather than a null, so a flip in the middle of an
+    // analysis does not turn the remaining layer calls into 404s.
+    return seenSites.get(id) ?? null;
+  }
+  if (row) remember(row);
+  return row;
 }
 
-export async function touchSite(id: string): Promise<void> {
+export async function touchSite(
+  id: string,
+  patch?: { locality?: string; tract_geoid?: string },
+): Promise<void> {
   if (isLocalSiteId(id)) {
     for (const record of localSites.values()) {
       if (record.id === id) {
         record.last_analyzed_at = new Date().toISOString();
         record.analysis_count += 1;
+        if (patch?.locality !== undefined) record.locality = patch.locality;
+        if (patch?.tract_geoid !== undefined) record.tract_geoid = patch.tract_geoid;
       }
     }
     return;
@@ -328,7 +412,7 @@ export async function touchSite(id: string): Promise<void> {
   await withMemory(async (db) => {
     const { error } = await db
       .from("sites")
-      .update({ last_analyzed_at: new Date().toISOString() })
+      .update({ last_analyzed_at: new Date().toISOString(), ...patch })
       .eq("id", id);
     if (error) throw new Error("sites touch failed");
     return true;
@@ -485,6 +569,9 @@ export async function peekRateLimit(
   const memo = peekMemo.get(ipHash);
   if (memo && memo.until > nowMs) return memo.result;
   const result = await checkRateLimit(ipHash, { increment: false });
+  // Bounded: the memo has no eviction of its own, so it is cleared whole at
+  // PEEK_MEMO_MAX. Losing it costs one read per hashed IP, never correctness.
+  if (peekMemo.size >= PEEK_MEMO_MAX) peekMemo.clear();
   peekMemo.set(ipHash, {
     result,
     until: nowMs + RATE_LIMIT_PEEK_MEMO_MS,

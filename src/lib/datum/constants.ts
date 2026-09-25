@@ -177,6 +177,18 @@ export const SITE_FREE_LAYER_WINDOW_MS = 86_400_000;
  * accepted (fourth round) in exchange for taking the read off the warm path.
  */
 export const RATE_LIMIT_PEEK_MEMO_MS = 60_000;
+/**
+ * How many entries the per instance memo maps may hold before they are cleared.
+ *
+ * The peek memo is keyed by hashed IP and the seen site map by site id, so both
+ * grow with distinct callers rather than with traffic, and neither has an
+ * eviction policy of its own: without a bound a long lived instance under a
+ * spread of addresses would hold them all. Clearing at the bound is the whole
+ * policy. The memo is a latency optimisation and the seen map is an offline
+ * fallback, so losing either costs one round trip, not correctness. 2000
+ * entries of a small result object is well under a megabyte.
+ */
+export const PEEK_MEMO_MAX = 2000;
 
 // ─── Memory (SPEC section 13, paused database) ───────────────────────────────
 
