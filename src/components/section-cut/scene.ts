@@ -151,6 +151,15 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
       const zs = crossings(p.poly, x);
       for (let i = 0; i + 1 < zs.length; i += 2) sectionOf(x, p.y0, p.y1, zs[i], zs[i + 1], rects, hatchPts);
     }
+    if (m.shells) {
+      const { outer, inner } = m.shells;
+      for (let t = 0; t < outer.length; t += 9) {
+        const a = triCut(outer, t, x), b = triCut(inner, t, x);
+        if (!a || !b) continue;
+        rects.push(...a, ...b);
+        hatchPts.push((a[0] + a[3]) / 2, (a[1] + a[4]) / 2, (a[2] + a[5]) / 2, (b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2);
+      }
+    }
     writeOutline(rects);
     writeHatch(hatchPts);
   }
@@ -315,6 +324,20 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
     geo.dispose(); siteGeo.dispose(); hatchGeo.dispose(); outline.geometry.dispose();
     outlineMat.dispose();
   };
+}
+
+// The segment where triangle t of a flat mesh crosses the plane x = cut.
+function triCut(tri: number[], t: number, x: number): number[] | null {
+  const pts: number[] = [];
+  for (let e = 0; e < 3; e++) {
+    const i = t + e * 3, j = t + ((e + 1) % 3) * 3;
+    const xa = tri[i], xb = tri[j];
+    if ((xa <= x && xb > x) || (xb <= x && xa > x)) {
+      const k = (x - xa) / (xb - xa);
+      pts.push(x, tri[i + 1] + k * (tri[j + 1] - tri[i + 1]), tri[i + 2] + k * (tri[j + 2] - tri[i + 2]));
+    }
+  }
+  return pts.length === 6 ? pts : null;
 }
 
 // One interval of a prism's section: a rectangle in YZ on the plane x = cut,

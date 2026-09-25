@@ -16,6 +16,10 @@ export interface Model {
   lines: number[];       // flat xyz pairs, drawn and depth-graded
   solids: Prism[];       // cut only, never drawn directly
   site: number[];        // flat xyz pairs, drawn as hairline construction
+  // Thin curved shells, cut exactly: matching outer and inner triangle
+  // meshes (flat xyz, nine numbers a triangle). The cut draws both surfaces'
+  // traces and rungs between them as the poché.
+  shells?: { outer: number[]; inner: number[] };
   bounds: Box;           // building extent (site excluded)
   featured: number;      // X station shown before the pointer moves
 }
