@@ -247,3 +247,76 @@ test("a Photon failure answers 200 with an empty list and a reason", async () =>
     globalThis.fetch = realFetch;
   }
 });
+
+// ─── Outbound pacing ─────────────────────────────────────────────────────────
+
+/** A fetch that records the instant each request was actually sent. */
+function timingFetch(sentAt: number[], body: unknown): typeof fetch {
+  return (async () => {
+    sentAt.push(Date.now());
+    return new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }) as unknown as typeof fetch;
+}
+
+test("a cold outbound call is sent immediately, so a warm path never waits", async () => {
+  resetNominatimRateState();
+  const sentAt: number[] = [];
+  const context = contextWith(
+    timingFetch(sentAt, fixture("nominatim/reverse-atlanta-zoom10.json")),
+  );
+
+  const started = Date.now();
+  await reverseLocality(33.775, -84.392, context);
+  expect(sentAt).toHaveLength(1);
+  expect(sentAt[0] - started).toBeLessThan(NOMINATIM_MIN_INTERVAL_MS);
+  resetNominatimRateState();
+});
+
+test("concurrent cache misses are sent a second apart, never together", async () => {
+  // The slot is reserved before the sleep. Were it recorded afterwards, all
+  // three would read the same stale timestamp, compute the same wait, and wake
+  // in the same millisecond: one burst of three against a one per second policy.
+  resetNominatimRateState();
+  const sentAt: number[] = [];
+  const context = contextWith(
+    timingFetch(sentAt, fixture("nominatim/reverse-atlanta-zoom10.json")),
+  );
+
+  await Promise.all([
+    reverseLocality(33.11, -84.11, context),
+    reverseLocality(33.22, -84.22, context),
+    reverseLocality(33.33, -84.33, context),
+  ]);
+
+  expect(sentAt).toHaveLength(3);
+  const ordered = [...sentAt].sort((a, b) => a - b);
+  for (let i = 1; i < ordered.length; i++) {
+    // setTimeout never fires early; the couple of milliseconds of slack is for
+    // Date.now() resolution alone, not for a relaxed interval.
+    expect(
+      ordered[i] - ordered[i - 1],
+      `request ${i + 1} must follow request ${i} by a full interval`,
+    ).toBeGreaterThanOrEqual(NOMINATIM_MIN_INTERVAL_MS - 5);
+  }
+  resetNominatimRateState();
+});
+
+test("a call after a long idle period is not made to wait", async () => {
+  resetNominatimRateState();
+  const sentAt: number[] = [];
+  const context = contextWith(
+    timingFetch(sentAt, fixture("nominatim/reverse-atlanta-zoom10.json")),
+  );
+
+  await reverseLocality(33.44, -84.44, context);
+  await new Promise((resolve) => setTimeout(resolve, NOMINATIM_MIN_INTERVAL_MS + 50));
+
+  const before = Date.now();
+  await reverseLocality(33.55, -84.55, context);
+  expect(sentAt).toHaveLength(2);
+  expect(sentAt[1] - before).toBeLessThan(NOMINATIM_MIN_INTERVAL_MS);
+  resetNominatimRateState();
+});

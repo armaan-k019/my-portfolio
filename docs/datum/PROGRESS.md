@@ -11,7 +11,7 @@ Started 2026-09-21 from `origin/main` at `c2c8517` (PR #22, rename to Datum).
 |---|---|---|---|
 | 0 | `feat/datum-phase-0` | `main` | pending |
 | 1 | `feat/datum-phase-1` | `feat/datum-phase-0` | #24, gate closed 2026-09-25 |
-| 2 | `feat/datum-phase-2` | `feat/datum-phase-1` | in progress from 2026-09-25 |
+| 2 | `feat/datum-phase-2` | `feat/datum-phase-1` | #26, gate closed 2026-09-25 |
 | 3 | `feat/datum-phase-3` | `feat/datum-phase-2` | pending |
 | 4 | BLOCKED | | |
 
@@ -466,3 +466,252 @@ Model: from Phase 2 the build, review, and verification subagents run on Opus pe
 ### Pending live checks
 
 - FEMA fixtures re-record and the Phase 0 live Miami test, when `hazards.fema.gov` answers.
+
+## Phase 2
+
+Status: GATE CLOSED 2026-09-25 on the code (see below); Greptile round and stop and ask items
+open. PR #26 (base `feat/datum-phase-1`).
+Builder: Opus. Reviewer: Opus. Fix round 1: Opus. Started 2026-09-25.
+
+### Build (`29db1f6` to `e36b159`, six commits as the phase file names them)
+
+Sheet layout and styles, pure SVG builders for the 15 top level groups, streaming brief on
+claude-sonnet-4-6 with server side citation validation, page rebuilt (AddressField, ConfirmMap,
+SiteSheetApp, panels, analysis orchestration), the six pre approved deletions, content registry
+rewritten, 46 unit tests, sheet e2e for the three sites plus failure tests A and B.
+
+### Deviations recorded from the build
+
+- 15 top level groups, not 16: SPEC section 11 lists 15; the "16" in PHASE-2-sheet.md was the
+  orchestrator's miscount. The SPEC list is the contract.
+- Atlanta height labels: the phase file said zero, based on the retracted probe; the capture has
+  14 tagged features (16 rings inside the frame). After fix round 1 the test asserts equality with
+  a count derived in the test from the fixture, and that levels only features print nothing.
+- Brief `max_tokens` 1400 rather than SPEC section 12's 900: three runs at 900 truncated mid
+  section, three at 1400 completed with zero invalid citations. Owner decision pending.
+- Two deletions beyond the six pre approved paths, instructed by the orchestrator:
+  `src/app/api/flood-risk/classify.ts` and `e2e/flood-classify.spec.ts` existed only to test the
+  deleted flood route; the live classification is `src/lib/datum/sources/fema.ts` with its own
+  tests. No importer remains. Owner approval after the fact pending.
+- Failure tests analyse a cold point (Sparta, Tennessee) rather than Atlanta, and clear that
+  point's cache and site rows first, because an override only blocks a request that is made and
+  the cache is shared (the Phase 1 lesson). Failure test B overrides the eight layer sources, not
+  the geocoders (with geocoding down there is no point to analyse).
+- FEMA allowance: the WaKeeney no coverage stamp and the Miami VE hatch assertions run when the
+  flood envelope is ok or no_coverage and print "pending: FEMA unreachable" otherwise. Flood unit
+  tests use envelopes constructed by replaying the labelled FEMA fixtures through the Phase 1
+  fetcher (`e2e/fixtures/layers/<site>/flood.constructed.json`).
+- `validateCitations` lives in `brief/citations.ts` (node:crypto cannot enter the client bundle);
+  `prompt.ts` re-exports it. The brief sets in two columns within the 110 character budget. The
+  walk shed legend and scale bars sit on paper backing inside the plan frame because the extent
+  fills the zone.
+- `src/app/projects/datum/README.md` rewritten (it described the old amenity dashboard).
+
+### Review round 1 (Opus, 2026-09-25) and fix round 1 (`b20cd0f` to `3165513`, nine commits)
+
+| # | Severity | Finding | Resolution |
+|---|---|---|---|
+| 1 | high | OSM building and stop names reached the brief serializer for small sites | names skipped for osm and walkshed; value level tests |
+| 2 | high | a partial FEMA answer with no zone at the point rendered as "not requested" | partial panel with the envelope's message and polygon rows |
+| 3 | medium | flood polygons and contours dropped when OSM failed | drawn independently |
+| 4 | medium | index contours weighted by array position with no elevation per line | single weight |
+| 5 | medium | zero radiation printed when all months null | "radiation not available" |
+| 6 | medium | 8 digit hex fills (unsupported by Illustrator and Rhino) | 6 digit fill plus fill-opacity, tested |
+| 7 | medium | citation chips and strike through from SPEC section 12 missing | CitationChips panel with hover highlight and tooltip |
+| 8 | medium | client layer fallback not gated on memory offline; client fieldPaths trusted | gated; paths recomputed; one exception: a client envelope with no data is admitted only to name a failed layer (see `3165513`) |
+| 9 | medium | brief route had no rate limit | non incrementing peek with the 24 hour exemption, 429 |
+| 10 | medium | walk shed waited for all layers, not osm | awaits osm only |
+| 11 | medium | Leaflet css from unpkg | local import |
+| 12 | medium | confirm marker invisible (undefined classes) | inline style; e2e asserts visibility |
+| 13 | medium | sun path attributed to Open-Meteo in copy | corrected to NOAA equations; "ten sources" removed |
+| 14 | medium | group id tests tautological | literals inlined |
+| 15 | medium | height label band weaker than the original zero | fixture derived equality plus levels only check |
+| 16 | medium | brief assertions conditional on the brief completing | unconditional on the normal run; failure tests skip without a Supabase client |
+| 17 | low | screenshots taken before the brief | after the brief; refreshed |
+| 18 | low | attribution credited Open-Meteo for sun; `?? "2023"` default | fixed |
+| 19 | low | title double struck | fixed |
+| 20 | low | raw control character in source | escaped |
+| 21 | process | deviations not recorded; README referenced a deleted spec | recorded here; README fixed |
+
+Gates after fix round 1 (orchestrator re-run): tsc exit 0; `npm run test:unit` 247 passed;
+`npx eslint .` 13 errors, 8 warnings (three below the baseline after the deletions); both builds
+exit 0; fallback grep only the two counters; no 8 digit hex; no em dashes; the three exports
+parse with 15 groups, no raster, script, or data URIs, one title each. Builder e2e: three sites
+3 passed (chips 37, 32, 37, all valid), failure A and B passed on the dev server. Orchestrator
+e2e before the fix round: 3 passed. The unverified banner appears on Atlanta and WaKeeney with
+zero invalid citations because a numeric sentence lacked a citation while flood was unavailable;
+the phase file allows that case and it is logged.
+
+### Re-verification (same reviewer, 2026-09-25)
+
+Findings 1 to 15 and 17 to 20 resolved with file and line evidence; 16 partly (the two failure
+tests keep a conditional on the brief, by design). The finding 8 adjustment keeps the property:
+a client envelope is admitted only when it carries no data and no citable path, and it fixes a
+real honesty bug (an unreachable layer would otherwise have been described as "not requested").
+No fresh default, no weakened test, no changed export contract; 19 new tests all tighter than
+what they replaced. Residuals (low): the client's `unavailable.message` free text reaches the
+prompt as the layer's reason; when memory is up but has no rows yet for a site the full client
+set is admitted with recomputed paths; the chip strip copy says "every reference is a field"
+beneath a banner saying the brief failed its checks.
+
+### TRIPWIRE (PHASE-2, "the brief regularly fails citation validation on the normal run")
+
+On the run of record with every source up except FEMA, the brief carried one numeric sentence
+without a citation on two of three sites, so the unverified banner shows on a clean run. Raw
+outputs from the committed exports (`docs/datum/screenshots/phase-2/<site>.svg`, brief group):
+
+- Atlanta (27 sentences, 1 uncited): "Plan entry level carefully: a 6.2% slope can force
+  split-level access or significant cut and fill."
+- Miami (28 sentences, 0 uncited).
+- WaKeeney (32 sentences, 1 uncited): "Building heights are missing from all 20 mapped
+  structures, so overshadowing and context massing studies cannot be confirmed from this data."
+
+Both numbers are real values from cited sentences elsewhere in the same brief (topo.meanSlopePct,
+osm.stats.buildingCount); the model repeated them in a recommendation sentence without the
+citation. The e2e tolerates the banner today only because flood is unavailable (the phase file's
+excuse rule), so the per site brief assertion is green for a reason that ends the day FEMA
+answers. Owner decision required before the prompt contract changes.
+
+### Resume state (2026-09-25, owner's Part A to E instructions in effect)
+
+Standing decisions: `docs/datum/STANDING-DECISIONS.md`. Current phase: 2, closing. In flight:
+owner directed fix round 2 (value aware citation validator per the amended SPEC section 12,
+max_tokens 1400 confirmed, unconditional brief assertion in e2e/sheet.spec.ts). Next action after
+it lands: orchestrator verification, record results here, Greptile pass on PR #26, then Phase 3.
+
+Open questions for the owner (stop and ask items, work continues around them):
+1. The two deletions beyond the six pre approved paths (`src/app/api/flood-risk/classify.ts`,
+   `e2e/flood-classify.spec.ts`): approve after the fact, or restore. Reported in full to the
+   owner on 2026-09-25. Neither touched until answered.
+2. Decision 5 (PHASE-1 acceptance grep rewordings): the original lines stand until the owner has
+   read the literal text, reported in full on 2026-09-25.
+3. User visible copy (stop and ask): the citation chip strip reads "every reference is a field
+   on this sheet" beneath the unverified banner when the failure is a numeric sentence rather
+   than an invalid citation. Proposed: one clause naming the failing sentence count. Not changed.
+4. Carried from Phase 1: the memory.ts offline mid analysis 404 (fourth round finding 1) and the
+   unbounded peek memo (finding 2) still need an approved slot; memory.ts is outside the Phase 2
+   and Phase 3 file lists.
+5. SPEC section 16 timing measurement of record: pending until the stack is merged and deployed
+   from main (owner decision 2026-09-25).
+
+FEMA (`hazards.fema.gov`) still refuses connections from this machine on 2026-09-25. Every e2e
+run records flood as unavailable with upstream_error; the FEMA specific panel checks print
+pending; the flood fixtures remain constructed and labelled.
+
+### Greptile triage (read only pass, 2026-09-25) across PRs #23, #24, #26
+
+31 inline comments plus one outside diff duplicate. Verdicts at HEAD of feat/datum-phase-2:
+13 already fixed or superseded by later rounds (replies only), 2 disputed (box drawing dividers
+are U+2500 not em dashes; the fixture derived height equality is deliberate and loosening it is a
+stop and ask), 10 valid and inside code this build owns (fix in the Greptile round after the
+validator lands: run id guard in analysis.ts, FORBIDDEN_KEYS filter and allowlist from the
+serialized paths in prompt.ts, api_cache upsert error surfaced and bodyBytes measured on a hit in
+cache.ts, site insert race re-read and locality write back in memory.ts, per process random
+fallback signing key in memory.ts, Nominatim slot reservation before sleeping, sun timezone
+source passed rather than inferred), and the rest are stop and ask items below. Every comment
+gets a reply on GitHub once the round lands; outcomes recorded here.
+
+Open questions for the owner added from Greptile (stop and ask items):
+6. PR #23: the three Phase 0 baseline text captures contain em dashes (9, 5, 7) because they are
+   verbatim output of the old page. Annotate and keep verbatim, or rewrite? No source file in the
+   stack contains an em dash.
+7. PR #24: `sites.site_key` is unique alone, so a test row and a real row cannot coexist at the
+   same rounded point. Fix needs migration 0002 replacing the constraint with
+   `unique (site_key, is_test)` and a matching conflict target; a migration against applied data
+   and a SPEC section 13 change. Authorise?
+8. PR #26, brief trust rule (three comments on store.ts): "stored always wins" can cite older
+   values than the sheet shows after a retry; "empty stored admits everything" lets a caller
+   supply values on a fresh site; and the after() write means a layer that succeeded but has not
+   been written yet is described to the model as "not requested" (false). Proposed single change:
+   carry a run id and per layer computed_at, prefer the newer of stored and client per layer,
+   never merge across runs. This changes the SPEC section 12 trust contract. Authorise?
+9. PR #26: retrying a layer does not regenerate the brief, so "What is missing" can name a source
+   that has since answered. Options: re-run the brief on a successful retry (spends tokens on a
+   free action), mark the brief stale with a visible notice (new copy), or record as debt.
+10. PR #26 copy decision, bundled with open question 3: the exported footer says every bracketed
+    reference is a data field even when the brief failed its checks, and the exported brief
+    group status ignores uncited numeric sentences; chips render struck through with "not a data
+    field" while the brief is still streaming (both verdict lists are empty until done). Proposed:
+    footer wording that reflects the verdict, group status including the numeric check, and a
+    neutral pending chip state with its own tooltip and eyebrow wording. All user visible copy.
+
+### Fix round 2 (owner directed, value aware citations) and Phase 2 gate closure (2026-09-25)
+
+Commits `0502cc3` (value aware check per the amended SPEC section 12: value index over the
+serialized input, rendered forms only, earlier valid citation required, debug logging behind
+DATUM_DEBUG_CITATIONS=1, `valueMatchedSentences` on the done event), `97ad434` (index the value
+as the serializer sent it as well as its four decimal form), `03f550d` (negative numbers keep
+their sign), `79de948` (the normal three site run asserts unconditionally that the brief passed
+its checks; the flood excuse no longer applies to the brief), `41041d4` (site.latitude and
+site.longitude are citable input keys, per SPEC section 12's own statement that the coordinates
+are part of the input and citations come from input keys; orchestrator decision under the
+standing decisions, implementation not product), `d2a3578` (site citations highlight the title
+block, which prints the coordinates), `7c34618` (artifacts refreshed).
+
+What the value aware check caught that the old rule did not: Miami "At under 2 m above datum"
+(the model rounded 1.9666 m to 2) and WaKeeney "roughly 9 m lower" (9 traced to nothing cited).
+Both were fixed by the model on later runs; the check remains strict. Ambiguities resolved by the
+literal SPEC reading and recorded: a bare four digit year is skipped as a date only when it is a
+dataset value; written precision other than the serializer's ("20.0" for 20, "1.97 m" for
+1.9666) is rejected.
+
+Run of record (orchestrator verified the builder's run against a fresh webpack build; the
+orchestrator's own earlier run failed only on the site chip mapping fixed in `d2a3578`):
+
+| Site | Layers | Chips | Banner | Export |
+|---|---|---|---|---|
+| Atlanta | all ok except flood | 44 valid, 0 struck | none | 2.47 MB, 15 groups, brief ok |
+| Miami | all ok except flood | 33 valid, 0 struck | none | 1.25 MB, 15 groups, brief ok |
+| WaKeeney | all ok except flood | 39 valid, 0 struck | none | 0.27 MB, 15 groups, brief ok |
+
+Honest limits: FEMA (`hazards.fema.gov`) refused connections from this machine on every run, so
+flood was unavailable with upstream_error at all three sites. The owner's condition "all three
+must pass with FEMA up" is therefore NOT demonstrated; what is demonstrated is that all three pass
+with the brief assertion unconditional and the flood excuse removed. The two FEMA specific panel
+checks (WaKeeney no coverage stamp, Miami VE hatch) printed pending. Failure tests A and B passed
+on the dev server in fix round 1 and were not re-run after the validator change (they exercise
+overrides, not the validator).
+
+Gates at `7c34618`: tsc exit 0; `npm run test:unit` 266 passed; `npx eslint .` 13 errors, 8
+warnings; both builds exit 0; no em dashes; the three exports parse with 15 groups, brief group
+status ok, no raster, script, or data URIs.
+
+Attribution note: subagents running on other Claude models were instructed to end commit messages
+with the orchestrator's co-author line and did so; one commit on the Phase 0 branch (`a08824f`)
+names the Haiku subagent instead. Not rewritten (history rewriting is a stop and ask).
+
+Next action: Greptile round on PR #26 (fixes for the ten valid items in code this build owns,
+replies on every comment across #23, #24, #26), then Phase 3.
+
+### Greptile round (2026-09-25, PRs #23, #24, #26)
+
+Commits on feat/datum-phase-2: `1cfe782` run guard (a late response from a previous analysis
+cannot write into a new one), `2cdcc8d` brief allowlist equals the serialized paths and forbidden
+keys are filtered, `0dc0232` cache upsert errors surfaced and the size guard measures persistent
+hits, `20c214e` memory.ts: site rows remembered per instance so a database id survives an offline
+flip (Phase 1 carried finding 1 closed; a cold instance that never saw the row still 404s,
+residual in a comment), insert races re-read the winner (Postgres 23505), locality and tract
+written back, random per process fallback signing key, peek memo and site map bounded at 2000
+(Phase 1 carried finding 2 closed), `d6c91b6` Nominatim slot reserved before sleeping, `8f87d16`
+sun timezone source from the archive result, `dc2edec` artifacts refreshed. 304 unit tests.
+
+Replies posted on every Greptile inline comment (4 on #23, 15 on #24, 17 on #26) plus the
+outside diff note on #24: fixed (with commit), fixed earlier (with commit), superseded, disputed
+with evidence (U+2500 dividers; fixture derived height equality deliberate), or escalated to the
+owner (open questions 6 to 10). Orchestrator verified zero unanswered top level comments on #23
+and #24; #26 had two newest comments being answered by the follow up below.
+
+Three live findings from Greptile's newest pass, fixed in the follow up under the standing
+decisions (bugs in owned code, no visible copy): a written percentage could match an unrelated
+plain number; a raw control byte in citations.ts; the site point serialized at more decimals than
+the title block prints (now serialized at the title block's precision so the value index matches
+the sheet). Phase 2 fix rounds used: two (review round 1, owner directed validator round); the
+Greptile track is separate.
+
+Model variance note: on the first e2e run of this round Miami tripped the value aware check on
+"At under 2 m elevation" (the model rounded 1.9666 to 2), the same failure mode recorded under fix
+round 2; a rerun passed. The check is doing what SPEC section 12 asks; the acceptance suite is
+therefore sensitive to model output on every run, and that sensitivity is intended.
+
+Next action: verify the follow up, push, then Phase 3 (branch feat/datum-phase-3 from the Phase 2
+head; migration 0002 goes to the human gate when written; open question 7 could fold into it).

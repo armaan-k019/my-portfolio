@@ -1,16 +1,18 @@
 # Datum e2e checks
 
-Three request only specs, no browser. They run against a server you start yourself, because each
-run needs different environment variables and `playwright.config.ts` reuses an existing server on
-port 3000.
+Three request only specs plus the phase 2 browser spec. They run against a server you start
+yourself, because each run needs different environment variables and `playwright.config.ts` reuses
+an existing server on port 3000.
 
 | Spec | What it proves |
 |---|---|
 | `layers.spec.ts` | The nine layers answer for the three test sites with the values in `docs/datum/PHASE-1-data.md` step 1.10, cold then warm, and the warm run is served from the cache inside the budget |
 | `layers-forced-failure.spec.ts` | Every source pointed at an unreachable port degrades to `unavailable` with `data: null` and a real sentence, and writes no `api_cache` row after the run started |
 | `rate-limit.spec.ts` | The twenty first uncached analysis of the day from one client is refused with 429 and a `resetAt` |
+| `sheet.spec.ts` | The sheet, the citation chips, the SVG export, and the two failure runs (phase 2) |
 
-`baseline.spec.ts` and `flood-classify.spec.ts` are from Phase 0 and are unrelated.
+`baseline.spec.ts.skip` is from Phase 0 and is unrelated. The flood zone classifier is covered by
+`e2e/unit/flood.spec.ts`.
 
 ## Build
 
@@ -116,7 +118,7 @@ fallback for a run that was interrupted or run without `DATUM_E2E_DB=1`.
 | `DATUM_SOURCE_OVERRIDES` | the server | JSON map of source name to base URL, honoured only when `DATUM_ALLOW_TEST_FLAG=1` and `NODE_ENV !== "production"` |
 | `DATUM_E2E_FORCED=1` | the test process | runs `layers-forced-failure.spec.ts` instead of skipping it |
 | `DATUM_E2E_DB=1` | the test process | runs the assertions that need migration 0001 applied |
-| `DATUM_LIVE_FEMA=1` | the test process | Phase 0 live FEMA check in `flood-classify.spec.ts` |
+| `DATUM_E2E_SHEET_FAIL` | the test process | `overpass` or `all`, to run the matching `sheet.spec.ts` failure test against a dev server with the overrides set |
 
 Migration 0001 was applied on 2026-09-24. Without `DATUM_E2E_DB=1` these checks still skip, with a
 named reason:

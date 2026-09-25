@@ -33,7 +33,8 @@ export function takeNominatimToken(nowMs: number): boolean {
 
 // ─── Outbound pacing ─────────────────────────────────────────────────────────
 
-let lastRequestAt = 0;
+/** The earliest instant the next outbound Nominatim call may be sent. */
+let nextSlotAt = 0;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -42,17 +43,25 @@ function sleep(ms: number): Promise<void> {
 /**
  * Hold a submit until a full second has passed since the previous outbound
  * Nominatim call. Only cache misses reach this, so a warm request never waits.
+ *
+ * The slot is reserved before the sleep, not recorded after it. Reading the
+ * clock, sleeping, and only then writing the timestamp let every concurrent
+ * miss compute the same wait from the same stale value and wake together, which
+ * is the burst the one request per second policy forbids. Claiming the instant
+ * first means the second caller queues behind the first caller's slot rather
+ * than beside it, so n concurrent misses go out n seconds apart.
  */
 async function pace(): Promise<void> {
-  const wait = NOMINATIM_MIN_INTERVAL_MS - (Date.now() - lastRequestAt);
-  if (wait > 0) await sleep(wait);
-  lastRequestAt = Date.now();
+  const now = Date.now();
+  const sendAt = Math.max(now, nextSlotAt);
+  nextSlotAt = sendAt + NOMINATIM_MIN_INTERVAL_MS;
+  if (sendAt > now) await sleep(sendAt - now);
 }
 
 /** Test seam. Not used in production code paths. */
 export function resetNominatimRateState(): void {
   lastAdmittedAt = 0;
-  lastRequestAt = 0;
+  nextSlotAt = 0;
 }
 
 // ─── Shared helpers ──────────────────────────────────────────────────────────
