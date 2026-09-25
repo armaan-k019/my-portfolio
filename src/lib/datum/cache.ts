@@ -48,13 +48,16 @@ export async function cached(
 ): Promise<CachedResult> {
   const hit = await ctx.cache.get(key).catch(() => null);
   if (hit) {
-    return {
-      entry: hit,
-      cached: true,
-      sizeWarning:
-        typeof hit.bodyBytes === "number" &&
-        hit.bodyBytes > CACHE_SIZE_WARN_BYTES,
-    };
+    // A persistent hit carries no size: `api_cache` has no bodyBytes column and
+    // adding one would be a migration. The size is a property of the body, so
+    // it is measured from the body that came back, which makes the threshold
+    // work on an instance that never performed the write. Only the in memory
+    // copy arrives with a size already on it, and that one is kept as is.
+    const entry = hit.bodyBytes === undefined ? { ...hit, ...measure(hit.body) } : hit;
+    const sizeWarning =
+      typeof entry.bodyBytes === "number" && entry.bodyBytes > CACHE_SIZE_WARN_BYTES;
+    if (sizeWarning) warnAboutSize(entry.source, entry.bodyBytes as number);
+    return { entry, cached: true, sizeWarning };
   }
 
   const produced = await producer();
@@ -68,24 +71,37 @@ export async function cached(
   let sizeWarning = false;
   if (produced.cacheable) {
     // Measured on the trimmed body that is actually stored, not the response.
-    // JSON.stringify returns undefined for undefined and for a bare function or
-    // symbol; there is no size to report for those, so bodyBytes stays absent
-    // rather than being recorded as the zero bytes of an empty string.
-    const serialized = JSON.stringify(produced.body);
-    if (serialized !== undefined) {
-      entry.bodyBytes = Buffer.byteLength(serialized);
+    Object.assign(entry, measure(produced.body));
+    if (typeof entry.bodyBytes === "number") {
       sizeWarning = entry.bodyBytes > CACHE_SIZE_WARN_BYTES;
     }
-    if (sizeWarning) {
-      // The source and the size only. A cache key or URL can carry a query
-      // string with a coordinate in it, which does not belong in a log line.
-      console.warn(
-        `[datum] cached payload from ${produced.source} is ${entry.bodyBytes} bytes, above the ${CACHE_SIZE_WARN_BYTES} byte threshold`,
-      );
-    }
+    if (sizeWarning) warnAboutSize(produced.source, entry.bodyBytes as number);
     await ctx.cache.set(key, entry, ttlSeconds).catch(() => undefined);
   }
   return { entry, cached: false, sizeWarning };
+}
+
+/**
+ * The serialized size of a body, as `{ bodyBytes }` or as nothing.
+ *
+ * JSON.stringify returns undefined for undefined and for a bare function or
+ * symbol; there is no size to report for those, so bodyBytes stays absent
+ * rather than being recorded as the zero bytes of an empty string.
+ */
+function measure(body: unknown): { bodyBytes?: number } {
+  const serialized = JSON.stringify(body);
+  if (serialized === undefined) return {};
+  return { bodyBytes: Buffer.byteLength(serialized) };
+}
+
+/**
+ * The source and the size only. A cache key or URL can carry a query string
+ * with a coordinate in it, which does not belong in a log line.
+ */
+function warnAboutSize(source: string, bytes: number): void {
+  console.warn(
+    `[datum] cached payload from ${source} is ${bytes} bytes, above the ${CACHE_SIZE_WARN_BYTES} byte threshold`,
+  );
 }
 
 // ─── In memory fallback ──────────────────────────────────────────────────────
@@ -158,6 +174,14 @@ export interface CacheClient {
   };
 }
 
+/** A Supabase error object reduced to one line, with no key or URL in it. */
+function describeError(error: unknown): string {
+  if (error && typeof error === "object" && "message" in error) {
+    return String((error as { message?: unknown }).message ?? "unknown error");
+  }
+  return "unknown error";
+}
+
 export function createSupabaseCacheApi(
   client: CacheClient,
   now: () => Date,
@@ -181,7 +205,12 @@ export function createSupabaseCacheApi(
     },
     async set(key: string, entry: CacheEntry, ttlSeconds: number): Promise<void> {
       const expiresAt = new Date(now().getTime() + ttlSeconds * 1000);
-      await client.from("api_cache").upsert(
+      // Supabase reports a failed write in the result, not by throwing, so a
+      // rejected upsert used to look exactly like a successful one: the next
+      // request paid for the same upstream call again and nothing said why.
+      // Throwing surfaces it. The caller in createCacheApi has already written
+      // the in memory copy, so a failure here costs persistence, not the read.
+      const { error } = await client.from("api_cache").upsert(
         {
           cache_key: key,
           source: entry.source,
@@ -193,6 +222,11 @@ export function createSupabaseCacheApi(
         },
         { onConflict: "cache_key" },
       );
+      if (error) {
+        throw new Error(
+          `api_cache upsert failed for source ${entry.source}: ${describeError(error)}`,
+        );
+      }
     },
   };
 }
