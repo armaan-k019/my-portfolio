@@ -111,13 +111,24 @@ export function mergeLayers(
 /**
  * Which envelopes the brief is written from. The stored copy is the server's
  * own record of what the sources answered, so when Site Memory is up and it has
- * rows for this site, that record is the whole answer and the client's body is
+ * rows for this site, that record is the whole answer and the client's data is
  * ignored: otherwise a caller could hand the model any numbers it liked and the
  * brief would cite them as measurements.
  *
- * The client's copy is admitted in exactly two cases: Site Memory is offline,
- * so nothing was stored, or memory is up but has no row for this site yet,
- * which is the same situation one moment earlier.
+ * The client's copy is read in full in exactly two cases: Site Memory is
+ * offline, so nothing was stored, or memory is up but has no row for this site
+ * yet, which is the same situation one moment earlier.
+ *
+ * There is one narrow exception. The layer route stores a failed envelope only
+ * when the failure is `no_coverage`, so a layer whose source was unreachable
+ * leaves no row at all, and without the client's copy the serializer would tell
+ * the model that layer "was not requested", which is false: it was requested
+ * and it failed. An envelope the client sends for a layer with no stored row is
+ * therefore admitted when it carries no data at all (`unavailable` with
+ * `data: null`). Such an envelope has no leaf values and contributes no citable
+ * field path, so nothing a caller sends this way can reach the sheet as a
+ * number or be cited as one. All it can do is give "What is missing" the reason
+ * the panel is already showing on screen.
  */
 export function selectLayers(
   stored: Partial<Record<LayerName, LayerEnvelope<unknown>>>,
@@ -127,12 +138,23 @@ export function selectLayers(
   layers: Partial<Record<LayerName, LayerEnvelope<unknown>>>;
   usedClientLayers: boolean;
 } {
-  const storedCount = Object.keys(stored).length;
-  if (!offline && storedCount > 0) {
-    return { layers: mergeLayers(stored, {}), usedClientLayers: false };
+  if (offline || Object.keys(stored).length === 0) {
+    return {
+      layers: mergeLayers(stored, fromClient),
+      usedClientLayers: Object.keys(fromClient).length > 0,
+    };
+  }
+
+  const reasonsOnly: Partial<Record<LayerName, LayerEnvelope<unknown>>> = {};
+  for (const layer of LAYER_NAMES) {
+    if (stored[layer]) continue;
+    const candidate = fromClient[layer];
+    if (candidate && candidate.status === "unavailable" && candidate.data === null) {
+      reasonsOnly[layer] = candidate;
+    }
   }
   return {
-    layers: mergeLayers(stored, fromClient),
-    usedClientLayers: Object.keys(fromClient).length > 0,
+    layers: mergeLayers(stored, reasonsOnly),
+    usedClientLayers: Object.keys(reasonsOnly).length > 0,
   };
 }

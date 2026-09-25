@@ -490,6 +490,50 @@ test("the client's envelopes are ignored while memory has rows for the site", ()
   expect(mixed.layers.seismic).toBe(fromClient.seismic);
 });
 
+test("a client envelope carrying data is dropped, one carrying only a reason is kept", () => {
+  // The layer route stores a failed envelope only for no_coverage, so a layer
+  // whose source was unreachable leaves no row. Without the client's copy the
+  // serializer would tell the model that layer "was not requested", which is
+  // false. An envelope with no data has no leaf values and no citable field
+  // path, so admitting it can put no number on the sheet: all it carries is the
+  // reason the panel is already showing.
+  const stored = loadLayers("atlanta");
+  const failed: LayerEnvelope<unknown> = {
+    layer: "osm",
+    status: "unavailable",
+    data: null,
+    source: {
+      name: "Overpass",
+      url: "http://127.0.0.1:9",
+      fetchedAt: "2026-09-24T18:00:00.000Z",
+      cached: false,
+      licence: "ODbL 1.0",
+    },
+    unavailable: {
+      code: "upstream_error",
+      message: "OpenStreetMap data could not be loaded (upstream_error).",
+      retryable: true,
+    },
+    fieldPaths: [],
+  };
+
+  const chosen = selectLayers(
+    { topo: stored.topo, seismic: stored.seismic },
+    { osm: failed, census: loadLayers("miami").census },
+    false,
+  );
+  // The failed osm envelope is kept, so "What is missing" can name Overpass.
+  expect(chosen.layers.osm).toBe(failed);
+  // The census envelope from the client carries data, so it is dropped.
+  expect(chosen.layers.census).toBeUndefined();
+  expect(Object.keys(chosen.layers).sort()).toEqual(["osm", "seismic", "topo"]);
+
+  // And nothing admitted this way is citable.
+  const citable = citableFieldPaths(chosen.layers);
+  expect(citable.some((path) => path.startsWith("osm."))).toBe(false);
+  expect(citable.some((path) => path.startsWith("census."))).toBe(false);
+});
+
 // ─── The brief route's rate limit ────────────────────────────────────────────
 
 test("a brief past the daily cap is a 429 before the stream opens", async () => {
