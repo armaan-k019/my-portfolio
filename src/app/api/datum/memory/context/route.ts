@@ -47,6 +47,7 @@ function offlineContext(): MemoryContext {
     percentiles: null,
     similar: null,
     reasonIfNull: MEMORY_COPY.offline,
+    truncated: false,
   };
 }
 
@@ -77,14 +78,21 @@ export async function GET(request: NextRequest) {
   }
   if (state === "local") return NextResponse.json(offlineContext());
 
-  // A site with no metrics row yet is not an error and not an offline
-  // database: POST is what fills it in, and until then every component counts
-  // as missing, which is what the reason sentence says.
-  const stored = (await readMetrics(siteId)) ?? { named: {}, vector: null };
-  const missing = stored.vector === null ? missingFrom(stored.named) : [];
-  return NextResponse.json(
-    await buildMemoryContext(siteId, stored.named, stored.vector, missing),
-  );
+  // A site with no metrics row yet is not an error, not an offline database,
+  // and not fourteen unavailable components: POST is what fills the row in, and
+  // until it has run there is nothing to place and nothing to explain. Null
+  // says exactly that, and the context comes back with no percentiles and no
+  // reason rather than with a sentence naming every layer.
+  const stored = await readMetrics(siteId);
+  const metrics =
+    stored === null
+      ? null
+      : {
+          named: stored.named,
+          vector: stored.vector,
+          missing: stored.vector === null ? missingFrom(stored.named) : [],
+        };
+  return NextResponse.json(await buildMemoryContext(siteId, metrics));
 }
 
 export async function POST(request: NextRequest) {
@@ -111,10 +119,13 @@ export async function POST(request: NextRequest) {
   // hand Site Memory numbers and have them enter everyone else's percentiles.
   const layers = await loadStoredLayers(siteId);
   const { named, vector, missing } = computeMetrics(layers);
-  await writeMetrics(siteId, named, vector);
+  // What the write did travels with the answer: "skipped" is a computation with
+  // nothing in it, which is left out rather than written over a good row, and
+  // "unavailable" is Site Memory declining the write. Neither is copy, and the
+  // panel does not read them.
+  const metricsWrite = await writeMetrics(siteId, named, vector);
 
-  return NextResponse.json(
-    await buildMemoryContext(siteId, named, vector, missing),
-  );
+  const context = await buildMemoryContext(siteId, { named, vector, missing });
+  return NextResponse.json({ ...context, metricsWrite });
 }
 

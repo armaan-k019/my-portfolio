@@ -614,6 +614,9 @@ const SIMILAR_CANDIDATE_CAP = 2000;
 /** How many points the public map returns, newest analysis first. */
 const PUBLIC_SITES_CAP = 500;
 
+/** What one writeMetrics call did, for the route that asked for it. */
+export type MetricsWrite = "written" | "skipped" | "unavailable";
+
 /**
  * Write the named values and the vector onto the site row.
  *
@@ -622,32 +625,39 @@ const PUBLIC_SITES_CAP = 500;
  * selects on `metrics ? metric`: a stored null would join the population for
  * that metric and never satisfy `v < value`, which would drag every percentile
  * down by the count of the sites that could not measure it.
+ *
+ * Two things are never written. A computation that produced no named value at
+ * all is not written, because an empty jsonb would replace a good row with a
+ * record of the run where every layer happened to fail. And a null vector is
+ * not written over a stored one: the column is simply left out of the update,
+ * so a site that has a vector keeps it and a site that has none stays null.
+ * Both are the same rule, that a failed measurement never overwrites a
+ * successful one.
  */
 export async function writeMetrics(
   siteId: string,
   named: Record<string, number | null>,
   vector: number[] | null,
-): Promise<boolean> {
-  if (isLocalSiteId(siteId)) return false;
+): Promise<MetricsWrite> {
+  if (isLocalSiteId(siteId)) return "skipped";
   const metrics: Record<string, number> = {};
   for (const [name, value] of Object.entries(named)) {
     if (typeof value === "number" && Number.isFinite(value)) metrics[name] = value;
   }
+  if (Object.keys(metrics).length === 0) return "skipped";
+  const update: Record<string, unknown> = {
+    metrics,
+    metrics_at: new Date().toISOString(),
+  };
+  // pgvector's text input form. PostgREST sends the column as a string and
+  // casts it, so the array is serialized rather than sent as JSON.
+  if (vector !== null) update.metrics_vector = JSON.stringify(vector);
   const written = await withMemory(async (db) => {
-    const { error } = await db
-      .from("sites")
-      .update({
-        metrics,
-        // pgvector's text input form. PostgREST sends the column as a string
-        // and casts it, so the array is serialized rather than sent as JSON.
-        metrics_vector: vector === null ? null : JSON.stringify(vector),
-        metrics_at: new Date().toISOString(),
-      })
-      .eq("id", siteId);
+    const { error } = await db.from("sites").update(update).eq("id", siteId);
     if (error) throw new Error("sites metrics write failed");
     return true;
   });
-  return written === true;
+  return written === true ? "written" : "unavailable";
 }
 
 /**
@@ -709,11 +719,11 @@ export interface MetricPopulation {
  */
 export async function percentiles(
   named: Record<string, number | null>,
-): Promise<MetricPopulation[] | null> {
+): Promise<{ entries: MetricPopulation[] | null; truncated: boolean }> {
   const wanted = PERCENTILE_METRICS.filter(
     (entry) => typeof named[entry.metric] === "number",
   );
-  if (wanted.length === 0) return [];
+  if (wanted.length === 0) return { entries: [], truncated: false };
 
   if (includeTestSites()) {
     const rows = await withMemory(async (db) => {
@@ -721,11 +731,14 @@ export async function percentiles(
         .from("sites")
         .select("metrics")
         .not("metrics", "is", null)
+        // Newest analysis first, so the rows the cap keeps are a defined set
+        // rather than whatever order the planner happened to return.
+        .order("metrics_at", { ascending: false })
         .limit(SIMILAR_CANDIDATE_CAP);
       if (error) throw new Error("sites metrics read failed");
       return (data ?? []) as Array<{ metrics: Record<string, unknown> | null }>;
     });
-    if (!rows) return null;
+    if (!rows) return { entries: null, truncated: false };
     const out: MetricPopulation[] = [];
     for (const entry of wanted) {
       const value = named[entry.metric] as number;
@@ -747,7 +760,7 @@ export async function percentiles(
         n,
       });
     }
-    return out;
+    return { entries: out, truncated: rows.length === SIMILAR_CANDIDATE_CAP };
   }
 
   const results = await Promise.all(
@@ -779,7 +792,11 @@ export async function percentiles(
     (entry): entry is MetricPopulation => entry !== null,
   );
   // Every metric failing to answer is a failed read, not an empty population.
-  return answered.length === 0 ? null : answered;
+  // The SQL helper counts the whole table, so this path reads nothing capped.
+  return {
+    entries: answered.length === 0 ? null : answered,
+    truncated: false,
+  };
 }
 
 export interface SimilarSite {
@@ -832,7 +849,7 @@ export async function similarSites(
   vector: number[],
   siteId: string,
   limit = 5,
-): Promise<SimilarSite[]> {
+): Promise<{ sites: SimilarSite[] | null; truncated: boolean }> {
   const rows = await withMemory(async (db) => {
     let query = db
       .from("sites")
@@ -840,11 +857,19 @@ export async function similarSites(
       .not("metrics_vector", "is", null)
       .neq("id", siteId);
     if (!includeTestSites()) query = query.eq("is_test", false);
-    const { data, error } = await query.limit(SIMILAR_CANDIDATE_CAP);
+    const { data, error } = await query
+      // Newest analysis first. Without an order the cap keeps an arbitrary
+      // subset, so the same site could match different neighbours on two
+      // consecutive requests.
+      .order("metrics_at", { ascending: false })
+      .limit(SIMILAR_CANDIDATE_CAP);
     if (error) throw new Error("sites similarity read failed");
     return (data ?? []) as VectorRow[];
   });
-  if (!rows) return [];
+  // A failed read is not an empty neighbourhood. Null means Site Memory could
+  // not be asked, which the panel says out loud; an empty array would show as
+  // "nothing is like this site", which nobody established.
+  if (!rows) return { sites: null, truncated: false };
 
   const scored: Array<{ row: VectorRow; other: number[]; distance: number }> = [];
   for (const row of rows) {
@@ -857,13 +882,16 @@ export async function similarSites(
   // The row id never leaves this function. SPEC section 14 displays a locality,
   // a match percent and the closest components, and an id would be a handle on
   // somebody else's analysis that the display has no use for.
-  return scored.slice(0, limit).map((entry) => ({
-    locality: entry.row.locality,
-    publicLat: entry.row.public_lat,
-    publicLng: entry.row.public_lng,
-    match: matchPercent(entry.distance),
-    closest: closestComponents(vector, entry.other),
-  }));
+  return {
+    sites: scored.slice(0, limit).map((entry) => ({
+      locality: entry.row.locality,
+      publicLat: entry.row.public_lat,
+      publicLng: entry.row.public_lng,
+      match: matchPercent(entry.distance),
+      closest: closestComponents(vector, entry.other),
+    })),
+    truncated: rows.length === SIMILAR_CANDIDATE_CAP,
+  };
 }
 
 export interface PublicSite {
@@ -985,6 +1013,20 @@ export interface MemoryContext {
   percentiles: PercentileEntry[] | null;
   similar: SimilarSite[] | null;
   reasonIfNull: string | null;
+  /**
+   * True when a capped read came back full, so the population behind the
+   * numbers is a slice of the analyzed sites rather than all of them. Not copy
+   * and not rendered: it is here so the condition is visible to whoever reads
+   * the response rather than silent.
+   */
+  truncated: boolean;
+}
+
+/** The computed metrics of one analysis, or null when there is no metrics row. */
+export interface SiteMetrics {
+  named: Record<string, number | null>;
+  vector: number[] | null;
+  missing: string[];
 }
 
 /** The stored metrics of one site, or null when there are none to read. */
@@ -1027,25 +1069,46 @@ function layersBehind(missing: string[]): string[] {
  */
 export async function buildMemoryContext(
   siteId: string,
-  named: Record<string, number | null>,
-  vector: number[] | null,
-  missing: string[],
+  metrics: SiteMetrics | null,
 ): Promise<MemoryContext> {
-  if (memoryStatus() === "offline" || getClient() === null) {
+  const offlineContext = (): MemoryContext => ({
+    memoryStatus: "offline",
+    n: null,
+    percentiles: null,
+    similar: null,
+    reasonIfNull: MEMORY_COPY.offline,
+    truncated: false,
+  });
+
+  if (memoryStatus() === "offline" || getClient() === null) return offlineContext();
+
+  // No metrics row is not a site with fourteen unavailable components. It is a
+  // site nobody has computed metrics for yet, which POST is what fills in, so
+  // there is nothing to place and nothing to explain: naming every layer as
+  // unavailable would report a failure that has not happened.
+  if (metrics === null) {
+    const n = await countSites();
+    if (memoryStatus() === "offline") return offlineContext();
     return {
-      memoryStatus: "offline",
-      n: null,
+      memoryStatus: "online",
+      n,
       percentiles: null,
       similar: null,
-      reasonIfNull: MEMORY_COPY.offline,
+      reasonIfNull: null,
+      truncated: false,
     };
   }
 
-  const [n, populations, similar] = await Promise.all([
+  const { named, vector, missing } = metrics;
+
+  const [n, population, similar] = await Promise.all([
     countSites(),
     percentiles(named),
-    vector === null ? Promise.resolve(null) : similarSites(vector, siteId),
+    vector === null
+      ? Promise.resolve({ sites: null, truncated: false })
+      : similarSites(vector, siteId),
   ]);
+  const populations = population.entries;
 
   // A percentile is shown when its own metric has ten sites behind it, so the
   // entries are the populations that answered with one.
@@ -1059,15 +1122,7 @@ export async function buildMemoryContext(
     }));
 
   // The count read can itself be what trips the offline guard.
-  if (memoryStatus() === "offline") {
-    return {
-      memoryStatus: "offline",
-      n: null,
-      percentiles: null,
-      similar: null,
-      reasonIfNull: MEMORY_COPY.offline,
-    };
-  }
+  if (memoryStatus() === "offline") return offlineContext();
 
   const reasons: string[] = [];
   // The sentence is about the population behind a percentile, so it takes the
@@ -1089,8 +1144,9 @@ export async function buildMemoryContext(
     memoryStatus: "online",
     n,
     percentiles: entries.length > 0 ? entries : null,
-    similar,
+    similar: similar.sites,
     reasonIfNull: reasons.length > 0 ? reasons.join(" ") : null,
+    truncated: population.truncated || similar.truncated,
   };
 }
 

@@ -32,6 +32,8 @@ export interface MemoryContext {
   percentiles: PercentileEntry[] | null;
   similar: SimilarSite[] | null;
   reasonIfNull: string | null;
+  /** Set when a capped read came back full. Carried, not rendered. */
+  truncated?: boolean;
 }
 
 /** The offline line from SPEC section 13, item 3 of the paused database rules. */
