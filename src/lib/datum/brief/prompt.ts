@@ -22,11 +22,11 @@ What is missing
 
 Rules, all binding:
 
-1. About 350 words in total. Short paragraphs. Plain sentences.
+1. About 350 words in total and never more than 420. Short paragraphs, plain sentences. All five sections must be present and finished: a brief that stops mid sentence is a failure, so keep the earlier sections tight enough to reach the last one.
 2. Every sentence that states a fact about the site ends with one or more citations of the form [layer.path.to.field], copied character for character from the keys of the input JSON. A sentence with a number in it and no citation is a failure.
 3. Use only what is in the input. Never mention the neighbourhood, the city, the address, history, reputation, nearby landmarks, or anything you know from outside this input. You do not know where this site is beyond its latitude and longitude.
 4. Quote numbers exactly as the input gives them, with their units. Do not round further, do not convert, do not average, do not infer a value the input does not carry.
-5. A layer whose status is unavailable has no data. Name it in "What is missing" with its reason and reason about it no further. Never estimate or fill a gap.
+5. A layer whose status is unavailable has no data and no citable fields. Name it in "What is missing" in plain words with its reason, cite nothing for it (there is no field to cite, so never write something like [flood.status]), and reason about it no further. Never estimate or fill a gap.
 6. No headings other than the five above. No markdown, no bullet lists, no bold. No em dashes: use periods, commas, colons, or parentheses.
 7. Say what each fact means for a design decision (orientation, massing, entry level, envelope, ground floor program, structure, stormwater), but only where the data supports it.`;
 
@@ -81,6 +81,17 @@ function flatten(
   else out.set(prefix, [value]);
 }
 
+/**
+ * Leaf numbers are rounded to four decimals before they are sent. The brief is
+ * told to quote what it is given exactly, and 79.66248616336355 degrees is not
+ * a number anyone writes on a drawing. Four decimals is finer than any of these
+ * sources measures, so nothing meaningful is lost.
+ */
+function roundLeaf(value: unknown): unknown {
+  if (typeof value !== "number" || !Number.isFinite(value)) return value;
+  return Math.round(value * 10_000) / 10_000;
+}
+
 /** Summarise a bucket that is too long to send in full. */
 function summarise(values: unknown[]): unknown {
   const numbers = values.filter(
@@ -110,8 +121,8 @@ export function flattenLayer(
   for (const [path, values] of buckets) {
     if (isGeometryPath(path)) continue;
     const key = `${layer}.${path}`;
-    if (values.length === 1) fields[key] = values[0];
-    else if (values.length <= MAX_VALUES_PER_PATH) fields[key] = values;
+    if (values.length === 1) fields[key] = roundLeaf(values[0]);
+    else if (values.length <= MAX_VALUES_PER_PATH) fields[key] = values.map(roundLeaf);
     else fields[key] = summarise(values);
   }
   return fields;
@@ -209,79 +220,12 @@ export function userMessage(input: BriefInput): string {
 }
 
 // ─── Citation validation ─────────────────────────────────────────────────────
+//
+// The validator lives in ./citations so the browser can import it: this module
+// uses node:crypto for the input hash, and a client bundle cannot follow that.
 
-export interface CitationCheck {
-  /** Every distinct citation the text carries that is not a data field. */
-  invalidCitations: string[];
-  /** Every distinct citation that matched a field path. */
-  validCitations: string[];
-  /** Sentences containing a digit and carrying no citation. */
-  uncitedNumericSentences: number;
-}
-
-const CITATION = /\[([^\]\n]+)\]/g;
-/** Protects a decimal point from the sentence splitter. */
-const DECIMAL_MARK = "";
-
-function sentencesOf(text: string): string[] {
-  const guarded = text.replace(/(\d)\.(\d)/g, `$1${DECIMAL_MARK}$2`);
-  return guarded
-    .split(/(?<=[.!?])\s+|\n+/)
-    .map((sentence) => sentence.split(DECIMAL_MARK).join("."))
-    .map((sentence) => sentence.trim())
-    .filter((sentence) => sentence.length > 0);
-}
-
-/** The five section names never need a citation (SPEC section 12). */
-const SECTION_NAMES = [
-  "Ground",
-  "Climate and sun",
-  "Context and access",
-  "Risk",
-  "What is missing",
-];
-
-/**
- * Extract every `[...]` citation and check it against the field paths of the
- * available layers. A bracket may hold several comma separated paths.
- */
-export function validateCitations(
-  text: string,
-  fieldPaths: string[],
-): CitationCheck {
-  const allowed = new Set(fieldPaths);
-  const valid = new Set<string>();
-  const invalid = new Set<string>();
-
-  for (const match of text.matchAll(CITATION)) {
-    for (const raw of match[1].split(",")) {
-      const citation = raw.trim();
-      if (citation.length === 0) continue;
-      if (allowed.has(citation)) valid.add(citation);
-      else invalid.add(citation);
-    }
-  }
-
-  let uncited = 0;
-  for (const sentence of sentencesOf(text)) {
-    const bare = sentence.replace(/[:.]$/, "");
-    if (SECTION_NAMES.includes(bare)) continue;
-    if (!/\d/.test(sentence)) continue;
-    if (/\[[^\]\n]+\]/.test(sentence)) continue;
-    uncited += 1;
-  }
-
-  return {
-    invalidCitations: [...invalid].sort(),
-    validCitations: [...valid].sort(),
-    uncitedNumericSentences: uncited,
-  };
-}
-
-/**
- * SPEC section 12: more than two invalid citations, or any uncited numeric
- * sentence, and the client shows the unverified banner.
- */
-export function briefFailedChecks(check: CitationCheck): boolean {
-  return check.invalidCitations.length > 2 || check.uncitedNumericSentences > 0;
-}
+export {
+  briefFailedChecks,
+  validateCitations,
+  type CitationCheck,
+} from "./citations";

@@ -29,7 +29,16 @@ import { getSiteById, isLocalSiteId, verifyLocalSiteId } from "@/lib/datum/memor
 export const maxDuration = 60;
 
 const MODEL = "claude-sonnet-4-6";
-const MAX_TOKENS = 900;
+/**
+ * SPEC section 12 budgets 900 output tokens. Measured on the Atlanta site, a
+ * 350 word brief in five sections carries about 35 citations, and a citation
+ * path such as [osm.stats.coverageRatio] costs far more tokens than the words
+ * around it: every run at 900 stopped mid sentence in "Context and access".
+ * A truncated brief is worse than a slightly dearer one, so the cap is 1400 and
+ * the 350 word instruction in the prompt is what actually holds the length.
+ * Recorded as a deviation from SPEC section 12.
+ */
+const MAX_TOKENS = 1400;
 
 interface BriefRequestBody {
   siteId?: unknown;

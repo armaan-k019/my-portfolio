@@ -248,3 +248,30 @@ test("the stored copy wins over the client copy, and the client fills the rest",
   expect(merged.seismic).toBe(fromClient.seismic);
   expect(Object.keys(merged)).toHaveLength(LAYER_NAMES.length);
 });
+
+test("an array path citation keeps its empty bracket pair", () => {
+  // "[topo.sections.ew[]]" is one citation of "topo.sections.ew[]". A pattern
+  // that stops at the first closing bracket reads it as "topo.sections.ew[",
+  // which is not a field and would fail a correct brief.
+  const check = validateCitations(
+    "The section falls from 297.1 m to 275.2 m [topo.sections.ew[]].",
+    ["topo.sections.ew[]"],
+  );
+  expect(check.invalidCitations).toEqual([]);
+  expect(check.validCitations).toEqual(["topo.sections.ew[]"]);
+  expect(check.uncitedNumericSentences).toBe(0);
+});
+
+test("leaf numbers are rounded before the model sees them", () => {
+  const fields = flattenLayer("sun", {
+    june: { noonAltitudeDeg: 79.66248616336355 },
+    overhangRatioSouthGlazing: 0.18240724411125084,
+  });
+  expect(fields["sun.june.noonAltitudeDeg"]).toBe(79.6625);
+  expect(fields["sun.overhangRatioSouthGlazing"]).toBe(0.1824);
+});
+
+test("the prompt tells the model to finish all five sections", () => {
+  expect(SYSTEM_PROMPT).toContain("never more than 420");
+  expect(SYSTEM_PROMPT).toContain("stops mid sentence is a failure");
+});
