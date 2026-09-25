@@ -1,9 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { demos, type DemoConfig } from "@/lib/demos";
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0 },
+};
 
 interface DemoCard {
   slug: string;
@@ -123,25 +129,34 @@ export default function DemosPage() {
         </p>
         <div className="tick-rule mb-10 mt-6" />
 
-        <ul style={{ borderTop: "var(--rule)" }}>
-          {demoCards.map((demo) => (
-            <li key={demo.slug} style={{ borderBottom: "var(--rule)" }}>
-              <Link
-                href={demo.url}
-                className="group grid grid-cols-1 sm:grid-cols-[minmax(0,12rem)_1fr] gap-x-6 gap-y-1 py-5 items-baseline"
+        <div className="grid md:grid-cols-3 gap-4">
+          <AnimatePresence mode="popLayout">
+            {demoCards.map((demo, i) => (
+              <motion.div
+                key={demo.slug}
+                layout
+                variants={fadeUp}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: "-80px" }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.6, delay: i * 0.06, ease: [0.16, 1, 0.3, 1] }}
               >
-                <span className="font-display text-lg font-semibold text-ink group-hover:text-terracotta transition-colors">
-                  {demo.company}
-                </span>
-                <span>
-                  <span className="block text-sm text-ink">{demo.headline}</span>
-                  <span className="block text-sm text-brown-light leading-relaxed mt-1">{demo.pitch}</span>
-                  {demo.slug === "rho" && <span className="block meta mt-2">This Demo Worked!</span>}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+                <Link href={demo.url} className="group block h-full">
+                  <div
+                    className={`card card-hover p-5 h-full overflow-hidden ${
+                      demo.slug === "rho" ? "ring-1 ring-terracotta/45" : ""
+                    }`}
+                  >
+                    <h3 className="font-display text-lg font-semibold text-ink mb-1">{demo.company}</h3>
+                    <p className="text-[13px] text-brown-light leading-relaxed">{demo.headline}</p>
+                    {demo.slug === "rho" && <p className="meta mt-3">This Demo Worked!</p>}
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
 
         <PrivateSection />
 
