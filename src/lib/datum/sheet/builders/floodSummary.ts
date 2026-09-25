@@ -51,7 +51,11 @@ export function build(ctx: SheetContext): string {
 
   const envelope = ctx.layers.flood;
   const flood = (envelope?.data as FloodData | null) ?? null;
-  if (!flood || !flood.atPoint) {
+  // Only a missing envelope is an unavailable panel. A `partial` answer with no
+  // zone polygon under the point is a real FEMA answer: the layer is published
+  // here and the point simply falls outside every mapped zone. Stamping that
+  // UNAVAILABLE would hide the polygons the same answer carries.
+  if (!flood) {
     return unavailable(
       GROUP_ID,
       TITLE,
@@ -65,30 +69,57 @@ export function build(ctx: SheetContext): string {
   const x = zone.x + 8;
   const width = zone.w - 16;
   let y = zone.y + PANEL_HEADER_H + 16;
+  const atPoint = flood.atPoint;
 
-  parts.push(
-    textEl(`Zone ${flood.atPoint.zone ?? "not given"}`, x, y + 6, TEXT.title, {
-      weight: "600",
-    }),
-  );
-  y += 24;
+  if (atPoint) {
+    parts.push(
+      textEl(`Zone ${atPoint.zone ?? "not given"}`, x, y + 6, TEXT.title, {
+        weight: "600",
+      }),
+    );
+    y += 24;
 
-  parts.push(
-    bodyText(zone, CLASS_LABEL[flood.atPoint.class] ?? flood.atPoint.class, x, y, width, 7),
-  );
-  y += 18;
+    parts.push(
+      bodyText(zone, CLASS_LABEL[atPoint.class] ?? atPoint.class, x, y, width, 7),
+    );
+    y += 18;
+  } else {
+    parts.push(
+      textEl("No zone at the point", x, y + 6, TEXT.title, { weight: "600" }),
+    );
+    y += 24;
 
-  const rows: Array<[string, string]> = [
-    ["zone subtype", flood.atPoint.subtype ?? "none given"],
-    ["sfha", flood.atPoint.sfha ? "yes" : "no"],
-    [
-      "static bfe",
-      flood.atPoint.staticBfeFt === null
-        ? "no static base flood elevation"
-        : `${flood.atPoint.staticBfeFt.toFixed(1)} ft`,
-    ],
-    ["polygons in frame", String(flood.polygons.length)],
-  ];
+    // The envelope's own sentence, so the panel says what the source said.
+    parts.push(
+      bodyText(
+        zone,
+        envelope?.partial?.message ??
+          "FEMA publishes a flood layer here, but no mapped zone polygon covers the point.",
+        x,
+        y,
+        width,
+        7,
+      ),
+    );
+    y += 28;
+  }
+
+  const rows: Array<[string, string]> = atPoint
+    ? [
+        ["zone subtype", atPoint.subtype ?? "none given"],
+        ["sfha", atPoint.sfha ? "yes" : "no"],
+        [
+          "static bfe",
+          atPoint.staticBfeFt === null
+            ? "no static base flood elevation"
+            : `${atPoint.staticBfeFt.toFixed(1)} ft`,
+        ],
+        ["polygons in frame", String(flood.polygons.length)],
+      ]
+    : [
+        ["coverage", flood.coverage ? "published" : "not published"],
+        ["polygons in frame", String(flood.polygons.length)],
+      ];
   for (const [key, value] of rows) {
     parts.push(dataRow(x, y, width, key, value));
     y += 12;

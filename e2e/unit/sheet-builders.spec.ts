@@ -379,3 +379,53 @@ test("buildSheetGroups renders the loading chrome when a layer is still in fligh
   expect(groups.seismic).toContain("datum-pulse");
   expect(groups.soil).toContain('data-status="ok"');
 });
+
+// ─── A partial flood answer is an answer ─────────────────────────────────────
+
+test("a partial flood envelope with no zone at the point is a partial panel", () => {
+  // FEMA publishes a layer here and returned polygons, but no mapped zone
+  // covers the point. That is a real answer, not a missing source, so the panel
+  // carries the envelope's own sentence and the polygons it did return.
+  // Miami, because its FEMA fixture carries polygons in the frame.
+  const layers = loadLayers("miami");
+  const live = layers.flood?.data as {
+    polygons: unknown[];
+  } | null;
+  const message =
+    "FEMA publishes a flood layer for this area, but no mapped zone polygon covers the point.";
+  layers.flood = {
+    layer: "flood",
+    status: "partial",
+    data: { atPoint: null, polygons: live?.polygons ?? [], coverage: true },
+    source: {
+      name: "FEMA NFHL",
+      url: "https://hazards.fema.gov/",
+      fetchedAt: "2026-09-24T18:00:00.000Z",
+      cached: false,
+      licence: "public domain",
+    },
+    partial: { missing: ["atPoint"], message },
+    fieldPaths: ["polygons[].zone", "coverage"],
+  };
+
+  expect((live?.polygons ?? []).length, "the fixture should carry polygons").toBeGreaterThan(0);
+
+  const svg = buildSheet(makeCtx("miami", { layers }));
+  const body = groupBody(svg, "flood-summary");
+
+  expect(body).toContain('data-status="partial"');
+  expect(body).not.toContain("UNAVAILABLE");
+  expect(body).toContain("No zone at the point");
+  // The message is wrapped into tspans, so a clause is asserted.
+  expect(body).toContain("no mapped zone polygon covers the point");
+  expect(body).toContain("published");
+
+  // The polygon rows are still there: the zone codes in the frame and the count.
+  expect(body).toContain("POLYGONS IN FRAME");
+  expect(body.toUpperCase()).toContain("ZONE CODES IN FRAME");
+
+  // The site plan keeps drawing those polygons.
+  const sitePlan = groupBody(svg, "site-plan");
+  const flood = sitePlan.slice(sitePlan.indexOf('<g id="site-plan-flood"'));
+  expect(count(flood.slice(0, flood.indexOf("</g>")), "<path")).toBeGreaterThan(0);
+});

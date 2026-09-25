@@ -275,3 +275,136 @@ test("the prompt tells the model to finish all five sections", () => {
   expect(SYSTEM_PROMPT).toContain("never more than 420");
   expect(SYSTEM_PROMPT).toContain("stops mid sentence is a failure");
 });
+
+// ─── OSM names never reach the model ─────────────────────────────────────────
+
+/** A minimal but shape correct envelope, for the branches the fixtures miss. */
+function envelopeOf(
+  layer: LayerName,
+  data: unknown,
+  fieldPaths: string[],
+): LayerEnvelope<unknown> {
+  return {
+    layer,
+    status: "ok",
+    data,
+    source: {
+      name: "synthetic",
+      url: "",
+      fetchedAt: "2026-09-24T18:00:00.000Z",
+      cached: false,
+      licence: "n/a",
+    },
+    fieldPaths,
+  };
+}
+
+/**
+ * A frame with few buildings and few stops. Under the sixteen value cap a
+ * bucket is sent element by element rather than collapsed to a count, so this
+ * is the envelope shape where an OpenStreetMap label would reach the model.
+ */
+const SPARSE_BUILDING_NAMES = [
+  "Peachtree Center Station",
+  "Flatiron Building",
+  "Saint Luke's Episcopal Church",
+];
+const SPARSE_STOP_NAMES = ["Marietta St NW at Forsyth St NW", "Five Points"];
+
+function sparseOsm() {
+  return {
+    buildings: SPARSE_BUILDING_NAMES.map((name, index) => ({
+      id: index + 1,
+      ring: [
+        [0, 0],
+        [10, 0],
+        [10, 10],
+      ],
+      heightM: index === 0 ? 42.5 : null,
+      levels: 3,
+      name,
+    })),
+    water: [],
+    streets: [],
+    transitStops: SPARSE_STOP_NAMES.map((name, index) => ({
+      id: 100 + index,
+      kind: "bus",
+      x: index * 5,
+      y: index * 5,
+      name,
+    })),
+    stats: {
+      buildingCount: 3,
+      ringCount: 3,
+      withHeight: 1,
+      withLevels: 3,
+      coverageRatio: 0.02,
+    },
+  };
+}
+
+/** Every string leaf in a serialized input, wherever it sits. */
+function stringLeaves(value: unknown, out: string[] = []): string[] {
+  if (typeof value === "string") out.push(value);
+  else if (Array.isArray(value)) for (const item of value) stringLeaves(item, out);
+  else if (value && typeof value === "object") {
+    for (const child of Object.values(value as Record<string, unknown>)) {
+      stringLeaves(child, out);
+    }
+  }
+  return out;
+}
+
+test("an OSM building or stop name never reaches the model, even in a sparse frame", () => {
+  const layers: Partial<Record<LayerName, LayerEnvelope<unknown>>> = {
+    osm: envelopeOf(
+      "osm",
+      sparseOsm(),
+      ["buildings[].name", "buildings[].heightM", "stats.buildingCount"],
+    ),
+  };
+  const input = serializeInput(ATLANTA, layers);
+  const osm = input.layers.osm;
+  if (osm.status === "unavailable") throw new Error("osm should be available");
+
+  // The branch is the one the cap leaves uncollapsed: three buildings, not 140.
+  expect(osm.fields["osm.stats.buildingCount"]).toBe(3);
+  expect(osm.fields["osm.buildings[].heightM"]).toEqual([42.5, null, null]);
+  expect(Object.keys(osm.fields)).not.toContain("osm.buildings[].name");
+  expect(Object.keys(osm.fields)).not.toContain("osm.transitStops[].name");
+
+  // Values, not key names: no serialized string is one of these labels.
+  const leaves = new Set(stringLeaves(input));
+  for (const name of [...SPARSE_BUILDING_NAMES, ...SPARSE_STOP_NAMES]) {
+    expect(leaves.has(name), `"${name}" must not be serialized`).toBe(false);
+  }
+});
+
+test("no OSM name from the committed fixtures is serialized for any site", () => {
+  for (const slug of ["atlanta", "miami", "wakeeney"]) {
+    const layers = loadLayers(slug);
+    const data = layers.osm?.data as
+      | {
+          buildings: Array<{ name: string | null }>;
+          transitStops: Array<{ name: string | null }>;
+        }
+      | null;
+    if (!data) continue;
+    const names = [...data.buildings, ...data.transitStops]
+      .map((feature) => feature.name)
+      .filter((name): name is string => typeof name === "string" && name.length > 0);
+    const leaves = new Set(stringLeaves(serializeInput(ATLANTA, layers)));
+    for (const name of names) {
+      expect(leaves.has(name), `${slug}: "${name}" must not be serialized`).toBe(false);
+    }
+  }
+});
+
+test("a soil series name and a tract name are still serialized", () => {
+  // The skip is scoped to the OpenStreetMap layers. These are measurements the
+  // brief is meant to cite, and dropping them would be the wrong cure.
+  const input = serializeInput(ATLANTA, loadLayers("atlanta"));
+  const soil = input.layers.soil;
+  if (soil.status === "unavailable") throw new Error("soil should be available");
+  expect(Object.keys(soil.fields)).toContain("soil.components[].name");
+});

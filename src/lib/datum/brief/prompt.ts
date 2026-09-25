@@ -54,9 +54,26 @@ const GEOMETRY_SEGMENTS = [
 /** Longer arrays collapse to a count and a range rather than every element. */
 const MAX_VALUES_PER_PATH = 16;
 
+/**
+ * Layers whose `name` fields are OpenStreetMap labels: building names and
+ * transit stop names. A short bucket does not collapse to a count, so in a
+ * sparse frame those strings would reach the model whole, and SPEC section 12
+ * forbids it: a stop called "Peachtree Center Station" tells the model where
+ * the site is, which is the one thing the serializer exists to withhold. The
+ * skip is scoped to these layers so the soil series name and the tract name,
+ * which are data and are citable, are untouched.
+ */
+const NAME_SKIP_LAYERS = new Set<LayerName>(["osm", "walkshed"]);
+
 function isGeometryPath(path: string): boolean {
   const segments = path.split(/[.[]/);
   return segments.some((segment) => GEOMETRY_SEGMENTS.includes(segment));
+}
+
+/** True when this layer's path is an OSM label rather than a measurement. */
+function isSkippedName(layer: LayerName, path: string): boolean {
+  if (!NAME_SKIP_LAYERS.has(layer)) return false;
+  return path.split(/[.[\]]/).includes("name");
 }
 
 function flatten(
@@ -120,6 +137,7 @@ export function flattenLayer(
   const fields: Record<string, unknown> = {};
   for (const [path, values] of buckets) {
     if (isGeometryPath(path)) continue;
+    if (isSkippedName(layer, path)) continue;
     const key = `${layer}.${path}`;
     if (values.length === 1) fields[key] = roundLeaf(values[0]);
     else if (values.length <= MAX_VALUES_PER_PATH) fields[key] = values.map(roundLeaf);
