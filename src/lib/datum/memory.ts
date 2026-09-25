@@ -12,6 +12,14 @@ import {
   RATE_LIMIT_PER_DAY,
 } from "./constants";
 import { publicPoint, siteKey as siteKeyOf } from "./geo";
+import {
+  PERCENTILE_METRICS,
+  PERCENTILE_MIN_SITES,
+  VECTOR_LENGTH,
+  closestComponents,
+  l2Distance,
+  matchPercent,
+} from "./metrics";
 import type {
   LayerEnvelope,
   LayerName,
@@ -577,4 +585,346 @@ export async function peekRateLimit(
     until: nowMs + RATE_LIMIT_PEEK_MEMO_MS,
   });
   return result;
+}
+
+// ─── Site metrics, percentiles, and similarity (SPEC section 14) ─────────────
+
+/**
+ * Whether test rows count towards percentiles, similar sites, and the public
+ * map. The same two conditions the source overrides use (SPEC section 15): the
+ * flag alone is not enough, so the map is inert in any production build. In
+ * production this is always false and `is_test` rows are always excluded.
+ */
+export function includeTestSites(): boolean {
+  return (
+    process.env.DATUM_INCLUDE_TEST_SITES === "1" &&
+    process.env.NODE_ENV !== "production"
+  );
+}
+
+/**
+ * How many rows a similarity search reads. The vectors are fourteen doubles, so
+ * a few thousand of them is a small payload and the distance loop over them is
+ * trivial. The cap exists so the query can never grow without bound.
+ */
+const SIMILAR_CANDIDATE_CAP = 2000;
+
+/** How many points the public map returns, newest analysis first. */
+const PUBLIC_SITES_CAP = 500;
+
+/**
+ * Write the named values and the vector onto the site row.
+ *
+ * Only the named values that have one are stored. A null is left out of the
+ * jsonb entirely rather than stored as `null`, because `metric_percentile`
+ * selects on `metrics ? metric`: a stored null would join the population for
+ * that metric and never satisfy `v < value`, which would drag every percentile
+ * down by the count of the sites that could not measure it.
+ */
+export async function writeMetrics(
+  siteId: string,
+  named: Record<string, number | null>,
+  vector: number[] | null,
+): Promise<boolean> {
+  if (isLocalSiteId(siteId)) return false;
+  const metrics: Record<string, number> = {};
+  for (const [name, value] of Object.entries(named)) {
+    if (typeof value === "number" && Number.isFinite(value)) metrics[name] = value;
+  }
+  const written = await withMemory(async (db) => {
+    const { error } = await db
+      .from("sites")
+      .update({
+        metrics,
+        // pgvector's text input form. PostgREST sends the column as a string
+        // and casts it, so the array is serialized rather than sent as JSON.
+        metrics_vector: vector === null ? null : JSON.stringify(vector),
+        metrics_at: new Date().toISOString(),
+      })
+      .eq("id", siteId);
+    if (error) throw new Error("sites metrics write failed");
+    return true;
+  });
+  return written === true;
+}
+
+/**
+ * How many sites Site Memory holds, under the same test row gating. Null when
+ * Site Memory could not answer: an offline project has no count, and reporting
+ * zero would read as "no site has ever been analyzed".
+ */
+export async function countSites(): Promise<number | null> {
+  const count = await withMemory(async (db) => {
+    let query = db.from("sites").select("id", { count: "exact", head: true });
+    if (!includeTestSites()) query = query.eq("is_test", false);
+    const { count: rows, error } = await query;
+    if (error) throw new Error("sites count failed");
+    // A successful head count is a number. Anything else is a shape change,
+    // not an empty table, and must not be read as one.
+    if (typeof rows !== "number") throw new Error("sites count failed");
+    return rows;
+  });
+  return count === undefined ? null : count;
+}
+
+export interface PercentileEntry {
+  metric: string;
+  label: string;
+  /** 0 to 100, already rounded. */
+  percentile: number;
+}
+
+/**
+ * The percentile of this site's named values among the analyzed population,
+ * for the six metrics SPEC section 14 lists. A metric with fewer than ten sites
+ * behind it is left out, which is what `metric_percentile` enforces in SQL.
+ *
+ * Two paths, one rule. In production the SQL helper answers, exactly as SPEC
+ * section 14 says. `metric_percentile` hard codes `is_test = false`, so when
+ * DATUM_INCLUDE_TEST_SITES is on there is no function to call and the same
+ * arithmetic runs here over one select of the metrics column. The deviation is
+ * confined to the test path; the production path is the helper.
+ */
+export async function percentiles(
+  named: Record<string, number | null>,
+): Promise<PercentileEntry[]> {
+  const wanted = PERCENTILE_METRICS.filter(
+    (entry) => typeof named[entry.metric] === "number",
+  );
+  if (wanted.length === 0) return [];
+
+  if (includeTestSites()) {
+    const rows = await withMemory(async (db) => {
+      const { data, error } = await db
+        .from("sites")
+        .select("metrics")
+        .not("metrics", "is", null)
+        .limit(SIMILAR_CANDIDATE_CAP);
+      if (error) throw new Error("sites metrics read failed");
+      return (data ?? []) as Array<{ metrics: Record<string, unknown> | null }>;
+    });
+    if (!rows) return [];
+    const out: PercentileEntry[] = [];
+    for (const entry of wanted) {
+      const value = named[entry.metric] as number;
+      const population: number[] = [];
+      for (const row of rows) {
+        const candidate = row.metrics ? row.metrics[entry.metric] : undefined;
+        if (typeof candidate === "number" && Number.isFinite(candidate)) {
+          population.push(candidate);
+        }
+      }
+      if (population.length < PERCENTILE_MIN_SITES) continue;
+      const below = population.filter((other) => other < value).length;
+      out.push({
+        metric: entry.metric,
+        label: entry.label,
+        percentile: Math.round((below / population.length) * 100),
+      });
+    }
+    return out;
+  }
+
+  const results = await Promise.all(
+    wanted.map(async (entry) => {
+      const value = named[entry.metric] as number;
+      const rows = await withMemory(async (db) => {
+        const { data, error } = await db.rpc("metric_percentile", {
+          metric: entry.metric,
+          value,
+        });
+        if (error) throw new Error("metric_percentile failed");
+        return (data ?? []) as Array<{ percentile: number | null; n: number }>;
+      });
+      const first = rows?.[0];
+      if (!first || typeof first.percentile !== "number") return null;
+      const found: PercentileEntry = {
+        metric: entry.metric,
+        label: entry.label,
+        percentile: Math.round(first.percentile * 100),
+      };
+      return found;
+    }),
+  );
+  return results.filter((entry): entry is PercentileEntry => entry !== null);
+}
+
+export interface SimilarSite {
+  siteId: string;
+  locality: string | null;
+  publicLat: number;
+  publicLng: number;
+  /** round((1 - d / sqrt(14)) * 100), SPEC section 14. */
+  match: number;
+  /** The three components that differ least, closest first. */
+  closest: string[];
+}
+
+interface VectorRow {
+  id: string;
+  locality: string | null;
+  public_lat: number;
+  public_lng: number;
+  metrics_vector: unknown;
+}
+
+/** pgvector comes back over PostgREST as its text form, "[1,2,3]". */
+function parseVector(value: unknown): number[] | null {
+  let parsed: unknown = value;
+  if (typeof value === "string") {
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  if (!Array.isArray(parsed) || parsed.length !== VECTOR_LENGTH) return null;
+  const out: number[] = [];
+  for (const entry of parsed) {
+    const n = typeof entry === "number" ? entry : Number(entry);
+    if (!Number.isFinite(n)) return null;
+    out.push(n);
+  }
+  return out;
+}
+
+/**
+ * The nearest sites by L2 distance over the metrics vector.
+ *
+ * SPEC section 14 writes this as `order by metrics_vector <-> $1 limit 5`.
+ * PostgREST cannot express a vector operator and migration 0002 is fixed to the
+ * SQL in SPEC section 13, which carries no similarity function, so the ordering
+ * runs here over a capped select of the candidate vectors. The index in 0002
+ * stays for the day a function is added; the result is the same ordering.
+ */
+export async function similarSites(
+  vector: number[],
+  siteId: string,
+  limit = 5,
+): Promise<SimilarSite[]> {
+  const rows = await withMemory(async (db) => {
+    let query = db
+      .from("sites")
+      .select("id, locality, public_lat, public_lng, metrics_vector")
+      .not("metrics_vector", "is", null)
+      .neq("id", siteId);
+    if (!includeTestSites()) query = query.eq("is_test", false);
+    const { data, error } = await query.limit(SIMILAR_CANDIDATE_CAP);
+    if (error) throw new Error("sites similarity read failed");
+    return (data ?? []) as VectorRow[];
+  });
+  if (!rows) return [];
+
+  const scored: Array<{ row: VectorRow; other: number[]; distance: number }> = [];
+  for (const row of rows) {
+    const other = parseVector(row.metrics_vector);
+    if (!other) continue;
+    scored.push({ row, other, distance: l2Distance(vector, other) });
+  }
+  scored.sort((left, right) => left.distance - right.distance);
+
+  return scored.slice(0, limit).map((entry) => ({
+    siteId: entry.row.id,
+    locality: entry.row.locality,
+    publicLat: entry.row.public_lat,
+    publicLng: entry.row.public_lng,
+    match: matchPercent(entry.distance),
+    closest: closestComponents(vector, entry.other),
+  }));
+}
+
+export interface PublicSite {
+  publicLat: number;
+  publicLng: number;
+  locality: string | null;
+  analyzedAt: string;
+}
+
+/**
+ * The analyzed sites as public points only. The confirmed point, the site key,
+ * and the row id never leave this function: the map shows the 2 dp snapped
+ * point, which is about a kilometre, and nothing that could be walked back to
+ * an address (SPEC section 13, standing decisions).
+ */
+export async function publicSites(): Promise<PublicSite[]> {
+  const rows = await withMemory(async (db) => {
+    let query = db
+      .from("sites")
+      .select("public_lat, public_lng, locality, last_analyzed_at");
+    if (!includeTestSites()) query = query.eq("is_test", false);
+    const { data, error } = await query
+      .order("last_analyzed_at", { ascending: false })
+      .limit(PUBLIC_SITES_CAP);
+    if (error) throw new Error("public sites read failed");
+    return (data ?? []) as Array<{
+      public_lat: number;
+      public_lng: number;
+      locality: string | null;
+      last_analyzed_at: string;
+    }>;
+  });
+  if (!rows) return [];
+  return rows.map((row) => ({
+    publicLat: row.public_lat,
+    publicLng: row.public_lng,
+    locality: row.locality,
+    analyzedAt: row.last_analyzed_at,
+  }));
+}
+
+// ─── Stored briefs (SPEC section 13, table `briefs`) ─────────────────────────
+
+export interface StoredBrief {
+  model: string;
+  text: string;
+  citations: Record<string, unknown>;
+}
+
+/**
+ * The brief already written for this site and this input hash, or null. The
+ * hash covers the serialized layer data, so a brief is replayed only while the
+ * numbers it was written from are the numbers the sheet is showing.
+ */
+export async function findBrief(
+  siteId: string,
+  inputHash: string,
+): Promise<StoredBrief | null> {
+  if (isLocalSiteId(siteId)) return null;
+  const row = await withMemory(async (db) => {
+    const { data, error } = await db
+      .from("briefs")
+      .select("model, text, citations")
+      .eq("site_id", siteId)
+      .eq("input_hash", inputHash)
+      .maybeSingle();
+    if (error) throw new Error("briefs lookup failed");
+    return (data as StoredBrief | null) ?? null;
+  });
+  return row ?? null;
+}
+
+/**
+ * Store a brief that passed its citation checks. A brief that failed them is
+ * never stored, so a replay can never serve text the server has already judged
+ * unverified (PHASE-3 step 3.4).
+ */
+export async function storeBrief(
+  siteId: string,
+  inputHash: string,
+  model: string,
+  text: string,
+  citations: Record<string, unknown>,
+): Promise<boolean> {
+  if (isLocalSiteId(siteId)) return false;
+  const written = await withMemory(async (db) => {
+    const { error } = await db
+      .from("briefs")
+      .upsert(
+        { site_id: siteId, input_hash: inputHash, model, text, citations },
+        { onConflict: "site_id,input_hash" },
+      );
+    if (error) throw new Error("briefs write failed");
+    return true;
+  });
+  return written === true;
 }
