@@ -46,7 +46,7 @@ export default function SectionCut() {
         dispose = mount(canvas, host, mode, { cut, view, ptr }, building.build());
         if (!dispose) setFailed(true);
       })
-      .catch(() => setFailed(true));
+      .catch(() => { if (!cancelled) setFailed(true); });
     return () => { cancelled = true; dispose?.(); };
   }, [index, mode]);
 
