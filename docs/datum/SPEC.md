@@ -597,7 +597,9 @@ Rules:
 ## 12. Site brief (Claude)
 
 Model: `claude-sonnet-4-6` (repo rule: every route on this model). Streaming through the SDK's
-`client.messages.stream(...)`, forwarded as Server Sent Events. Max output 900 tokens.
+`client.messages.stream(...)`, forwarded as Server Sent Events. Max output 1400 tokens (amended
+2026-09-25 from 900: at 900 the brief truncated mid section in three of three runs, and a
+truncated brief produces uncited sentences of its own).
 
 Input serializer (`brief/prompt.ts`): a JSON object with one key per layer. Available layers carry
 their data with every leaf value keyed by its dotted path (the same `fieldPaths` list from the
@@ -620,9 +622,21 @@ Server side validation after the stream completes: extract every `[...]` citatio
 against `fieldPaths` of the available layers, and send a final SSE event with the list of invalid
 citations. The client renders valid citations as chips that highlight the matching panel on hover,
 and renders invalid ones struck through with the tooltip "not a data field". If more than 2
-citations are invalid, or any sentence with a digit has no citation, the client shows the banner
-"This brief failed citation checks; treat it as unverified" above the text. The brief is stored
-(phase 3) only when it passes.
+citations are invalid, or any numeric sentence fails the value aware check below, the client shows
+the banner "This brief failed citation checks; treat it as unverified" above the text. The brief
+is stored (phase 3) only when it passes.
+
+Value aware numeric check (amended 2026-09-25; replaces "any sentence with a digit has no
+citation"). A sentence containing a numeric value passes when it carries a valid citation, or when
+every numeric value in it satisfies both conditions: the value matches a value present in the
+dataset fetched for that run, compared on the rendered string using the same rounding the
+serializer applies to the model's input (never on raw floats), and a path whose value renders to
+that string was cited by a valid citation earlier in the same brief. A numeric value that traces to
+nothing in the dataset fails the sentence, shows the banner, and fails the acceptance suite. The
+validator logs every match decision (sentence index, value string, the matched path or none, and
+whether the earlier citation was found) at debug level, so a false pass is diagnosable. Restating a
+value already cited is not fabrication; requiring a bracket on every restatement produced citation
+spam and false positives (see PROGRESS.md, Phase 2 tripwire).
 
 SSE events:
 
