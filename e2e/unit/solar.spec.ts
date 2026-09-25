@@ -163,3 +163,41 @@ test("fetchSun is never unavailable, even on an HTTP error", async () => {
   expect(envelope.status).not.toBe("unavailable");
   expect(envelope.data).not.toBeNull();
 });
+
+test("sunLayer reports the archive's zone even when that zone is UTC", () => {
+  const data = sunLayer(ATLANTA.lat, ATLANTA.lng, "UTC", undefined, {
+    fromArchive: true,
+  });
+  expect(data.timezone).toBe("UTC");
+  expect(data.timezoneSource).toBe("open-meteo");
+});
+
+test("sunLayer reports utc when the archive did not answer", () => {
+  const data = sunLayer(ATLANTA.lat, ATLANTA.lng, "UTC", undefined, {
+    fromArchive: false,
+  });
+  expect(data.timezone).toBe("UTC");
+  expect(data.timezoneSource).toBe("utc");
+});
+
+test("an unresolvable zone is utc however it arrived", () => {
+  const data = sunLayer(ATLANTA.lat, ATLANTA.lng, "Not/AZone", undefined, {
+    fromArchive: true,
+  });
+  expect(data.timezone).toBe("UTC");
+  expect(data.timezoneSource).toBe("utc");
+});
+
+test("the times a UTC archive produces are the UTC times, not shifted", () => {
+  const fromArchive = sunLayer(ATLANTA.lat, ATLANTA.lng, "UTC", undefined, {
+    fromArchive: true,
+  });
+  const noArchive = sunLayer(ATLANTA.lat, ATLANTA.lng, "UTC", undefined, {
+    fromArchive: false,
+  });
+  // Only the provenance differs. The computation is identical.
+  expect({ ...fromArchive, timezoneSource: null }).toEqual({
+    ...noArchive,
+    timezoneSource: null,
+  });
+});

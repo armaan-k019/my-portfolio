@@ -496,3 +496,39 @@ test("sun and climate share one Open-Meteo request through the cache", async () 
   expect(calls).toBe(1);
   expect(sun.source.cached).toBe(true);
 });
+
+test("an archive that answers UTC is reported as the archive's zone, not as a failure", async () => {
+  // "UTC" is a zone the archive can legitimately return. Reading the string
+  // rather than the archive result turned that answer into a partial envelope
+  // saying Open-Meteo could not be reached, which is a fetched value presented
+  // as a failure.
+  const raw = rawFixture("atlanta") as Record<string, unknown>;
+  const body = JSON.stringify({
+    ...raw,
+    timezone: "UTC",
+    timezone_abbreviation: "UTC",
+    utc_offset_seconds: 0,
+  });
+  const serveUtc: typeof fetch = async () =>
+    new Response(body, {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+
+  const envelope = await fetchSun(INPUT, context(serveUtc));
+  expect(envelope.status).toBe("ok");
+  expect(envelope.partial).toBeUndefined();
+  expect(envelope.data?.timezone).toBe("UTC");
+  expect(envelope.data?.timezoneSource).toBe("open-meteo");
+});
+
+test("an archive that cannot be reached is still partial with missing timezone", async () => {
+  const failing: typeof fetch = async () => {
+    throw new Error("network down");
+  };
+  const envelope = await fetchSun(INPUT, context(failing));
+  expect(envelope.status).toBe("partial");
+  expect(envelope.partial?.missing).toEqual(["timezone"]);
+  expect(envelope.data?.timezone).toBe("UTC");
+  expect(envelope.data?.timezoneSource).toBe("utc");
+});

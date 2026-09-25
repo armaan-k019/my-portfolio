@@ -304,18 +304,28 @@ function daylightByMonth(lat: number, lng: number, year: number): number[] {
  * The full sun layer for 21 March, 21 June, and 21 December. `timezone` is the
  * IANA zone from the Open-Meteo archive, or "UTC" when the archive is
  * unavailable (OPEN-QUESTIONS item 18).
+ *
+ * `fromArchive` says whether the archive answered. It is passed rather than
+ * inferred from the string: "UTC" is itself a zone the archive can legitimately
+ * return, and reading the string meant a site whose real zone is UTC was
+ * reported as having no zone at all, with a partial envelope saying the archive
+ * could not be reached when it had answered correctly. That is a fetched value
+ * presented as a failure, which the anti fabrication rule forbids in both
+ * directions. It defaults to true so a caller with a zone in hand needs nothing
+ * extra.
  */
 export function sunLayer(
   lat: number,
   lng: number,
   timezone: string,
   year?: number,
+  options?: { fromArchive?: boolean },
 ): SunData {
   const calendarYear = typeof year === "number" ? year : SUN_REFERENCE_YEAR;
+  const fromArchive = options?.fromArchive !== false;
 
   let resolvedZone = timezone;
-  let timezoneSource: SunData["timezoneSource"] =
-    timezone === "UTC" ? "utc" : "open-meteo";
+  let timezoneSource: SunData["timezoneSource"] = fromArchive ? "open-meteo" : "utc";
   const offsetFor = (date: Date): number => {
     try {
       return timezoneOffsetMinutes(resolvedZone, date);
@@ -379,9 +389,12 @@ export const fetchSun: LayerFetcher<SunData> = async (input, ctx) => {
   }
 
   const source = { ...SUN_SOURCE, cached };
-  const data = sunLayer(input.lat, input.lng, timezone, year);
+  const data = sunLayer(input.lat, input.lng, timezone, year, { fromArchive: reached });
 
-  if (!reached || data.timezoneSource === "utc") {
+  // timezoneSource is now the single record of where the zone came from: it is
+  // "utc" when the archive did not answer and when the zone it gave could not
+  // be resolved, and only then.
+  if (data.timezoneSource === "utc") {
     return partial(
       "sun",
       source,
