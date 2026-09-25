@@ -1,0 +1,10 @@
+POST https://overpass-api.de/api/interpreter
+Content-Type: application/x-www-form-urlencoded
+User-Agent: Datum/1.0 (site analysis; portfolio; +https://armaankazi.com/projects/datum)
+Body: data=<the contents of atlanta.query.txt, form encoded>
+
+Attempts:
+attempt 1 2026-09-22T15:44:14Z http_status=504 bytes=     695
+attempt 2 2026-09-22T15:45:23Z http_status=504 bytes=     695
+attempt 3 2026-09-22T15:46:33Z http_status=504 bytes=     695
+attempt 4 2026-09-22T15:47:43Z http_status=200 bytes= 3492829

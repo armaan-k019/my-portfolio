@@ -1,0 +1,178 @@
+{
+  "_constructed": "CONSTRUCTED, NOT CAPTURED. hazards.fema.gov refused TLS connections from this machine during the build window (see UNREACHABLE.txt). The attribute values below are the ones verified by direct FEMA request on 2026-09-21 and recorded in docs/datum/SPEC.md section 5. The ArcGIS response envelope follows the shape recorded in docs/datum/baseline/probes.txt section d. Re-record with curl when FEMA answers. The verified Miami envelope holds 43 features (25 AE and 15 VE SFHA T plus zone X); this constructed file holds four representative features, one of which lies wholly outside the 800 m frame so the clipping path is exercised.",
+  "displayFieldName": "FLD_AR_ID",
+  "fieldAliases": {
+    "FLD_ZONE": "FLD_ZONE",
+    "ZONE_SUBTY": "ZONE_SUBTY",
+    "SFHA_TF": "SFHA_TF",
+    "STATIC_BFE": "STATIC_BFE"
+  },
+  "fields": [
+    {
+      "name": "FLD_ZONE",
+      "type": "esriFieldTypeString",
+      "alias": "FLD_ZONE",
+      "length": 17
+    },
+    {
+      "name": "ZONE_SUBTY",
+      "type": "esriFieldTypeString",
+      "alias": "ZONE_SUBTY",
+      "length": 76
+    },
+    {
+      "name": "SFHA_TF",
+      "type": "esriFieldTypeString",
+      "alias": "SFHA_TF",
+      "length": 1
+    },
+    {
+      "name": "STATIC_BFE",
+      "type": "esriFieldTypeDouble",
+      "alias": "STATIC_BFE"
+    }
+  ],
+  "features": [
+    {
+      "attributes": {
+        "FLD_ZONE": "AE",
+        "ZONE_SUBTY": null,
+        "SFHA_TF": "T",
+        "STATIC_BFE": 9.0
+      },
+      "geometry": {
+        "rings": [
+          [
+            [
+              -80.188,
+              25.799
+            ],
+            [
+              -80.18,
+              25.799
+            ],
+            [
+              -80.18,
+              25.803
+            ],
+            [
+              -80.188,
+              25.803
+            ],
+            [
+              -80.188,
+              25.799
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "attributes": {
+        "FLD_ZONE": "VE",
+        "ZONE_SUBTY": null,
+        "SFHA_TF": "T",
+        "STATIC_BFE": 13.0
+      },
+      "geometry": {
+        "rings": [
+          [
+            [
+              -80.187,
+              25.8
+            ],
+            [
+              -80.175,
+              25.8
+            ],
+            [
+              -80.175,
+              25.806
+            ],
+            [
+              -80.187,
+              25.806
+            ],
+            [
+              -80.187,
+              25.8
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "attributes": {
+        "FLD_ZONE": "X",
+        "ZONE_SUBTY": "0.2 PCT ANNUAL CHANCE FLOOD HAZARD",
+        "SFHA_TF": "F",
+        "STATIC_BFE": -9999
+      },
+      "geometry": {
+        "rings": [
+          [
+            [
+              -80.192,
+              25.799
+            ],
+            [
+              -80.19,
+              25.799
+            ],
+            [
+              -80.19,
+              25.802
+            ],
+            [
+              -80.192,
+              25.802
+            ],
+            [
+              -80.192,
+              25.799
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "attributes": {
+        "FLD_ZONE": "AE",
+        "ZONE_SUBTY": null,
+        "SFHA_TF": "T",
+        "STATIC_BFE": 8.0
+      },
+      "geometry": {
+        "rings": [
+          [
+            [
+              -80.16,
+              25.81
+            ],
+            [
+              -80.15,
+              25.81
+            ],
+            [
+              -80.15,
+              25.815
+            ],
+            [
+              -80.16,
+              25.815
+            ],
+            [
+              -80.16,
+              25.81
+            ]
+          ]
+        ]
+      }
+    }
+  ],
+  "geometryType": "esriGeometryPolygon",
+  "spatialReference": {
+    "wkid": 4326,
+    "latestWkid": 4326
+  }
+}

@@ -1,0 +1,4 @@
+https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query?geometry=-84.391975,33.775126&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=FLD_ZONE,ZONE_SUBTY,SFHA_TF,STATIC_BFE&returnGeometry=false&f=json
+# CONSTRUCTED, NOT CAPTURED. This is the URL src/lib/datum/sources/fema.ts builds for
+# this request. The sibling .json was constructed from the SPEC section 5 verified
+# values, not captured, because hazards.fema.gov refused TLS connections. See UNREACHABLE.txt.
