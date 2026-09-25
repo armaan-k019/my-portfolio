@@ -32,8 +32,9 @@ function LogoWithFallback({ src, alt, imageClassName }: { src: string; alt: stri
 const steps = (role: string) => role.split("→").map((t) => t.trim());
 
 const columns = [
-  { title: "Professional", entries: workEntries.filter((e) => e.type !== "studentOrg") },
-  { title: "Leadership", entries: workEntries.filter((e) => e.type === "studentOrg") },
+  { title: "Professional", entries: workEntries.filter((e) => !e.type) },
+  { title: "Organizations", entries: workEntries.filter((e) => e.type === "studentOrg") },
+  { title: "Research", entries: workEntries.filter((e) => e.type === "research") },
 ];
 
 export default function WorkSection() {
@@ -41,10 +42,10 @@ export default function WorkSection() {
 
   return (
     <>
-      <div className="grid lg:grid-cols-2 gap-x-12 gap-y-14">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-14">
         {columns.map((col) => (
           <section key={col.title}>
-            <h3 className="font-display text-xl font-semibold text-ink mb-1">{col.title}</h3>
+            <h2 className="font-display text-xl font-semibold text-ink mb-1">{col.title}</h2>
             <hr className="rule mb-2" />
             <ul className="divide-y divide-line">
               {col.entries.map((entry) => {
@@ -61,7 +62,7 @@ export default function WorkSection() {
                       {roles.length === 1 ? (
                         <>
                           <span className="text-sm text-brown-light">{entry.role}</span>
-                          <span className="meta whitespace-nowrap">{entry.dates}</span>
+                          <span className="meta whitespace-nowrap basis-full">{entry.dates}</span>
                         </>
                       ) : (
                         <span className="flex flex-col gap-0.5">

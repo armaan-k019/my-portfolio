@@ -6,7 +6,7 @@ export interface WorkEntry {
   bullets: string[];
   link?: string;
   cardBg?: string;
-  type?: "studentOrg";
+  type?: "studentOrg" | "research";
 }
 
 export const workEntries: WorkEntry[] = [
@@ -48,6 +48,7 @@ export const workEntries: WorkEntry[] = [
     ],
     link: "",
     cardBg: "#ffffff",
+    type: "research",
   },
   {
     name: "A.G. Rhodes Nursing Home",
@@ -61,6 +62,7 @@ export const workEntries: WorkEntry[] = [
     ],
     link: "",
     cardBg: "#ffffff",
+    type: "research",
   },
   {
     name: "Electrify GT",
