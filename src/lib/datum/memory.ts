@@ -167,8 +167,12 @@ export function clientIpFrom(headerValue: string | null): string {
  */
 const localSites = new Map<string, SiteRecord>();
 
-/** The composite key of the unique constraint, as one map key. */
-function localKey(key: string, isTest: boolean): string {
+/**
+ * The composite key of the unique constraint, as one map key. Named for the
+ * site map rather than just "localKey", because the rate limit path has a local
+ * variable of that name.
+ */
+function localSiteMapKey(key: string, isTest: boolean): string {
   return `${key}|${isTest ? "test" : "live"}`;
 }
 
@@ -308,7 +312,7 @@ export async function findSite(
     return (data as SiteRecord | null) ?? null;
   });
   if (row !== undefined) return row;
-  return localSites.get(localKey(key, isTest)) ?? null;
+  return localSites.get(localSiteMapKey(key, isTest)) ?? null;
 }
 
 export async function getOrCreateSite(input: SiteInput): Promise<SiteRecord> {
@@ -376,7 +380,7 @@ export async function getOrCreateSite(input: SiteInput): Promise<SiteRecord> {
     analysis_count: 1,
     schema_version: 1,
   };
-  localSites.set(localKey(key, isTest), fallback);
+  localSites.set(localSiteMapKey(key, isTest), fallback);
   return fallback;
 }
 

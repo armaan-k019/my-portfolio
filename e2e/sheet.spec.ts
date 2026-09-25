@@ -10,6 +10,15 @@
 //
 // Overrides are inert in a production build by design (SPEC section 15), so
 // both failure tests need `npm run dev`.
+//
+//   FEMA stub run  node e2e/tools/fema-stub.mjs &
+//                  DATUM_ALLOW_TEST_FLAG=1 \
+//                  DATUM_SOURCE_OVERRIDES='{"fema":"http://127.0.0.1:8787"}' npm run dev
+//                  then  DATUM_E2E_SHEET_FLOOD_STUB=1 npx playwright test e2e/sheet.spec.ts
+//
+// That run renders the flood drawing against the labelled CONSTRUCTED fixtures
+// in e2e/fixtures/fema through a local stub, never against live FEMA, and its
+// screenshots and exports carry the -flood-stub suffix to say so.
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -49,6 +58,17 @@ const BRIEF_TIMEOUT_MS = 120_000;
 
 /** Codes that mean the network or the upstream failed, not the code. */
 const NETWORK_CODES = ["timeout", "http_error", "upstream_error"];
+
+/**
+ * True when the run is pointed at the local FEMA stub. The "pending: FEMA
+ * unreachable" allowance is off for that run: the whole point of the stub is
+ * that the flood assertions run, so a flood layer that did not answer is a
+ * failure rather than a note.
+ */
+const FLOOD_STUB = process.env.DATUM_E2E_SHEET_FLOOD_STUB === "1";
+
+/** The stub run writes its own files, so a normal run's outputs are untouched. */
+const OUT_SUFFIX = FLOOD_STUB ? "-flood-stub" : "";
 
 interface ExportCheck {
   svg: string;
@@ -135,7 +155,7 @@ async function exportAndCheck(page: Page, slug: string): Promise<ExportCheck> {
   expect(megabytes, `${slug}: export size in MB`).toBeLessThan(4);
 
   mkdirSync(OUT_DIR, { recursive: true });
-  writeFileSync(path.join(OUT_DIR, `${slug}.svg`), svg);
+  writeFileSync(path.join(OUT_DIR, `${slug}${OUT_SUFFIX}.svg`), svg);
   return check;
 }
 
@@ -412,9 +432,15 @@ for (const site of testSites) {
     // shows the finished sheet rather than an empty brief panel.
     mkdirSync(OUT_DIR, { recursive: true });
     await page.screenshot({
-      path: path.join(OUT_DIR, `${site.slug}.png`),
+      path: path.join(OUT_DIR, `${site.slug}${OUT_SUFFIX}.png`),
       fullPage: true,
     });
+    if (FLOOD_STUB) {
+      console.log(
+        `${site.slug}: screenshot and export rendered against the CONSTRUCTED fixtures in ` +
+          "e2e/fixtures/fema through the local stub, not live FEMA",
+      );
+    }
 
     // Real chip elements, not bracket substrings in the drawing's text.
     const chips = await countChips(page);
@@ -464,6 +490,12 @@ for (const site of testSites) {
     const femaAnswered =
       floodStatus !== "unavailable" ||
       (floodCode !== null && !NETWORK_CODES.includes(floodCode));
+    if (FLOOD_STUB) {
+      expect(
+        femaAnswered,
+        `${site.slug}: the FEMA stub is in use, so the flood layer must answer`,
+      ).toBe(true);
+    }
 
     if (site.slug === "wakeeney") {
       if (femaAnswered) {
@@ -481,6 +513,9 @@ for (const site of testSites) {
         const sitePlan = await groupHtml(page, check.svg, "site-plan");
         expect(sitePlan, "miami: a VE cross hatched polygon").toContain(
           'fill="url(#flood-ve)"',
+        );
+        expect(sitePlan, "miami: an SFHA hatched polygon beside it").toContain(
+          'fill="url(#flood-sfha)"',
         );
       } else {
         console.log("miami: pending: FEMA unreachable, VE hatch not checked");
