@@ -316,7 +316,7 @@ export default function YieldPage() {
       </header>
 
       {/* ── Input section ── */}
-      <div ref={inputSectionRef} className="rounded-xl border border-tan/30 bg-white/40 p-5 mb-4">
+      <div ref={inputSectionRef} className="card p-5 mb-4">
         {/* Tabs */}
         <div className="flex gap-1 mb-5 border-b border-tan/20 pb-3">
           <button className={tabClass("manual")} onClick={() => setTab("manual")}>Manual</button>
@@ -343,7 +343,7 @@ export default function YieldPage() {
               )}
               {/* Suggestions dropdown */}
               {searchResults.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-tan/30 rounded-lg shadow-lg z-20 overflow-hidden">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-paper border border-line shadow-lg z-20 overflow-hidden">
                   {searchResults.map((r) => (
                     <button
                       key={r.ticker}
@@ -470,7 +470,7 @@ export default function YieldPage() {
 
       {/* ── Error ── */}
       {error && (
-        <div className="mb-4 p-3 rounded-lg bg-terracotta/10 border border-terracotta/20 text-sm text-terracotta">
+        <div className="mb-4 p-3 bg-terracotta/10 border border-terracotta/20 text-sm text-terracotta">
           {error}
         </div>
       )}
@@ -502,7 +502,7 @@ export default function YieldPage() {
             className="mt-12"
           >
             {/* Report card header */}
-            <div className="rounded-xl border border-tan/40 bg-cream-dark/30 overflow-hidden">
+            <div className="card overflow-hidden">
               <div className="bg-darkblue px-6 py-5 flex items-center justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-white/50 mb-1">Portfolio Report Card</p>
@@ -558,7 +558,7 @@ export default function YieldPage() {
                 className="mt-6"
               >
                 <h2 className="text-sm font-semibold text-brown mb-3 uppercase tracking-wide">Holdings Summary</h2>
-                <div className="rounded-xl border border-tan/30 overflow-hidden">
+                <div className="card overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-darkblue/8 border-b border-tan/20">
@@ -659,7 +659,7 @@ export default function YieldPage() {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3, delay: 0.45 + i * 0.06 }}
-                      className="rounded-xl border border-tan/30 bg-white/40 px-5 py-4 flex gap-4 items-start"
+                      className="card px-5 py-4 flex gap-4 items-start"
                     >
                       <span className="shrink-0 w-6 h-6 rounded-full bg-darkblue/10 text-darkblue text-xs font-bold flex items-center justify-center mt-0.5">
                         {i + 1}
