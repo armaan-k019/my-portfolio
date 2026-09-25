@@ -17,31 +17,29 @@ export default function Home() {
       {/* About (merged Hero + About) */}
       <AboutSection />
 
-      {/* Everything below the hero sits over the ambient node field. Each
-          section's content column is solid paper above it, so the field only
-          shows in the margins and the gaps between sections. */}
+      {/* Everything below the hero sits over the ambient node field. */}
       <div className="relative">
         <NodeField />
         <div className="relative">
           {/* Work */}
-          <section id="work" className="py-12 md:py-16">
-            <div className="max-w-5xl mx-auto px-6 py-8 bg-paper">
+          <section id="work" className="py-20 md:py-24">
+            <div className="max-w-5xl mx-auto px-6">
               <h2 className="font-display display-md font-semibold text-darkblue mb-10">Experience</h2>
               <WorkSection />
             </div>
           </section>
 
           {/* Projects */}
-          <section id="projects" className="py-12 md:py-16">
-            <div className="max-w-5xl mx-auto px-6 py-8 bg-paper">
+          <section id="projects" className="py-20 md:py-24">
+            <div className="max-w-5xl mx-auto px-6">
               <h2 className="font-display display-md font-semibold text-darkblue mb-10">Selected Projects</h2>
               <ProjectsSection projects={allProjects} />
             </div>
           </section>
 
           {/* Research */}
-          <section id="research" className="py-12 md:py-16">
-            <div className="max-w-5xl mx-auto px-6 py-8 bg-paper">
+          <section id="research" className="py-20 md:py-24">
+            <div className="max-w-5xl mx-auto px-6">
               <h2 className="font-display display-md font-semibold text-darkblue mb-10">Research &amp; Publications</h2>
               <ResearchSection entries={researchEntries} />
             </div>
