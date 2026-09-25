@@ -418,6 +418,37 @@ test("citable field paths cover what the serializer sent", () => {
   expect([...wakeeney].some((path) => path.startsWith("topo."))).toBe(true);
 });
 
+test("site latitude and longitude are citable paths per SPEC section 12", () => {
+  const layers = loadLayers("atlanta");
+  const paths = new Set(citableFieldPaths(layers));
+  expect(paths.has("site.latitude")).toBe(true);
+  expect(paths.has("site.longitude")).toBe(true);
+  // site.locality and other site keys are never citable.
+  expect([...paths].some((path) => path.startsWith("site.") && path !== "site.latitude" && path !== "site.longitude")).toBe(false);
+});
+
+test("Miami sentence with site latitude and longitude citations passes", () => {
+  const layers = loadLayers("miami");
+  const paths = citableFieldPaths(layers);
+  const check = validateCitations(
+    "The site sits at latitude 25.8011588, longitude -80.1890627 [site.latitude][site.longitude].",
+    paths,
+  );
+  expect(check.invalidCitations).toEqual([]);
+  expect(check.validCitations).toEqual(["site.latitude", "site.longitude"]);
+});
+
+test("invalid site citation paths like [site.elevation] still fail", () => {
+  const layers = loadLayers("miami");
+  const paths = citableFieldPaths(layers);
+  const check = validateCitations(
+    "The site sits at latitude 25.8011588 [site.elevation].",
+    paths,
+  );
+  expect(check.invalidCitations).toEqual(["site.elevation"]);
+  expect(check.validCitations).toEqual([]);
+});
+
 test("the input hash is stable for the same data and changes with it", () => {
   const first = serializeInput(ATLANTA, loadLayers("atlanta"));
   const second = serializeInput(ATLANTA, loadLayers("atlanta"));

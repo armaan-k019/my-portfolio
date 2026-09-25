@@ -210,6 +210,10 @@ export function citableFieldPaths(
   layers: Partial<Record<LayerName, LayerEnvelope<unknown>>>,
 ): string[] {
   const paths = new Set<string>();
+  // SPEC section 12: latitude and longitude are included because the sun path
+  // depends on them, and they are citable as named input keys.
+  paths.add("site.latitude");
+  paths.add("site.longitude");
   for (const layer of LAYER_NAMES) {
     const envelope = layers[layer];
     if (!envelope || envelope.status === "unavailable" || envelope.data === null) {
