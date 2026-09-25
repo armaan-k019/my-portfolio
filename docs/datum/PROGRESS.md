@@ -919,3 +919,33 @@ Next action: owner applies the amended migration 0002 and sets CRON_SECRET; then
 runs the step 3.1 checks, the seed run, percentiles, similar sites for Atlanta, Miami and
 WaKeeney, the map, the page screenshot, the brief replay, the ping with the secret, and the
 offline run, and records the observed values.
+
+## Blocking item 3: Phase 3 database mode, OBSERVED (2026-09-25)
+
+Owner applied the amended migration 0002 and set CRON_SECRET (local and Vercel). Question 18:
+keep the 503 (owner). Step 3.1 through the app's client: the four metrics columns selectable;
+briefs table present; metric_percentile answers (null, n 0 on the empty corpus); a test row and a
+real row coexist at one site_key; an exact duplicate is refused (23505).
+
+Run: dev server with DATUM_ALLOW_TEST_FLAG=1 DATUM_INCLUDE_TEST_SITES=1 (the only mode where
+the is_test seeds count; open question 16 stands for the phase file wording), test process
+DATUM_E2E_DB=1 with CRON_SECRET. First pass: the seed run passed (12 of 12 sites got a vector,
+masks 10 to 13 of 14; flood absent everywhere, soil group absent at the urban sites) and the
+context test failed on a stale key set assertion (the new `sharedComponents` field); fixed in
+`fa3f51e` (stricter key set), second pass all seven database tests passed:
+
+| Check | Observed |
+|---|---|
+| seed run | 12 of 12 with a vector, 1.3 m on the second pass (cache warm) |
+| Atlanta context | n 12; more sun than 33%, more built coverage than 55%, more street reach than 58%, more relief than 75%, more wind than 42%, more density than 50%; five similar sites |
+| similar sites, Atlanta | Asheville 93, Boston 90, Denver 89, New Orleans 86, Miami 83 (11 to 12 shared components); missing sfhaShare, hydrologicGroup |
+| similar sites, Miami | New Orleans 89, Atlanta 83, Boston 82, Phoenix 80, Asheville 78; missing hydrologicGroup |
+| similar sites, WaKeeney | Marfa 85, Asheville 78, Denver 76, New Orleans 76, Phoenix 75; missing sfhaShare |
+| map | 12 public points, two decimals, no lat, lng, or site_key |
+| page | Atlanta page shows the memory panel and the sites map; `docs/datum/screenshots/phase-3/atlanta-memory.png` |
+| brief replay | the second Atlanta brief is the stored one (cached true, identical text) |
+| ping | 401 for missing, wrong, and wrongly schemed bearer; 200 with the secret, sites 12, swept 0 |
+| offline run (earlier the same day) | analysis completes offline; a layer resolves through the fallback id with Site Memory offline |
+
+Atlanta and Miami both receive similar sites after the section 14 amendment. The twelve seed
+rows remain in the database as is_test rows (the test mode corpus); no non test row exists.
