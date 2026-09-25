@@ -27,12 +27,15 @@ import {
   selectLayers,
 } from "@/lib/datum/brief/store";
 import { SITE_FREE_LAYER_WINDOW_MS } from "@/lib/datum/constants";
+import { briefFailedChecks, type CitationCheck } from "@/lib/datum/brief/citations";
 import {
   clientIpFrom,
+  findBrief,
   getSiteById,
   hashIp,
   isLocalSiteId,
   peekRateLimit,
+  storeBrief,
   verifyLocalSiteId,
 } from "@/lib/datum/memory";
 
@@ -54,8 +57,34 @@ interface BriefRequestBody {
   layers?: unknown;
 }
 
+const SSE_HEADERS = {
+  "content-type": "text/event-stream; charset=utf-8",
+  "cache-control": "no-cache, no-transform",
+  connection: "keep-alive",
+};
+
 function sse(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}
+
+/**
+ * The stored citation verdicts, read back defensively. The row was written by
+ * this route from a CitationCheck, but a shape change must not be able to turn
+ * a replay into a brief with no verdict at all, so anything unreadable comes
+ * back as an empty verdict and the chips render as nothing rather than as
+ * something that was never checked.
+ */
+function storedCheck(citations: Record<string, unknown>): CitationCheck {
+  const strings = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((entry) => typeof entry === "string") : [];
+  const count = (value: unknown): number =>
+    typeof value === "number" && Number.isFinite(value) ? value : 0;
+  return {
+    invalidCitations: strings(citations.invalidCitations),
+    validCitations: strings(citations.validCitations),
+    uncitedNumericSentences: count(citations.uncitedNumericSentences),
+    valueMatchedSentences: count(citations.valueMatchedSentences),
+  };
 }
 
 function badRequest(message: string) {
@@ -156,8 +185,33 @@ export async function POST(request: NextRequest) {
   const values = buildValueIndex(input);
   const hash = inputHash(input);
 
-  const client = new Anthropic();
+  // A brief already written for this site and this input hash is replayed
+  // rather than rewritten. The hash covers the serialized layer data, so a
+  // replay can only ever serve text written from the numbers the sheet is
+  // showing now: retry a layer and the hash moves, and the model runs again.
+  // Only briefs that passed their checks are ever stored (below), so a replay
+  // can never serve text the server has already judged unverified.
+  const storedBrief = await findBrief(siteId, hash);
+
   const encoder = new TextEncoder();
+
+  if (storedBrief) {
+    const check = storedCheck(storedBrief.citations);
+    const replay =
+      sse("delta", { text: storedBrief.text }) +
+      sse("done", {
+        invalidCitations: check.invalidCitations,
+        validCitations: check.validCitations,
+        uncitedNumericSentences: check.uncitedNumericSentences,
+        valueMatchedSentences: check.valueMatchedSentences,
+        model: storedBrief.model,
+        inputHash: hash,
+        cached: true,
+      });
+    return new Response(encoder.encode(replay), { headers: SSE_HEADERS });
+  }
+
+  const client = new Anthropic();
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -181,6 +235,26 @@ export async function POST(request: NextRequest) {
         }
 
         const check = validateCitations(text, fieldPaths, values);
+
+        // Stored only when the brief passed. A failed brief is the one thing a
+        // replay must never hand back, and writing it would also mean the next
+        // visitor to this point could not get a better one. The write is
+        // awaited inside the stream rather than scheduled after it, because the
+        // response has not been closed yet and a floating promise on a
+        // serverless instance can be frozen before it runs.
+        if (!briefFailedChecks(check)) {
+          try {
+            await storeBrief(siteId, hash, MODEL, text, {
+              invalidCitations: check.invalidCitations,
+              validCitations: check.validCitations,
+              uncitedNumericSentences: check.uncitedNumericSentences,
+              valueMatchedSentences: check.valueMatchedSentences,
+            });
+          } catch (error) {
+            console.error("[datum] brief store failed", error);
+          }
+        }
+
         controller.enqueue(
           encoder.encode(
             sse("done", {
@@ -190,6 +264,7 @@ export async function POST(request: NextRequest) {
               valueMatchedSentences: check.valueMatchedSentences,
               model: MODEL,
               inputHash: hash,
+              cached: false,
             }),
           ),
         );
@@ -214,11 +289,5 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  return new Response(stream, {
-    headers: {
-      "content-type": "text/event-stream; charset=utf-8",
-      "cache-control": "no-cache, no-transform",
-      connection: "keep-alive",
-    },
-  });
+  return new Response(stream, { headers: SSE_HEADERS });
 }
