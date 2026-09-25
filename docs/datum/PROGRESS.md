@@ -540,3 +540,33 @@ parse with 15 groups, no raster, script, or data URIs, one title each. Builder e
 e2e before the fix round: 3 passed. The unverified banner appears on Atlanta and WaKeeney with
 zero invalid citations because a numeric sentence lacked a citation while flood was unavailable;
 the phase file allows that case and it is logged.
+
+### Re-verification (same reviewer, 2026-09-25)
+
+Findings 1 to 15 and 17 to 20 resolved with file and line evidence; 16 partly (the two failure
+tests keep a conditional on the brief, by design). The finding 8 adjustment keeps the property:
+a client envelope is admitted only when it carries no data and no citable path, and it fixes a
+real honesty bug (an unreachable layer would otherwise have been described as "not requested").
+No fresh default, no weakened test, no changed export contract; 19 new tests all tighter than
+what they replaced. Residuals (low): the client's `unavailable.message` free text reaches the
+prompt as the layer's reason; when memory is up but has no rows yet for a site the full client
+set is admitted with recomputed paths; the chip strip copy says "every reference is a field"
+beneath a banner saying the brief failed its checks.
+
+### TRIPWIRE (PHASE-2, "the brief regularly fails citation validation on the normal run")
+
+On the run of record with every source up except FEMA, the brief carried one numeric sentence
+without a citation on two of three sites, so the unverified banner shows on a clean run. Raw
+outputs from the committed exports (`docs/datum/screenshots/phase-2/<site>.svg`, brief group):
+
+- Atlanta (27 sentences, 1 uncited): "Plan entry level carefully: a 6.2% slope can force
+  split-level access or significant cut and fill."
+- Miami (28 sentences, 0 uncited).
+- WaKeeney (32 sentences, 1 uncited): "Building heights are missing from all 20 mapped
+  structures, so overshadowing and context massing studies cannot be confirmed from this data."
+
+Both numbers are real values from cited sentences elsewhere in the same brief (topo.meanSlopePct,
+osm.stats.buildingCount); the model repeated them in a recommendation sentence without the
+citation. The e2e tolerates the banner today only because flood is unavailable (the phase file's
+excuse rule), so the per site brief assertion is green for a reason that ends the day FEMA
+answers. Owner decision required before the prompt contract changes.
