@@ -33,7 +33,7 @@ export default function ProjectsSection({ projects }: { projects: Project[] }) {
                   className="hover:text-terracotta transition-colors"
                   aria-label={`Visit ${project.title}`}
                 >
-                  {new URL(project.link).host} &#8599;
+                  {URL.canParse(project.link) ? new URL(project.link).host : project.link} &#8599;
                 </a>
               )}
               {project.github && (
