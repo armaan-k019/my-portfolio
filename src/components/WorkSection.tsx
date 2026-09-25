@@ -2,30 +2,15 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { motion } from "framer-motion";
 import Modal from "./Modal";
 import { workEntries, type WorkEntry } from "../../content/work";
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 30 },
-  visible: { opacity: 1, y: 0 },
-};
-
-function isDark(hex?: string) {
-  if (!hex) return false;
-  const c = hex.replace("#", "");
-  const r = parseInt(c.substring(0, 2), 16);
-  const g = parseInt(c.substring(2, 4), 16);
-  const b = parseInt(c.substring(4, 6), 16);
-  return (r * 299 + g * 587 + b * 114) / 1000 < 128;
-}
-
-function LogoWithFallback({ src, alt, dark, imageClassName }: { src: string; alt: string; dark?: boolean; imageClassName?: string }) {
+function LogoWithFallback({ src, alt, imageClassName }: { src: string; alt: string; imageClassName?: string }) {
   const [failed, setFailed] = useState(false);
 
   if (failed) {
     return (
-      <span className={`text-sm font-semibold text-center leading-snug ${dark ? "text-white" : "text-darkblue"}`}>
+      <span className="text-sm font-semibold text-center leading-snug text-darkblue">
         {alt}
       </span>
     );
@@ -48,42 +33,23 @@ export default function WorkSection() {
 
   return (
     <>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        {workEntries.map((entry, i) => {
-          const dark = isDark(entry.cardBg);
-          return (
-            <motion.button
-              key={entry.name}
-              variants={fadeUp}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-80px" }}
-              transition={{ duration: 0.5, delay: i * 0.08, ease: "easeOut" }}
+      <ul style={{ borderTop: "var(--rule)" }}>
+        {workEntries.map((entry) => (
+          <li key={entry.name} style={{ borderBottom: "var(--rule)" }}>
+            <button
               onClick={() => setSelected(entry)}
-              className="group rounded-2xl border border-black/[0.04] hover:-translate-y-1 transition-all duration-[400ms] cursor-pointer overflow-hidden flex flex-col"
-              style={{ backgroundColor: entry.cardBg || "#ffffff", boxShadow: "var(--shadow-card)" }}
-              onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "var(--shadow-card-hover)")}
-              onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "var(--shadow-card)")}
+              className="group grid w-full grid-cols-1 sm:grid-cols-[minmax(0,15rem)_1fr_auto] gap-x-6 gap-y-1 py-4 text-left items-baseline"
             >
-              {/* Logo area */}
-              <div className="flex-1 flex items-center justify-center p-5 min-h-[130px]">
-                <LogoWithFallback src={entry.logo} alt={entry.name} dark={dark} imageClassName={entry.name === "Jeeves" ? "object-contain max-h-36 w-auto" : "object-contain max-h-20 w-auto"} />
-              </div>
-              {/* Company name */}
-              <div className="px-3 py-3 text-center">
-                <p className={`text-xs font-semibold tracking-wide uppercase ${dark ? "text-white" : "text-darkblue"}`}>
-                  {entry.name}
-                </p>
-                {entry.type === "studentOrg" && (
-                  <p className={`text-[10px] mt-0.5 ${dark ? "text-white/50" : "text-brown-light/60"}`}>
-                    Student Org
-                  </p>
-                )}
-              </div>
-            </motion.button>
-          );
-        })}
-      </div>
+              <span className="font-display text-lg font-semibold text-ink group-hover:text-terracotta transition-colors">
+                {entry.name}
+                {entry.type === "studentOrg" && <span className="meta ml-2">Student Org</span>}
+              </span>
+              <span className="text-sm text-brown-light">{entry.role}</span>
+              <span className="meta whitespace-nowrap">{entry.dates}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
 
       <Modal open={!!selected} onClose={() => setSelected(null)} titleId="work-modal-title">
         {selected && (

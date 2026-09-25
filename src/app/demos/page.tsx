@@ -1,15 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { demos, type DemoConfig } from "@/lib/demos";
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 30 },
-  visible: { opacity: 1, y: 0 },
-};
 
 interface DemoCard {
   slug: string;
@@ -123,45 +117,33 @@ export default function DemosPage() {
   return (
     <div className="min-h-screen">
       <div className="max-w-4xl mx-auto px-6 py-16">
-
         <h1 className="font-display display-lg font-semibold text-ink mb-4">Demos</h1>
         <p className="text-sm text-brown-light leading-relaxed max-w-xl mb-2">
           Company-specific projects, each built around one problem I wanted to dig into.
         </p>
         <div className="tick-rule mb-10 mt-6" />
 
-        <div className="grid md:grid-cols-3 gap-4">
-          <AnimatePresence mode="popLayout">
-            {demoCards.map((demo, i) => (
-              <motion.div
-                key={demo.slug}
-                layout
-                variants={fadeUp}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, margin: "-80px" }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.6, delay: i * 0.06, ease: [0.16, 1, 0.3, 1] }}
+        <ul style={{ borderTop: "var(--rule)" }}>
+          {demoCards.map((demo) => (
+            <li
+              key={demo.slug}
+              style={{ borderBottom: "var(--rule)" }}
+              className="grid grid-cols-1 sm:grid-cols-[minmax(0,12rem)_1fr] gap-x-6 gap-y-1 py-5 items-baseline"
+            >
+              <Link
+                href={demo.url}
+                className="font-display text-lg font-semibold text-ink hover:text-terracotta transition-colors"
               >
-                <Link href={demo.url} className="group block h-full">
-                  <div
-                    className={`card card-hover p-5 h-full overflow-hidden ${
-                      demo.slug === "rho" ? "ring-1 ring-terracotta/45" : ""
-                    }`}
-                  >
-                    {demo.slug === "rho" && (
-                      <span className="coord absolute right-4 top-4 rounded-full border border-terracotta/40 bg-terracotta/10 px-2 py-0.5">
-                        This Demo Worked!
-                      </span>
-                    )}
-                    <h3 className="font-display text-lg font-semibold text-ink mb-1">{demo.company}</h3>
-                    <p className="text-[13px] text-brown-light leading-relaxed">{demo.headline}</p>
-                  </div>
-                </Link>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
+                {demo.company}
+              </Link>
+              <div>
+                <p className="text-sm text-ink">{demo.headline}</p>
+                <p className="text-sm text-brown-light leading-relaxed mt-1">{demo.pitch}</p>
+                {demo.slug === "rho" && <p className="meta mt-2">This Demo Worked!</p>}
+              </div>
+            </li>
+          ))}
+        </ul>
 
         <PrivateSection />
 

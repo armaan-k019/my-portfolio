@@ -15,7 +15,7 @@ export default function ResearchSection({ entries }: { entries: ResearchEntry[] 
 
   return (
     <>
-      <div className="space-y-4">
+      <div style={{ borderTop: "var(--rule)" }}>
         {entries.map((entry, i) => {
           return (
             <motion.button
@@ -26,11 +26,12 @@ export default function ResearchSection({ entries }: { entries: ResearchEntry[] 
               viewport={{ once: true, margin: "-80px" }}
               transition={{ duration: 0.6, delay: i * 0.08, ease: [0.16, 1, 0.3, 1] }}
               onClick={() => setSelected(entry)}
-              className="group card card-hover block w-full text-left p-5 overflow-hidden"
+              style={{ borderBottom: "var(--rule)" }}
+              className="group block w-full text-left py-5"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
-                  <h3 className="font-display text-lg font-semibold text-darkblue leading-snug mb-1">{entry.title}</h3>
+                  <h3 className="font-display text-lg font-semibold text-darkblue leading-snug mb-1 group-hover:text-terracotta transition-colors">{entry.title}</h3>
                   {entry.status && (
                     <p className="meta text-terracotta/80 mb-1.5">{entry.status}</p>
                   )}
