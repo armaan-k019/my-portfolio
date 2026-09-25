@@ -1,4 +1,3 @@
-import SectionReveal from "@/components/SectionReveal";
 import WorkSection from "@/components/WorkSection";
 import AboutSection from "@/components/AboutSection";
 import ProjectsSection from "@/components/ProjectsSection";
@@ -19,30 +18,24 @@ export default function Home() {
       {/* Work */}
       <section id="work" className="py-20 md:py-24">
         <div className="max-w-5xl mx-auto px-6">
-          <SectionReveal>
-            <h2 className="font-display display-md font-semibold text-darkblue mb-10">Experience</h2>
-            <WorkSection />
-          </SectionReveal>
+          <h2 className="font-display display-md font-semibold text-darkblue mb-10">Experience</h2>
+          <WorkSection />
         </div>
       </section>
 
       {/* Projects */}
       <section id="projects" className="py-20 md:py-24">
         <div className="max-w-5xl mx-auto px-6">
-          <SectionReveal>
-            <h2 className="font-display display-md font-semibold text-darkblue mb-10">Selected Projects</h2>
-            <ProjectsSection projects={allProjects} />
-          </SectionReveal>
+          <h2 className="font-display display-md font-semibold text-darkblue mb-10">Selected Projects</h2>
+          <ProjectsSection projects={allProjects} />
         </div>
       </section>
 
       {/* Research */}
       <section id="research" className="py-20 md:py-24">
         <div className="max-w-5xl mx-auto px-6">
-          <SectionReveal>
-            <h2 className="font-display display-md font-semibold text-darkblue mb-10">Research &amp; Publications</h2>
-            <ResearchSection entries={researchEntries} />
-          </SectionReveal>
+          <h2 className="font-display display-md font-semibold text-darkblue mb-10">Research &amp; Publications</h2>
+          <ResearchSection entries={researchEntries} />
         </div>
       </section>
 

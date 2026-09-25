@@ -20,8 +20,7 @@ export default function Navbar() {
   const [activeSection, setActiveSection] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
-  // Homepage variants render the same sections, so they get in-page links too.
-  const isHome = pathname === "/" || pathname.startsWith("/variants/");
+  const isHome = pathname === "/";
 
   const handleIntersection = useCallback((entries: IntersectionObserverEntry[]) => {
     for (const entry of entries) {
