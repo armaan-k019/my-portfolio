@@ -570,3 +570,29 @@ osm.stats.buildingCount); the model repeated them in a recommendation sentence w
 citation. The e2e tolerates the banner today only because flood is unavailable (the phase file's
 excuse rule), so the per site brief assertion is green for a reason that ends the day FEMA
 answers. Owner decision required before the prompt contract changes.
+
+### Resume state (2026-09-25, owner's Part A to E instructions in effect)
+
+Standing decisions: `docs/datum/STANDING-DECISIONS.md`. Current phase: 2, closing. In flight:
+owner directed fix round 2 (value aware citation validator per the amended SPEC section 12,
+max_tokens 1400 confirmed, unconditional brief assertion in e2e/sheet.spec.ts). Next action after
+it lands: orchestrator verification, record results here, Greptile pass on PR #26, then Phase 3.
+
+Open questions for the owner (stop and ask items, work continues around them):
+1. The two deletions beyond the six pre approved paths (`src/app/api/flood-risk/classify.ts`,
+   `e2e/flood-classify.spec.ts`): approve after the fact, or restore. Reported in full to the
+   owner on 2026-09-25. Neither touched until answered.
+2. Decision 5 (PHASE-1 acceptance grep rewordings): the original lines stand until the owner has
+   read the literal text, reported in full on 2026-09-25.
+3. User visible copy (stop and ask): the citation chip strip reads "every reference is a field
+   on this sheet" beneath the unverified banner when the failure is a numeric sentence rather
+   than an invalid citation. Proposed: one clause naming the failing sentence count. Not changed.
+4. Carried from Phase 1: the memory.ts offline mid analysis 404 (fourth round finding 1) and the
+   unbounded peek memo (finding 2) still need an approved slot; memory.ts is outside the Phase 2
+   and Phase 3 file lists.
+5. SPEC section 16 timing measurement of record: pending until the stack is merged and deployed
+   from main (owner decision 2026-09-25).
+
+FEMA (`hazards.fema.gov`) still refuses connections from this machine on 2026-09-25. Every e2e
+run records flood as unavailable with upstream_error; the FEMA specific panel checks print
+pending; the flood fixtures remain constructed and labelled.
