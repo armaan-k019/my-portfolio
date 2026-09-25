@@ -41,6 +41,7 @@ export default function ResearchSection({ entries }: { entries: ResearchEntry[] 
                   {entry.date === "Ongoing" ? "Ongoing" : new Date(entry.date).toLocaleDateString("en-US", {
                     year: "numeric",
                     month: "short",
+                    timeZone: "UTC",
                   })}
                 </span>
               </div>
