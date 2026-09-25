@@ -4,11 +4,33 @@
 //
 // Photon mis-resolves the Miami test intersection and Nominatim resolves it, so
 // this step is mandatory, not optional: nothing runs until the point is
-// confirmed. Leaflet is imported dynamically by the parent with ssr false, and
-// its CSS is loaded here at runtime so it never enters the shared bundle.
+// confirmed.
+//
+// Leaflet's stylesheet is imported from node_modules rather than fetched from a
+// CDN. The parent imports this file with `next/dynamic` and `ssr: false`, so
+// the import sits inside that boundary and the CSS is bundled with this chunk
+// alone, never with the shared bundle. A third party stylesheet would put a
+// render blocking request to someone else's origin on the page, and a version
+// drift between the script this repo installs and the CSS that host serves
+// would break the map with no local reproduction.
 
+import "leaflet/dist/leaflet.css";
 import { useEffect, useRef, useState } from "react";
 import type { Map as LeafletMap, Marker } from "leaflet";
+
+/**
+ * The draggable pin. The dot is styled inline because a class would have to be
+ * declared in globals.css, which phase 2 may not touch, and the two class names
+ * this icon carried before (`datum-pin`, `datum-pin-dot`) were declared nowhere
+ * at all, so the marker rendered as an empty 18 by 18 box and the point could
+ * not be seen, let alone dragged to a better one. The colours are the same
+ * hex copies of the tokens the sheet builders use.
+ */
+const MARKER_HTML =
+  '<span data-datum-marker style="display:block;box-sizing:border-box;' +
+  "width:18px;height:18px;border-radius:9999px;background:#2D5A27;" +
+  "border:3px solid #FBFCFA;box-shadow:0 0 0 1px #2D5A27;cursor:grab" +
+  "\"></span>";
 
 interface Props {
   lat: number;
@@ -38,15 +60,6 @@ export default function ConfirmMap({
 
     async function boot() {
       const leaflet = (await import("leaflet")).default;
-      // Leaflet's stylesheet is fetched at runtime so it stays out of the
-      // shared bundle with the rest of the heavy client dependencies.
-      if (!document.getElementById("datum-leaflet-css")) {
-        const link = document.createElement("link");
-        link.id = "datum-leaflet-css";
-        link.rel = "stylesheet";
-        link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-        document.head.appendChild(link);
-      }
       if (cancelled || !container.current || map.current) return;
 
       created = leaflet.map(container.current, {
@@ -66,7 +79,7 @@ export default function ConfirmMap({
           draggable: true,
           icon: leaflet.divIcon({
             className: "datum-pin",
-            html: '<span class="datum-pin-dot"></span>',
+            html: MARKER_HTML,
             iconSize: [18, 18],
             iconAnchor: [9, 9],
           }),

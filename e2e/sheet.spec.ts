@@ -304,7 +304,22 @@ async function resolveAndConfirm(page: Page, site: TestSite) {
   expect(Math.abs(lat - site.lat), `${site.slug}: confirmed latitude`).toBeLessThan(0.002);
   expect(Math.abs(lng - site.lng), `${site.slug}: confirmed longitude`).toBeLessThan(0.002);
 
+  await assertMarkerVisible(page, site.slug);
   await page.click("text=Confirm and analyse");
+}
+
+/**
+ * The marker has to be on screen before Confirm is pressed: dragging it is the
+ * only way to correct a bad geocode, and an icon whose classes are declared
+ * nowhere renders as nothing while Leaflet still reports a marker in the map.
+ */
+async function assertMarkerVisible(page: Page, slug: string) {
+  const marker = page.locator("[data-datum-marker]").first();
+  await expect(marker, `${slug}: the draggable marker is on screen`).toBeVisible();
+  const box = await marker.boundingBox();
+  expect(box, `${slug}: the marker has a bounding box`).not.toBeNull();
+  expect(box?.width ?? 0, `${slug}: marker width`).toBeGreaterThan(0);
+  expect(box?.height ?? 0, `${slug}: marker height`).toBeGreaterThan(0);
 }
 
 async function waitForLayers(page: Page) {
@@ -545,6 +560,7 @@ async function resolveColdPoint(page: Page) {
   await clearPointCache(point.lat, point.lng);
   await page.goto("/projects/datum?test=1");
   await submitAddress(page, COLD_SITE.query);
+  await assertMarkerVisible(page, COLD_SITE.slug);
   await page.click("text=Confirm and analyse");
 }
 

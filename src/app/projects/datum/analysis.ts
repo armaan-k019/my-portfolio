@@ -48,11 +48,16 @@ const EMPTY_BRIEF: BriefState = {
 };
 
 /**
- * SPEC section 7: everything but the walk shed fires at once; the walk shed
- * waits for osm, because the two share one Overpass fetch through the cache and
- * Overpass allows two slots per IP.
+ * SPEC section 7: the seven layers that depend on nothing fire at once, and so
+ * does osm. Only the walk shed waits, and it waits for osm alone, because the
+ * two share one Overpass fetch through the cache and Overpass allows two slots
+ * per IP. It must not wait for the whole group: the slowest of the seven would
+ * then hold back a request that has nothing to do with it, which is the one
+ * thing the progressive shape exists to avoid.
  */
-const IMMEDIATE_LAYERS = LAYER_NAMES.filter((layer) => layer !== "walkshed");
+const INDEPENDENT_LAYERS = LAYER_NAMES.filter(
+  (layer) => layer !== "osm" && layer !== "walkshed",
+);
 
 async function readJson(response: Response): Promise<unknown> {
   try {
@@ -326,10 +331,18 @@ export function useAnalysis(isTest: boolean) {
             },
       );
 
-      await Promise.all(
-        IMMEDIATE_LAYERS.map((layer) => fetchLayer(layer, created.siteId)),
+      // Everything independent is in flight before anything is awaited. Only
+      // osm is awaited, and only so the walk shed can follow it.
+      const inFlight = INDEPENDENT_LAYERS.map((layer) =>
+        fetchLayer(layer, created.siteId),
       );
-      await fetchLayer("walkshed", created.siteId);
+      const osmSettled = fetchLayer("osm", created.siteId);
+      inFlight.push(osmSettled);
+      await osmSettled;
+      inFlight.push(fetchLayer("walkshed", created.siteId));
+
+      // The brief reads every envelope, so it opens once all nine have settled.
+      await Promise.all(inFlight);
 
       setStage("done");
       if (!briefStarted.current) {

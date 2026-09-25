@@ -18,13 +18,15 @@ export default function DatumPage() {
         <div className="rule mt-6 w-full" />
         <p className="mt-6 text-base leading-relaxed text-[var(--color-brown)]">
           Type an address, confirm the point on the map, and Datum draws a
-          36 by 24 inch site analysis sheet from ten public sources: figure
-          ground and streets from OpenStreetMap, a walk shed computed from that
-          street network, contours and sections from USGS 3DEP, seismic design
-          values from the USGS ASCE 7-22 service, soil from the USDA SSURGO
-          survey, flood hazard from the FEMA National Flood Hazard Layer,
-          demographics from the Census ACS 5-year tables, and wind, climate, and
-          a computed sun path from the Open-Meteo ERA5 archive.
+          36 by 24 inch site analysis sheet: figure ground and streets from
+          OpenStreetMap, a walk shed computed from that street network, contours
+          and sections from USGS 3DEP, seismic design values from the USGS
+          ASCE 7-22 service, soil from the USDA SSURGO survey, flood hazard from
+          the FEMA National Flood Hazard Layer, demographics from the Census
+          ACS 5-year tables, and wind roses and monthly climate normals from the
+          Open-Meteo ERA5 archive. The sun path is computed here from the NOAA
+          solar position equations; the archive supplies only the time zone the
+          sun times are printed in.
         </p>
         <p className="mt-4 text-base leading-relaxed text-[var(--color-brown)]">
           Every number traces to a named source and a named field. A source that
