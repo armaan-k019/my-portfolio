@@ -711,10 +711,19 @@ export async function writeMetrics(
  * How many sites Site Memory holds, under the same test row gating. Null when
  * Site Memory could not answer: an offline project has no count, and reporting
  * zero would read as "no site has ever been analyzed".
+ *
+ * Only analyzed sites count. A row is created the moment a point is confirmed
+ * and `metrics_at` is written only when a computation lands, so a site that was
+ * abandoned before any layer answered sits in the table with no metrics at all.
+ * Counting it would make the panel say Site Memory holds more analyses than it
+ * can place anything against.
  */
 export async function countSites(): Promise<number | null> {
   const count = await withMemory(async (db) => {
-    let query = db.from("sites").select("id", { count: "exact", head: true });
+    let query = db
+      .from("sites")
+      .select("id", { count: "exact", head: true })
+      .not("metrics_at", "is", null);
     if (!includeTestSites()) query = query.eq("is_test", false);
     const { count: rows, error } = await query;
     if (error) throw new Error("sites count failed");
@@ -953,12 +962,17 @@ export interface PublicSite {
  * and the row id never leave this function: the map shows the 2 dp snapped
  * point, which is about a kilometre, and nothing that could be walked back to
  * an address (SPEC section 13, standing decisions).
+ *
+ * Analyzed means `metrics_at` is set. A row exists from the moment a point is
+ * confirmed, so without the filter the map plots points nobody ever got a
+ * result for, and the count beside it disagrees with the pins.
  */
 export async function publicSites(): Promise<PublicSite[]> {
   const rows = await withMemory(async (db) => {
     let query = db
       .from("sites")
-      .select("public_lat, public_lng, locality, last_analyzed_at");
+      .select("public_lat, public_lng, locality, last_analyzed_at")
+      .not("metrics_at", "is", null);
     if (!includeTestSites()) query = query.eq("is_test", false);
     const { data, error } = await query
       .order("last_analyzed_at", { ascending: false })

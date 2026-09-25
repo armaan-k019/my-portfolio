@@ -7,6 +7,7 @@ import {
   buildMemoryContext,
   checkRateLimit,
   clientIpFrom,
+  countSites,
   getOrCreateSite,
   getSiteById,
   hashIp,
@@ -14,6 +15,7 @@ import {
   issueLocalSiteId,
   memoryStatus,
   peekRateLimit,
+  publicSites,
   setClientForTests,
   similarSites,
   verifyLocalSiteId,
@@ -978,6 +980,87 @@ test("a metric whose population is not a number is discarded, not counted", asyn
       "buildingCoverage",
     ]);
     expect(context.percentiles![0]).toMatchObject({ percentile: 40, n: 12 });
+    setClientForTests(null);
+  });
+});
+
+// ─── the analyzed site filter ────────────────────────────────────────────────
+//
+// A `sites` row is created when a point is confirmed and only gets `metrics_at`
+// when a computation lands, so the map and the count have to ask for the rows
+// that finished. Both reads are recorded here so the filter cannot be dropped
+// from one of them without a failure.
+
+/** Records the filters each query applies, and answers with the given rows. */
+function filterRecordingClient(options?: {
+  count?: number;
+  rows?: Array<Record<string, unknown>>;
+}) {
+  const filters: string[] = [];
+  const client = {
+    from() {
+      let head = false;
+      const chain = {
+        select(_cols: string, opts?: { head?: boolean }) {
+          head = opts?.head === true;
+          return chain;
+        },
+        not(column: string, operator: string, value: unknown) {
+          filters.push(`not:${column}:${operator}:${String(value)}`);
+          return chain;
+        },
+        eq(column: string, value: unknown) {
+          filters.push(`eq:${column}:${String(value)}`);
+          return chain;
+        },
+        order: () => chain,
+        limit: () => chain,
+        then(resolve: (value: Record<string, unknown>) => void) {
+          if (head) {
+            resolve({ count: options?.count ?? 0, error: null });
+            return;
+          }
+          resolve({ data: options?.rows ?? [], error: null });
+        },
+      };
+      return chain;
+    },
+  } as unknown as SupabaseClient;
+  return { client, filters: () => filters };
+}
+
+test("the site count asks only for rows that finished an analysis", async () => {
+  await withoutTestSiteFlag(async () => {
+    const { client, filters } = filterRecordingClient({ count: 12 });
+    setClientForTests(client);
+
+    expect(await countSites()).toBe(12);
+    expect(filters()).toContain("not:metrics_at:is:null");
+    // And the test row gating is still there beside it.
+    expect(filters()).toContain("eq:is_test:false");
+    setClientForTests(null);
+  });
+});
+
+test("the public sites map asks only for rows that finished an analysis", async () => {
+  await withoutTestSiteFlag(async () => {
+    const { client, filters } = filterRecordingClient({
+      rows: [
+        {
+          public_lat: 33.78,
+          public_lng: -84.39,
+          locality: "Atlanta",
+          last_analyzed_at: "2026-09-25T00:00:00.000Z",
+        },
+      ],
+    });
+    setClientForTests(client);
+
+    const sites = await publicSites();
+    expect(sites).toHaveLength(1);
+    expect(sites[0].locality).toBe("Atlanta");
+    expect(filters()).toContain("not:metrics_at:is:null");
+    expect(filters()).toContain("eq:is_test:false");
     setClientForTests(null);
   });
 });
