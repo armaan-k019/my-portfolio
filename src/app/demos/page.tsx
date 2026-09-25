@@ -125,22 +125,20 @@ export default function DemosPage() {
 
         <ul style={{ borderTop: "var(--rule)" }}>
           {demoCards.map((demo) => (
-            <li
-              key={demo.slug}
-              style={{ borderBottom: "var(--rule)" }}
-              className="grid grid-cols-1 sm:grid-cols-[minmax(0,12rem)_1fr] gap-x-6 gap-y-1 py-5 items-baseline"
-            >
+            <li key={demo.slug} style={{ borderBottom: "var(--rule)" }}>
               <Link
                 href={demo.url}
-                className="font-display text-lg font-semibold text-ink hover:text-terracotta transition-colors"
+                className="group grid grid-cols-1 sm:grid-cols-[minmax(0,12rem)_1fr] gap-x-6 gap-y-1 py-5 items-baseline"
               >
-                {demo.company}
+                <span className="font-display text-lg font-semibold text-ink group-hover:text-terracotta transition-colors">
+                  {demo.company}
+                </span>
+                <span>
+                  <span className="block text-sm text-ink">{demo.headline}</span>
+                  <span className="block text-sm text-brown-light leading-relaxed mt-1">{demo.pitch}</span>
+                  {demo.slug === "rho" && <span className="block meta mt-2">This Demo Worked!</span>}
+                </span>
               </Link>
-              <div>
-                <p className="text-sm text-ink">{demo.headline}</p>
-                <p className="text-sm text-brown-light leading-relaxed mt-1">{demo.pitch}</p>
-                {demo.slug === "rho" && <p className="meta mt-2">This Demo Worked!</p>}
-              </div>
             </li>
           ))}
         </ul>

@@ -1,6 +1,6 @@
 # Redesign direction
 
-Branch: `feat/site-redesign`. Status: direction only. No component has been changed.
+Branch: `feat/site-redesign`. Status: implemented in PR #25 (steps 1 to 6), with owner decisions that override parts of this document. Section 2's campus-scale map is void, and no map plate is built yet. Sections 1 and 7 describe the site before the redesign.
 
 This document does four things: it inventories what the site shows now, proposes one organizing concept (the site as a real map), lists what to cut and what to keep, and specifies a visual reset. Every coordinate below comes from a cited source. Anything the repo does not state is marked **LOCATION NEEDED**.
 

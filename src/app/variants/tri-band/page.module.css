@@ -58,3 +58,7 @@
 .center :global(.group:hover h3) {
   color: var(--color-terracotta);
 }
+/* The global focus outline is --color-terracotta, invisible on this band. */
+.band :global(:focus-visible) {
+  outline-color: var(--color-tan-light);
+}
