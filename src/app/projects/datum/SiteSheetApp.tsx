@@ -213,6 +213,7 @@ export default function SiteSheetApp() {
               groups={groups}
               loadingCount={loadingCount}
               briefStatus={brief.status}
+              briefText={brief.text}
               validCitations={brief.validCitations}
               invalidCitations={brief.invalidCitations}
             />

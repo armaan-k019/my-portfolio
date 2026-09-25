@@ -43,6 +43,25 @@ const SECTION_NAMES = [
 ];
 
 /**
+ * Every distinct citation the text carries, in the order it first appears. The
+ * page renders one chip per entry, so the order is the reading order of the
+ * brief rather than an alphabetical list.
+ */
+export function extractCitations(text: string): string[] {
+  const seen: string[] = [];
+  const known = new Set<string>();
+  for (const match of text.matchAll(CITATION)) {
+    for (const raw of match[1].split(",")) {
+      const citation = raw.trim();
+      if (citation.length === 0 || known.has(citation)) continue;
+      known.add(citation);
+      seen.push(citation);
+    }
+  }
+  return seen;
+}
+
+/**
  * Extract every `[...]` citation and check it against the field paths of the
  * available layers. A bracket may hold several comma separated paths.
  */

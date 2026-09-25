@@ -169,6 +169,58 @@ async function groupHtml(page: Page, svg: string, id: string): Promise<string> {
   );
 }
 
+/** The chips under the sheet. SPEC section 12 renders one per citation. */
+async function countChips(
+  page: Page,
+): Promise<{ total: number; valid: number; invalid: number }> {
+  return page.evaluate(() => {
+    const chips = Array.from(document.querySelectorAll("[data-citation-chip]"));
+    const valid = chips.filter(
+      (chip) => chip.getAttribute("data-citation-valid") === "true",
+    ).length;
+    return { total: chips.length, valid, invalid: chips.length - valid };
+  });
+}
+
+/**
+ * A valid chip highlights its panel on hover; an invalid one is struck through
+ * and carries the "not a data field" tooltip (SPEC section 12).
+ */
+async function assertChipBehaviour(page: Page, slug: string) {
+  const valid = page.locator('[data-citation-chip][data-citation-valid="true"]').first();
+  if ((await valid.count()) > 0) {
+    const panel = await valid.getAttribute("data-citation-panel");
+    expect(panel, `${slug}: a valid chip names the panel it cites`).toBeTruthy();
+    await valid.hover();
+    await expect(
+      page.locator(`[data-datum-sheet] g[data-group="${panel}"]`),
+    ).toHaveAttribute("data-highlight", "true");
+    expect(
+      await page.getAttribute("[data-datum-sheet]", "data-highlight-group"),
+    ).toBe(panel);
+    // Moving off the chip clears it again.
+    await page.mouse.move(0, 0);
+    await expect
+      .poll(async () =>
+        page.getAttribute("[data-datum-sheet]", "data-highlight-group"),
+      )
+      .toBe("");
+  }
+
+  const invalid = page.locator('[data-citation-chip][data-citation-valid="false"]');
+  const invalidCount = await invalid.count();
+  for (let index = 0; index < invalidCount; index++) {
+    const chip = invalid.nth(index);
+    await expect(chip).toHaveAttribute("title", "not a data field");
+    const decoration = await chip.evaluate(
+      (node) => getComputedStyle(node).textDecorationLine,
+    );
+    expect(decoration, `${slug}: an invalid chip is struck through`).toContain(
+      "line-through",
+    );
+  }
+}
+
 /** Per layer status from the rail, which mirrors the envelopes. */
 async function layerStatuses(page: Page): Promise<Record<string, string>> {
   return page.evaluate(() => {
@@ -303,13 +355,14 @@ for (const site of testSites) {
     console.log(`${site.slug}: brief ${briefStatus}`);
 
     if (briefStatus === "done") {
-      const briefText = await page.evaluate(
-        () =>
-          document.querySelector('[data-group="brief"]')?.textContent ?? "",
+      // Real chip elements, not bracket substrings in the drawing's text.
+      const chips = await countChips(page);
+      console.log(
+        `${site.slug}: ${chips.total} citation chips ` +
+          `(${chips.valid} valid, ${chips.invalid} struck through)`,
       );
-      const chips = (briefText.match(/\[[^\]\n]+\]/g) ?? []).length;
-      console.log(`${site.slug}: ${chips} citation chips in the brief panel`);
-      expect(chips, `${site.slug}: citation chips`).toBeGreaterThanOrEqual(8);
+      expect(chips.total, `${site.slug}: citation chips`).toBeGreaterThanOrEqual(8);
+      await assertChipBehaviour(page, site.slug);
 
       // The unverified banner is allowed when a layer other than osm and
       // walkshed was unavailable, and is logged when it appears.
