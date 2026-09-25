@@ -596,3 +596,40 @@ Open questions for the owner (stop and ask items, work continues around them):
 FEMA (`hazards.fema.gov`) still refuses connections from this machine on 2026-09-25. Every e2e
 run records flood as unavailable with upstream_error; the FEMA specific panel checks print
 pending; the flood fixtures remain constructed and labelled.
+
+### Greptile triage (read only pass, 2026-09-25) across PRs #23, #24, #26
+
+31 inline comments plus one outside diff duplicate. Verdicts at HEAD of feat/datum-phase-2:
+13 already fixed or superseded by later rounds (replies only), 2 disputed (box drawing dividers
+are U+2500 not em dashes; the fixture derived height equality is deliberate and loosening it is a
+stop and ask), 10 valid and inside code this build owns (fix in the Greptile round after the
+validator lands: run id guard in analysis.ts, FORBIDDEN_KEYS filter and allowlist from the
+serialized paths in prompt.ts, api_cache upsert error surfaced and bodyBytes measured on a hit in
+cache.ts, site insert race re-read and locality write back in memory.ts, per process random
+fallback signing key in memory.ts, Nominatim slot reservation before sleeping, sun timezone
+source passed rather than inferred), and the rest are stop and ask items below. Every comment
+gets a reply on GitHub once the round lands; outcomes recorded here.
+
+Open questions for the owner added from Greptile (stop and ask items):
+6. PR #23: the three Phase 0 baseline text captures contain em dashes (9, 5, 7) because they are
+   verbatim output of the old page. Annotate and keep verbatim, or rewrite? No source file in the
+   stack contains an em dash.
+7. PR #24: `sites.site_key` is unique alone, so a test row and a real row cannot coexist at the
+   same rounded point. Fix needs migration 0002 replacing the constraint with
+   `unique (site_key, is_test)` and a matching conflict target; a migration against applied data
+   and a SPEC section 13 change. Authorise?
+8. PR #26, brief trust rule (three comments on store.ts): "stored always wins" can cite older
+   values than the sheet shows after a retry; "empty stored admits everything" lets a caller
+   supply values on a fresh site; and the after() write means a layer that succeeded but has not
+   been written yet is described to the model as "not requested" (false). Proposed single change:
+   carry a run id and per layer computed_at, prefer the newer of stored and client per layer,
+   never merge across runs. This changes the SPEC section 12 trust contract. Authorise?
+9. PR #26: retrying a layer does not regenerate the brief, so "What is missing" can name a source
+   that has since answered. Options: re-run the brief on a successful retry (spends tokens on a
+   free action), mark the brief stale with a visible notice (new copy), or record as debt.
+10. PR #26 copy decision, bundled with open question 3: the exported footer says every bracketed
+    reference is a data field even when the brief failed its checks, and the exported brief
+    group status ignores uncited numeric sentences; chips render struck through with "not a data
+    field" while the brief is still streaming (both verdict lists are empty until done). Proposed:
+    footer wording that reflects the verdict, group status including the numeric check, and a
+    neutral pending chip state with its own tooltip and eyebrow wording. All user visible copy.
