@@ -682,3 +682,36 @@ names the Haiku subagent instead. Not rewritten (history rewriting is a stop and
 
 Next action: Greptile round on PR #26 (fixes for the ten valid items in code this build owns,
 replies on every comment across #23, #24, #26), then Phase 3.
+
+### Greptile round (2026-09-25, PRs #23, #24, #26)
+
+Commits on feat/datum-phase-2: `1cfe782` run guard (a late response from a previous analysis
+cannot write into a new one), `2cdcc8d` brief allowlist equals the serialized paths and forbidden
+keys are filtered, `0dc0232` cache upsert errors surfaced and the size guard measures persistent
+hits, `20c214e` memory.ts: site rows remembered per instance so a database id survives an offline
+flip (Phase 1 carried finding 1 closed; a cold instance that never saw the row still 404s,
+residual in a comment), insert races re-read the winner (Postgres 23505), locality and tract
+written back, random per process fallback signing key, peek memo and site map bounded at 2000
+(Phase 1 carried finding 2 closed), `d6c91b6` Nominatim slot reserved before sleeping, `8f87d16`
+sun timezone source from the archive result, `dc2edec` artifacts refreshed. 304 unit tests.
+
+Replies posted on every Greptile inline comment (4 on #23, 15 on #24, 17 on #26) plus the
+outside diff note on #24: fixed (with commit), fixed earlier (with commit), superseded, disputed
+with evidence (U+2500 dividers; fixture derived height equality deliberate), or escalated to the
+owner (open questions 6 to 10). Orchestrator verified zero unanswered top level comments on #23
+and #24; #26 had two newest comments being answered by the follow up below.
+
+Three live findings from Greptile's newest pass, fixed in the follow up under the standing
+decisions (bugs in owned code, no visible copy): a written percentage could match an unrelated
+plain number; a raw control byte in citations.ts; the site point serialized at more decimals than
+the title block prints (now serialized at the title block's precision so the value index matches
+the sheet). Phase 2 fix rounds used: two (review round 1, owner directed validator round); the
+Greptile track is separate.
+
+Model variance note: on the first e2e run of this round Miami tripped the value aware check on
+"At under 2 m elevation" (the model rounded 1.9666 to 2), the same failure mode recorded under fix
+round 2; a rerun passed. The check is doing what SPEC section 12 asks; the acceptance suite is
+therefore sensitive to model output on every run, and that sensitivity is intended.
+
+Next action: verify the follow up, push, then Phase 3 (branch feat/datum-phase-3 from the Phase 2
+head; migration 0002 goes to the human gate when written; open question 7 could fold into it).
