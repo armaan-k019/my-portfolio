@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BUILDINGS, buildingOfTheDay } from "./buildings";
+import type { Mode } from "./scene";
 
 // Decorative canvas behind the hero text: a line model after a real building,
 // sectioned by the pointer. three and each building load on demand so the
@@ -13,29 +14,32 @@ export default function SectionCut() {
   const viewRef = useRef<HTMLSpanElement>(null);
   const ptrRef = useRef<HTMLSpanElement>(null);
   const [failed, setFailed] = useState(false);
-  const [hasPointer, setHasPointer] = useState(true);
   // The day's building is chosen on the client: the page is static, so the
   // server cannot know the visitor's date.
   const [index, setIndex] = useState<number | null>(null);
+  // Touch and coarse pointers get one static frame; reduced motion keeps the
+  // cut under the pointer but drops every autonomous movement. Re-read when
+  // either preference changes while the page is open.
+  const [mode, setMode] = useState<Mode | null>(null);
 
   useEffect(() => {
+    const fine = matchMedia("(pointer: fine)"), reduce = matchMedia("(prefers-reduced-motion: reduce)");
+    const pick = () => setMode(!fine.matches ? "static" : reduce.matches ? "reduced" : "live");
+    pick();
     setIndex(buildingOfTheDay());
+    fine.addEventListener("change", pick);
+    reduce.addEventListener("change", pick);
+    return () => { fine.removeEventListener("change", pick); reduce.removeEventListener("change", pick); };
   }, []);
 
   useEffect(() => {
-    if (index === null) return;
+    if (index === null || mode === null) return;
     let dispose: (() => void) | null = null;
     let cancelled = false;
     const canvas = canvasRef.current;
     const host = canvas?.closest("section");
     const cut = cutRef.current, view = viewRef.current, ptr = ptrRef.current;
     if (!canvas || !host || !cut || !view || !ptr) return;
-    // Touch and coarse pointers get one static frame; reduced motion keeps
-    // the cut under the pointer but drops every autonomous movement.
-    const mode = !matchMedia("(pointer: fine)").matches ? "static"
-      : matchMedia("(prefers-reduced-motion: reduce)").matches ? "reduced"
-      : "live";
-    setHasPointer(mode !== "static");
     Promise.all([BUILDINGS[index].load(), import("./scene")])
       .then(([building, { mount }]) => {
         if (cancelled) return;
@@ -44,10 +48,11 @@ export default function SectionCut() {
       })
       .catch(() => setFailed(true));
     return () => { cancelled = true; dispose?.(); };
-  }, [index]);
+  }, [index, mode]);
 
   if (failed) return null;
   const b = index === null ? null : BUILDINGS[index];
+  const hasPointer = mode !== "static";
   const at = (d: number) => ((index ?? 0) + d + BUILDINGS.length) % BUILDINGS.length;
 
   return (

@@ -16,10 +16,14 @@ export default function NodeField() {
   const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
-    // Read once after mount so the server render (nothing) matches the client.
-    const ok = matchMedia("(pointer: fine)").matches && !matchMedia("(prefers-reduced-motion: reduce)").matches;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setEnabled(ok);
+    // Read after mount so the server render (nothing) matches the client, and
+    // again whenever either preference changes while the page is open.
+    const fine = matchMedia("(pointer: fine)"), reduce = matchMedia("(prefers-reduced-motion: reduce)");
+    const pick = () => setEnabled(fine.matches && !reduce.matches);
+    pick();
+    fine.addEventListener("change", pick);
+    reduce.addEventListener("change", pick);
+    return () => { fine.removeEventListener("change", pick); reduce.removeEventListener("change", pick); };
   }, []);
 
   useEffect(() => {

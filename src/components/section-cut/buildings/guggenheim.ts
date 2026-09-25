@@ -31,7 +31,7 @@ export function build(): Model {
   const WALL_TOP = RISE + TURN_H;           // top of the outer wall
   const R_BASE = (100 * FT) / 2, R_TOP = (128 * FT) / 2;
   const W_BASE = 25 * FT, W_TOP = 32 * FT;
-  const SLAB = 0.45, PARAPET = 36 * FT, BAND = 2.6, SKIN = 0.3;
+  const SLAB = 0.45, PARAPET = 3 * FT, BAND = 2.6, SKIN = 0.3; // parapet is 36 in
   const rOut = (y: number) => R_BASE + ((R_TOP - R_BASE) * y) / WALL_TOP;
   const width = (y: number) => W_BASE + ((W_TOP - W_BASE) * Math.min(y, RISE)) / RISE;
   const rIn = (y: number) => rOut(y) - width(y);

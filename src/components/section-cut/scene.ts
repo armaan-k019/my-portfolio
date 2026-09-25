@@ -88,6 +88,9 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
   const site = new THREE.LineSegments(siteGeo, lineMat(hair, [keepBehind]));
   const hatchGeo = new THREE.BufferGeometry();
   const hatch = new THREE.LineSegments(hatchGeo, lineMat({ color: cut.color, alpha: 0.35 }, []));
+  // Cut buffers are allocated once and rewritten in place as the pointer
+  // moves; they only grow (by doubling, disposing the old GPU buffers) when a
+  // cut needs more room than they have.
   const outlineGeo = new LineSegmentsGeometry();
   const outlineMat = new LineMaterial({ color: cut.color, linewidth: CUT_WIDTH, transparent: true, depthTest: false });
   const outline = new LineSegments2(outlineGeo, outlineMat);
@@ -100,6 +103,39 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
   );
   const radius = new THREE.Vector3(...bx.max).sub(new THREE.Vector3(...bx.min)).length() / 2;
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, radius * 8);
+
+  let hatchCap = 0, outlineCap = 0;
+  hatch.frustumCulled = false;
+  outline.frustumCulled = false;
+  function writeHatch(pts: number[]) {
+    const n = pts.length / 3;
+    if (n > hatchCap) {
+      hatchCap = Math.max(n, hatchCap * 2, 1024);
+      hatchGeo.dispose();
+      hatchGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(hatchCap * 3), 3));
+    }
+    const attr = hatchGeo.getAttribute("position") as THREE.BufferAttribute;
+    (attr.array as Float32Array).set(pts);
+    attr.needsUpdate = true;
+    hatchGeo.setDrawRange(0, n);
+  }
+  function writeOutline(segs: number[]) {
+    const n = segs.length / 6;
+    if (n > outlineCap) {
+      outlineCap = Math.max(n, outlineCap * 2, 256);
+      outline.geometry.dispose();
+      const g = new LineSegmentsGeometry();
+      g.setPositions(new Float32Array(outlineCap * 6));
+      outline.geometry = g;
+    }
+    const g = outline.geometry as LineSegmentsGeometry;
+    // setPositions lays each segment out as start xyz then end xyz, the same
+    // order the cut writes, in one interleaved buffer.
+    const data = (g.getAttribute("instanceStart") as THREE.InterleavedBufferAttribute).data;
+    (data.array as Float32Array).set(segs);
+    data.needsUpdate = true;
+    g.instanceCount = n;
+  }
 
   let station = NaN;
   function setCut(x: number) {
@@ -115,8 +151,8 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
       const zs = crossings(p.poly, x);
       for (let i = 0; i + 1 < zs.length; i += 2) sectionOf(x, p.y0, p.y1, zs[i], zs[i + 1], rects, hatchPts);
     }
-    outlineGeo.setPositions(rects.length ? rects : [x, 0, 0, x, 0, 0]);
-    hatchGeo.setAttribute("position", new THREE.Float32BufferAttribute(hatchPts, 3));
+    writeOutline(rects);
+    writeHatch(hatchPts);
   }
 
   function aim(azDeg: number, elDeg: number) {
@@ -276,7 +312,7 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
     host.removeEventListener("pointermove", onMove);
     host.removeEventListener("pointerleave", onLeave);
     renderer.dispose();
-    geo.dispose(); siteGeo.dispose(); hatchGeo.dispose(); outlineGeo.dispose();
+    geo.dispose(); siteGeo.dispose(); hatchGeo.dispose(); outline.geometry.dispose();
     outlineMat.dispose();
   };
 }

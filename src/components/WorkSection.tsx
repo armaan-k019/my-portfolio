@@ -68,7 +68,7 @@ export default function WorkSection() {
                         <span className="flex flex-col gap-0.5">
                           {roles.map((r, i) => (
                             <span key={r} className="text-sm text-brown-light" style={{ paddingLeft: `${i}rem` }}>
-                              {i > 0 && <span aria-hidden className="text-terracotta mr-1.5">&rarr;</span>}
+                              {i > 0 && <span className="text-terracotta mr-1.5">&rarr;</span>}
                               {r}
                             </span>
                           ))}
@@ -95,7 +95,7 @@ export default function WorkSection() {
                 <h3 id="work-modal-title" className="font-display text-xl font-semibold text-ink">{selected.name}</h3>
                 {steps(selected.role).map((r, i) => (
                   <p key={r} className="text-sm text-brown-light" style={{ paddingLeft: `${i}rem` }}>
-                    {i > 0 && <span aria-hidden className="text-terracotta mr-1.5">&rarr;</span>}
+                    {i > 0 && <span className="text-terracotta mr-1.5">&rarr;</span>}
                     {r}
                   </p>
                 ))}
