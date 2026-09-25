@@ -1,13 +1,17 @@
 create extension if not exists vector with schema extensions;
 
+-- Amended 2026-09-25 before first application (owner decisions, PROGRESS.md questions 7 and 11).
+-- A test row and a real row may coexist at the same rounded point.
+alter table sites drop constraint sites_site_key_key;
+alter table sites add constraint sites_site_key_is_test_key unique (site_key, is_test);
+
 alter table sites
-  add column metrics        jsonb,                      -- named, unnormalized values
-  add column metrics_vector extensions.vector(14),      -- normalized 0..1, see section 14
+  add column metrics        jsonb,                      -- named, unnormalized values; absent components omitted
+  add column metrics_vector extensions.vector(14),      -- normalized 0..1; absent components hold a placeholder 0
+  add column metrics_mask   smallint not null default 0, -- bit i set when component i is present (section 14)
   add column metrics_at     timestamptz;
 
-create index sites_metrics_vector_idx on sites
-  using hnsw (metrics_vector extensions.vector_l2_ops)
-  where is_test = false and metrics_vector is not null;
+-- No vector index: distance is masked and computed in code (section 14), so <-> is not used.
 
 create table briefs (
   site_id    uuid not null references sites(id) on delete cascade,
