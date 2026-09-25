@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Image from "next/image";
 import { PHOTOS, DESTINATIONS, type Photo } from "../../../content/photos";
-import PhotoField from "./PhotoField";
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -205,12 +204,6 @@ export default function PhotographyPage() {
   }, [fading, pendingFilter]);
 
   const openLightbox = useCallback((index: number) => setLightboxIndex(index), []);
-  // The field opens a photo by id, in the unfiltered set.
-  const openById = useCallback((id: number) => {
-    setActiveFilter("All");
-    setPendingFilter("All");
-    setLightboxIndex(photos.findIndex((p) => p.id === id));
-  }, [photos]);
   const closeLightbox = useCallback(() => setLightboxIndex(null), []);
   const goPrev = useCallback(() => setLightboxIndex(i => i !== null && i > 0 ? i - 1 : i), []);
   const goNext = useCallback(() => setLightboxIndex(i => i !== null && i < filteredPhotos.length - 1 ? i + 1 : i), [filteredPhotos.length]);
@@ -223,13 +216,8 @@ export default function PhotographyPage() {
         <p className="eyebrow mb-3">Field survey</p>
         <h1 className="font-display display-lg font-semibold text-ink mb-3">Photography</h1>
         <p className="meta">
-          {DESTINATIONS.length} STATIONS &middot; {PHOTOS.length}{" "}PLATES &middot; SURVEYED ON FOOT
+          {DESTINATIONS.length} STATIONS &middot; {PHOTOS.length} PLATES &middot; SURVEYED ON FOOT
         </p>
-      </div>
-
-      {/* ── Field ──────────────────────────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto px-6">
-        <PhotoField photos={PHOTOS} destinations={DESTINATIONS} onOpen={openById} />
       </div>
 
       {/* ── Filter pills ───────────────────────────────────────────────────── */}
