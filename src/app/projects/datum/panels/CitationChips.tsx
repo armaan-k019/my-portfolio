@@ -19,6 +19,7 @@ import { extractCitations } from "@/lib/datum/brief/citations";
  * the layer name is everything before the first dot.
  */
 const PANEL_FOR_LAYER: Record<string, string> = {
+  site: "title-block",
   sun: "sun-path",
   climate: "climate",
   topo: "topography-section",
