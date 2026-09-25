@@ -1,5 +1,6 @@
 import Link from "next/link";
 import SectionCut from "./section-cut/SectionCut";
+import RoleWord from "./RoleWord";
 
 export default function AboutSection() {
   return (
@@ -12,7 +13,7 @@ export default function AboutSection() {
           </h1>
           <div className="text-brown-light leading-relaxed space-y-3 mb-5 max-w-[var(--measure)]">
             <p>
-              I am a student at Georgia Tech, double majoring in Computer Science and Architecture with a certificate in Sustainable Architecture.
+              I am <RoleWord /> at Georgia Tech, double majoring in Computer Science and Architecture with a certificate in Sustainable Architecture.
             </p>
           </div>
           <p className="meta mb-7">Georgia Tech &apos;27</p>
