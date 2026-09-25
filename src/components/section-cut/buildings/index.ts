@@ -12,6 +12,7 @@ export interface BuildingInfo {
 
 export const BUILDINGS: BuildingInfo[] = [
   { name: "Sydney Opera House", architect: "Jørn Utzon", year: 1973, load: () => import("./sydney") },
+  { name: "Sendai Mediatheque", architect: "Toyo Ito", year: 2001, load: () => import("./sendai") },
 ];
 
 // Whole UTC days since the epoch: the same for every visitor on a given

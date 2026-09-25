@@ -24,6 +24,10 @@ export interface Model {
   // meshes (flat xyz, nine numbers a triangle). The cut draws both surfaces'
   // traces and rungs between them as the poché.
   shells?: { outer: number[]; inner: number[] };
+  // Thin structural members (pipes): flat xyz pairs with one radius each.
+  // The cut marks each member it crosses with a square the member's size,
+  // or a strip where the plane runs along a member.
+  rods?: { segs: number[]; radius: number[] };
   // People: walkers are sampled each frame (t in seconds); standing figures
   // are fixed. Both are placed only where the building puts people.
   people?: { walkers: ((t: number) => Pose)[]; standing: Pose[] };

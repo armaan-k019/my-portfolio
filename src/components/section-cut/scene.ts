@@ -238,6 +238,22 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
       const zs = crossings(p.poly, x);
       for (let i = 0; i + 1 < zs.length; i += 2) sectionOf(x, p.y0, p.y1, zs[i], zs[i + 1], rects, hatchPts);
     }
+    if (m.rods) {
+      const { segs, radius } = m.rods;
+      for (let k = 0, r = 0; k < segs.length; k += 6, r++) {
+        const rad = radius[r];
+        const xa = segs[k], ya = segs[k + 1], za = segs[k + 2], xb = segs[k + 3], yb = segs[k + 4], zb = segs[k + 5];
+        if ((xa - x) * (xb - x) < 0) {
+          // The member crosses the plane: mark its cross section.
+          const t = (x - xa) / (xb - xa), y = ya + t * (yb - ya), z = za + t * (zb - za);
+          rects.push(x, y - rad, z - rad, x, y - rad, z + rad, x, y - rad, z + rad, x, y + rad, z + rad,
+            x, y + rad, z + rad, x, y + rad, z - rad, x, y + rad, z - rad, x, y - rad, z - rad);
+        } else if (Math.abs(xa - x) < rad && Math.abs(xb - x) < rad) {
+          // The plane runs along the member: mark it lengthwise.
+          rects.push(x, ya, za - rad, x, yb, zb - rad, x, ya, za + rad, x, yb, zb + rad);
+        }
+      }
+    }
     if (m.shells) {
       const { outer, inner } = m.shells;
       for (let t = 0; t < outer.length; t += 9) {
