@@ -425,22 +425,31 @@ for (const site of testSites) {
     expect(chips.total, `${site.slug}: citation chips`).toBeGreaterThanOrEqual(8);
     await assertChipBehaviour(page, site.slug);
 
-    // The unverified banner is allowed when a layer other than osm and
-    // walkshed was unavailable, and is logged when it appears.
+    // On the normal run the brief must pass its own checks, whatever any single
+    // layer did. An unavailable layer is a reason for the brief to name that
+    // layer in "What is missing", never a reason for it to carry a number that
+    // traces to nothing, so there is no excuse here: the value aware numeric
+    // check (SPEC section 12) is what a restated value passes by. When the
+    // banner does show, the brief text is printed so the failing sentence can be
+    // read off the log, and the assertion still fails.
     const unverified = await page.$("[data-brief-unverified]");
     if (unverified) {
-      const excused = Object.entries(statuses).some(
-        ([layer, status]) =>
-          status === "unavailable" && layer !== "osm" && layer !== "walkshed",
+      const briefText = await page.evaluate(
+        () =>
+          document.querySelector('[data-datum-sheet] g[data-group="brief"]')
+            ?.textContent ?? "",
       );
       console.log(
-        `${site.slug}: unverified banner shown; excused by an unavailable layer: ${excused}`,
+        `${site.slug}: unverified banner shown. ` +
+          `valid=[${(await page.getAttribute("[data-datum-sheet]", "data-brief-valid")) ?? ""}] ` +
+          `invalid=[${(await page.getAttribute("[data-datum-sheet]", "data-brief-invalid")) ?? ""}]\n` +
+          `${site.slug}: brief text as written\n${briefText}`,
       );
-      expect(
-        excused,
-        `${site.slug}: the unverified banner needs an unavailable layer to excuse it`,
-      ).toBe(true);
     }
+    expect(
+      unverified,
+      `${site.slug}: the brief must pass its citation checks on the normal run`,
+    ).toBeNull();
 
     const check = await exportAndCheck(page, site.slug);
 
