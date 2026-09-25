@@ -28,10 +28,6 @@ export default function ResearchSection({ entries }: { entries: ResearchEntry[] 
               onClick={() => setSelected(entry)}
               className="group card card-hover block w-full text-left p-5 overflow-hidden"
             >
-              <span
-                className="absolute left-0 top-0 h-full w-[3px] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                style={{ backgroundColor: "#4A7A44" }}
-              />
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <h3 className="font-display text-lg font-semibold text-darkblue leading-snug mb-1">{entry.title}</h3>

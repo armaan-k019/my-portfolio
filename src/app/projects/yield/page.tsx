@@ -305,9 +305,6 @@ export default function YieldPage() {
       <header className="mb-10">
         <div className="flex items-center gap-3 mb-2 flex-wrap">
           <h1 className="text-2xl font-semibold text-darkblue">Yield</h1>
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-terracotta/10 text-terracotta border-terracotta/30">
-            CS
-          </span>
         </div>
         <p className="text-brown-light leading-relaxed">
           Add your stock holdings and get a live report card on your portfolio, graded across

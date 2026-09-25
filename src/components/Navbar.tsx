@@ -84,10 +84,7 @@ export default function Navbar() {
             >
               أك
             </span>
-            <div className="flex flex-col leading-tight">
-              <span className="font-display text-[15px] font-semibold text-darkblue tracking-tight">Armaan Kazi</span>
-              <span className="hidden sm:block font-mono text-[10px] tracking-wide uppercase text-brown-light/80">Architecture + CS · Georgia Tech · Sustainable Arch. Cert.</span>
-            </div>
+            <span className="font-display text-[15px] font-semibold text-darkblue tracking-tight">Armaan Kazi</span>
           </Link>
 
           {/* Desktop nav */}

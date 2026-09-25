@@ -19,8 +19,6 @@ interface DemoCard {
   url: string;
 }
 
-const ACCENT = "#2d5a27";
-
 const demoCards: DemoCard[] = [
   {
     slug: "world-labs",
@@ -125,14 +123,7 @@ export default function DemosPage() {
   return (
     <div className="min-h-screen">
       <div className="max-w-4xl mx-auto px-6 py-16">
-        <Link
-          href="/"
-          className="text-sm text-terracotta hover:text-terracotta-dark transition-colors mb-10 inline-block"
-        >
-          &larr; Back to portfolio
-        </Link>
 
-        <p className="eyebrow mb-3">Build logs</p>
         <h1 className="font-display display-lg font-semibold text-ink mb-4">Demos</h1>
         <p className="text-sm text-brown-light leading-relaxed max-w-xl mb-2">
           Company-specific projects, each built around one problem I wanted to dig into.
@@ -158,10 +149,6 @@ export default function DemosPage() {
                       demo.slug === "rho" ? "ring-1 ring-terracotta/45" : ""
                     }`}
                   >
-                    <span
-                      className="absolute left-0 top-0 h-full w-[3px] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                      style={{ backgroundColor: ACCENT }}
-                    />
                     {demo.slug === "rho" && (
                       <span className="coord absolute right-4 top-4 rounded-full border border-terracotta/40 bg-terracotta/10 px-2 py-0.5">
                         This Demo Worked!

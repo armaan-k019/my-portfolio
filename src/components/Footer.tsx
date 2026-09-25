@@ -5,16 +5,6 @@ import Link from "next/link";
 export default function Footer() {
   return (
     <footer className="relative overflow-hidden bg-[#16241A]">
-      {/* top hairline accent */}
-      <div className="h-px w-full" style={{ background: "linear-gradient(90deg, transparent, rgba(212,169,106,0.5), transparent)" }} />
-      {/* oversized faint wordmark */}
-      <p
-        aria-hidden
-        className="pointer-events-none select-none absolute -bottom-6 left-1/2 -translate-x-1/2 font-display text-white/[0.04] whitespace-nowrap"
-        style={{ fontSize: "clamp(5rem, 18vw, 14rem)", lineHeight: 1 }}
-      >
-        Armaan Kazi
-      </p>
 
       <div className="relative max-w-5xl mx-auto px-6 pt-12 pb-10 flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="text-center md:text-left">
