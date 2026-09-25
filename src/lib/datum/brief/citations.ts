@@ -21,8 +21,13 @@ export interface CitationCheck {
  * citation of `topo.sections.ew[]`, not a truncated `topo.sections.ew[`.
  */
 const CITATION = /\[((?:[^[\]\n]|\[\])+)\]/g;
-/** Protects a decimal point from the sentence splitter. */
-const DECIMAL_MARK = "";
+/**
+ * Protects a decimal point from the sentence splitter. U+0001 is written as an
+ * escape rather than as the literal byte: a raw control character in a source
+ * file survives no round trip through a diff view, a copy and paste, or an
+ * editor that strips it, and the sentence count would then change silently.
+ */
+const DECIMAL_MARK = "\u0001";
 
 function sentencesOf(text: string): string[] {
   const guarded = text.replace(/(\d)\.(\d)/g, `$1${DECIMAL_MARK}$2`);

@@ -15,6 +15,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test, expect, type Page } from "@playwright/test";
 import { testSites, type TestSite } from "./fixtures/sites";
+import { FRAME_SIZE_M } from "../src/lib/datum/constants";
 import { roundKey, siteKey } from "../src/lib/datum/geo";
 import { getClient } from "../src/lib/datum/memory";
 
@@ -348,6 +349,47 @@ async function waitForBrief(page: Page): Promise<string> {
   );
 }
 
+/**
+ * The height labels the committed OSM fixture implies: one per building ring
+ * that carries a height tag and whose centroid falls inside the 800 m frame.
+ * A band would pass with the wrong buildings labelled, and the point of the
+ * assertion is that nothing is derived from `building:levels`.
+ */
+function expectedHeightLabels(slug: string): string[] {
+  const file = path.join(__dirname, "fixtures", "layers", slug, "osm.json");
+  const raw = JSON.parse(readFileSync(file, "utf8")) as
+    | { data: OsmFixture }
+    | { envelope: { data: OsmFixture } };
+  const data = "envelope" in raw ? raw.envelope.data : raw.data;
+  const half = FRAME_SIZE_M / 2;
+  const labels: string[] = [];
+  for (const building of data?.buildings ?? []) {
+    if (building.heightM === null || building.ring.length < 3) continue;
+    const cx =
+      building.ring.reduce((total, point) => total + point[0], 0) / building.ring.length;
+    const cy =
+      building.ring.reduce((total, point) => total + point[1], 0) / building.ring.length;
+    if (Math.abs(cx) > half || Math.abs(cy) > half) continue;
+    labels.push(`${building.heightM.toFixed(0)}m`);
+  }
+  return labels.sort();
+}
+
+interface OsmFixture {
+  buildings: Array<{
+    ring: Array<[number, number]>;
+    heightM: number | null;
+    levels: number | null;
+  }>;
+}
+
+/** Every label the exported heights group actually drew. */
+function drawnHeightLabels(sitePlanHtml: string): string[] {
+  const from = sitePlanHtml.slice(sitePlanHtml.indexOf('id="site-plan-building-heights"'));
+  const body = from.slice(0, from.indexOf("</g>"));
+  return Array.from(body.matchAll(/<text[^>]*>([^<]*)<\/text>/g), (match) => match[1]).sort();
+}
+
 // ─── Per site ────────────────────────────────────────────────────────────────
 
 for (const site of testSites) {
@@ -360,43 +402,44 @@ for (const site of testSites) {
     const statuses = await layerStatuses(page);
     console.log(`${site.slug}: layer statuses ${JSON.stringify(statuses)}`);
 
+    const briefStatus = await waitForBrief(page);
+    console.log(`${site.slug}: brief ${briefStatus}`);
+    // Every source is up on this run, so the brief is expected to be written.
+    // A conditional here would let a silently failing brief pass three tests.
+    expect(briefStatus, `${site.slug}: the brief should complete`).toBe("done");
+
+    // The screenshot is taken after the brief settles, so the committed PNG
+    // shows the finished sheet rather than an empty brief panel.
     mkdirSync(OUT_DIR, { recursive: true });
     await page.screenshot({
       path: path.join(OUT_DIR, `${site.slug}.png`),
       fullPage: true,
     });
 
-    const briefStatus = await waitForBrief(page);
-    console.log(`${site.slug}: brief ${briefStatus}`);
+    // Real chip elements, not bracket substrings in the drawing's text.
+    const chips = await countChips(page);
+    console.log(
+      `${site.slug}: ${chips.total} citation chips ` +
+        `(${chips.valid} valid, ${chips.invalid} struck through)`,
+    );
+    expect(chips.total, `${site.slug}: citation chips`).toBeGreaterThanOrEqual(8);
+    await assertChipBehaviour(page, site.slug);
 
-    if (briefStatus === "done") {
-      // Real chip elements, not bracket substrings in the drawing's text.
-      const chips = await countChips(page);
-      console.log(
-        `${site.slug}: ${chips.total} citation chips ` +
-          `(${chips.valid} valid, ${chips.invalid} struck through)`,
+    // The unverified banner is allowed when a layer other than osm and
+    // walkshed was unavailable, and is logged when it appears.
+    const unverified = await page.$("[data-brief-unverified]");
+    if (unverified) {
+      const excused = Object.entries(statuses).some(
+        ([layer, status]) =>
+          status === "unavailable" && layer !== "osm" && layer !== "walkshed",
       );
-      expect(chips.total, `${site.slug}: citation chips`).toBeGreaterThanOrEqual(8);
-      await assertChipBehaviour(page, site.slug);
-
-      // The unverified banner is allowed when a layer other than osm and
-      // walkshed was unavailable, and is logged when it appears.
-      const unverified = await page.$("[data-brief-unverified]");
-      if (unverified) {
-        const excused = Object.entries(statuses).some(
-          ([layer, status]) =>
-            status === "unavailable" && layer !== "osm" && layer !== "walkshed",
-        );
-        console.log(
-          `${site.slug}: unverified banner shown; excused by an unavailable layer: ${excused}`,
-        );
-        expect(
-          excused,
-          `${site.slug}: the unverified banner needs an unavailable layer to excuse it`,
-        ).toBe(true);
-      }
-    } else {
-      console.log(`${site.slug}: brief did not complete, so the chip count is skipped`);
+      console.log(
+        `${site.slug}: unverified banner shown; excused by an unavailable layer: ${excused}`,
+      );
+      expect(
+        excused,
+        `${site.slug}: the unverified banner needs an unavailable layer to excuse it`,
+      ).toBe(true);
     }
 
     const check = await exportAndCheck(page, site.slug);
@@ -436,17 +479,27 @@ for (const site of testSites) {
     }
 
     if (site.slug === "atlanta") {
-      // Heights print only where OSM carries a height tag. The 2026-09-22
-      // capture has 14 tagged features, and PHASE-2 step 2.6's "no <text" came
-      // from the retracted 2026-09-21 probe (PROGRESS.md owner decision 2), so
-      // the check is that labels are few and that the 49 features carrying
-      // levels print nothing.
+      // Heights print only where OSM carries a height tag. PHASE-2 step 2.6's
+      // "no <text" came from the retracted 2026-09-21 probe (PROGRESS.md owner
+      // decision 2). The expectation is the exact set of labels the committed
+      // capture implies, not a band: a band passes with the wrong buildings
+      // labelled, and a label derived from building:levels is the thing SPEC
+      // section 2 forbids outright.
       if (statuses.osm !== "unavailable") {
-        const heights = await groupHtml(page, check.svg, "site-plan");
-        const block = heights.slice(heights.indexOf('id="site-plan-building-heights"'));
-        const labels = (block.slice(0, block.indexOf("</g>")).match(/<text/g) ?? []).length;
-        console.log(`atlanta: ${labels} height labels from tagged features`);
-        expect(labels, "atlanta: height labels").toBeLessThan(25);
+        const sitePlan = await groupHtml(page, check.svg, "site-plan");
+        const drawn = drawnHeightLabels(sitePlan);
+        const expected = expectedHeightLabels("atlanta");
+        console.log(
+          `atlanta: ${drawn.length} height labels drawn, ${expected.length} tagged in the fixture`,
+        );
+        expect(expected.length, "atlanta: the fixture carries tagged heights").toBeGreaterThan(0);
+        expect(drawn, "atlanta: exactly the tagged heights").toEqual(expected);
+        // Every drawn label is a metre reading of a height tag, so none of the
+        // levels only features printed anything.
+        expect(
+          drawn.every((label) => /^\d+m$/.test(label)),
+          "atlanta: every label is a tagged height in metres",
+        ).toBe(true);
       } else {
         console.log("atlanta: osm unavailable, height label count not checked");
       }
@@ -494,16 +547,18 @@ const COLD_SITE: TestSite = {
  */
 async function clearPointCache(lat: number, lng: number) {
   const db = getClient();
-  if (!db) {
-    // Same requirement as the other database aware specs (e2e/README.md): the
-    // test process needs SUPABASE_URL and SUPABASE_SECRET_KEY in its own
-    // environment, because Next loads .env.local and Playwright does not.
-    console.log(
-      "no Supabase client in the test process; api_cache was not cleared. " +
-        "Export SUPABASE_URL and SUPABASE_SECRET_KEY before this run.",
-    );
-    return;
-  }
+  // Without a client the cache cannot be cleared, and the three test points and
+  // this cold point may hold warm rows from an earlier run. An override only
+  // blocks a request that is actually made, so the run would answer ok from the
+  // cache and the failure test would pass while proving nothing. That is worse
+  // than not running it, so it skips with the reason named.
+  test.skip(
+    db === null,
+    "no Supabase client in the test process, so api_cache cannot be cleared and " +
+      "the run would answer from a warm cache. Export SUPABASE_URL and " +
+      "SUPABASE_SECRET_KEY before this run.",
+  );
+  if (!db) return;
   const point = roundKey(lat, lng, 3);
   const cell = roundKey(lat, lng, 1);
   const patterns = [

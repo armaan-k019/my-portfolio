@@ -22,9 +22,57 @@ import type {
   SheetContext,
   SheetLayers,
 } from "../../src/lib/datum/sheet/sheet";
+import { FRAME_SIZE_M } from "../../src/lib/datum/constants";
 import { LAYER_NAMES, type LayerEnvelope, type LayerName } from "../../src/lib/datum/types";
 
 const LAYERS_DIR = path.join(process.cwd(), "e2e", "fixtures", "layers");
+
+/**
+ * SPEC section 11 lists these fifteen top level ids in this order, and says the
+ * tests assert the exact list. They are literals here on purpose: importing
+ * GROUP_ORDER and comparing it to itself would let a rename in layout.ts pass
+ * every test while every downstream consumer, the export contract included,
+ * silently changed.
+ */
+const EXPECTED_GROUP_ORDER = [
+  "sheet-frame",
+  "site-plan",
+  "walk-shed",
+  "topography-section",
+  "soil",
+  "demographics",
+  "seismic",
+  "flood-summary",
+  "sun-path",
+  "wind-rose",
+  "climate",
+  "brief",
+  "data-availability",
+  "title-block",
+  "attribution",
+];
+
+/** The nested ids inside `site-plan`, in draw order (SPEC section 11). */
+const EXPECTED_SITE_PLAN_SUBGROUPS = [
+  "site-plan-water",
+  "site-plan-flood",
+  "site-plan-contours",
+  "site-plan-streets",
+  "site-plan-buildings",
+  "site-plan-building-heights",
+  "site-plan-site-marker",
+  "site-plan-annotations",
+];
+
+/** The nested ids inside `walk-shed`, in draw order (SPEC section 11). */
+const EXPECTED_WALK_SHED_SUBGROUPS = [
+  "walk-shed-streets-unreached",
+  "walk-shed-15",
+  "walk-shed-10",
+  "walk-shed-5",
+  "walk-shed-transit",
+  "walk-shed-annotations",
+];
 
 /**
  * The flood fixtures are constructed, not live: hazards.fema.gov has refused
@@ -121,6 +169,18 @@ function groupBody(svg: string, id: string): string {
   }
   throw new Error(`unbalanced group ${id}`);
 }
+
+// ─── The group ids are a contract ────────────────────────────────────────────
+
+test("layout.ts carries exactly the SPEC section 11 ids, in order", () => {
+  // A rename in layout.ts fails here, which is the point: these strings are the
+  // group names a tracing application shows in its layers panel, and the export
+  // acceptance test asserts the same list.
+  expect(GROUP_ORDER).toEqual(EXPECTED_GROUP_ORDER);
+  expect(SITE_PLAN_SUBGROUPS).toEqual(EXPECTED_SITE_PLAN_SUBGROUPS);
+  expect(WALK_SHED_SUBGROUPS).toEqual(EXPECTED_WALK_SHED_SUBGROUPS);
+  expect(GROUP_ORDER).toHaveLength(15);
+});
 
 // ─── Structure ───────────────────────────────────────────────────────────────
 
@@ -234,6 +294,41 @@ test("a layer that was never requested reads as not requested, never as a zero",
 
 // ─── Site plan content ───────────────────────────────────────────────────────
 
+/**
+ * The labels the site plan should print for a fixture: one per building ring
+ * that carries a height tag and whose centroid falls inside the 800 m frame.
+ * Nothing else may print, and in particular nothing derived from levels.
+ */
+function expectedHeightLabels(slug: string): string[] {
+  const osm = loadLayers(slug).osm?.data as {
+    buildings: Array<{
+      ring: Array<[number, number]>;
+      heightM: number | null;
+      levels: number | null;
+    }>;
+  } | null;
+  const half = FRAME_SIZE_M / 2;
+  const labels: string[] = [];
+  for (const building of osm?.buildings ?? []) {
+    if (building.heightM === null || building.ring.length < 3) continue;
+    const cx =
+      building.ring.reduce((total, point) => total + point[0], 0) / building.ring.length;
+    const cy =
+      building.ring.reduce((total, point) => total + point[1], 0) / building.ring.length;
+    if (Math.abs(cx) > half || Math.abs(cy) > half) continue;
+    labels.push(`${building.heightM.toFixed(0)}m`);
+  }
+  return labels.sort();
+}
+
+/** The label strings the builder actually drew in the heights group. */
+function drawnHeightLabels(svg: string): string[] {
+  const sitePlan = groupBody(svg, "site-plan");
+  const from = sitePlan.slice(sitePlan.indexOf('<g id="site-plan-building-heights"'));
+  const body = from.slice(0, from.indexOf("</g>"));
+  return Array.from(body.matchAll(/<text[^>]*>([^<]*)<\/text>/g), (match) => match[1]).sort();
+}
+
 test("the Atlanta site plan draws the figure ground and only tagged heights", () => {
   const svg = buildSheet(makeCtx("atlanta"));
   const sitePlan = groupBody(svg, "site-plan");
@@ -250,35 +345,42 @@ test("the Atlanta site plan draws the figure ground and only tagged heights", ()
   // PHASE-2-sheet.md step 2.2 asked for zero height labels at Atlanta. That
   // came from the retracted 2026-09-21 probe ("0 with height"). The committed
   // capture, and SPEC section 5 as corrected by PROGRESS.md owner decision 2 of
-  // 2026-09-24, has 14 distinct features with a height tag (16 rings). The
-  // assertion is that heights are few and come only from tagged features, never
-  // derived from levels: 49 features carry levels and none of them prints.
-  const heights = sitePlan.slice(
-    sitePlan.indexOf('<g id="site-plan-building-heights"'),
-  );
-  const heightBody = heights.slice(0, heights.indexOf("</g>"));
-  const labels = count(heightBody, "<text");
-  expect(labels).toBeGreaterThan(0);
-  expect(labels).toBeLessThan(25);
+  // 2026-09-24, carries height tags on some features. A band would pass with
+  // the wrong buildings labelled, so the expectation is an equality against the
+  // count the fixture itself implies.
+  const expected = expectedHeightLabels("atlanta");
+  expect(expected.length, "the fixture should carry tagged heights").toBeGreaterThan(0);
+  expect(drawnHeightLabels(svg)).toEqual(expected);
 });
 
-test("the Miami site plan prints more than 150 height labels", () => {
-  const svg = buildSheet(makeCtx("miami"));
-  const sitePlan = groupBody(svg, "site-plan");
-  const heights = sitePlan.slice(
-    sitePlan.indexOf('<g id="site-plan-building-heights"'),
+test("a building with levels but no height tag prints nothing", () => {
+  // SPEC section 2: never estimate a height and never derive metres from
+  // building:levels. The fixture carries features with levels and no height, so
+  // the count that prints must be the tagged count and not one more.
+  const osm = loadLayers("atlanta").osm?.data as {
+    buildings: Array<{ heightM: number | null; levels: number | null }>;
+  };
+  const levelsOnly = osm.buildings.filter(
+    (building) => building.heightM === null && building.levels !== null,
   );
-  const heightBody = heights.slice(0, heights.indexOf("</g>"));
-  expect(count(heightBody, "<text")).toBeGreaterThan(150);
+  expect(levelsOnly.length, "the fixture should carry levels only features").toBeGreaterThan(0);
+
+  const drawn = drawnHeightLabels(buildSheet(makeCtx("atlanta")));
+  expect(drawn).toEqual(expectedHeightLabels("atlanta"));
+  // Every drawn label is a metre reading of a tagged height, so no label can
+  // belong to a levels only feature.
+  expect(drawn.length).toBe(expectedHeightLabels("atlanta").length);
+});
+
+test("the Miami site plan prints exactly its tagged heights", () => {
+  const expected = expectedHeightLabels("miami");
+  expect(expected.length, "PHASE-2 step 2.2 expects more than 150").toBeGreaterThan(150);
+  expect(drawnHeightLabels(buildSheet(makeCtx("miami")))).toEqual(expected);
 });
 
 test("WaKeeney prints no height label, because nothing there is tagged", () => {
-  const svg = buildSheet(makeCtx("wakeeney"));
-  const sitePlan = groupBody(svg, "site-plan");
-  const heights = sitePlan.slice(
-    sitePlan.indexOf('<g id="site-plan-building-heights"'),
-  );
-  expect(count(heights.slice(0, heights.indexOf("</g>")), "<text")).toBe(0);
+  expect(expectedHeightLabels("wakeeney")).toEqual([]);
+  expect(drawnHeightLabels(buildSheet(makeCtx("wakeeney")))).toEqual([]);
 });
 
 test("the Miami flood polygons carry the VE cross hatch", () => {
