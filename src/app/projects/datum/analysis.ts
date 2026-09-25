@@ -23,6 +23,13 @@ export interface ResolvedPoint {
 
 export interface SiteRecord {
   siteId: string;
+  /**
+   * The signed local id for this point, which the site route returns whether
+   * Site Memory is online or offline (SPEC section 13). It travels on every
+   * layer and brief request so a route that cannot read the site row still has
+   * a point it can verify.
+   */
+  fallbackId: string;
   siteKey: string;
   locality: string | null;
   tract: { geoid: string } | null;
@@ -87,6 +94,17 @@ export function createRunGuard(): RunGuard {
   };
 }
 
+/**
+ * The `fallback=` query the layer and brief routes read. Nothing is appended
+ * when the site route did not return one, so an older server, or a response
+ * that lost the field, sends no parameter rather than the string "undefined".
+ */
+function fallbackQuery(fallbackId: string | undefined, lead = "&"): string {
+  return typeof fallbackId === "string" && fallbackId.length > 0
+    ? `${lead}fallback=${encodeURIComponent(fallbackId)}`
+    : "";
+}
+
 async function readJson(response: Response): Promise<unknown> {
   try {
     return await response.json();
@@ -145,12 +163,18 @@ export function useAnalysis(isTest: boolean) {
   );
 
   const fetchLayer = useCallback(
-    async (layer: LayerName, siteId: string, run = runGuard.current.current()) => {
+    async (
+      layer: LayerName,
+      siteId: string,
+      fallbackId: string,
+      run = runGuard.current.current(),
+    ) => {
       if (!runGuard.current.isCurrent(run)) return;
       setLayers((previous) => ({ ...previous, [layer]: "loading" }));
       try {
         const response = await fetch(
-          `/api/datum/layers/${layer}?site=${encodeURIComponent(siteId)}`,
+          `/api/datum/layers/${layer}?site=${encodeURIComponent(siteId)}` +
+            fallbackQuery(fallbackId),
         );
         const body = await readJson(response);
         if (!response.ok || !body || typeof body !== "object" || !("layer" in body)) {
@@ -185,11 +209,11 @@ export function useAnalysis(isTest: boolean) {
     [record],
   );
 
-  const runBrief = useCallback(async (siteId: string, run: number) => {
+  const runBrief = useCallback(async (siteId: string, fallbackId: string, run: number) => {
     if (!runGuard.current.isCurrent(run)) return;
     setBrief({ ...EMPTY_BRIEF, status: "streaming" });
     try {
-      const response = await fetch("/api/datum/brief", {
+      const response = await fetch(`/api/datum/brief${fallbackQuery(fallbackId, "?")}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ siteId, layers: settled.current }),
@@ -385,12 +409,12 @@ export function useAnalysis(isTest: boolean) {
       // Everything independent is in flight before anything is awaited. Only
       // osm is awaited, and only so the walk shed can follow it.
       const inFlight = INDEPENDENT_LAYERS.map((layer) =>
-        fetchLayer(layer, created.siteId, run),
+        fetchLayer(layer, created.siteId, created.fallbackId, run),
       );
-      const osmSettled = fetchLayer("osm", created.siteId, run);
+      const osmSettled = fetchLayer("osm", created.siteId, created.fallbackId, run);
       inFlight.push(osmSettled);
       await osmSettled;
-      inFlight.push(fetchLayer("walkshed", created.siteId, run));
+      inFlight.push(fetchLayer("walkshed", created.siteId, created.fallbackId, run));
 
       // The brief reads every envelope, so it opens once all nine have settled.
       await Promise.all(inFlight);
@@ -399,7 +423,7 @@ export function useAnalysis(isTest: boolean) {
       setStage("done");
       if (!briefStarted.current) {
         briefStarted.current = true;
-        void runBrief(created.siteId, run);
+        void runBrief(created.siteId, created.fallbackId, run);
       }
     },
     [fetchLayer, isTest, runBrief],
@@ -411,8 +435,10 @@ export function useAnalysis(isTest: boolean) {
       if (!site) return;
       // A retry belongs to the run that is on screen, not to a new one.
       const run = runGuard.current.current();
-      await fetchLayer(layer, site.siteId, run);
-      if (layer === "osm") await fetchLayer("walkshed", site.siteId, run);
+      await fetchLayer(layer, site.siteId, site.fallbackId, run);
+      if (layer === "osm") {
+        await fetchLayer("walkshed", site.siteId, site.fallbackId, run);
+      }
     },
     [fetchLayer, site],
   );

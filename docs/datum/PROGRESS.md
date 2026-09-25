@@ -12,7 +12,7 @@ Started 2026-09-21 from `origin/main` at `c2c8517` (PR #22, rename to Datum).
 | 0 | `feat/datum-phase-0` | `main` | pending |
 | 1 | `feat/datum-phase-1` | `feat/datum-phase-0` | #24, gate closed 2026-09-25 |
 | 2 | `feat/datum-phase-2` | `feat/datum-phase-1` | #26, gate closed 2026-09-25 |
-| 3 | `feat/datum-phase-3` | `feat/datum-phase-2` | pending |
+| 3 | `feat/datum-phase-3` | `feat/datum-phase-2` | #27, built 2026-09-25, migration 0002 at the human gate |
 | 4 | BLOCKED | | |
 
 ## Pre flight
@@ -715,3 +715,237 @@ therefore sensitive to model output on every run, and that sensitivity is intend
 
 Next action: verify the follow up, push, then Phase 3 (branch feat/datum-phase-3 from the Phase 2
 head; migration 0002 goes to the human gate when written; open question 7 could fold into it).
+
+## Phase 3
+
+Status: built, pushed, PR #27 open (base feat/datum-phase-2). Independent review in progress.
+MIGRATION 0002 AT THE HUMAN GATE: written, reviewed, not applied. Builder: Opus. Started
+2026-09-25.
+
+### Build (`daa4ee7` to `f2af3ba`, six commits as the phase file names them)
+
+Migration 0002 verified by the orchestrator as byte identical to SPEC section 13 plus the revoke
+and grant on `metric_percentile` (mirroring `rate_limit_hit`); open question 7 not included.
+metrics.ts (fourteen components, fixed constants, all or nothing vector), memory.ts extended
+(writeMetrics, percentiles, similarSites, publicSites, countSites, sweep), context, map and ping
+routes, vercel.json daily cron, brief storage and replay, MemoryPanel and SitesMap, twelve seed
+sites each geocoded through the app's own route with the resolved name recorded, memory e2e.
+
+Gates (orchestrator re-run): tsc exit 0; `npm run test:unit` 319 passed; eslint 13 errors, 8
+warnings; both builds exit 0; the three memory routes in the route list; fallback grep only the
+two counters; no em dashes.
+
+e2e (builder): ping refuses a missing or wrong bearer (401) and answers 200 with the secret;
+offline run passes end to end (Atlanta analysed with SUPABASE_URL unreachable, panel shows the
+verbatim offline sentence, export works, no 5xx). The five database dependent tests (seed run,
+context, map, page screenshot, brief replay) skip with the named reason "migration 0002 is not
+applied" (a live probe on sites.metrics, not a flag). No percentile, similar site, map, replay,
+or n value has been measured yet.
+
+### Deviations recorded
+
+- Similar sites are ordered in TypeScript over a capped candidate set (2000, is_test gated)
+  because PostgREST cannot express `<->` and 0002 is fixed to the SPEC text; the HNSW index stays
+  for a future SQL function. Ordering and result are the same as the operator.
+- Under DATUM_INCLUDE_TEST_SITES=1 (non production only) percentiles run the same arithmetic in
+  code, since `metric_percentile` hard codes is_test = false; production uses the SQL function.
+  The same flag gates the map, otherwise the twelve is_test seeds could never satisfy the map
+  check.
+- Null metrics are omitted from the stored jsonb rather than stored as null, so
+  `metric_percentile` counts only sites that measured the metric.
+- Seed analyses run through the routes with a synthetic client IP per run (12 of 20 daily).
+- The ping reports the gated (non test in production) site count.
+- The builder amended its sixth commit twice before pushing, to fold two late fixes in; the
+  amended commit had never been pushed, so nothing published was rewritten. Recorded because
+  history rewriting is on the stop and ask list.
+- `docs/datum/screenshots/phase-3/atlanta-memory-offline.png` committed (the phase file names the
+  folder); `atlanta-memory.png` awaits the migration. `metrics.spec.ts` rather than `.test.ts`.
+
+### Stop and ask items raised by Phase 3 (open questions 11 to 15)
+
+11. PHASE-3 step 3.2 unit test 1 ("every component of the vector from the Atlanta fixtures lies
+    in [0, 1]") cannot hold: Atlanta and Miami are SSURGO "Urban land" with no hydrologic group,
+    and SPEC section 14 row 13 makes that component null, so those sites have no vector. The
+    builder kept the test honest by running it on a one field variant and added a test that the
+    unchanged fixtures yield vector null with the other thirteen values present. Decision: amend
+    the phase file criterion, or change the SPEC rule (for example treat Urban land as its own
+    category value) so dense urban sites can have a vector at all. As written, most urban sites
+    will never get "sites like this".
+12. New user visible copy in the memory panel beyond SPEC section 14's single example sentence:
+    five percentile labels shaped like "More sun than", the count line "Site Memory holds N
+    analyzed sites.", the percentile null case "Percentiles need ten analyzed sites; Site Memory
+    holds N so far.", fourteen short component labels, the panel closing note, and two map
+    strings. Approve, or supply wording.
+13. The "sites like this" null sentence names soil as unavailable when soil answered but carried
+    no hydrologic group (the only SPEC sentence). More accurate wording is new copy.
+14. `CRON_SECRET` is not set in .env.local or Vercel. The ping fails closed (503) until it is.
+    The builder used a random value for the run only. Dashboard action.
+15. `e2e/README.md` is out of date for the memory spec and its flags; outside the Phase 3 list.
+16. DATUM_INCLUDE_TEST_SITES is inert under `next start` (production), which is what the phase
+    file's acceptance command runs, so the database mode memory spec must run against
+    `npm run dev` (as decision 6 settled for the source overrides), or the flag must be gated on
+    DATUM_ALLOW_TEST_FLAG alone. Changing the acceptance command text needs the owner.
+12b. Copy: with the honest per metric population, the panel can show "Site Memory holds 15
+    analyzed sites." and "Percentiles need ten analyzed sites; Site Memory holds 7 so far." in
+    the same view. Proposed wording for the second: "Percentiles need ten sites that measured
+    this; 7 have so far." Owner decides.
+
+### Review round 1 (Opus, 2026-09-25)
+
+Three high: (1) the similar sites payload exposed other sites' UUIDs, which the unauthenticated
+layer routes would trade for metre precision coordinates, undoing the map's snapping; (2)
+DATUM_INCLUDE_TEST_SITES requires NODE_ENV not production, but the phase file's acceptance command
+runs `next start` (production), so the database assertions that rely on the twelve is_test seeds
+cannot pass as written, the same collision decision 6 settled for the source overrides (open
+question 16 below); (3) the percentile sentences quoted the total site count while the
+percentile was computed over the smaller per metric population. Nine medium and five low,
+including: a GET before any POST named eight layers as unavailable; an expired recompute could
+overwrite good metrics with empty ones; the brief replay test carried an escape; the ping was
+distinguishable without the secret and reported ok when it had not queried; a stored brief with
+an unreadable verdict replayed as passed. The full copy inventory of the memory panel and map is
+in the reviewer's report and is open question 12.
+
+Fix round 1 dispatched for everything in owned code (findings 1, 3 to 11, 13 to 16). Open
+question 16: run the memory spec against `npm run dev` with the flag, as decision 6 did for the
+overrides, which changes the phase file's acceptance command text; or gate the flag on
+DATUM_ALLOW_TEST_FLAG alone. Not changed until answered.
+
+### Fix round 1 (`86dd805` to `54e1640`, `fa61d70`) and re-verification
+
+Closed: 1 (no site id leaves the server; the spec asserts the exact key set), 4, 6, 7, 8, 9, 10,
+11, 13, 14 (stored key is `densityPerKm2` holding the raw density; free to rename because no
+row exists yet), 15, 16. Partly: 3 (the arithmetic is honest, per metric n carried and used for
+the threshold sentence; the panel can now print two "Site Memory holds N" sentences that
+disagree, the count line and the per metric line, which is copy and is open question 12b),
+5 (the wipe is prevented but a recompute with no vector left an older vector beside newer
+metrics; closed in fix round 2). No test weakened; three strengthened. Additive contract
+changes: `truncated` and `metricsWrite` on the context response, `n` on PercentileEntry.
+
+Fix round 2 (final for Phase 3): metrics and vector written together or not at all; unit
+coverage for the fix round 1 changes; the ping refusals split into their own test. In flight.
+
+### Greptile on PR #27 (and one new on #26), 2026-09-25
+
+Nine comments, all answered. Three already fixed by fix round 1 (site id leak, ping ok, stored
+verdict), one in flight (metrics and vector together, fix round 2), two map to open questions
+(16; and the new 17 below), three queued for a Greptile fix round after fix round 2 lands:
+MemoryPanel can stay stuck loading after a Strict Mode remount or a retry (clear the asked ref
+on cleanup); the public map and the site count include rows that never finished an analysis
+(filter on metrics_at not null); the citation percent form is indexed only for paths ending in
+Pct, so a restated soil component `percent` fails the value check (broaden to `percent`).
+
+17. Similar sites: the TypeScript ordering over a capped candidate set (2000, newest first) can
+    omit the true nearest neighbour once the corpus passes the cap, and `truncated` is not
+    rendered. Options: (a) add a `similar_sites(query vector, limit)` SQL function using `<->` to
+    migration 0002, which is unapplied and at the human gate right now, so this is the cheapest
+    moment (SPEC section 13 change); (b) render `truncated` (new copy); (c) accept as recorded
+    debt while the corpus is twelve sites. Recommended: (a).
+
+### Fix round 2 (`49cee54`, `95af628`, `cfa4186`, `c20fcac`) and the Greptile fix round (`9490649` to `bd87b15`)
+
+Fix round 2: metrics, vector and metrics_at written together or not at all (a recompute with
+no vector never displaces a stored vector; the write is skipped with a reason); unit coverage
+for the fix round 1 changes (similar sites carry no id, context with no metrics row, per metric
+n drives the threshold, non numeric n discards the metric, truncated at the cap, stored verdict
+unreadable is a miss; `storedBriefCheck` moved into memory.ts to be testable since route files
+cannot export helpers); the ping refusals are their own test and run in the offline run. 333
+unit tests. Greptile fix round: the memory panel refetches after a cancelled request or a retry
+(no unit test: a React renderer would be a new dependency); map and count include only rows
+with metrics_at set; soil `percent` paths take the percent form in the value index; the brief
+stream never enqueues after the reader has gone (`sseChannel` helper, five tests). 341 unit
+tests. All Greptile comments on #23, #24, #26, #27 answered. Both Phase 3 fix rounds used.
+
+Gates at `bd87b15` (orchestrator re-run): tsc exit 0; 341 unit tests; eslint 13 errors, 8
+warnings; both builds exit 0; fallback grep only the two counters; no em dashes.
+
+### Next action
+
+Owner applies migration 0002 (SQL handed over in chat), then the orchestrator runs the step 3.1
+verification queries through the app's client, the database mode memory spec, and the offline
+run; then Greptile pass on #27, then the final review and report.
+
+## Blocking items before merge (owner, 2026-09-25)
+
+Owner decisions recorded: the two extra deletions approved after the fact (question 1 closed);
+question 7 folded into migration 0002 before first application; question 17 accepted as a known
+limit (not fixed); question 6 closed, the baseline captures stay verbatim; FEMA outage does not
+block the merge; SPEC section 16 measurement stays deferred to production and a miss stays a
+release blocker.
+
+Blocking item 1 (question 11, design defect): SPEC section 14 amended (`8984862`): absent
+components are recorded not fatal, a site is eligible with at least 10 of 14 present, masked
+distance `sqrt((14 / k) * sum over shared)` with k at least 10 so shared absence never makes
+sites similar, `metrics_mask` column, no vector index; the null sentence now reads "Sites like
+this needs at least ten measures; <layers or components> were unavailable." (copy amended with
+section 14 because the old sentence became false). Code in `e54c905`: on the unchanged fixtures
+Atlanta and Miami have 13 of 14 present (soil group absent) and are eligible; WaKeeney has 13
+(flood coverage absent). "Similar sites for Atlanta and Miami" is NOT yet observed: it needs the
+migration and the seed run (blocking item 3).
+
+Blocking item 2 (item 10, cold instance plus offline 404): SPEC section 13 amended: the site
+route always returns a signed `fallbackId`, the client sends it on every layer and brief request,
+a route that cannot read the row proceeds from the fallback point with the rate limit peek and
+no storage; 404 only when memory is online, the row is absent, and no fallback was sent. Code in
+`ec87275` with unit tests (cold offline plus valid fallback 200 and no write; forged 400; online
+missing row no fallback 404; brief route same) and an offline e2e of four requests, the third of
+which (a uuid this server never saw plus a valid fallback, 200) is the cold instance case and the
+fourth (fallback stripped) shows the 200 came from the fallback.
+
+Flood rendering evidence (`03c39c0`): a local FEMA stub (`e2e/tools/fema-stub.mjs`) serves only
+the labelled fixtures; with `DATUM_SOURCE_OVERRIDES` pointing fema at it on the dev server, the
+Miami site plan renders paths filled with `url(#flood-ve)`, `url(#flood-sfha)` and
+`url(#flood-02pct)`, and the WaKeeney flood summary is `data-status="unavailable"` with the
+verbatim "FEMA has not published a flood hazard layer for this location." Screenshots and exports
+committed as `docs/datum/screenshots/phase-2/{miami,wakeeney}-flood-stub.{png,svg}`, labelled in
+the spec output, the commit message and the stub header as rendered against CONSTRUCTED fixtures
+through a local stub, not live FEMA. The two stub served rows written to the shared `api_cache`
+(`fema:25.801,-80.189`, `fema:39.020,-99.884`) were deleted by the orchestrator afterwards so a
+live run can never be served constructed data.
+
+Gates at `e439bab` (orchestrator re-run): tsc exit 0; 355 unit tests; eslint 13 errors, 8
+warnings; both builds exit 0; fallback grep only the two counters; no em dashes.
+
+Deviations recorded from this round: the builder amended an unpushed commit once (a twelve line
+rename belonging to item 1 sits inside the item 3 commit; nothing published was rewritten);
+`getOrCreateSite` now upserts on `(site_key, is_test)` with the 23505 branch kept as defence and
+the payload built without locality or tract when the request has none; the brief route's fallback
+test lives in brief.spec.ts. One new user facing error string (stop and ask, open question 18):
+a database site id with memory offline and no fallback sent now answers 503
+`dependency_unavailable` "Site Memory is offline and no fallback id was sent." rather than a
+404 that would call a possibly real site imaginary; unreachable from Datum's own client, which
+always sends the fallback.
+
+Next action: owner applies the amended migration 0002 and sets CRON_SECRET; then the orchestrator
+runs the step 3.1 checks, the seed run, percentiles, similar sites for Atlanta, Miami and
+WaKeeney, the map, the page screenshot, the brief replay, the ping with the secret, and the
+offline run, and records the observed values.
+
+## Blocking item 3: Phase 3 database mode, OBSERVED (2026-09-25)
+
+Owner applied the amended migration 0002 and set CRON_SECRET (local and Vercel). Question 18:
+keep the 503 (owner). Step 3.1 through the app's client: the four metrics columns selectable;
+briefs table present; metric_percentile answers (null, n 0 on the empty corpus); a test row and a
+real row coexist at one site_key; an exact duplicate is refused (23505).
+
+Run: dev server with DATUM_ALLOW_TEST_FLAG=1 DATUM_INCLUDE_TEST_SITES=1 (the only mode where
+the is_test seeds count; open question 16 stands for the phase file wording), test process
+DATUM_E2E_DB=1 with CRON_SECRET. First pass: the seed run passed (12 of 12 sites got a vector,
+masks 10 to 13 of 14; flood absent everywhere, soil group absent at the urban sites) and the
+context test failed on a stale key set assertion (the new `sharedComponents` field); fixed in
+`fa3f51e` (stricter key set), second pass all seven database tests passed:
+
+| Check | Observed |
+|---|---|
+| seed run | 12 of 12 with a vector, 1.3 m on the second pass (cache warm) |
+| Atlanta context | n 12; more sun than 33%, more built coverage than 55%, more street reach than 58%, more relief than 75%, more wind than 42%, more density than 50%; five similar sites |
+| similar sites, Atlanta | Asheville 93, Boston 90, Denver 89, New Orleans 86, Miami 83 (11 to 12 shared components); missing sfhaShare, hydrologicGroup |
+| similar sites, Miami | New Orleans 89, Atlanta 83, Boston 82, Phoenix 80, Asheville 78; missing hydrologicGroup |
+| similar sites, WaKeeney | Marfa 85, Asheville 78, Denver 76, New Orleans 76, Phoenix 75; missing sfhaShare |
+| map | 12 public points, two decimals, no lat, lng, or site_key |
+| page | Atlanta page shows the memory panel and the sites map; `docs/datum/screenshots/phase-3/atlanta-memory.png` |
+| brief replay | the second Atlanta brief is the stored one (cached true, identical text) |
+| ping | 401 for missing, wrong, and wrongly schemed bearer; 200 with the secret, sites 12, swept 0 |
+| offline run (earlier the same day) | analysis completes offline; a layer resolves through the fallback id with Site Memory offline |
+
+Atlanta and Miami both receive similar sites after the section 14 amendment. The twelve seed
+rows remain in the database as is_test rows (the test mode corpus); no non test row exists.

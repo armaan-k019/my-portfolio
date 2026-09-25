@@ -21,6 +21,7 @@ import {
   parseClientLayers,
   selectLayers,
 } from "../../src/lib/datum/brief/store";
+import { sseChannel } from "../../src/lib/datum/brief/stream";
 import { NextRequest } from "next/server";
 import { POST } from "../../src/app/api/datum/brief/route";
 import { RATE_LIMIT_PER_DAY } from "../../src/lib/datum/constants";
@@ -32,6 +33,7 @@ import {
   issueLocalSiteId,
   memoryStatus,
   setClientForTests,
+  storedBriefCheck,
 } from "../../src/lib/datum/memory";
 import { LAYER_NAMES, type LayerEnvelope, type LayerName } from "../../src/lib/datum/types";
 
@@ -376,6 +378,35 @@ test("the bare number, with no percent sign, also matches the percentage path", 
       "Car free commuting is 35.3% of trips [census.carFreeCommutePct].",
       "That 35.3 figure shapes the parking requirement.",
     ].join("\n"),
+  );
+  expect(check.uncitedNumericSentences).toBe(0);
+  expect(check.valueMatchedSentences).toBe(1);
+});
+
+// The soil components name the field `percent` rather than `...Pct`, and the
+// percent form has to be indexed for both spellings or a restated "97%" is
+// reported as a number the model was never given.
+const SOIL_PERCENT_INPUT = {
+  site: { latitude: 38.99, longitude: -99.88 },
+  layers: {
+    soil: {
+      status: "ok",
+      fields: {
+        "soil.components[].percent": [97, 2, 1],
+        "soil.components[].slopePct": [1, 0, 1],
+      },
+    },
+  },
+};
+
+test("a soil component percentage takes the percent form", () => {
+  const check = validateCitations(
+    [
+      "The map unit is 97% Harney [soil.components[].percent].",
+      "That 97% share carries the drainage behaviour of the whole site.",
+    ].join("\n"),
+    ["soil.components[].percent", "soil.components[].slopePct"],
+    buildValueIndex(SOIL_PERCENT_INPUT),
   );
   expect(check.uncitedNumericSentences).toBe(0);
   expect(check.valueMatchedSentences).toBe(1);
@@ -952,6 +983,104 @@ test("a client envelope carrying data is dropped, one carrying only a reason is 
   expect(citable.some((path) => path.startsWith("census."))).toBe(false);
 });
 
+// ─── The SSE channel (the brief route's writes) ──────────────────────────────
+//
+// The offline run logged "Invalid state: Controller is already closed" because
+// the catch path sent its error event after the reader had gone. Every write
+// the route makes now goes through the channel, so a write after a close or a
+// cancel is dropped rather than thrown.
+
+/** A controller that records its calls and refuses to be used after close. */
+function fakeController() {
+  const chunks: string[] = [];
+  let closed = false;
+  let closeCalls = 0;
+  const decoder = new TextDecoder();
+  return {
+    controller: {
+      enqueue(chunk: Uint8Array) {
+        if (closed) throw new TypeError("Invalid state: Controller is already closed");
+        chunks.push(decoder.decode(chunk));
+      },
+      close() {
+        closeCalls += 1;
+        if (closed) throw new TypeError("Invalid state: Controller is already closed");
+        closed = true;
+      },
+    },
+    chunks: () => chunks,
+    closeCalls: () => closeCalls,
+  };
+}
+
+test("a send before the close writes one SSE frame", () => {
+  const fake = fakeController();
+  const channel = sseChannel(fake.controller);
+
+  channel.send("delta", { text: "Ground." });
+  expect(fake.chunks()).toEqual(['event: delta\ndata: {"text":"Ground."}\n\n']);
+  expect(channel.over).toBe(false);
+});
+
+test("nothing is enqueued after the channel has closed", () => {
+  const fake = fakeController();
+  const channel = sseChannel(fake.controller);
+
+  channel.send("delta", { text: "Ground." });
+  channel.close();
+  expect(channel.over).toBe(true);
+
+  // The shape of the bug: the catch path sending an error event after close.
+  expect(() => channel.send("error", { code: "upstream_error" })).not.toThrow();
+  expect(fake.chunks()).toHaveLength(1);
+});
+
+test("the close happens once, however many times it is called", () => {
+  const fake = fakeController();
+  const channel = sseChannel(fake.controller);
+
+  channel.close();
+  channel.close();
+  expect(fake.closeCalls()).toBe(1);
+});
+
+test("a cancelled channel writes nothing and never closes the controller", () => {
+  const fake = fakeController();
+  const channel = sseChannel(fake.controller);
+
+  // The reader went away while the model was still streaming.
+  channel.cancel();
+  expect(channel.over).toBe(true);
+  expect(() => channel.send("delta", { text: "Ground." })).not.toThrow();
+  expect(() => channel.send("done", { cached: false })).not.toThrow();
+  // The finally block still runs.
+  expect(() => channel.close()).not.toThrow();
+
+  expect(fake.chunks()).toEqual([]);
+  expect(fake.closeCalls()).toBe(0);
+});
+
+test("a controller that closes under the write swallows the throw and ends the channel", () => {
+  // The reader can go away between the guard and the enqueue, which no flag can
+  // prevent, so the throw has to be caught rather than only avoided.
+  let closed = false;
+  const channel = sseChannel({
+    enqueue() {
+      if (closed) throw new TypeError("Invalid state: Controller is already closed");
+      closed = true;
+    },
+    close() {
+      throw new TypeError("Invalid state: Controller is already closed");
+    },
+  });
+
+  channel.send("delta", { text: "Ground." });
+  expect(channel.over).toBe(false);
+  expect(() => channel.send("done", { cached: false })).not.toThrow();
+  expect(channel.over).toBe(true);
+  expect(() => channel.close()).not.toThrow();
+});
+
 // ─── The brief route's rate limit ────────────────────────────────────────────
 
 test("a brief past the daily cap is a 429 before the stream opens", async () => {
@@ -997,5 +1126,116 @@ test("a brief past the daily cap is a 429 before the stream opens", async () => 
     globalThis.fetch = realFetch;
     if (hadKey === undefined) delete process.env.ANTHROPIC_API_KEY;
     else process.env.ANTHROPIC_API_KEY = hadKey;
+  }
+});
+
+// ─── The stored verdict behind a replay ──────────────────────────────────────
+
+/**
+ * A verdict that passed its checks, which is the only shape ever stored. Every
+ * case below is this payload with one field made unreadable.
+ */
+function passingVerdict(): Record<string, unknown> {
+  return {
+    invalidCitations: [],
+    validCitations: ["climate.annualMeanTempC"],
+    uncitedNumericSentences: 0,
+    valueMatchedSentences: 2,
+  };
+}
+
+test("a readable stored verdict comes back exactly as it was stored", () => {
+  const stored = passingVerdict();
+  expect(storedBriefCheck(stored)).toEqual({
+    invalidCitations: [],
+    validCitations: ["climate.annualMeanTempC"],
+    uncitedNumericSentences: 0,
+    valueMatchedSentences: 2,
+  });
+  // A passing verdict is what a replay is allowed to serve.
+  expect(briefFailedChecks(storedBriefCheck(stored)!)).toBe(false);
+});
+
+test("each unreadable field makes the stored verdict a cache miss", () => {
+  // An empty invalidCitations and a zero uncited count is exactly what a brief
+  // that passed looks like, so a field nobody can parse must never be read as
+  // one of those. Null instead, and the route writes a new brief.
+  const unreadable: Array<[string, unknown]> = [
+    ["invalidCitations", undefined],
+    ["invalidCitations", "[]"],
+    ["invalidCitations", [1, 2]],
+    ["validCitations", undefined],
+    ["validCitations", null],
+    ["validCitations", [{ path: "climate.annualMeanTempC" }]],
+    ["uncitedNumericSentences", undefined],
+    ["uncitedNumericSentences", "0"],
+    ["uncitedNumericSentences", Number.NaN],
+    ["valueMatchedSentences", undefined],
+    ["valueMatchedSentences", null],
+    ["valueMatchedSentences", Number.POSITIVE_INFINITY],
+  ];
+  for (const [field, value] of unreadable) {
+    const citations = passingVerdict();
+    if (value === undefined) delete citations[field];
+    else citations[field] = value;
+    expect(
+      storedBriefCheck(citations),
+      `${field} as ${String(value)} should be unreadable`,
+    ).toBeNull();
+  }
+  // And the whole payload being something else is a miss too.
+  expect(storedBriefCheck({})).toBeNull();
+});
+
+test("a cold instance offline resolves the brief's site through its fallback id", async () => {
+  // Offline with no remembered row, which is the cold instance case: without a
+  // fallback the brief is a 404, and with a valid one the route gets past the
+  // site resolution and on to the layers it has (none here, so the 409 that
+  // says there is nothing to write a brief from). Nothing is stored either way.
+  setClientForTests(null);
+  const uuid = "22222222-2222-2222-2222-222222222222";
+  await getSiteById(uuid);
+  expect(memoryStatus()).toBe("offline");
+
+  const fallback = issueLocalSiteId("33.775,-84.392");
+  const hadKey = process.env.ANTHROPIC_API_KEY;
+  process.env.ANTHROPIC_API_KEY = "unit-test-placeholder";
+  const ip = "198.51.100.31";
+  try {
+    const withFallback = await POST(
+      new NextRequest(
+        `https://datum.test/api/datum/brief?fallback=${encodeURIComponent(fallback)}`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-forwarded-for": ip },
+          body: JSON.stringify({ siteId: uuid, layers: {} }),
+        },
+      ),
+    );
+    expect(
+      withFallback.status,
+      "past the site resolution: no layer answered, so 409 rather than 404",
+    ).toBe(409);
+    expect(
+      ((await withFallback.json()) as { error: { code: string } }).error.code,
+    ).toBe("dependency_unavailable");
+
+    // A forged fallback is refused outright rather than taken on trust.
+    const forged = `${fallback.slice(0, -1)}${fallback.endsWith("0") ? "1" : "0"}`;
+    const tampered = await POST(
+      new NextRequest(
+        `https://datum.test/api/datum/brief?fallback=${encodeURIComponent(forged)}`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-forwarded-for": ip },
+          body: JSON.stringify({ siteId: uuid, layers: {} }),
+        },
+      ),
+    );
+    expect(tampered.status).toBe(400);
+  } finally {
+    if (hadKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+    else process.env.ANTHROPIC_API_KEY = hadKey;
+    setClientForTests(null);
   }
 });

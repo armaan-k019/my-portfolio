@@ -11,6 +11,7 @@ import {
   findSite,
   getOrCreateSite,
   hashIp,
+  issueLocalSiteId,
   memoryStatus,
 } from "@/lib/datum/memory";
 import { lookupTract } from "@/lib/datum/sources/census";
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
   const ipHash = hashIp(clientIpFrom(request.headers.get("x-forwarded-for")));
 
   // Re-opening a site analyzed in the last 30 days is free (SPEC section 13).
-  const existing = await findSite(key);
+  const existing = await findSite(key, isTest);
   const freeWindowMs = RATE_LIMIT_FREE_REOPEN_DAYS * 86_400_000;
   const chargeable =
     !existing ||
@@ -100,6 +101,11 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     siteId: site.id,
     siteKey: site.site_key,
+    // The signed local id for this point, returned whether Site Memory is
+    // online or offline (SPEC section 13, amended 2026-09-25). The client sends
+    // it back on every layer and brief request, so a route that cannot read the
+    // site row still has the point it needs, verified rather than trusted.
+    fallbackId: issueLocalSiteId(key),
     locality: site.locality ?? locality,
     tract: tract
       ? {
@@ -111,6 +117,9 @@ export async function POST(request: NextRequest) {
         }
       : null,
     memoryStatus: memoryStatus(),
+    // How many times this point has been analyzed, so the page can say whether
+    // Site Memory has seen it before. Phase 3, SPEC section 14.
+    analysisCount: site.analysis_count,
     rateLimit: { remaining: rate.remaining },
   });
 }

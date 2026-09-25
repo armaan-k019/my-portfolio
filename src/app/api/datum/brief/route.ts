@@ -27,12 +27,18 @@ import {
   selectLayers,
 } from "@/lib/datum/brief/store";
 import { SITE_FREE_LAYER_WINDOW_MS } from "@/lib/datum/constants";
+import { sse, sseChannel } from "@/lib/datum/brief/stream";
+import { briefFailedChecks } from "@/lib/datum/brief/citations";
 import {
   clientIpFrom,
+  findBrief,
   getSiteById,
   hashIp,
   isLocalSiteId,
+  memoryStatus,
   peekRateLimit,
+  storeBrief,
+  storedBriefCheck,
   verifyLocalSiteId,
 } from "@/lib/datum/memory";
 
@@ -54,9 +60,11 @@ interface BriefRequestBody {
   layers?: unknown;
 }
 
-function sse(event: string, data: unknown): string {
-  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-}
+const SSE_HEADERS = {
+  "content-type": "text/event-stream; charset=utf-8",
+  "cache-control": "no-cache, no-transform",
+  connection: "keep-alive",
+};
 
 function badRequest(message: string) {
   return NextResponse.json(
@@ -94,10 +102,38 @@ export async function POST(request: NextRequest) {
   // any model token is spent, and neither needs the other's answer.
   const local = isLocalSiteId(siteId);
   const ipHash = hashIp(clientIpFrom(request.headers.get("x-forwarded-for")));
-  const [resolved, rate] = await Promise.all([
+  const [row, rate] = await Promise.all([
     local ? verifyLocalSiteId(siteId) : getSiteById(siteId),
     peekRateLimit(ipHash),
   ]);
+
+  // When the row cannot be read, because Site Memory is offline or this
+  // instance is cold and never saw it, the signed fallback id the site route
+  // issued carries the point and is verified here rather than trusted (SPEC
+  // section 13, amended 2026-09-25). Nothing is stored against it.
+  let resolved = row;
+  let fromFallback = false;
+  if (!resolved && !local) {
+    const offered = new URL(request.url).searchParams.get("fallback");
+    const fallback = offered === null ? null : verifyLocalSiteId(offered);
+    if (offered !== null && fallback === null) {
+      return badRequest("Unknown site.");
+    }
+    if (fallback) {
+      resolved = fallback;
+      fromFallback = true;
+    } else if (memoryStatus() === "offline") {
+      return NextResponse.json(
+        {
+          error: {
+            code: "dependency_unavailable",
+            message: "Site Memory is offline and no fallback id was sent.",
+          },
+        },
+        { status: 503 },
+      );
+    }
+  }
   if (!resolved) {
     return NextResponse.json(
       { error: { code: "not_found", message: "Unknown site." } },
@@ -156,11 +192,47 @@ export async function POST(request: NextRequest) {
   const values = buildValueIndex(input);
   const hash = inputHash(input);
 
-  const client = new Anthropic();
+  // A brief already written for this site and this input hash is replayed
+  // rather than rewritten. The hash covers the serialized layer data, so a
+  // replay can only ever serve text written from the numbers the sheet is
+  // showing now: retry a layer and the hash moves, and the model runs again.
+  // Only briefs that passed their checks are ever stored (below), so a replay
+  // can never serve text the server has already judged unverified.
+  const storedBrief = await findBrief(siteId, hash);
+
   const encoder = new TextEncoder();
+
+  // An unreadable stored verdict is a cache miss, not a pass: the replay is
+  // skipped and the model writes the brief again, which also replaces the row.
+  const storedVerdict = storedBrief ? storedBriefCheck(storedBrief.citations) : null;
+  if (storedBrief && storedVerdict === null) {
+    console.error("[datum] stored brief citations unreadable, writing a new brief");
+  }
+
+  if (storedBrief && storedVerdict !== null) {
+    const replay =
+      sse("delta", { text: storedBrief.text }) +
+      sse("done", {
+        invalidCitations: storedVerdict.invalidCitations,
+        validCitations: storedVerdict.validCitations,
+        uncitedNumericSentences: storedVerdict.uncitedNumericSentences,
+        valueMatchedSentences: storedVerdict.valueMatchedSentences,
+        model: storedBrief.model,
+        inputHash: hash,
+        cached: true,
+      });
+    return new Response(encoder.encode(replay), { headers: SSE_HEADERS });
+  }
+
+  const client = new Anthropic();
+
+  // The channel outlives the start body, because `cancel` fires on it while the
+  // model loop below is still running.
+  let channel: ReturnType<typeof sseChannel> | null = null;
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      channel = sseChannel(controller);
       let text = "";
       try {
         const message = client.messages.stream({
@@ -176,49 +248,63 @@ export async function POST(request: NextRequest) {
             event.delta.type === "text_delta"
           ) {
             text += event.delta.text;
-            controller.enqueue(encoder.encode(sse("delta", { text: event.delta.text })));
+            channel.send("delta", { text: event.delta.text });
           }
         }
 
         const check = validateCitations(text, fieldPaths, values);
-        controller.enqueue(
-          encoder.encode(
-            sse("done", {
+
+        // Stored only when the brief passed. A failed brief is the one thing a
+        // replay must never hand back, and writing it would also mean the next
+        // visitor to this point could not get a better one. The write is
+        // awaited inside the stream rather than scheduled after it, because the
+        // response has not been closed yet and a floating promise on a
+        // serverless instance can be frozen before it runs.
+        // A fallback resolved site has no row this instance can reach, so the
+        // brief is written and checked but never stored against it.
+        if (!briefFailedChecks(check) && !fromFallback) {
+          try {
+            await storeBrief(siteId, hash, MODEL, text, {
               invalidCitations: check.invalidCitations,
               validCitations: check.validCitations,
               uncitedNumericSentences: check.uncitedNumericSentences,
               valueMatchedSentences: check.valueMatchedSentences,
-              model: MODEL,
-              inputHash: hash,
-            }),
-          ),
-        );
+            });
+          } catch (error) {
+            console.error("[datum] brief store failed", error);
+          }
+        }
+
+        channel.send("done", {
+          invalidCitations: check.invalidCitations,
+          validCitations: check.validCitations,
+          uncitedNumericSentences: check.uncitedNumericSentences,
+          valueMatchedSentences: check.valueMatchedSentences,
+          model: MODEL,
+          inputHash: hash,
+          cached: false,
+        });
       } catch (raw) {
         // The key must never reach the client, so only a code and a sentence go
         // out. The detail goes to the server log.
         console.error("[datum] brief stream failed", raw);
         const code =
           raw instanceof Anthropic.RateLimitError ? "rate_limited" : "upstream_error";
-        controller.enqueue(
-          encoder.encode(
-            sse("error", {
-              code,
-              message:
-                "The site brief could not be written. The sheet and its data are unaffected.",
-            }),
-          ),
-        );
+        channel.send("error", {
+          code,
+          message:
+            "The site brief could not be written. The sheet and its data are unaffected.",
+        });
       } finally {
-        controller.close();
+        channel.close();
       }
+    },
+    cancel() {
+      // The reader is gone. Everything still in flight keeps running to
+      // completion, including the store, but nothing it produces is written.
+      channel?.cancel();
     },
   });
 
-  return new Response(stream, {
-    headers: {
-      "content-type": "text/event-stream; charset=utf-8",
-      "cache-control": "no-cache, no-transform",
-      connection: "keep-alive",
-    },
-  });
+  return new Response(stream, { headers: SSE_HEADERS });
 }

@@ -11,7 +11,20 @@ import {
   RATE_LIMIT_PEEK_MEMO_MS,
   RATE_LIMIT_PER_DAY,
 } from "./constants";
+import type { CitationCheck } from "./brief/citations";
 import { publicPoint, siteKey as siteKeyOf } from "./geo";
+import {
+  METRICS_MIN_PRESENT,
+  METRIC_LAYERS,
+  PERCENTILE_METRICS,
+  PERCENTILE_MIN_SITES,
+  VECTOR_LENGTH,
+  closestComponents,
+  maskedDistance,
+  matchPercent,
+  presentCount,
+} from "./metrics";
+import type { MetricName } from "./metrics";
 import type {
   LayerEnvelope,
   LayerName,
@@ -146,7 +159,22 @@ export function clientIpFrom(headerValue: string | null): string {
 
 // ─── Sites ───────────────────────────────────────────────────────────────────
 
+/**
+ * The offline site rows this instance holds, keyed the way the table is now
+ * keyed: (site_key, is_test) is unique since migration 0002, so a test row and
+ * a real row may sit at the same rounded point and the local map has to be able
+ * to hold both.
+ */
 const localSites = new Map<string, SiteRecord>();
+
+/**
+ * The composite key of the unique constraint, as one map key. Named for the
+ * site map rather than just "localKey", because the rate limit path has a local
+ * variable of that name.
+ */
+function localSiteMapKey(key: string, isTest: boolean): string {
+  return `${key}|${isTest ? "test" : "live"}`;
+}
 
 /**
  * Database site rows this instance has already seen, keyed by site id.
@@ -264,18 +292,27 @@ export interface SiteInput {
   isTest?: boolean;
 }
 
-export async function findSite(key: string): Promise<SiteRecord | null> {
+/**
+ * The row for one point, under the composite key migration 0002 made unique.
+ * `site_key` alone is no longer unique, so a lookup that named only the key
+ * could return a test row to a real analysis and the other way round.
+ */
+export async function findSite(
+  key: string,
+  isTest = false,
+): Promise<SiteRecord | null> {
   const row = await withMemory(async (db) => {
     const { data, error } = await db
       .from("sites")
       .select("*")
       .eq("site_key", key)
+      .eq("is_test", isTest)
       .maybeSingle();
     if (error) throw new Error("sites lookup failed");
     return (data as SiteRecord | null) ?? null;
   });
   if (row !== undefined) return row;
-  return localSites.get(key) ?? null;
+  return localSites.get(localSiteMapKey(key, isTest)) ?? null;
 }
 
 export async function getOrCreateSite(input: SiteInput): Promise<SiteRecord> {
@@ -283,36 +320,45 @@ export async function getOrCreateSite(input: SiteInput): Promise<SiteRecord> {
   const pub = publicPoint(input.lat, input.lng);
   const nowIso = new Date().toISOString();
 
-  const existing = await findSite(key);
+  const isTest = input.isTest === true;
+
+  const existing = await findSite(key, isTest);
   if (existing) return await reuseSite(existing, input);
+
+  // The row is created with an upsert on the composite unique key migration
+  // 0002 introduced, so a concurrent create of the same point resolves in the
+  // database rather than in a second round trip. A column is written only when
+  // this request has a value for it: a locality already on the row must not be
+  // replaced with the null of a request whose reverse lookup failed.
+  const row: Record<string, unknown> = {
+    site_key: key,
+    lat: input.lat,
+    lng: input.lng,
+    public_lat: pub.lat,
+    public_lng: pub.lng,
+    is_test: isTest,
+  };
+  if (typeof input.locality === "string") row.locality = input.locality;
+  if (typeof input.tractGeoid === "string") row.tract_geoid = input.tractGeoid;
 
   const inserted = await withMemory(async (db) => {
     const { data, error } = await db
       .from("sites")
-      .insert({
-        site_key: key,
-        lat: input.lat,
-        lng: input.lng,
-        public_lat: pub.lat,
-        public_lng: pub.lng,
-        locality: input.locality ?? null,
-        tract_geoid: input.tractGeoid ?? null,
-        is_test: input.isTest === true,
-      })
+      .upsert(row, { onConflict: "site_key,is_test" })
       .select("*")
       .single();
     if (error) {
-      // A concurrent request inserted the same site_key between the lookup
+      // A concurrent request inserted the same (site_key, is_test) between the lookup
       // above and this insert. Losing that race is not a failure of Site
       // Memory, so it must not flip the module offline and must not fall back
       // to a local id: the winner's row is the row this request wants.
       if (isUniqueViolation(error)) return RACED;
-      throw new Error("sites insert failed");
+      throw new Error("sites upsert failed");
     }
     return data as SiteRecord;
   });
   if (inserted === RACED) {
-    const winner = await findSite(key);
+    const winner = await findSite(key, isTest);
     if (winner) return await reuseSite(winner, input);
   } else if (inserted) {
     remember(inserted);
@@ -328,13 +374,13 @@ export async function getOrCreateSite(input: SiteInput): Promise<SiteRecord> {
     public_lng: pub.lng,
     locality: input.locality ?? null,
     tract_geoid: input.tractGeoid ?? null,
-    is_test: input.isTest === true,
+    is_test: isTest,
     created_at: nowIso,
     last_analyzed_at: nowIso,
     analysis_count: 1,
     schema_version: 1,
   };
-  localSites.set(key, fallback);
+  localSites.set(localSiteMapKey(key, isTest), fallback);
   return fallback;
 }
 
@@ -577,4 +623,779 @@ export async function peekRateLimit(
     until: nowMs + RATE_LIMIT_PEEK_MEMO_MS,
   });
   return result;
+}
+
+// ─── Site metrics, percentiles, and similarity (SPEC section 14) ─────────────
+
+/**
+ * Whether test rows count towards percentiles, similar sites, and the public
+ * map. The same two conditions the source overrides use (SPEC section 15): the
+ * flag alone is not enough, so the map is inert in any production build. In
+ * production this is always false and `is_test` rows are always excluded.
+ */
+export function includeTestSites(): boolean {
+  return (
+    process.env.DATUM_INCLUDE_TEST_SITES === "1" &&
+    process.env.NODE_ENV !== "production"
+  );
+}
+
+/**
+ * How many rows a similarity search reads. The vectors are fourteen doubles, so
+ * a few thousand of them is a small payload and the distance loop over them is
+ * trivial. The cap exists so the query can never grow without bound.
+ */
+export const SIMILAR_CANDIDATE_CAP = 2000;
+
+/** How many points the public map returns, newest analysis first. */
+const PUBLIC_SITES_CAP = 500;
+
+/** What one writeMetrics call did, for the route that asked for it. */
+export type MetricsWrite = "written" | "skipped" | "unavailable";
+
+/** The outcome of one writeMetrics call, with why it was skipped. */
+export interface MetricsWriteResult {
+  write: MetricsWrite;
+  /**
+   * Why the write was skipped, for whoever reads the result. Never copy, never
+   * rendered, and null on a write that happened or on a Site Memory failure.
+   */
+  reason: string | null;
+}
+
+/**
+ * Write the named values, the vector, the mask and the timestamp onto the site
+ * row.
+ *
+ * Only the components that were measured are stored in `metrics`. An absent one
+ * is left out of the jsonb entirely rather than stored as `null`, because
+ * `metric_percentile` selects on `metrics ? metric`: a stored null would join
+ * the population for that metric and never satisfy `v < value`, which would
+ * drag every percentile down by the count of the sites that could not measure
+ * it.
+ *
+ * The four columns move together or not at all. `metrics`, `metrics_vector`,
+ * `metrics_mask` and `metrics_at` describe one computation, so a partial update
+ * would leave an older vector standing beside a newer mask with a timestamp
+ * saying both were measured at once, and "sites like this" would then place the
+ * site by entries nothing in the row still supports.
+ *
+ * A computation that produced no named value at all is not written, because an
+ * empty jsonb would replace a good row with a record of the run where every
+ * layer happened to fail. Neither is a computation with fewer than
+ * METRICS_MIN_PRESENT components present when the row already holds one that
+ * has at least that many: an ineligible measurement never overwrites an
+ * eligible one. Both rules are the same rule, that a failed measurement never
+ * overwrites a successful one.
+ */
+export async function writeMetrics(
+  siteId: string,
+  named: Record<string, number | null>,
+  vector: number[],
+  mask: number,
+): Promise<MetricsWriteResult> {
+  if (isLocalSiteId(siteId)) {
+    return { write: "skipped", reason: "a local site has no row to write to" };
+  }
+  const metrics: Record<string, number> = {};
+  for (const [name, value] of Object.entries(named)) {
+    if (typeof value === "number" && Number.isFinite(value)) metrics[name] = value;
+  }
+  if (Object.keys(metrics).length === 0) {
+    return { write: "skipped", reason: "the computation produced no named value" };
+  }
+
+  // An ineligible computation has to know what the row already holds before it
+  // can write anything, because the four columns go together.
+  if (presentCount(mask) < METRICS_MIN_PRESENT) {
+    const stored = await withMemory(async (db) => {
+      const { data, error } = await db
+        .from("sites")
+        .select("metrics_mask")
+        .eq("id", siteId)
+        .maybeSingle();
+      if (error) throw new Error("sites metrics mask lookup failed");
+      const row = (data as { metrics_mask: unknown } | null) ?? null;
+      return { mask: parseMask(row === null ? null : row.metrics_mask) };
+    });
+    if (stored === undefined) return { write: "unavailable", reason: null };
+    if (presentCount(stored.mask) >= METRICS_MIN_PRESENT) {
+      return {
+        write: "skipped",
+        reason: "would replace an eligible vector with fewer than ten measures",
+      };
+    }
+  }
+
+  const update: Record<string, unknown> = {
+    metrics,
+    // pgvector's text input form. PostgREST sends the column as a string and
+    // casts it, so the array is serialized rather than sent as JSON.
+    metrics_vector: JSON.stringify(vector),
+    metrics_mask: mask,
+    metrics_at: new Date().toISOString(),
+  };
+  const written = await withMemory(async (db) => {
+    const { error } = await db.from("sites").update(update).eq("id", siteId);
+    if (error) throw new Error("sites metrics write failed");
+    return true;
+  });
+  return written === true
+    ? { write: "written", reason: null }
+    : { write: "unavailable", reason: null };
+}
+
+/**
+ * How many sites Site Memory holds, under the same test row gating. Null when
+ * Site Memory could not answer: an offline project has no count, and reporting
+ * zero would read as "no site has ever been analyzed".
+ *
+ * Only analyzed sites count. A row is created the moment a point is confirmed
+ * and `metrics_at` is written only when a computation lands, so a site that was
+ * abandoned before any layer answered sits in the table with no metrics at all.
+ * Counting it would make the panel say Site Memory holds more analyses than it
+ * can place anything against.
+ */
+export async function countSites(): Promise<number | null> {
+  const count = await withMemory(async (db) => {
+    let query = db
+      .from("sites")
+      .select("id", { count: "exact", head: true })
+      .not("metrics_at", "is", null);
+    if (!includeTestSites()) query = query.eq("is_test", false);
+    const { count: rows, error } = await query;
+    if (error) throw new Error("sites count failed");
+    // A successful head count is a number. Anything else is a shape change,
+    // not an empty table, and must not be read as one.
+    if (typeof rows !== "number") throw new Error("sites count failed");
+    return rows;
+  });
+  return count === undefined ? null : count;
+}
+
+export interface PercentileEntry {
+  metric: string;
+  label: string;
+  /** 0 to 100, already rounded. */
+  percentile: number;
+  /** How many analyzed sites measured this metric, from metric_percentile. */
+  n: number;
+}
+
+/**
+ * One percentile metric and the population behind it, including the metrics
+ * that have no percentile yet.
+ *
+ * The population is per metric, not per site: `metric_percentile` counts the
+ * sites that measured that one metric, which is smaller than the site count
+ * whenever a layer failed for somebody. The sentence about needing ten sites is
+ * about this number, so it has to travel with the metric rather than be read
+ * off a count of rows.
+ */
+export interface MetricPopulation {
+  metric: string;
+  label: string;
+  /** 0 to 100 rounded, or null when fewer than ten sites measured the metric. */
+  percentile: number | null;
+  n: number;
+}
+
+/**
+ * The percentile of this site's named values among the analyzed population,
+ * for the six metrics SPEC section 14 lists. A metric with fewer than ten sites
+ * behind it is left out, which is what `metric_percentile` enforces in SQL.
+ *
+ * Two paths, one rule. In production the SQL helper answers, exactly as SPEC
+ * section 14 says. `metric_percentile` hard codes `is_test = false`, so when
+ * DATUM_INCLUDE_TEST_SITES is on there is no function to call and the same
+ * arithmetic runs here over one select of the metrics column. The deviation is
+ * confined to the test path; the production path is the helper.
+ */
+export async function percentiles(
+  named: Record<string, number | null>,
+): Promise<{ entries: MetricPopulation[] | null; truncated: boolean }> {
+  const wanted = PERCENTILE_METRICS.filter(
+    (entry) => typeof named[entry.metric] === "number",
+  );
+  if (wanted.length === 0) return { entries: [], truncated: false };
+
+  if (includeTestSites()) {
+    const rows = await withMemory(async (db) => {
+      const { data, error } = await db
+        .from("sites")
+        .select("metrics")
+        .not("metrics", "is", null)
+        // Newest analysis first, so the rows the cap keeps are a defined set
+        // rather than whatever order the planner happened to return.
+        .order("metrics_at", { ascending: false })
+        .limit(SIMILAR_CANDIDATE_CAP);
+      if (error) throw new Error("sites metrics read failed");
+      return (data ?? []) as Array<{ metrics: Record<string, unknown> | null }>;
+    });
+    if (!rows) return { entries: null, truncated: false };
+    const out: MetricPopulation[] = [];
+    for (const entry of wanted) {
+      const value = named[entry.metric] as number;
+      const population: number[] = [];
+      for (const row of rows) {
+        const candidate = row.metrics ? row.metrics[entry.metric] : undefined;
+        if (typeof candidate === "number" && Number.isFinite(candidate)) {
+          population.push(candidate);
+        }
+      }
+      // The same per metric n the SQL helper reports: the sites that measured
+      // this metric, not the sites that exist.
+      const n = population.length;
+      const below = population.filter((other) => other < value).length;
+      out.push({
+        metric: entry.metric,
+        label: entry.label,
+        percentile: n < PERCENTILE_MIN_SITES ? null : Math.round((below / n) * 100),
+        n,
+      });
+    }
+    return { entries: out, truncated: rows.length === SIMILAR_CANDIDATE_CAP };
+  }
+
+  const results = await Promise.all(
+    wanted.map(async (entry) => {
+      const value = named[entry.metric] as number;
+      const rows = await withMemory(async (db) => {
+        const { data, error } = await db.rpc("metric_percentile", {
+          metric: entry.metric,
+          value,
+        });
+        if (error) throw new Error("metric_percentile failed");
+        return (data ?? []) as Array<{ percentile: number | null; n: number }>;
+      });
+      const first = rows?.[0];
+      if (!first || typeof first.n !== "number") return null;
+      const found: MetricPopulation = {
+        metric: entry.metric,
+        label: entry.label,
+        percentile:
+          typeof first.percentile === "number"
+            ? Math.round(first.percentile * 100)
+            : null,
+        n: first.n,
+      };
+      return found;
+    }),
+  );
+  const answered = results.filter(
+    (entry): entry is MetricPopulation => entry !== null,
+  );
+  // Every metric failing to answer is a failed read, not an empty population.
+  // The SQL helper counts the whole table, so this path reads nothing capped.
+  return {
+    entries: answered.length === 0 ? null : answered,
+    truncated: false,
+  };
+}
+
+export interface SimilarSite {
+  locality: string | null;
+  publicLat: number;
+  publicLng: number;
+  /** round((1 - d / sqrt(14)) * 100) on the scaled distance, SPEC section 14. */
+  match: number;
+  /** The three shared components that differ least, closest first. */
+  closest: string[];
+  /**
+   * How many components the two sites both measured, which is the k of the
+   * masked distance. Data, not copy: it is here so the basis of a match is
+   * visible to whoever reads the response.
+   */
+  sharedComponents: number;
+}
+
+interface VectorRow {
+  locality: string | null;
+  public_lat: number;
+  public_lng: number;
+  metrics_vector: unknown;
+  metrics_mask: unknown;
+}
+
+/**
+ * A stored `metrics_mask`, or 0 when the column holds nothing readable. Zero is
+ * no component present, which is the only safe reading of a mask that is not a
+ * number: it excludes the row from every comparison rather than inventing one.
+ */
+function parseMask(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isInteger(n) || n < 0) return 0;
+  return n;
+}
+
+/** pgvector comes back over PostgREST as its text form, "[1,2,3]". */
+function parseVector(value: unknown): number[] | null {
+  let parsed: unknown = value;
+  if (typeof value === "string") {
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  if (!Array.isArray(parsed) || parsed.length !== VECTOR_LENGTH) return null;
+  const out: number[] = [];
+  for (const entry of parsed) {
+    const n = typeof entry === "number" ? entry : Number(entry);
+    if (!Number.isFinite(n)) return null;
+    out.push(n);
+  }
+  return out;
+}
+
+/**
+ * The nearest sites by the masked distance of SPEC section 14.
+ *
+ * The `<->` operator is not used while masks exist, because pgvector would
+ * compare the placeholder entries of absent components as if they were
+ * measurements. The candidate vectors and their masks are read in one capped
+ * select and the distance is computed here, over the components both sites
+ * measured; a candidate with fewer than METRICS_MIN_PRESENT of its own, or
+ * fewer than that in common with the query site, is not compared at all.
+ */
+export async function similarSites(
+  vector: number[],
+  mask: number,
+  siteId: string,
+  limit = 5,
+): Promise<{ sites: SimilarSite[] | null; truncated: boolean }> {
+  const rows = await withMemory(async (db) => {
+    let query = db
+      .from("sites")
+      .select("locality, public_lat, public_lng, metrics_vector, metrics_mask")
+      .not("metrics_vector", "is", null)
+      .neq("id", siteId);
+    if (!includeTestSites()) query = query.eq("is_test", false);
+    const { data, error } = await query
+      // Newest analysis first. Without an order the cap keeps an arbitrary
+      // subset, so the same site could match different neighbours on two
+      // consecutive requests.
+      .order("metrics_at", { ascending: false })
+      .limit(SIMILAR_CANDIDATE_CAP);
+    if (error) throw new Error("sites similarity read failed");
+    return (data ?? []) as VectorRow[];
+  });
+  // A failed read is not an empty neighbourhood. Null means Site Memory could
+  // not be asked, which the panel says out loud; an empty array would show as
+  // "nothing is like this site", which nobody established.
+  if (!rows) return { sites: null, truncated: false };
+
+  const scored: Array<{
+    row: VectorRow;
+    other: number[];
+    distance: number;
+    shared: number;
+    sharedCount: number;
+  }> = [];
+  for (const row of rows) {
+    const other = parseVector(row.metrics_vector);
+    if (!other) continue;
+    const otherMask = parseMask(row.metrics_mask);
+    // A candidate that measured fewer than ten of its own components is not a
+    // site anything is placed against (SPEC section 14).
+    if (presentCount(otherMask) < METRICS_MIN_PRESENT) continue;
+    const scaled = maskedDistance(vector, mask, other, otherMask);
+    if (scaled === null) continue;
+    scored.push({
+      row,
+      other,
+      distance: scaled.distance,
+      shared: scaled.shared,
+      sharedCount: scaled.sharedCount,
+    });
+  }
+  scored.sort((left, right) => left.distance - right.distance);
+
+  // The row id never leaves this function. SPEC section 14 displays a locality,
+  // a match percent and the closest components, and an id would be a handle on
+  // somebody else's analysis that the display has no use for.
+  return {
+    sites: scored.slice(0, limit).map((entry) => ({
+      locality: entry.row.locality,
+      publicLat: entry.row.public_lat,
+      publicLng: entry.row.public_lng,
+      match: matchPercent(entry.distance),
+      closest: closestComponents(vector, entry.other, entry.shared),
+      sharedComponents: entry.sharedCount,
+    })),
+    truncated: rows.length === SIMILAR_CANDIDATE_CAP,
+  };
+}
+
+export interface PublicSite {
+  publicLat: number;
+  publicLng: number;
+  locality: string | null;
+  analyzedAt: string;
+}
+
+/**
+ * The analyzed sites as public points only. The confirmed point, the site key,
+ * and the row id never leave this function: the map shows the 2 dp snapped
+ * point, which is about a kilometre, and nothing that could be walked back to
+ * an address (SPEC section 13, standing decisions).
+ *
+ * Analyzed means `metrics_at` is set. A row exists from the moment a point is
+ * confirmed, so without the filter the map plots points nobody ever got a
+ * result for, and the count beside it disagrees with the pins.
+ */
+export async function publicSites(): Promise<PublicSite[]> {
+  const rows = await withMemory(async (db) => {
+    let query = db
+      .from("sites")
+      .select("public_lat, public_lng, locality, last_analyzed_at")
+      .not("metrics_at", "is", null);
+    if (!includeTestSites()) query = query.eq("is_test", false);
+    const { data, error } = await query
+      .order("last_analyzed_at", { ascending: false })
+      .limit(PUBLIC_SITES_CAP);
+    if (error) throw new Error("public sites read failed");
+    return (data ?? []) as Array<{
+      public_lat: number;
+      public_lng: number;
+      locality: string | null;
+      last_analyzed_at: string;
+    }>;
+  });
+  if (!rows) return [];
+  return rows.map((row) => ({
+    publicLat: row.public_lat,
+    publicLng: row.public_lng,
+    locality: row.locality,
+    analyzedAt: row.last_analyzed_at,
+  }));
+}
+
+// ─── Stored briefs (SPEC section 13, table `briefs`) ─────────────────────────
+
+export interface StoredBrief {
+  model: string;
+  text: string;
+  citations: Record<string, unknown>;
+}
+
+/**
+ * The brief already written for this site and this input hash, or null. The
+ * hash covers the serialized layer data, so a brief is replayed only while the
+ * numbers it was written from are the numbers the sheet is showing.
+ */
+export async function findBrief(
+  siteId: string,
+  inputHash: string,
+): Promise<StoredBrief | null> {
+  if (isLocalSiteId(siteId)) return null;
+  const row = await withMemory(async (db) => {
+    const { data, error } = await db
+      .from("briefs")
+      .select("model, text, citations")
+      .eq("site_id", siteId)
+      .eq("input_hash", inputHash)
+      .maybeSingle();
+    if (error) throw new Error("briefs lookup failed");
+    return (data as StoredBrief | null) ?? null;
+  });
+  return row ?? null;
+}
+
+/**
+ * The stored citation verdicts of one brief, or null when the payload cannot be
+ * read.
+ *
+ * The row was written by the brief route from a CitationCheck, but a shape
+ * change must never be able to turn an unreadable payload into a passing
+ * verdict: an empty invalidCitations and a zero uncited count is exactly what a
+ * brief that passed its checks looks like, and reading that out of a row nobody
+ * could parse would be a verdict the server never reached. Null instead, and
+ * the caller treats it as a cache miss and writes a new brief from the model.
+ *
+ * It lives here rather than in the route because a route file may export only
+ * handlers and config, and a verdict this load bearing is worth testing
+ * directly rather than through a stream.
+ */
+export function storedBriefCheck(
+  citations: Record<string, unknown>,
+): CitationCheck | null {
+  const strings = (value: unknown): string[] | null =>
+    Array.isArray(value) && value.every((entry) => typeof entry === "string")
+      ? (value as string[])
+      : null;
+  const count = (value: unknown): number | null =>
+    typeof value === "number" && Number.isFinite(value) ? value : null;
+
+  const invalidCitations = strings(citations.invalidCitations);
+  const validCitations = strings(citations.validCitations);
+  const uncitedNumericSentences = count(citations.uncitedNumericSentences);
+  const valueMatchedSentences = count(citations.valueMatchedSentences);
+  if (
+    invalidCitations === null ||
+    validCitations === null ||
+    uncitedNumericSentences === null ||
+    valueMatchedSentences === null
+  ) {
+    return null;
+  }
+  return {
+    invalidCitations,
+    validCitations,
+    uncitedNumericSentences,
+    valueMatchedSentences,
+  };
+}
+
+/**
+ * Store a brief that passed its citation checks. A brief that failed them is
+ * never stored, so a replay can never serve text the server has already judged
+ * unverified (PHASE-3 step 3.4).
+ */
+export async function storeBrief(
+  siteId: string,
+  inputHash: string,
+  model: string,
+  text: string,
+  citations: Record<string, unknown>,
+): Promise<boolean> {
+  if (isLocalSiteId(siteId)) return false;
+  const written = await withMemory(async (db) => {
+    const { error } = await db
+      .from("briefs")
+      .upsert(
+        { site_id: siteId, input_hash: inputHash, model, text, citations },
+        { onConflict: "site_id,input_hash" },
+      );
+    if (error) throw new Error("briefs write failed");
+    return true;
+  });
+  return written === true;
+}
+
+// ─── Memory context (SPEC section 14, PHASE-3 step 3.3) ──────────────────────
+
+/**
+ * The copy for the states that have no numbers to show.
+ *
+ * The offline line and the "sites like this" line are verbatim from SPEC
+ * sections 13 and 14. The percentile line has no sentence in the spec; it
+ * follows the same register and is recorded as new user facing copy.
+ */
+export const MEMORY_COPY = {
+  offline: "Site Memory is offline; this analysis will not be saved.",
+  /** Verbatim from SPEC section 14 as amended 2026-09-25. */
+  needsTenMeasures:
+    "Sites like this needs at least ten measures; <layers or components> were unavailable.",
+  notEnoughSites:
+    "Percentiles need ten analyzed sites; Site Memory holds <n> so far.",
+};
+
+export interface MemoryContext {
+  memoryStatus: MemoryStatus;
+  /** Analyzed sites under the current test row gating, null when offline. */
+  n: number | null;
+  percentiles: PercentileEntry[] | null;
+  similar: SimilarSite[] | null;
+  /**
+   * The components this site could not measure, in vector order. Data, not
+   * copy: the panel does not render it, and it says which measures are behind
+   * the sentence rather than leaving a reader to infer them.
+   */
+  missing: string[];
+  reasonIfNull: string | null;
+  /**
+   * True when a capped read came back full, so the population behind the
+   * numbers is a slice of the analyzed sites rather than all of them. Not copy
+   * and not rendered: it is here so the condition is visible to whoever reads
+   * the response rather than silent.
+   */
+  truncated: boolean;
+}
+
+/** The computed metrics of one analysis, or null when there is no metrics row. */
+export interface SiteMetrics {
+  named: Record<string, number | null>;
+  vector: number[];
+  /** Bit i set when component i was measured (SPEC section 14). */
+  mask: number;
+  missing: string[];
+}
+
+/** The stored metrics of one site, or null when there are none to read. */
+export async function readMetrics(
+  siteId: string,
+): Promise<{
+  named: Record<string, number | null>;
+  vector: number[] | null;
+  mask: number;
+} | null> {
+  if (isLocalSiteId(siteId)) return null;
+  const row = await withMemory(async (db) => {
+    const { data, error } = await db
+      .from("sites")
+      .select("metrics, metrics_vector, metrics_mask")
+      .eq("id", siteId)
+      .maybeSingle();
+    if (error) throw new Error("sites metrics lookup failed");
+    return (
+      (data as
+        | { metrics: unknown; metrics_vector: unknown; metrics_mask: unknown }
+        | null) ?? null
+    );
+  });
+  if (!row || !row.metrics || typeof row.metrics !== "object") return null;
+  const named: Record<string, number | null> = {};
+  for (const [name, value] of Object.entries(row.metrics as Record<string, unknown>)) {
+    if (typeof value === "number" && Number.isFinite(value)) named[name] = value;
+  }
+  return {
+    named,
+    vector: parseVector(row.metrics_vector),
+    mask: parseMask(row.metrics_mask),
+  };
+}
+
+/** The distinct layers behind a set of missing metric components. */
+function layersBehind(missing: string[]): string[] {
+  const out: string[] = [];
+  for (const metric of missing) {
+    const layer = METRIC_LAYERS[metric as MetricName];
+    if (layer && !out.includes(layer)) out.push(layer);
+  }
+  return out;
+}
+
+/**
+ * Percentiles and similar sites for one analysis, with a sentence for whatever
+ * could not be shown. Nothing here invents a number: a percentile appears only
+ * when its metric has ten analyzed sites behind it, and "sites like this"
+ * appears only when this site measured at least ten of the fourteen components
+ * (SPEC section 14).
+ */
+export async function buildMemoryContext(
+  siteId: string,
+  metrics: SiteMetrics | null,
+): Promise<MemoryContext> {
+  const offlineContext = (): MemoryContext => ({
+    memoryStatus: "offline",
+    n: null,
+    percentiles: null,
+    similar: null,
+    missing: metrics ? [...metrics.missing] : [],
+    reasonIfNull: MEMORY_COPY.offline,
+    truncated: false,
+  });
+
+  if (memoryStatus() === "offline" || getClient() === null) return offlineContext();
+
+  // No metrics row is not a site with fourteen unavailable components. It is a
+  // site nobody has computed metrics for yet, which POST is what fills in, so
+  // there is nothing to place and nothing to explain: naming every layer as
+  // unavailable would report a failure that has not happened.
+  if (metrics === null) {
+    const n = await countSites();
+    if (memoryStatus() === "offline") return offlineContext();
+    return {
+      memoryStatus: "online",
+      n,
+      percentiles: null,
+      similar: null,
+      missing: [],
+      reasonIfNull: null,
+      truncated: false,
+    };
+  }
+
+  const { named, vector, mask, missing } = metrics;
+  // Ten of the fourteen is what makes a site comparable at all. Below it the
+  // site is not placed, and the sentence below says so.
+  const eligible = presentCount(mask) >= METRICS_MIN_PRESENT;
+
+  const [n, population, similar] = await Promise.all([
+    countSites(),
+    percentiles(named),
+    eligible
+      ? similarSites(vector, mask, siteId)
+      : Promise.resolve({ sites: null, truncated: false }),
+  ]);
+  const populations = population.entries;
+
+  // A percentile is shown when its own metric has ten sites behind it, so the
+  // entries are the populations that answered with one.
+  const entries: PercentileEntry[] = (populations ?? [])
+    .filter((entry) => entry.percentile !== null)
+    .map((entry) => ({
+      metric: entry.metric,
+      label: entry.label,
+      percentile: entry.percentile as number,
+      n: entry.n,
+    }));
+
+  // The count read can itself be what trips the offline guard.
+  if (memoryStatus() === "offline") return offlineContext();
+
+  const reasons: string[] = [];
+  // The sentence is about the population behind a percentile, so it takes the
+  // largest per metric n this site has, which is the most any one of its
+  // metrics was measured against. The count of site rows is a different number
+  // (a site whose climate layer failed is a row that measured none of these)
+  // and it has its own line in the panel.
+  if (entries.length === 0 && populations !== null && populations.length > 0) {
+    const measured = populations.reduce((best, entry) => Math.max(best, entry.n), 0);
+    reasons.push(MEMORY_COPY.notEnoughSites.replace("<n>", String(measured)));
+  }
+  if (!eligible) {
+    reasons.push(
+      MEMORY_COPY.needsTenMeasures.replace(
+        "<layers or components>",
+        layersBehind(missing).join(", "),
+      ),
+    );
+  }
+
+  return {
+    memoryStatus: "online",
+    n,
+    percentiles: entries.length > 0 ? entries : null,
+    similar: similar.sites,
+    missing: [...missing],
+    reasonIfNull: reasons.length > 0 ? reasons.join(" ") : null,
+    truncated: population.truncated || similar.truncated,
+  };
+}
+
+// ─── Expired cache sweep (SPEC section 13, the daily ping) ───────────────────
+
+/** How many expired api_cache rows one ping removes. */
+export const CACHE_SWEEP_BATCH = 500;
+
+/**
+ * Delete up to CACHE_SWEEP_BATCH expired api_cache rows and report how many
+ * went. PostgREST cannot put a limit on a delete, so the batch is selected
+ * first and deleted by key. Returns null when Site Memory could not answer.
+ */
+export async function sweepExpiredCache(
+  limit = CACHE_SWEEP_BATCH,
+): Promise<number | null> {
+  const swept = await withMemory(async (db) => {
+    const nowIso = new Date().toISOString();
+    const { data, error } = await db
+      .from("api_cache")
+      .select("cache_key")
+      .lt("expires_at", nowIso)
+      .limit(limit);
+    if (error) throw new Error("api_cache sweep select failed");
+    const keys = ((data ?? []) as Array<{ cache_key: string }>).map(
+      (row) => row.cache_key,
+    );
+    if (keys.length === 0) return 0;
+    const { error: deleteError } = await db
+      .from("api_cache")
+      .delete()
+      .in("cache_key", keys);
+    if (deleteError) throw new Error("api_cache sweep delete failed");
+    return keys.length;
+  });
+  return swept === undefined ? null : swept;
 }

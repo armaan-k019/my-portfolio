@@ -737,14 +737,18 @@ failures are not persisted so a retry is never served a cached failure.
 ```sql
 create extension if not exists vector with schema extensions;
 
+-- Amended 2026-09-25 before first application (owner decisions, PROGRESS.md questions 7 and 11).
+-- A test row and a real row may coexist at the same rounded point.
+alter table sites drop constraint sites_site_key_key;
+alter table sites add constraint sites_site_key_is_test_key unique (site_key, is_test);
+
 alter table sites
-  add column metrics        jsonb,                      -- named, unnormalized values
-  add column metrics_vector extensions.vector(14),      -- normalized 0..1, see section 14
+  add column metrics        jsonb,                      -- named, unnormalized values; absent components omitted
+  add column metrics_vector extensions.vector(14),      -- normalized 0..1; absent components hold a placeholder 0
+  add column metrics_mask   smallint not null default 0, -- bit i set when component i is present (section 14)
   add column metrics_at     timestamptz;
 
-create index sites_metrics_vector_idx on sites
-  using hnsw (metrics_vector extensions.vector_l2_ops)
-  where is_test = false and metrics_vector is not null;
+-- No vector index: distance is masked and computed in code (section 14), so <-> is not used.
 
 create table briefs (
   site_id    uuid not null references sites(id) on delete cascade,
@@ -819,6 +823,13 @@ click in Studio, so the app must survive a paused database:
    which no further Supabase calls are attempted.
 3. While offline: caches fall back to an in memory `Map` per instance with the same TTLs; the
    `site` route returns a synthetic `siteId` prefixed `local-` and `memoryStatus: "offline"`; the
+   `site` route also always returns `fallbackId`, the signed local id for the point, whether
+   memory is online or offline (amended 2026-09-25). The client sends `fallback=<fallbackId>` on
+   every layer and brief request. When a layer or brief route cannot read the site row (memory
+   offline, or a cold instance that never saw the row), it verifies the fallback id and proceeds
+   with its point: the rate limit peek applies, nothing is stored, and the response is the normal
+   envelope. A 404 for a database site id is returned only when memory is online, the row does
+   not exist, and no valid fallback was sent. The
    rate limit falls back to an in memory per instance counter with the same cap; layers and the
    brief work normally; the Memory panel shows "Site Memory is offline; this analysis will not be
    saved." The sheet still exports.
@@ -829,9 +840,31 @@ click in Studio, so the app must survive a paused database:
 ## 14. Site metrics and similarity (phase 3)
 
 Fourteen components, each normalized to 0..1 with fixed constants so vectors never drift as the
-dataset grows. Clamp to the range. A site gets a vector only when all fourteen are available; a
-site with any unavailable component has `metrics_vector = null`, still gets percentiles for the
-metrics it does have, and shows "Sites like this needs all layers; <layers> were unavailable."
+dataset grows. Clamp to the range.
+
+Absent components (amended 2026-09-25, owner decision; replaces the all or nothing rule). A
+component that cannot be measured is recorded as absent, never as a value: soil with no
+hydrologic group (SSURGO "Urban land", which is most dense urban sites), flood without NFHL
+coverage, or any layer that was unavailable. Absence is not fatal. The site stores the fourteen
+normalized values in `metrics_vector` with absent components written as 0 as a storage
+placeholder, and a companion `metrics_mask` (smallint, bit i set when component i is present)
+that says which entries are real; a placeholder 0 is never read as a value, because distance only
+ever uses components whose bit is set in both sites. A site is eligible for similarity when at
+least 10 of the 14 components are present. Named metrics omit absent components and the context
+lists them under `missing`.
+
+Distance between two sites A and B: over the components present in both (k of them, k at least
+10 or the pair is not compared), `d = sqrt((14 / k) * sum over shared i of (A_i - B_i)^2)`. An
+absent component contributes nothing in either site, so two sites can never be made similar by a
+shared absence; absence only narrows the set of components compared, and the `14 / k` scaling
+keeps `d` on the same scale as a complete comparison. Match percent is `round((1 - d /
+sqrt(14)) * 100)` on the scaled distance. The context response carries the shared component
+count (`sharedComponents`) and the absent components of the current site, as data. Percentiles
+are unaffected: a metric is ranked among the sites that measured it.
+
+The null case sentence becomes "Sites like this needs at least ten measures; <layers or
+components> were unavailable." and is shown only when fewer than 10 components are present
+(copy amended with section 14, since the previous sentence would have been false).
 
 | i | Metric | Source field | Normalization |
 |---|---|---|---|
@@ -848,11 +881,15 @@ metrics it does have, and shows "Sites like this needs all layers; <layers> were
 | 10 | sfhaShare | flood: SFHA polygon area inside frame over frame area; 0 when coverage exists and none; null when no coverage | v |
 | 11 | sds | seismic.sds | v / 2 |
 | 12 | logDensity | census.densityPerKm2 | log10(1 + v) / 5 |
-| 13 | hydrologicGroup | soil top component: A 0, B 0.33, C 0.67, D 1; dual groups use the second letter; Urban land with no group is null | v |
+| 13 | hydrologicGroup | soil top component: A 0, B 0.33, C 0.67, D 1; dual groups use the second letter; Urban land with no group is absent (mask bit clear), not a value | v |
 
-Similar sites: `select ... order by metrics_vector <-> $1 limit 5 where is_test = false and id <> $site`.
-Display: locality, distance score as "match" percent `= round((1 - d / sqrt(14)) * 100)`, and the
-three components that differ least. Percentiles use `metric_percentile()` on the named metrics
+Similar sites: candidates are non test sites other than the query site with at least 10 present
+components; the masked distance above is computed in code over the candidate set (ordered by
+`metrics_at` descending and capped at 2000; the cap is an accepted known limit, PROGRESS.md open
+question 17), keeping the five nearest. The pgvector column remains the storage type; the
+`<->` operator is not used while masks exist, and no vector index is created.
+Display: locality, distance score as "match" percent on the scaled distance, and the three
+shared components that differ least. Percentiles use `metric_percentile()` on the named metrics
 `dailyRadiationKwhM2` ("more sun than X percent of analyzed sites"), `buildingCoverage`, `reach10Km`,
 `reliefM`, `meanWindMs`, `logDensity`, shown only when `n >= 10`.
 
