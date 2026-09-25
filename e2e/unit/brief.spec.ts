@@ -308,6 +308,70 @@ test("a value the serializer sent unrounded matches the string it sent", () => {
   expect(check.valueMatchedSentences).toBe(1);
 });
 
+// ─── Percent asymmetry (SPEC section 12) ─────────────────────────────────────
+
+const PERCENT_VALUE_INPUT = {
+  site: { latitude: 33.7751, longitude: -84.392 },
+  layers: {
+    osm: { status: "ok", fields: { "osm.stats.buildingCount": 20 } },
+    census: { status: "ok", fields: { "census.carFreeCommutePct": 35.3 } },
+  },
+};
+
+const PERCENT_VALUE_PATHS = ["osm.stats.buildingCount", "census.carFreeCommutePct"];
+
+function checkPercentValues(text: string) {
+  return validateCitations(
+    text,
+    PERCENT_VALUE_PATHS,
+    buildValueIndex(PERCENT_VALUE_INPUT),
+  );
+}
+
+test("a written percentage does not match a plain number of the same digits", () => {
+  const check = checkPercentValues(
+    [
+      "The frame holds 20 mapped structures [osm.stats.buildingCount].",
+      "A 20% share of the same figure would be a different claim.",
+    ].join("\n"),
+  );
+  expect(check.uncitedNumericSentences).toBe(1);
+  expect(check.valueMatchedSentences).toBe(0);
+});
+
+test("a written percentage matches a percentage value cited earlier", () => {
+  const check = checkPercentValues(
+    [
+      "Car free commuting is 35.3% of trips [census.carFreeCommutePct].",
+      "A 35.3% share shapes the parking requirement.",
+    ].join("\n"),
+  );
+  expect(check.uncitedNumericSentences).toBe(0);
+  expect(check.valueMatchedSentences).toBe(1);
+});
+
+test("the bare number, with no percent sign, also matches the percentage path", () => {
+  const check = checkPercentValues(
+    [
+      "Car free commuting is 35.3% of trips [census.carFreeCommutePct].",
+      "That 35.3 figure shapes the parking requirement.",
+    ].join("\n"),
+  );
+  expect(check.uncitedNumericSentences).toBe(0);
+  expect(check.valueMatchedSentences).toBe(1);
+});
+
+test("a bare number matches a plain path cited earlier", () => {
+  const check = checkPercentValues(
+    [
+      "The frame holds 20 mapped structures [osm.stats.buildingCount].",
+      "All 20 of them lack a height tag.",
+    ].join("\n"),
+  );
+  expect(check.uncitedNumericSentences).toBe(0);
+  expect(check.valueMatchedSentences).toBe(1);
+});
+
 test("every decision is logged only when DATUM_DEBUG_CITATIONS is set", () => {
   const text = [
     "Mean slope across the frame is 6.2 percent [topo.meanSlopePct].",

@@ -205,15 +205,17 @@ function numericTokensOf(sentence: string): string[] {
   return Array.from(prose.matchAll(NUMERIC_TOKEN), (match) => match[0]);
 }
 
-/** The forms of a written number to look the index up by. */
+/**
+ * The forms of a written number to look the index up by. A token that carries
+ * a percent sign keeps it: the index only holds a "%" form under a path whose
+ * value is a percentage (buildValueIndex adds it only for a Pct path), so a
+ * written percentage can only ever match a percentage value. Stripping the
+ * sign here to fall back to the bare form would let "20%" match a plain
+ * buildingCount of 20, which is not the same claim.
+ */
 function candidateForms(token: string): string[] {
   const forms = new Set<string>([token]);
-  const flat = token.split(",").join("");
-  forms.add(flat);
-  if (token.endsWith("%")) {
-    forms.add(token.slice(0, -1));
-    forms.add(flat.slice(0, -1));
-  }
+  forms.add(token.split(",").join(""));
   return [...forms];
 }
 
