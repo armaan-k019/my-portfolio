@@ -70,6 +70,19 @@ function isGeometryPath(path: string): boolean {
   return segments.some((segment) => GEOMETRY_SEGMENTS.includes(segment));
 }
 
+/**
+ * True when any segment of the path is a forbidden key. SPEC section 12 says
+ * the input carries no address, no locality and no city, and the serializer is
+ * the only place that can hold that line: a source that starts returning a
+ * `locality` or a `displayName` inside its data would otherwise send it to the
+ * model. This is a structural skip next to the geometry and OSM name skips, not
+ * a test of the current shape of any source.
+ */
+function isForbiddenPath(path: string): boolean {
+  const segments = path.split(/[.[\]]/);
+  return segments.some((segment) => FORBIDDEN_KEYS.includes(segment));
+}
+
 /** True when this layer's path is an OSM label rather than a measurement. */
 function isSkippedName(layer: LayerName, path: string): boolean {
   if (!NAME_SKIP_LAYERS.has(layer)) return false;
@@ -138,6 +151,7 @@ export function flattenLayer(
   for (const [path, values] of buckets) {
     if (isGeometryPath(path)) continue;
     if (isSkippedName(layer, path)) continue;
+    if (isForbiddenPath(path)) continue;
     const key = `${layer}.${path}`;
     if (values.length === 1) fields[key] = roundLeaf(values[0]);
     else if (values.length <= MAX_VALUES_PER_PATH) fields[key] = values.map(roundLeaf);
@@ -205,13 +219,23 @@ export function serializeInput(
   };
 }
 
-/** Every path the brief is allowed to cite, from the available layers. */
+/**
+ * Every path the brief is allowed to cite: exactly the keys the serializer
+ * sent, and nothing else.
+ *
+ * The allowlist is built from the `flattenLayer` output rather than from the
+ * envelope's own `fieldPaths` list. The two differ: `fieldPaths` includes the
+ * geometry, OSM name and forbidden key paths the serializer skips, and it
+ * carries uncollapsed array paths the model never saw. A path the model was not
+ * given is not something it can copy character for character, so accepting it
+ * would only let an invented citation through the check. The two site keys are
+ * added because the serializer sends them under `site` (SPEC section 12: the
+ * coordinates are part of the input because the sun path depends on them).
+ */
 export function citableFieldPaths(
   layers: Partial<Record<LayerName, LayerEnvelope<unknown>>>,
 ): string[] {
   const paths = new Set<string>();
-  // SPEC section 12: latitude and longitude are included because the sun path
-  // depends on them, and they are citable as named input keys.
   paths.add("site.latitude");
   paths.add("site.longitude");
   for (const layer of LAYER_NAMES) {
@@ -219,8 +243,6 @@ export function citableFieldPaths(
     if (!envelope || envelope.status === "unavailable" || envelope.data === null) {
       continue;
     }
-    for (const path of envelope.fieldPaths) paths.add(`${layer}.${path}`);
-    // The serializer sends collapsed array paths, so both forms are citable.
     for (const key of Object.keys(flattenLayer(layer, envelope.data))) {
       paths.add(key);
     }

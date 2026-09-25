@@ -418,6 +418,77 @@ test("citable field paths cover what the serializer sent", () => {
   expect([...wakeeney].some((path) => path.startsWith("topo."))).toBe(true);
 });
 
+test("flattenLayer skips any path whose segments hit a forbidden key", () => {
+  // A source that grows a locality, address, display name or city field must
+  // not reach the model through the serializer (SPEC section 12).
+  const fields = flattenLayer("census", {
+    tract: { geoid: "13121001100", locality: "Atlanta, Georgia" },
+    place: { displayName: "Atlanta", city: "Atlanta", population: 498715 },
+    address: "225 Peachtree Street NE",
+    nested: [{ address: { line1: "225 Peachtree Street NE" }, count: 3 }],
+  });
+  const keys = Object.keys(fields);
+  expect(keys).toContain("census.tract.geoid");
+  expect(keys).toContain("census.place.population");
+  expect(keys).toContain("census.nested[].count");
+  for (const key of keys) {
+    for (const forbidden of FORBIDDEN_KEYS) {
+      expect(key, `${key} must not carry the forbidden key ${forbidden}`).not.toContain(
+        forbidden,
+      );
+    }
+  }
+  expect(JSON.stringify(fields)).not.toContain("Atlanta");
+  expect(JSON.stringify(fields)).not.toContain("Peachtree");
+});
+
+test("a forbidden key on a layer never becomes citable", () => {
+  const layers = loadLayers("atlanta");
+  const soil = layers.soil;
+  if (!soil || soil.data === null) throw new Error("soil fixture should carry data");
+  const poisoned: Partial<Record<LayerName, LayerEnvelope<unknown>>> = {
+    soil: {
+      ...soil,
+      data: { ...(soil.data as Record<string, unknown>), locality: "Atlanta, Georgia" },
+      fieldPaths: [...soil.fieldPaths, "locality"],
+    },
+  };
+  const input = serializeInput(ATLANTA, poisoned);
+  expect(JSON.stringify(input)).not.toContain("Atlanta, Georgia");
+  expect(citableFieldPaths(poisoned)).not.toContain("soil.locality");
+});
+
+test("the allowlist is exactly the keys the serializer sent", () => {
+  for (const slug of ["atlanta", "miami", "wakeeney"]) {
+    const layers = loadLayers(slug);
+    const input = serializeInput(ATLANTA, layers);
+    const sent = new Set<string>(["site.latitude", "site.longitude"]);
+    for (const entry of Object.values(input.layers)) {
+      if (entry.status === "unavailable") continue;
+      for (const key of Object.keys(entry.fields)) sent.add(key);
+    }
+    expect(new Set(citableFieldPaths(layers)), slug).toEqual(sent);
+  }
+});
+
+test("an envelope field path the serializer skipped is not citable", () => {
+  // fieldPaths carries the geometry and OSM name paths the serializer drops.
+  // Citing one would be citing a key the model was never shown.
+  const layers = loadLayers("atlanta");
+  const osm = layers.osm;
+  if (!osm || osm.data === null) throw new Error("osm fixture should carry data");
+  const citable = new Set(citableFieldPaths(layers));
+  const skipped = osm.fieldPaths
+    .map((fieldPath) => `osm.${fieldPath}`)
+    .filter((fieldPath) => !citable.has(fieldPath));
+  expect(skipped.length, "the osm fixture should have skipped paths").toBeGreaterThan(0);
+  for (const fieldPath of skipped) {
+    expect(validateCitations(`A fact [${fieldPath}].`, [...citable]).invalidCitations).toEqual([
+      fieldPath,
+    ]);
+  }
+});
+
 test("site latitude and longitude are citable paths per SPEC section 12", () => {
   const layers = loadLayers("atlanta");
   const paths = new Set(citableFieldPaths(layers));
