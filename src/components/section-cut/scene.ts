@@ -134,6 +134,15 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
   // move in live mode; the other modes show the standing figures alone.
   const walkers = mode === "live" ? m.people?.walkers ?? [] : [];
   const standing = m.people?.standing ?? [];
+  // The secondary system: thin ink in the near bay, fainter beyond.
+  const detailGeo = new THREE.BufferGeometry();
+  detailGeo.setAttribute("position", new THREE.Float32BufferAttribute(m.detail ?? [], 3));
+  const detailNear = new THREE.LineSegments(detailGeo, lineMat({ color: ink.color, alpha: 0.6 }, [keepBehind, nearEnd]));
+  const detailFar = new THREE.LineSegments(detailGeo, fadingMat({ color: ink.color, alpha: 0.2 }, [farStart], farEdge));
+  detailNear.frustumCulled = detailFar.frustumCulled = false;
+  detailNear.renderOrder = 2; detailFar.renderOrder = 1;
+  scene.add(detailNear, detailFar);
+
   const peopleGeo = new THREE.BufferGeometry();
   const peopleBuf = new Float32Array((walkers.length + standing.length) * 8 * 6);
   peopleGeo.setAttribute("position", new THREE.BufferAttribute(peopleBuf, 3));
@@ -244,8 +253,13 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
     if (m.ground) {
       // The ground in section: its profile, and earth hatched down to the
       // datum at a coarser spacing than the structure's poché.
-      const { h, z0, z1, base } = m.ground;
+      const { h, z0, z1 } = m.ground;
       const STEP = 0.5, EARTH = 0.9;
+      // Hatch this section's earth to 2 m below its own lowest point, so a
+      // deep drop elsewhere on the site does not bury every section.
+      let low = Infinity;
+      for (let z = z0; z <= z1 + 1e-6; z += STEP) low = Math.min(low, h(x, z));
+      const base = Math.floor(low) - 2;
       let zp = z0, yp = h(x, z0);
       rects.push(x, base, z0, x, yp, z0);
       for (let z = z0 + STEP; z <= z1 + 1e-6; z += STEP) {
@@ -416,7 +430,7 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
     host.removeEventListener("pointermove", onMove);
     host.removeEventListener("pointerleave", onLeave);
     renderer.dispose();
-    geo.dispose(); siteGeo.dispose(); hatchGeo.dispose(); outline.geometry.dispose(); peopleGeo.dispose();
+    geo.dispose(); siteGeo.dispose(); hatchGeo.dispose(); outline.geometry.dispose(); peopleGeo.dispose(); detailGeo.dispose();
     nearGeo.dispose(); nearMat.dispose(); peopleNear.geometry.dispose();
     for (const t of trail) { t.obj.geometry.dispose(); t.mat.dispose(); }
     outlineMat.dispose();

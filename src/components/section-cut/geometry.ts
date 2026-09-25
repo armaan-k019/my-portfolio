@@ -20,6 +20,8 @@ export interface Model {
   lines: number[];       // flat xyz pairs, drawn and depth-graded
   solids: Prism[];       // cut only, never drawn directly
   site: number[];        // flat xyz pairs, drawn as hairline construction
+  detail?: number[];     // flat xyz pairs: the secondary system, drawn lighter
+  contour?: number;      // contour interval of the ground, metres
   // A ground surface the cut sections: height at (x, z), its extent across
   // the cut, and the datum the earth is hatched down to.
   ground?: { h: (x: number, z: number) => number; z0: number; z1: number; base: number };
