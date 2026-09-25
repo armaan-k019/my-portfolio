@@ -32,6 +32,7 @@ import {
   issueLocalSiteId,
   memoryStatus,
   setClientForTests,
+  storedBriefCheck,
 } from "../../src/lib/datum/memory";
 import { LAYER_NAMES, type LayerEnvelope, type LayerName } from "../../src/lib/datum/types";
 
@@ -998,4 +999,62 @@ test("a brief past the daily cap is a 429 before the stream opens", async () => 
     if (hadKey === undefined) delete process.env.ANTHROPIC_API_KEY;
     else process.env.ANTHROPIC_API_KEY = hadKey;
   }
+});
+
+// ─── The stored verdict behind a replay ──────────────────────────────────────
+
+/**
+ * A verdict that passed its checks, which is the only shape ever stored. Every
+ * case below is this payload with one field made unreadable.
+ */
+function passingVerdict(): Record<string, unknown> {
+  return {
+    invalidCitations: [],
+    validCitations: ["climate.annualMeanTempC"],
+    uncitedNumericSentences: 0,
+    valueMatchedSentences: 2,
+  };
+}
+
+test("a readable stored verdict comes back exactly as it was stored", () => {
+  const stored = passingVerdict();
+  expect(storedBriefCheck(stored)).toEqual({
+    invalidCitations: [],
+    validCitations: ["climate.annualMeanTempC"],
+    uncitedNumericSentences: 0,
+    valueMatchedSentences: 2,
+  });
+  // A passing verdict is what a replay is allowed to serve.
+  expect(briefFailedChecks(storedBriefCheck(stored)!)).toBe(false);
+});
+
+test("each unreadable field makes the stored verdict a cache miss", () => {
+  // An empty invalidCitations and a zero uncited count is exactly what a brief
+  // that passed looks like, so a field nobody can parse must never be read as
+  // one of those. Null instead, and the route writes a new brief.
+  const unreadable: Array<[string, unknown]> = [
+    ["invalidCitations", undefined],
+    ["invalidCitations", "[]"],
+    ["invalidCitations", [1, 2]],
+    ["validCitations", undefined],
+    ["validCitations", null],
+    ["validCitations", [{ path: "climate.annualMeanTempC" }]],
+    ["uncitedNumericSentences", undefined],
+    ["uncitedNumericSentences", "0"],
+    ["uncitedNumericSentences", Number.NaN],
+    ["valueMatchedSentences", undefined],
+    ["valueMatchedSentences", null],
+    ["valueMatchedSentences", Number.POSITIVE_INFINITY],
+  ];
+  for (const [field, value] of unreadable) {
+    const citations = passingVerdict();
+    if (value === undefined) delete citations[field];
+    else citations[field] = value;
+    expect(
+      storedBriefCheck(citations),
+      `${field} as ${String(value)} should be unreadable`,
+    ).toBeNull();
+  }
+  // And the whole payload being something else is a miss too.
+  expect(storedBriefCheck({})).toBeNull();
 });

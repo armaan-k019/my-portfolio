@@ -468,19 +468,26 @@ async function readBrief(
     }
     if (name === "delta" && typeof data.text === "string") text += data.text;
     else if (name === "done") {
-      done = {
-        invalidCitations: Array.isArray(data.invalidCitations)
-          ? (data.invalidCitations as string[])
-          : [],
-        validCitations: Array.isArray(data.validCitations)
-          ? (data.validCitations as string[])
-          : [],
-        uncitedNumericSentences:
-          typeof data.uncitedNumericSentences === "number"
-            ? data.uncitedNumericSentences
-            : 0,
-        cached: data.cached === true,
-      };
+      // Read strictly. A done event that is missing a field is a malformed
+      // response, and filling the gap in with an empty list or a zero would
+      // hand briefFailedChecks the shape of a brief that passed its checks.
+      const missing: string[] = [];
+      if (!Array.isArray(data.invalidCitations)) missing.push("invalidCitations");
+      if (!Array.isArray(data.validCitations)) missing.push("validCitations");
+      if (typeof data.uncitedNumericSentences !== "number") {
+        missing.push("uncitedNumericSentences");
+      }
+      if (typeof data.cached !== "boolean") missing.push("cached");
+      if (missing.length > 0) {
+        error = `the done event is missing ${missing.join(", ")}`;
+      } else {
+        done = {
+          invalidCitations: data.invalidCitations as string[],
+          validCitations: data.validCitations as string[],
+          uncitedNumericSentences: data.uncitedNumericSentences as number,
+          cached: data.cached as boolean,
+        };
+      }
     } else if (name === "error") {
       error = typeof data.message === "string" ? data.message : "the brief failed";
     }

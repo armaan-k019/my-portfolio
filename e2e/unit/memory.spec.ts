@@ -2,6 +2,9 @@ import { test, expect } from "@playwright/test";
 import { createHmac } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  MEMORY_COPY,
+  SIMILAR_CANDIDATE_CAP,
+  buildMemoryContext,
   checkRateLimit,
   clientIpFrom,
   getOrCreateSite,
@@ -12,6 +15,7 @@ import {
   memoryStatus,
   peekRateLimit,
   setClientForTests,
+  similarSites,
   verifyLocalSiteId,
   withMemory,
   writeMetrics,
@@ -778,4 +782,202 @@ test("a pre-read that fails is unavailable rather than a write with no vector", 
   expect(result).toEqual({ write: "unavailable", reason: null });
   expect(fake.updates).toEqual([]);
   setClientForTests(null);
+});
+
+// ─── The memory context: percentiles, similar sites, and what is null ────────
+
+interface FakeVectorRow {
+  id?: string;
+  locality: string | null;
+  public_lat: number;
+  public_lng: number;
+  metrics_vector: unknown;
+}
+
+/**
+ * A client for the context reads: the head count of sites, the capped select of
+ * candidate vectors, and the `metric_percentile` rpc. Each is answered from
+ * what the test handed in, so a test can say "this metric was measured by seven
+ * sites" and see what the context does with it.
+ */
+function contextClient(options?: {
+  count?: number;
+  vectorRows?: FakeVectorRow[];
+  failVectorRead?: boolean;
+  percentile?: Record<string, unknown>;
+}) {
+  return {
+    from() {
+      let head = false;
+      let columns = "";
+      const chain = {
+        select(cols: string, opts?: { head?: boolean }) {
+          columns = cols;
+          head = opts?.head === true;
+          return chain;
+        },
+        not: () => chain,
+        eq: () => chain,
+        neq: () => chain,
+        order: () => chain,
+        limit: () => chain,
+        then(resolve: (value: Record<string, unknown>) => void) {
+          if (head) {
+            resolve({ count: options?.count ?? 0, error: null });
+            return;
+          }
+          if (columns.includes("metrics_vector")) {
+            resolve(
+              options?.failVectorRead
+                ? { data: null, error: { message: "read failed" } }
+                : { data: options?.vectorRows ?? [], error: null },
+            );
+            return;
+          }
+          resolve({ data: [], error: null });
+        },
+      };
+      return chain;
+    },
+    async rpc(_name: string, args: Record<string, unknown>) {
+      const row = options?.percentile?.[args.metric as string];
+      return { data: row === undefined ? [] : [row], error: null };
+    },
+  } as unknown as SupabaseClient;
+}
+
+function vectorRow(overrides: Partial<FakeVectorRow> = {}): FakeVectorRow {
+  return {
+    id: "99999999-8888-7777-6666-555555555555",
+    locality: "Atlanta",
+    public_lat: 33.78,
+    public_lng: -84.39,
+    metrics_vector: JSON.stringify(VECTOR),
+    ...overrides,
+  };
+}
+
+/**
+ * The percentile path that runs in production calls `metric_percentile`. The
+ * test row path is a different branch, so these tests hold the flag off.
+ */
+async function withoutTestSiteFlag(run: () => Promise<void>): Promise<void> {
+  const saved = process.env.DATUM_INCLUDE_TEST_SITES;
+  delete process.env.DATUM_INCLUDE_TEST_SITES;
+  try {
+    await run();
+  } finally {
+    if (saved !== undefined) process.env.DATUM_INCLUDE_TEST_SITES = saved;
+  }
+}
+
+test("a failed similarity read is null, not an empty neighbourhood", async () => {
+  setClientForTests(contextClient({ failVectorRead: true }));
+
+  const result = await similarSites(VECTOR, SITE_ID);
+
+  expect(result.sites).toBeNull();
+  expect(result.truncated).toBe(false);
+  setClientForTests(null);
+});
+
+test("a similar site carries no id out of the function", async () => {
+  setClientForTests(contextClient({ vectorRows: [vectorRow()] }));
+
+  const result = await similarSites(VECTOR, SITE_ID);
+
+  expect(result.sites).not.toBeNull();
+  expect(result.sites).toHaveLength(1);
+  // The row the fake answered with has an id. What comes back must not.
+  expect(Object.keys(result.sites![0]).sort()).toEqual([
+    "closest",
+    "locality",
+    "match",
+    "publicLat",
+    "publicLng",
+  ]);
+  expect("id" in result.sites![0]).toBe(false);
+  setClientForTests(null);
+});
+
+test("truncated is true when the candidate read comes back at the cap", async () => {
+  const full = Array.from({ length: SIMILAR_CANDIDATE_CAP }, () => vectorRow());
+  setClientForTests(contextClient({ vectorRows: full }));
+  expect((await similarSites(VECTOR, SITE_ID)).truncated).toBe(true);
+
+  setClientForTests(contextClient({ vectorRows: full.slice(0, SIMILAR_CANDIDATE_CAP - 1) }));
+  expect((await similarSites(VECTOR, SITE_ID)).truncated).toBe(false);
+  setClientForTests(null);
+});
+
+test("a site with no metrics row yet has no percentiles and nothing to explain", async () => {
+  setClientForTests(contextClient({ count: 4 }));
+
+  const context = await buildMemoryContext(SITE_ID, null);
+
+  expect(context.memoryStatus).toBe("online");
+  expect(context.n).toBe(4);
+  expect(context.percentiles).toBeNull();
+  expect(context.similar).toBeNull();
+  // No computation has run, so naming layers as unavailable would report a
+  // failure that has not happened.
+  expect(context.reasonIfNull).toBeNull();
+  setClientForTests(null);
+});
+
+test("the needs ten sentence takes the largest per metric population", async () => {
+  await withoutTestSiteFlag(async () => {
+    setClientForTests(
+      contextClient({
+        count: 40,
+        vectorRows: [],
+        percentile: {
+          dailyRadiationKwhM2: { percentile: null, n: 7 },
+          buildingCoverage: { percentile: null, n: 3 },
+        },
+      }),
+    );
+
+    const context = await buildMemoryContext(SITE_ID, {
+      named: { dailyRadiationKwhM2: 4.4, buildingCoverage: 0.3 },
+      vector: VECTOR,
+      missing: [],
+    });
+
+    expect(context.percentiles).toBeNull();
+    // Seven, the largest population any one of this site's metrics was
+    // measured against, and not the forty site rows.
+    expect(context.reasonIfNull).toBe(
+      MEMORY_COPY.notEnoughSites.replace("<n>", "7"),
+    );
+    setClientForTests(null);
+  });
+});
+
+test("a metric whose population is not a number is discarded, not counted", async () => {
+  await withoutTestSiteFlag(async () => {
+    setClientForTests(
+      contextClient({
+        count: 40,
+        vectorRows: [],
+        percentile: {
+          dailyRadiationKwhM2: { percentile: 0.9, n: "many" },
+          buildingCoverage: { percentile: 0.4, n: 12 },
+        },
+      }),
+    );
+
+    const context = await buildMemoryContext(SITE_ID, {
+      named: { dailyRadiationKwhM2: 4.4, buildingCoverage: 0.3 },
+      vector: VECTOR,
+      missing: [],
+    });
+
+    expect(context.percentiles).not.toBeNull();
+    expect(context.percentiles!.map((entry) => entry.metric)).toEqual([
+      "buildingCoverage",
+    ]);
+    expect(context.percentiles![0]).toMatchObject({ percentile: 40, n: 12 });
+    setClientForTests(null);
+  });
 });

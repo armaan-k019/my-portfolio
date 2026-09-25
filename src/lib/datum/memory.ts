@@ -11,6 +11,7 @@ import {
   RATE_LIMIT_PEEK_MEMO_MS,
   RATE_LIMIT_PER_DAY,
 } from "./constants";
+import type { CitationCheck } from "./brief/citations";
 import { publicPoint, siteKey as siteKeyOf } from "./geo";
 import {
   METRIC_LAYERS,
@@ -609,7 +610,7 @@ export function includeTestSites(): boolean {
  * a few thousand of them is a small payload and the distance loop over them is
  * trivial. The cap exists so the query can never grow without bound.
  */
-const SIMILAR_CANDIDATE_CAP = 2000;
+export const SIMILAR_CANDIDATE_CAP = 2000;
 
 /** How many points the public map returns, newest analysis first. */
 const PUBLIC_SITES_CAP = 500;
@@ -1008,6 +1009,51 @@ export async function findBrief(
     return (data as StoredBrief | null) ?? null;
   });
   return row ?? null;
+}
+
+/**
+ * The stored citation verdicts of one brief, or null when the payload cannot be
+ * read.
+ *
+ * The row was written by the brief route from a CitationCheck, but a shape
+ * change must never be able to turn an unreadable payload into a passing
+ * verdict: an empty invalidCitations and a zero uncited count is exactly what a
+ * brief that passed its checks looks like, and reading that out of a row nobody
+ * could parse would be a verdict the server never reached. Null instead, and
+ * the caller treats it as a cache miss and writes a new brief from the model.
+ *
+ * It lives here rather than in the route because a route file may export only
+ * handlers and config, and a verdict this load bearing is worth testing
+ * directly rather than through a stream.
+ */
+export function storedBriefCheck(
+  citations: Record<string, unknown>,
+): CitationCheck | null {
+  const strings = (value: unknown): string[] | null =>
+    Array.isArray(value) && value.every((entry) => typeof entry === "string")
+      ? (value as string[])
+      : null;
+  const count = (value: unknown): number | null =>
+    typeof value === "number" && Number.isFinite(value) ? value : null;
+
+  const invalidCitations = strings(citations.invalidCitations);
+  const validCitations = strings(citations.validCitations);
+  const uncitedNumericSentences = count(citations.uncitedNumericSentences);
+  const valueMatchedSentences = count(citations.valueMatchedSentences);
+  if (
+    invalidCitations === null ||
+    validCitations === null ||
+    uncitedNumericSentences === null ||
+    valueMatchedSentences === null
+  ) {
+    return null;
+  }
+  return {
+    invalidCitations,
+    validCitations,
+    uncitedNumericSentences,
+    valueMatchedSentences,
+  };
 }
 
 /**
