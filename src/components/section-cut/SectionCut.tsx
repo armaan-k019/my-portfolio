@@ -1,22 +1,26 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BUILDINGS, buildingOfTheDay } from "./buildings";
 import type { Mode } from "./scene";
 
-// Decorative canvas behind the hero text: a line model after a real building,
-// sectioned by the pointer. three and each building load on demand so the
-// rest of the site never pays for them; if WebGL is missing, nothing renders
-// and the hero stands as plain text.
+// Whole UTC days since the epoch: the same seed for every visitor on a given
+// calendar day, turning over at midnight UTC.
+const today = () => Math.floor(Date.now() / 86_400_000);
+// The contour interval the generator uses, stated in the readout.
+const CONTOUR = "1.0 m";
+
+// Decorative canvas behind the hero text: a generated landscape and the
+// structure surveyed into it, sectioned by the pointer. three and the
+// generator load on demand so the rest of the site never pays for them; if
+// WebGL is missing, nothing renders and the hero stands as plain text.
 export default function SectionCut() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cutRef = useRef<HTMLSpanElement>(null);
   const viewRef = useRef<HTMLSpanElement>(null);
-  const ptrRef = useRef<HTMLSpanElement>(null);
   const [failed, setFailed] = useState(false);
-  // The day's building is chosen on the client: the page is static, so the
+  // The day's seed is chosen on the client: the page is static, so the
   // server cannot know the visitor's date.
-  const [index, setIndex] = useState<number | null>(null);
+  const [seed, setSeed] = useState<number | null>(null);
   // Touch and coarse pointers get one static frame; reduced motion keeps the
   // cut under the pointer but drops every autonomous movement. Re-read when
   // either preference changes while the page is open.
@@ -26,34 +30,31 @@ export default function SectionCut() {
     const fine = matchMedia("(pointer: fine)"), reduce = matchMedia("(prefers-reduced-motion: reduce)");
     const pick = () => setMode(!fine.matches ? "static" : reduce.matches ? "reduced" : "live");
     pick();
-    setIndex(buildingOfTheDay());
+    setSeed(today());
     fine.addEventListener("change", pick);
     reduce.addEventListener("change", pick);
     return () => { fine.removeEventListener("change", pick); reduce.removeEventListener("change", pick); };
   }, []);
 
   useEffect(() => {
-    if (index === null || mode === null) return;
+    if (seed === null || mode === null) return;
     let dispose: (() => void) | null = null;
     let cancelled = false;
     const canvas = canvasRef.current;
     const host = canvas?.closest("section");
-    const cut = cutRef.current, view = viewRef.current, ptr = ptrRef.current;
-    if (!canvas || !host || !cut || !view || !ptr) return;
-    Promise.all([BUILDINGS[index].load(), import("./scene")])
-      .then(([building, { mount }]) => {
+    const cut = cutRef.current, view = viewRef.current;
+    if (!canvas || !host || !cut || !view) return;
+    Promise.all([import("./landscape"), import("./scene")])
+      .then(([{ build }, { mount }]) => {
         if (cancelled) return;
-        dispose = mount(canvas, host, mode, { cut, view, ptr }, building.build());
+        dispose = mount(canvas, host, mode, { cut, view }, build(seed));
         if (!dispose) setFailed(true);
       })
       .catch(() => { if (!cancelled) setFailed(true); });
     return () => { cancelled = true; dispose?.(); };
-  }, [index, mode]);
+  }, [seed, mode]);
 
   if (failed) return null;
-  const b = index === null ? null : BUILDINGS[index];
-  const hasPointer = mode !== "static";
-  const at = (d: number) => ((index ?? 0) + d + BUILDINGS.length) % BUILDINGS.length;
 
   return (
     <div className="pointer-events-none md:absolute md:inset-0">
@@ -62,24 +63,20 @@ export default function SectionCut() {
       </div>
       <div className="max-w-5xl mx-auto px-6 pb-8 md:pb-0 md:absolute md:inset-x-0 md:bottom-6 flex justify-end">
         <div className="grid justify-items-end gap-2">
-          {/* The row is always rendered so the readout does not shift when
-              the day's building is chosen after mount. */}
-          <div className="flex items-center gap-2 min-h-7">
-            <p className="meta uppercase">
-              {b ? <>{b.name} &middot; after {b.architect} &middot; {b.year}</> : "\u00a0"}
-            </p>
-            {b && BUILDINGS.length > 1 && (
-              <span className="pointer-events-auto flex">
-                <button type="button" onClick={() => setIndex(at(-1))} aria-label={BUILDINGS[at(-1)].name} className="coord px-1.5 py-1 hover:text-terracotta-dark">&larr;</button>
-                <button type="button" onClick={() => setIndex(at(1))} aria-label={BUILDINGS[at(1)].name} className="coord px-1.5 py-1 hover:text-terracotta-dark">&rarr;</button>
-              </span>
-            )}
-          </div>
-          <dl aria-hidden className="grid grid-cols-[auto_auto] gap-x-3 gap-y-1 items-baseline">
-            <dt className="meta">CUT</dt><dd className="coord whitespace-pre min-w-[21ch]" ref={cutRef} />
-            <dt className="meta">VIEW</dt><dd className="coord whitespace-pre min-w-[21ch]" ref={viewRef} />
-            <dt className="meta" hidden={!hasPointer}>PTR</dt>
-            <dd className="coord whitespace-pre min-w-[21ch]" ref={ptrRef} hidden={!hasPointer} />
+          <dl className="grid grid-cols-[auto_auto_auto] gap-x-3 gap-y-1 items-baseline">
+            <dt className="meta">SEED</dt>
+            <dd className="coord whitespace-pre min-w-[21ch]">{seed ?? ""}</dd>
+            <dd className="pointer-events-auto flex -my-1">
+              {seed !== null && (
+                <>
+                  <button type="button" onClick={() => setSeed(seed - 1)} aria-label={`Seed ${seed - 1}`} className="coord px-1.5 py-1 hover:text-terracotta-dark">&larr;</button>
+                  <button type="button" onClick={() => setSeed(seed + 1)} aria-label={`Seed ${seed + 1}`} className="coord px-1.5 py-1 hover:text-terracotta-dark">&rarr;</button>
+                </>
+              )}
+            </dd>
+            <dt className="meta" aria-hidden>CONTOUR</dt><dd className="coord whitespace-pre min-w-[21ch]" aria-hidden>{CONTOUR}</dd><dd aria-hidden />
+            <dt className="meta" aria-hidden>CUT</dt><dd className="coord whitespace-pre min-w-[21ch]" aria-hidden ref={cutRef} /><dd aria-hidden />
+            <dt className="meta" aria-hidden>VIEW</dt><dd className="coord whitespace-pre min-w-[21ch]" aria-hidden ref={viewRef} /><dd aria-hidden />
           </dl>
         </div>
       </div>

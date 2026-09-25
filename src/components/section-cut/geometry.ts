@@ -20,16 +20,9 @@ export interface Model {
   lines: number[];       // flat xyz pairs, drawn and depth-graded
   solids: Prism[];       // cut only, never drawn directly
   site: number[];        // flat xyz pairs, drawn as hairline construction
-  // Thin curved shells, cut exactly: matching outer and inner triangle
-  // meshes (flat xyz, nine numbers a triangle). The cut draws both surfaces'
-  // traces and rungs between them as the poché.
-  shells?: { outer: number[]; inner: number[] };
-  // Thin structural members (pipes): flat xyz pairs with one radius each.
-  // The cut marks each member it crosses with a square the member's size,
-  // or a strip where the plane runs along a member.
-  rods?: { segs: number[]; radius: number[] };
-  // People: walkers are sampled each frame (t in seconds); standing figures
-  // are fixed. Both are placed only where the building puts people.
+  // A ground surface the cut sections: height at (x, z), its extent across
+  // the cut, and the datum the earth is hatched down to.
+  ground?: { h: (x: number, z: number) => number; z0: number; z1: number; base: number };
   people?: { walkers: ((t: number) => Pose)[]; standing: Pose[] };
   bounds: Box;           // building extent (site excluded)
   featured: number;      // X station shown before the pointer moves

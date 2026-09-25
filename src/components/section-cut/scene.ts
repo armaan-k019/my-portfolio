@@ -80,7 +80,7 @@ function lineMat(t: { color: THREE.Color; alpha: number }, clip: THREE.Plane[]) 
 // static: one axonometric frame, re-rendered only on resize.
 export type Mode = "live" | "reduced" | "static";
 
-export interface Readout { cut: HTMLElement; view: HTMLElement; ptr: HTMLElement }
+export interface Readout { cut: HTMLElement; view: HTMLElement }
 
 export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, readout: Readout, m: Model) {
   let renderer: THREE.WebGLRenderer;
@@ -93,7 +93,6 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
   renderer.localClippingEnabled = true;
 
   const ink = token("--color-ink");
-  const hair = token("--color-line");
   const cut = token("--color-terracotta");
 
   const geo = new THREE.BufferGeometry();
@@ -108,13 +107,17 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
 
   const scene = new THREE.Scene();
   const farEdge = { value: 0 };
-  const far = new THREE.LineSegments(geo, fadingMat(hair, [farStart], farEdge));
+  // Structure beyond the near bay: thin ink, fading with distance, always
+  // stronger than the ground drawing beside it.
+  const far = new THREE.LineSegments(geo, fadingMat({ color: ink.color, alpha: 0.45 }, [farStart], farEdge));
   const nearMat = new LineMaterial({ color: ink.color, linewidth: NEAR_WIDTH, depthTest: false, clippingPlanes: [keepBehind, nearEnd] });
   const nearGeo = new LineSegmentsGeometry();
   nearGeo.setPositions(m.lines);
   const near = new LineSegments2(nearGeo, nearMat);
   near.frustumCulled = false;
-  const site = new THREE.LineSegments(siteGeo, lineMat(hair, [keepBehind]));
+  // Ground lines (contours and survey marks): mid weight between the
+  // structure's ink and the hairlines, fading with distance like the far.
+  const site = new THREE.LineSegments(siteGeo, fadingMat({ color: ink.color, alpha: 0.22 }, [keepBehind], farEdge));
   const hatchGeo = new THREE.BufferGeometry();
   const hatch = new THREE.LineSegments(hatchGeo, lineMat({ color: cut.color, alpha: 0.35 }, []));
   // Cut buffers are allocated once and rewritten in place as the pointer
@@ -238,30 +241,31 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
       const zs = crossings(p.poly, x);
       for (let i = 0; i + 1 < zs.length; i += 2) sectionOf(x, p.y0, p.y1, zs[i], zs[i + 1], rects, hatchPts);
     }
-    if (m.rods) {
-      const { segs, radius } = m.rods;
-      for (let k = 0, r = 0; k < segs.length; k += 6, r++) {
-        const rad = radius[r];
-        const xa = segs[k], ya = segs[k + 1], za = segs[k + 2], xb = segs[k + 3], yb = segs[k + 4], zb = segs[k + 5];
-        if ((xa - x) * (xb - x) < 0) {
-          // The member crosses the plane: mark its cross section.
-          const t = (x - xa) / (xb - xa), y = ya + t * (yb - ya), z = za + t * (zb - za);
-          rects.push(x, y - rad, z - rad, x, y - rad, z + rad, x, y - rad, z + rad, x, y + rad, z + rad,
-            x, y + rad, z + rad, x, y + rad, z - rad, x, y + rad, z - rad, x, y - rad, z - rad);
-        } else if (Math.abs(xa - x) < rad && Math.abs(xb - x) < rad) {
-          // The plane runs along the member: mark it lengthwise.
-          rects.push(x, ya, za - rad, x, yb, zb - rad, x, ya, za + rad, x, yb, zb + rad);
+    if (m.ground) {
+      // The ground in section: its profile, and earth hatched down to the
+      // datum at a coarser spacing than the structure's poché.
+      const { h, z0, z1, base } = m.ground;
+      const STEP = 0.5, EARTH = 0.9;
+      let zp = z0, yp = h(x, z0);
+      rects.push(x, base, z0, x, yp, z0);
+      for (let z = z0 + STEP; z <= z1 + 1e-6; z += STEP) {
+        const y = h(x, z);
+        rects.push(x, yp, zp, x, y, z);
+        // Lines y = z + c through this strip, clipped to base and profile.
+        const cLo = base - z, cHi = Math.max(yp, y) - zp;
+        for (let c = Math.ceil(cLo / EARTH) * EARTH; c <= cHi; c += EARTH) {
+          // Keep the part of the line below the profile, which is linear
+          // across the strip: (1 - k) z <= q.
+          let za = Math.max(zp, base - c), zb = z;
+          const k = (y - yp) / (z - zp), q = yp - k * zp - c;
+          if (Math.abs(1 - k) < 1e-6) { if (q < 0) continue; }
+          else if (1 - k > 0) zb = Math.min(zb, q / (1 - k));
+          else za = Math.max(za, q / (1 - k));
+          if (zb - za > 1e-3) hatchPts.push(x, za + c, za, x, zb + c, zb);
         }
+        zp = z; yp = y;
       }
-    }
-    if (m.shells) {
-      const { outer, inner } = m.shells;
-      for (let t = 0; t < outer.length; t += 9) {
-        const a = triCut(outer, t, x), b = triCut(inner, t, x);
-        if (!a || !b) continue;
-        rects.push(...a, ...b);
-        hatchPts.push((a[0] + a[3]) / 2, (a[1] + a[4]) / 2, (a[2] + a[5]) / 2, (b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2);
-      }
+      rects.push(x, yp, zp, x, base, zp, x, base, zp, x, base, z0);
     }
     fillSegs(outline, rects);
     writeHatch(hatchPts);
@@ -365,11 +369,9 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
 
   // Readout, derived from the scene as rendered this frame. The DOM is only
   // written when a formatted string changes.
-  const shown = { cut: "", view: "", ptr: "" };
+  const shown = { cut: "", view: "" };
   const write = (k: keyof Readout, v: string) => { if (shown[k] !== v) readout[k].textContent = shown[k] = v; };
   const f = (n: number, d: number) => (n < 0 ? "-" : "+") + Math.abs(n).toFixed(d);
-  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), hit = new THREE.Vector3();
-  const cutPlane = new THREE.Plane(new THREE.Vector3(1, 0, 0), 0), ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const offset = new THREE.Vector3();
 
   function report() {
@@ -378,22 +380,6 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
     const cAz = THREE.MathUtils.radToDeg(Math.atan2(offset.x, offset.z));
     const cEl = THREE.MathUtils.radToDeg(Math.asin(offset.y));
     write("view", `az ${f(cAz, 1)}\u00b0  el ${f(cEl, 1)}\u00b0`);
-
-    let p = "";
-    if (client) {
-      const r = canvas.getBoundingClientRect();
-      ndc.set(((client.x - r.left) / r.width) * 2 - 1, -((client.y - r.top) / r.height) * 2 + 1);
-      ray.setFromCamera(ndc, camera);
-      // Intersect whichever plane faces the camera more squarely.
-      const d = ray.ray.direction;
-      cutPlane.constant = -station;
-      const plane = Math.abs(d.x) >= Math.abs(d.y) ? cutPlane : ground;
-      if (ray.ray.intersectPlane(plane, hit)) {
-        if (plane === cutPlane) hit.x = station; // on the plane by construction; avoid float drift
-        p = `${f(hit.x, 2)} ${f(hit.y, 2)} ${f(hit.z, 2)}`;
-      }
-    }
-    write("ptr", p);
   }
 
   // Loop control: live mode runs continuously while visible; the other modes
@@ -435,20 +421,6 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
     for (const t of trail) { t.obj.geometry.dispose(); t.mat.dispose(); }
     outlineMat.dispose();
   };
-}
-
-// The segment where triangle t of a flat mesh crosses the plane x = cut.
-function triCut(tri: number[], t: number, x: number): number[] | null {
-  const pts: number[] = [];
-  for (let e = 0; e < 3; e++) {
-    const i = t + e * 3, j = t + ((e + 1) % 3) * 3;
-    const xa = tri[i], xb = tri[j];
-    if ((xa <= x && xb > x) || (xb <= x && xa > x)) {
-      const k = (x - xa) / (xb - xa);
-      pts.push(x, tri[i + 1] + k * (tri[j + 1] - tri[i + 1]), tri[i + 2] + k * (tri[j + 2] - tri[i + 2]));
-    }
-  }
-  return pts.length === 6 ? pts : null;
 }
 
 // One interval of a prism's section: a rectangle in YZ on the plane x = cut,
