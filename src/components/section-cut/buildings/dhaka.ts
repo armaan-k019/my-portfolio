@@ -12,7 +12,7 @@
 // Estimated: the prayer hall's small rotation, the size and height of each
 // opening, and which faces carry which openings (the published elevation does
 // not name its facade, so its compositions are placed on the north and south).
-import { circle, rect, ring, rng, seg, bounds, siteAround, type Model, type Pose, type Prism, type Pt } from "../geometry";
+import { annulus, circle, rect, ring, rng, seg, bounds, siteAround, type Model, type Pose, type Prism, type Pt } from "../geometry";
 
 const FT = 0.3048;
 const H_BLOCK = 110 * FT;      // 33.5 m
@@ -144,7 +144,15 @@ export function build(): Model {
   });
   const hall = ccw(circle(0, 0, R_HALL, 16, Math.PI / 16));
   walls(hall, 0, ASSEMBLY_ROOF);
-  floors(ccw(circle(0, 0, R_OUT - WALL, 8, Math.PI / 8)), 5.9, 33, 5.9);
+  // Floors of the rooms round the chamber: a ring between the chamber wall
+  // and the octagon, at the published section's storey heights. The chamber
+  // itself stays one volume up to its roof.
+  const ringIn = R_HALL, ringOut = R_OUT * Math.cos(Math.PI / 8) - WALL;
+  for (let y = 5.9; y < 33; y += 5.9) {
+    solids.push(...annulus(0, 0, ringIn, ringOut, y - 0.4, y, 16));
+    ring(lines, circle(0, 0, ringIn, 32), y);
+    ring(lines, circle(0, 0, ringOut, 32), y);
+  }
   // Assembly floor and the stepped seating on either side of the well.
   solids.push({ poly: ccw(circle(0, 0, R_HALL - WALL, 16, Math.PI / 16)), y0: 7.1, y1: 7.5 });
   for (let k = 0; k < 8; k++) {
@@ -164,7 +172,9 @@ export function build(): Model {
 
   // The four office blocks on the diagonals: squares turned 45 degrees, each
   // outward face cut with a tall triangle over a slot.
-  const OFF = 37, SIDE = 34;
+  // Placed so their inner faces sit 41 m from the centre, as read from SBA26,
+  // leaving the ambulatory ring between them and the central octagon.
+  const OFF = 41, SIDE = 34;
   for (const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
     const sq = ccw(rot(rect(-SIDE / 2, -SIDE / 2, SIDE / 2, SIDE / 2), 0, 0, 45).map(([x, z]) => [x + sx * OFF, z + sz * OFF] as Pt));
     walls(sq, 0, H_BLOCK, (i, len) => {
@@ -209,18 +219,17 @@ export function build(): Model {
   for (const z of [7.4, -13.7]) walls(ccw(circle(52, z, 8, 16)), 0, H_BLOCK);
 
   // People: members on the assembly floor and the seating tiers, and people
-  // walking the ambulatory ring between the chamber and the octagon.
+  // walking the ambulatory, the ring between the central octagon and the
+  // office blocks.
   const rand = rng(1982);
   const TAU = Math.PI * 2;
   const walkers: ((t: number) => Pose)[] = [];
-  for (const y of [0, 5.9, 11.8]) {
-    for (let i = 0; i < 4; i++) {
-      const r = 27.5 + rand() * 2.5, w = (1 + rand() * 0.3) / r * (rand() < 0.5 ? 1 : -1), ph = rand() * TAU;
-      walkers.push((t) => {
-        const a = w * t + ph;
-        return { p: [r * Math.cos(a), y, r * Math.sin(a)], dir: a + (w > 0 ? 1 : -1) * Math.PI / 2, phase: t * 5.5 + ph };
-      });
-    }
+  for (let i = 0; i < 12; i++) {
+    const r = 36.5 + rand() * 3, w = (1 + rand() * 0.3) / r * (rand() < 0.5 ? 1 : -1), ph = rand() * TAU;
+    walkers.push((t) => {
+      const a = w * t + ph;
+      return { p: [r * Math.cos(a), 0, r * Math.sin(a)], dir: a + (w > 0 ? 1 : -1) * Math.PI / 2, phase: t * 5.5 + ph };
+    });
   }
   for (let i = 0; i < 4; i++) {
     const x0 = (rand() - 0.5) * 12, span = 3 + rand() * 3, w = 1 / span, ph = rand() * TAU, z = (rand() - 0.5) * 10;

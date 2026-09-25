@@ -81,7 +81,7 @@ export function build(): Model {
   }
 
   // Ground floor, the roof ring over the last turn and the skylight: a
-  // twelve-sided lantern with twelve ribs meeting a small ring at the summit.
+  // twelve-sided lantern whose twelve ribs pair into six spokes at the summit.
   const floor: Prism = { poly: circle(0, 0, R_BASE, 48), y0: -0.4, y1: 0 };
   solids.push(floor);
   ring(lines, floor.poly, 0);
@@ -90,11 +90,14 @@ export function build(): Model {
   ring(lines, circle(0, 0, roTop, 64), WALL_TOP);
   ring(lines, circle(0, 0, riTop, 48), WALL_TOP);
   const SKY = 95 * FT;
-  const eave = circle(0, 0, riTop, 12), crown = circle(0, 0, 1.6, 12);
+  // Twelve ribs rise from the eave and join in pairs into six hairpin
+  // spokes that meet a small ring at the summit (LPC 1775).
+  const eave = circle(0, 0, riTop, 12), crown = circle(0, 0, 1.6, 6, Math.PI / 12);
   ring(lines, eave, WALL_TOP + 0.6);
   ring(lines, crown, SKY);
   for (let i = 0; i < 12; i++) {
-    seg(lines, [eave[i][0], WALL_TOP + 0.6, eave[i][1]], [crown[i][0], SKY, crown[i][1]]);
+    const top = crown[Math.floor(i / 2)];
+    seg(lines, [eave[i][0], WALL_TOP + 0.6, eave[i][1]], [top[0], SKY, top[1]]);
     seg(lines, [eave[i][0], WALL_TOP, eave[i][1]], [eave[i][0], WALL_TOP + 0.6, eave[i][1]]);
   }
 
