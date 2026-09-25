@@ -9,8 +9,9 @@ import { massing, boxEdges, type Box } from "./massing";
 const NEAR_BAND = 8;        // metres behind the cut drawn in ink, the rest in hairline
 const HATCH = 0.16;         // poché hatch spacing in metres
 const CUT_WIDTH = 2.5;      // cut outline, CSS px
-const IDLE_AFTER = 3000;    // ms without pointer movement before the model turns
-const IDLE_SPEED = 5;       // degrees of azimuth per second while idle
+const IDLE_AFTER = 8000;    // ms without pointer movement before the model turns
+const IDLE_RAMP = 2500;     // ms over which the idle turn eases up to speed
+const IDLE_SPEED = 5;       // degrees of azimuth per second at full speed
 
 // Named orthographic views as [azimuth, elevation] in degrees. Azimuth -90 is
 // the camera on the -X side looking along +X, so the elevation is the section
@@ -18,13 +19,15 @@ const IDLE_SPEED = 5;       // degrees of azimuth per second while idle
 const PLAN = [0, 90], AXON = [-45, 30], ELEVATION = [-90, 0];
 
 const smooth = (t: number) => t * t * (3 - 2 * t);
-// Pointer height to view: plateaus hold each named view, smoothstep blends between.
+// Pointer height to view: plateaus hold each named view, smoothstep blends
+// between. The axonometric holds across the middle 40% of the hero so the view
+// stays put unless the pointer clearly moves up or down.
 function viewAt(y: number): [number, number] {
   const seg = (a: number[], b: number[], t: number): [number, number] => {
     const k = smooth(Math.min(1, Math.max(0, t)));
     return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
   };
-  return y < 0.5 ? seg(PLAN, AXON, (y - 0.12) / 0.3) : seg(AXON, ELEVATION, (y - 0.58) / 0.3);
+  return y < 0.5 ? seg(PLAN, AXON, (y - 0.1) / 0.2) : seg(AXON, ELEVATION, (y - 0.7) / 0.2);
 }
 
 // Tailwind emits the theme tokens as hex; --color-line carries its alpha as
@@ -160,6 +163,26 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
   };
   const onLeave = () => { client = null; if (mode === "reduced") request(); };
 
+  // The station whose section sits under the cursor: project the model's X
+  // axis (through its centre) to the canvas and find where the cursor falls
+  // along it, clamped to the model's ends. Seen end on (the elevation) the
+  // axis collapses to a point and no station is under the cursor, so the
+  // mapping blends to the cursor's share of the canvas width instead.
+  const axisA = new THREE.Vector3(), axisB = new THREE.Vector3();
+  function stationUnder(cx: number, cy: number, share: number) {
+    const r = canvas.getBoundingClientRect();
+    const toPx = (v: THREE.Vector3) => v.project(camera).set((v.x + 1) / 2 * r.width, (1 - v.y) / 2 * r.height, 0);
+    toPx(axisA.set(bx.min[0], center.y, center.z));
+    toPx(axisB.set(bx.max[0], center.y, center.z));
+    const ux = axisB.x - axisA.x, uy = axisB.y - axisA.y, len2 = ux * ux + uy * uy;
+    const px = cx - r.left, py = cy - r.top;
+    const along = len2 > 1 ? ((px - axisA.x) * ux + (py - axisA.y) * uy) / len2 : 0;
+    const projected = bx.min[0] + along * (bx.max[0] - bx.min[0]);
+    const fallback = cutMin + Math.min(1, Math.max(0, share)) * (cutMax - cutMin);
+    const k = Math.min(1, Math.max(0, (Math.sqrt(len2) - 40) / 120));
+    return Math.min(cutMax, Math.max(cutMin, projected * k + fallback * (1 - k)));
+  }
+
   // Camera state in degrees. Live mode eases toward the pointer's view and
   // adds an idle orbit; the other modes hold the axonometric.
   let az = AXON[0], el = AXON[1], orbit = 0, last = performance.now();
@@ -169,21 +192,23 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
 
-    const x = pointer ? cutMin + Math.min(1, Math.max(0, pointer.x)) * (cutMax - cutMin) : m.featured;
-    setCut(x);
-
     if (mode === "live") {
       const [tAz, tEl] = pointer ? viewAt(pointer.y) : [AXON[0], AXON[1]];
       const k = 1 - Math.exp(-8 * dt);
       az += (tAz - az) * k;
       el += (tEl - el) * k;
-      if (now - lastMove > IDLE_AFTER) orbit += IDLE_SPEED * dt;
+      const idle = now - lastMove - IDLE_AFTER;
+      if (idle > 0) orbit += IDLE_SPEED * smooth(Math.min(1, idle / IDLE_RAMP)) * dt;
       else {
         orbit = ((((orbit + 180) % 360) + 360) % 360) - 180; // unwind the short way
         orbit *= Math.exp(-3 * dt);
       }
     }
     aim(az + orbit, el);
+    // The camera is placed first so the cursor is projected against this frame.
+    // Once the pointer leaves the hero the cut stays where it was left.
+    if (pointer && client) setCut(stationUnder(client.x, client.y, pointer.x));
+    else if (!pointer) setCut(m.featured);
     render();
     report();
   }
@@ -228,7 +253,12 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
   function tick() { raf = 0; frame(); if (running()) raf = requestAnimationFrame(tick); }
   function request() { if (!raf) raf = requestAnimationFrame(tick); }
 
-  const io = new IntersectionObserver(([e]) => { visible = e.isIntersecting; if (running()) request(); });
+  // intersectionRatio, not isIntersecting: when the hero only touches the
+  // viewport edge it counts as intersecting and the loop would keep running.
+  const io = new IntersectionObserver(([e]) => {
+    visible = e.intersectionRatio > 0;
+    if (running()) request();
+  }, { threshold: [0, 0.001] });
   const onVis = () => { if (running()) request(); };
   const ro = new ResizeObserver(() => { resize(); request(); });
   io.observe(host);
