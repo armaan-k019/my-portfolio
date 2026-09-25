@@ -75,6 +75,7 @@ interface ContextResponse {
     publicLng: number;
     match: number;
     closest: string[];
+    sharedComponents: number;
   }> | null;
   reasonIfNull?: string | null;
 }
@@ -293,7 +294,15 @@ test("datum memory: the Atlanta context carries percentiles and either matches o
         "match",
         "publicLat",
         "publicLng",
+        "sharedComponents",
       ]);
+      expect(
+        similar.sharedComponents,
+        "sharedComponents is an integer between 10 and 14",
+      ).toBeDefined();
+      expect(typeof similar.sharedComponents).toBe("number");
+      expect(similar.sharedComponents).toBeGreaterThanOrEqual(10);
+      expect(similar.sharedComponents).toBeLessThanOrEqual(14);
       for (const forbidden of ["siteId", "lat", "lng", "site_key"]) {
         expect(
           forbidden in (similar as Record<string, unknown>),
