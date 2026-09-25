@@ -43,7 +43,7 @@ export default function ContactSection() {
   }
 
   return (
-    <section id="contact" className="max-w-5xl mx-auto px-6 py-8">
+    <section id="contact" className="max-w-5xl mx-auto px-6 py-8 bg-paper">
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 pt-4" style={{ borderTop: "var(--rule)" }}>
         <h2 className="font-display display-md font-semibold text-ink">Let&apos;s talk.</h2>
         <a
