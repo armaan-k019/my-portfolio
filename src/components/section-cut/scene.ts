@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
-import { massing, boxEdges, type Box } from "./massing";
+import { crossings, type Model } from "./geometry";
 
 const NEAR_BAND = 8;        // metres behind the cut drawn in ink, the rest in hairline
 const HATCH = 0.16;         // poché hatch spacing in metres
@@ -58,7 +58,7 @@ export type Mode = "live" | "reduced" | "static";
 
 export interface Readout { cut: HTMLElement; view: HTMLElement; ptr: HTMLElement }
 
-export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, readout: Readout) {
+export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, readout: Readout, m: Model) {
   let renderer: THREE.WebGLRenderer;
   try {
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
@@ -72,11 +72,8 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
   const hair = token("--color-line");
   const cut = token("--color-terracotta");
 
-  const m = massing();
-  const structure: number[] = [];
-  for (const b of m.boxes) boxEdges(b, structure);
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.Float32BufferAttribute([...structure, ...m.detail], 3));
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(m.lines, 3));
   const siteGeo = new THREE.BufferGeometry();
   siteGeo.setAttribute("position", new THREE.Float32BufferAttribute(m.site, 3));
 
@@ -114,9 +111,9 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
 
     const rects: number[] = [];
     const hatchPts: number[] = [];
-    for (const b of m.boxes) {
-      if (!(b.min[0] < x && x < b.max[0])) continue;
-      sectionOf(b, x, rects, hatchPts);
+    for (const p of m.solids) {
+      const zs = crossings(p.poly, x);
+      for (let i = 0; i + 1 < zs.length; i += 2) sectionOf(x, p.y0, p.y1, zs[i], zs[i + 1], rects, hatchPts);
     }
     outlineGeo.setPositions(rects.length ? rects : [x, 0, 0, x, 0, 0]);
     hatchGeo.setAttribute("position", new THREE.Float32BufferAttribute(hatchPts, 3));
@@ -284,10 +281,9 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
   };
 }
 
-// Section of an axis-aligned box by the plane x = cut: one rectangle in YZ,
+// One interval of a prism's section: a rectangle in YZ on the plane x = cut,
 // pushed as four outline segments plus a 45 degree hatch clipped to it.
-function sectionOf(b: Box, x: number, rects: number[], hatch: number[]) {
-  const [, y0, z0] = b.min, [, y1, z1] = b.max;
+function sectionOf(x: number, y0: number, y1: number, z0: number, z1: number, rects: number[], hatch: number[]) {
   rects.push(
     x, y0, z0, x, y0, z1, x, y0, z1, x, y1, z1,
     x, y1, z1, x, y1, z0, x, y1, z0, x, y0, z0,
