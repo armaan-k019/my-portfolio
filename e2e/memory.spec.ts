@@ -474,22 +474,10 @@ async function readBrief(
 // ─── Step 3.6 item 6: the daily ping ─────────────────────────────────────────
 
 test("datum memory: the ping refuses everything but the cron secret", async ({ request }) => {
-  test.skip(OFFLINE_RUN, "the offline run cannot count sites");
-
-  const secret = process.env.CRON_SECRET;
-
+  // These three need neither the database nor the secret: whatever the server
+  // is configured with, a caller without the secret gets the same 401, so the
+  // assertions run on every shape of run.
   const bare = await request.get("/api/datum/memory/ping", { timeout: 60_000 });
-  if (!secret) {
-    // Fail closed: with no secret configured the route answers nobody, so the
-    // 401 and the 200 both need one.
-    expect(bare.status(), "with no CRON_SECRET the route is unconfigured").toBe(503);
-    test.skip(
-      true,
-      "CRON_SECRET is not set in the test process, so the 401 and 200 checks are skipped",
-    );
-    return;
-  }
-
   expect(bare.status(), "a request with no Authorization header is refused").toBe(401);
 
   const wrong = await request.get("/api/datum/memory/ping", {
@@ -497,6 +485,19 @@ test("datum memory: the ping refuses everything but the cron secret", async ({ r
     timeout: 60_000,
   });
   expect(wrong.status(), "a request with the wrong secret is refused").toBe(401);
+
+  const scheme = await request.get("/api/datum/memory/ping", {
+    headers: { authorization: "Token not-the-secret" },
+    timeout: 60_000,
+  });
+  expect(scheme.status(), "a request with another scheme is refused").toBe(401);
+
+  const secret = process.env.CRON_SECRET;
+  test.skip(
+    !secret,
+    "CRON_SECRET is not set in the test process, so the authorised ping is not checked",
+  );
+  test.skip(OFFLINE_RUN, "the offline run cannot count sites, so ok would be false");
 
   const authorised = await request.get("/api/datum/memory/ping", {
     headers: { authorization: `Bearer ${secret}` },
@@ -508,7 +509,8 @@ test("datum memory: the ping refuses everything but the cron secret", async ({ r
     sites?: number | null;
     swept?: number | null;
   };
-  expect(body.ok, "the ping reports ok").toBe(true);
+  expect(body.ok, "the ping reports ok because the count query ran").toBe(true);
+  expect(typeof body.sites, "ok means a count, not a null").toBe("number");
   console.log(`memory ping: sites ${body.sites}, swept ${body.swept}`);
 });
 

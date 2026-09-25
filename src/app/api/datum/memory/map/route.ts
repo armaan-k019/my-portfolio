@@ -17,7 +17,10 @@ let cached: { sites: PublicSite[]; until: number } | null = null;
 export async function GET() {
   const now = Date.now();
   if (cached && cached.until > now) {
-    return NextResponse.json({ sites: cached.sites, memoryStatus: "online" });
+    // The points are the cached ones; the status is the live one. Serving
+    // "online" beside them would report a database that may have gone away
+    // since the read, which is a claim nothing checked.
+    return NextResponse.json({ sites: cached.sites, memoryStatus: memoryStatus() });
   }
 
   const sites = await publicSites();

@@ -30,25 +30,17 @@ function unauthorized() {
 }
 
 export async function GET(request: Request) {
-  const expected = process.env.CRON_SECRET;
-  if (!expected || expected.length === 0) {
-    // Fail closed. Without a secret configured there is no request this route
-    // can tell apart from any other, so it answers nobody.
-    return NextResponse.json(
-      {
-        error: {
-          code: "missing_key",
-          message: "The ping is not configured on this server.",
-        },
-      },
-      { status: 503 },
-    );
-  }
-
+  // The Bearer is parsed first and every way of not having it ends in the same
+  // 401: no header, a wrong secret, and no secret configured on the server are
+  // one answer, so a caller without the secret learns nothing about the route
+  // beyond that it refused. A separate 503 for the unconfigured case would have
+  // told anyone who asked whether this deployment has a cron secret at all.
   const header = request.headers.get("authorization") ?? "";
   const prefix = "Bearer ";
-  if (!header.startsWith(prefix)) return unauthorized();
-  if (!secretMatches(header.slice(prefix.length), expected)) return unauthorized();
+  const presented = header.startsWith(prefix) ? header.slice(prefix.length) : null;
+  const expected = process.env.CRON_SECRET ?? "";
+  if (presented === null || expected.length === 0) return unauthorized();
+  if (!secretMatches(presented, expected)) return unauthorized();
 
   // One select on sites, which is the activity the ping exists to produce, and
   // one batch of expired cache rows. The count is reported under the same test
@@ -56,5 +48,8 @@ export async function GET(request: Request) {
   // test sites.
   const [sites, swept] = await Promise.all([countSites(), sweepExpiredCache()]);
 
-  return NextResponse.json({ ok: true, sites, swept });
+  // ok is what it says: the query ran. countSites answers null when Site Memory
+  // could not be asked, and the ping exists to produce that one query, so a
+  // null count is a ping that did not do its job.
+  return NextResponse.json({ ok: sites !== null, sites, swept });
 }
