@@ -11,10 +11,11 @@ export function build(ctx: SheetContext): string {
   const zone = ZONES[GROUP_ID];
   const parts: string[] = [panelChrome(zone, "Site analysis", null, { framed: false })];
 
+  // panelChrome has already set "Site analysis" at this baseline, so the title
+  // is not drawn twice: two identical text elements stacked on one another
+  // print heavier than every other title on the sheet and arrive in Illustrator
+  // as two objects to delete.
   const baseY = zone.y + 16;
-  parts.push(
-    textEl("Site analysis", zone.x + 8, baseY, TEXT.title, { weight: "600" }),
-  );
 
   // Locality is the coarse label from the Nominatim reverse lookup. No address
   // is ever printed or stored (SPEC section 2).

@@ -145,7 +145,11 @@ export function build(ctx: SheetContext): string {
 
   parts.push(
     textEl(
-      `RADIATION, PEAK ${maxRadiation.toFixed(2)} KWH/M2 PER DAY`,
+      // With no month reporting radiation there is no peak. Printing 0.00 would
+      // put a measurement on the sheet that no field carries.
+      radiationValues.length > 0
+        ? `RADIATION, PEAK ${maxRadiation.toFixed(2)} KWH/M2 PER DAY`
+        : "RADIATION NOT AVAILABLE",
       plotX,
       plotY + bandH + 16 + radiationH + 9,
       TEXT.eyebrow,

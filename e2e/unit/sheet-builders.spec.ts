@@ -429,3 +429,119 @@ test("a partial flood envelope with no zone at the point is a partial panel", ()
   const flood = sitePlan.slice(sitePlan.indexOf('<g id="site-plan-flood"'));
   expect(count(flood.slice(0, flood.indexOf("</g>")), "<path")).toBeGreaterThan(0);
 });
+
+// ─── The plan layers are independent of one another ──────────────────────────
+
+/** An unavailable envelope for one layer, with a real sentence. */
+function unavailableEnvelope(layer: LayerName): LayerEnvelope<unknown> {
+  return {
+    layer,
+    status: "unavailable",
+    data: null,
+    source: {
+      name: "forced failure",
+      url: "http://127.0.0.1:9",
+      fetchedAt: "2026-09-24T18:00:00.000Z",
+      cached: false,
+      licence: "n/a",
+    },
+    unavailable: {
+      code: "upstream_error",
+      message: `The ${layer} source could not be reached (upstream_error).`,
+      retryable: true,
+    },
+    fieldPaths: [],
+  };
+}
+
+test("flood polygons and contours still draw when OSM is unavailable", () => {
+  // FEMA and 3DEP answered. Their measurements belong on the paper whether or
+  // not there is a figure ground to put them over.
+  const layers = loadLayers("miami");
+  layers.osm = unavailableEnvelope("osm");
+  layers.walkshed = unavailableEnvelope("walkshed");
+
+  const svg = buildSheet(makeCtx("miami", { layers }));
+  const sitePlan = groupBody(svg, "site-plan");
+  expect(sitePlan).toContain('data-status="unavailable"');
+
+  const body = (id: string) => {
+    const from = sitePlan.slice(sitePlan.indexOf(`<g id="${id}"`));
+    return from.slice(0, from.indexOf("</g>"));
+  };
+
+  expect(count(body("site-plan-buildings"), "<path"), "no figure ground").toBe(0);
+  expect(count(body("site-plan-streets"), "<path"), "no streets").toBe(0);
+  expect(count(body("site-plan-flood"), "<path"), "flood polygons").toBeGreaterThan(0);
+  expect(count(body("site-plan-contours"), "<path"), "contours").toBeGreaterThan(0);
+});
+
+test("no contour is weighted by its position in the array", () => {
+  // TopoData carries no elevation per line, so an index contour cannot be
+  // identified and nothing may be drawn heavier than the contour stroke.
+  const svg = buildSheet(makeCtx("atlanta"));
+  const sitePlan = groupBody(svg, "site-plan");
+  const from = sitePlan.slice(sitePlan.indexOf('<g id="site-plan-contours"'));
+  const contours = from.slice(0, from.indexOf("</g>"));
+  const widths = new Set(
+    Array.from(contours.matchAll(/stroke-width="([\d.]+)"/g), (match) => match[1]),
+  );
+  expect(count(contours, "<path")).toBeGreaterThan(0);
+  expect([...widths], "one contour weight only").toEqual(["0.25"]);
+});
+
+// ─── Climate ─────────────────────────────────────────────────────────────────
+
+test("a year with no radiation reading prints no peak", () => {
+  const layers = loadLayers("atlanta");
+  const climate = layers.climate?.data as {
+    monthly: Array<{ meanDailyRadiationKwhM2: number | null }>;
+  };
+  const blanked = {
+    ...(layers.climate?.data as Record<string, unknown>),
+    monthly: climate.monthly.map((month) => ({
+      ...month,
+      meanDailyRadiationKwhM2: null,
+    })),
+  };
+  layers.climate = { ...layers.climate!, data: blanked };
+
+  const body = groupBody(buildSheet(makeCtx("atlanta", { layers })), "climate");
+  expect(body).toContain("RADIATION NOT AVAILABLE");
+  expect(body).not.toContain("PEAK 0.00");
+});
+
+test("a year with radiation readings still prints the peak", () => {
+  const body = groupBody(buildSheet(makeCtx("atlanta")), "climate");
+  expect(body).toContain("RADIATION, PEAK ");
+  expect(body).not.toContain("RADIATION NOT AVAILABLE");
+});
+
+// ─── Title block and attribution ─────────────────────────────────────────────
+
+test("the title block prints its title once", () => {
+  const body = groupBody(buildSheet(makeCtx("atlanta")), "title-block");
+  expect(count(body, ">Site analysis<")).toBe(1);
+});
+
+test("Open-Meteo is credited for the climate layer, not for the computed sun", () => {
+  const layers = loadLayers("atlanta");
+  const sunOnly: SheetLayers = { sun: layers.sun, osm: layers.osm };
+  const body = groupBody(buildSheet(makeCtx("atlanta", { layers: sunOnly })), "attribution");
+  expect(body).not.toContain("Open-Meteo");
+});
+
+test("the ACS vintage is read from the envelope, never defaulted", () => {
+  const layers = loadLayers("atlanta");
+  const census = layers.census?.data as { vintage: string };
+  expect(
+    groupBody(buildSheet(makeCtx("atlanta", { layers })), "attribution"),
+  ).toContain(`US Census Bureau ACS 5-year ${census.vintage}.`);
+
+  const withoutVintage = { ...(layers.census?.data as Record<string, unknown>) };
+  delete withoutVintage.vintage;
+  layers.census = { ...layers.census!, data: withoutVintage };
+  const body = groupBody(buildSheet(makeCtx("atlanta", { layers })), "attribution");
+  expect(body).toContain("US Census Bureau ACS 5-year.");
+  expect(body).not.toContain("2023");
+});

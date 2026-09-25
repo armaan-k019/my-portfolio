@@ -24,13 +24,22 @@ export function build(ctx: SheetContext): string {
   if (attempted("topo")) lines.push("Elevation: USGS 3DEP.");
   if (attempted("seismic")) lines.push("Seismic: USGS.");
   if (attempted("soil")) lines.push("Soil: USDA NRCS SSURGO.");
-  if (attempted("climate") || attempted("sun")) {
-    lines.push("Climate: Open-Meteo (ERA5).");
-  }
+  // The line credits the climate layer, which is the only layer whose values
+  // come from the archive. The sun layer is computed from the NOAA solar
+  // position equations; it reads the archive for the time zone string alone and
+  // carries no Open-Meteo measurement, so a sun only run must not print a
+  // climate credit for data the sheet does not show.
+  if (attempted("climate")) lines.push("Climate: Open-Meteo (ERA5).");
   if (attempted("census")) {
-    const vintage =
-      (ctx.layers.census?.data as CensusData | null)?.vintage ?? "2023";
-    lines.push(`Demographics: US Census Bureau ACS 5-year ${vintage}.`);
+    // The vintage is read from the envelope. With no vintage in the data there
+    // is no year to print: a default would put a number on the sheet that no
+    // field carries.
+    const vintage = (ctx.layers.census?.data as CensusData | null)?.vintage ?? null;
+    lines.push(
+      vintage
+        ? `Demographics: US Census Bureau ACS 5-year ${vintage}.`
+        : "Demographics: US Census Bureau ACS 5-year.",
+    );
   }
   lines.push("Geocoding: Nominatim and Photon (OSM).");
 

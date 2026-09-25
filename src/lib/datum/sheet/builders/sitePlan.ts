@@ -4,8 +4,11 @@
 // The site plan is the one panel that draws several layers at once: buildings,
 // streets, and water from `osm`, flood polygons from `flood`, contours from
 // `topo`. OSM is the base drawing, so the group's status follows the `osm`
-// envelope: with no OSM there is no figure ground and the panel is unavailable,
-// while flood and topography simply contribute nothing when they failed.
+// envelope: with no OSM there is no figure ground and the panel is stamped
+// unavailable. Only the three OSM derived groups depend on it. Flood and
+// topography draw whenever their own layers answered, because a FEMA polygon
+// and a 3DEP contour are measurements of the ground in their own right and are
+// worth tracing over even when the figure ground is missing.
 
 import { FRAME_SIZE_M, SITE_RADIUS_M } from "../../constants";
 import type {
@@ -144,21 +147,22 @@ function floodGroup(flood: FloodData | null): string {
 function contourGroup(topo: TopoData | null): string {
   if (!topo) return clipped("site-plan-contours", "");
   const parts: string[] = [];
-  topo.contours.lines.forEach((polyline, index) => {
-    if (polyline.length < 2) return;
-    // Every fifth line is an index contour and draws heavier. The data carries
-    // no elevation per line, so the index is by draw order; the interval is
-    // printed in the annotations.
-    const weight = index % 5 === 0 ? STROKE.contourIndex : STROKE.contour;
+  // Every contour draws at the same weight. An index contour is every fifth
+  // elevation, and TopoData carries no elevation per line, so weighting by
+  // array position would emphasise lines chosen by draw order and read on paper
+  // as a claim about height that no field supports. The interval stays in the
+  // annotation, which is where the data actually says it.
+  for (const polyline of topo.contours.lines) {
+    if (polyline.length < 2) continue;
     parts.push(
       localPath(
         polyline,
         siteProject,
         false,
-        strokeAttrs(COLOURS.brownLight, weight, null, 0.8),
+        strokeAttrs(COLOURS.brownLight, STROKE.contour, null, 0.8),
       ),
     );
-  });
+  }
   return clipped("site-plan-contours", parts.join(""));
 }
 
@@ -425,8 +429,8 @@ export function build(ctx: SheetContext): string {
   }
 
   parts.push(waterGroup(osm));
-  parts.push(floodGroup(osm ? flood : null));
-  parts.push(contourGroup(osm ? topo : null));
+  parts.push(floodGroup(flood));
+  parts.push(contourGroup(topo));
   parts.push(streetGroup(osm));
   parts.push(buildingGroup(osm));
   parts.push(heightGroup(osm));
