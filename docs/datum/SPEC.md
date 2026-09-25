@@ -266,6 +266,13 @@ Rules that apply to every source:
    `overpass.kumi.systems` once, each with its own 45 s timeout, inside the 60 s route budget only if
    the previous attempt failed fast. Total wall clock is capped at 55 s; when the cap is hit the
    envelope is `timeout`.
+7. Every numeric value is rounded to its field's precision before the envelope leaves the layer
+   (amended 2026-09-25). The table is below. `src/lib/datum/precision.ts` holds it and
+   `src/lib/datum/layers.ts` applies it to every envelope a fetcher returns, which is the single
+   point everything passes through before the page, the sheet, `layer_results`, the metrics, or the
+   brief serializer sees it. `brief/store.ts` applies it again to stored rows and to client sent
+   envelopes: a row written before this rule is still inside its TTL, and a client is not trusted to
+   have rounded anything.
 
 Per source unavailable messages (verbatim, so screenshots are comparable):
 
@@ -283,6 +290,83 @@ Per source unavailable messages (verbatim, so screenshots are comparable):
 | Census, failure | "Census ACS could not be reached (<code>)." |
 | Open-Meteo | "Open-Meteo climate archive could not be reached (<code>). Wind and climate are unavailable." |
 | Brief dependency | "The brief was written without <layer list>; those sources were unavailable." |
+
+### Rounding precision per field (rule 7)
+
+Why the rule exists. The brief on one Miami site printed "2.660512686 m" for a terrain section.
+Nine decimals on a 3DEP elevation is a float, not a measurement. Two causes: `summarise` in
+`brief/prompt.ts` collapses an array longer than 16 to a count, a min and a max, and took the
+extremes straight off the unrounded values, which is every 21 point terrain section; and `roundLeaf`
+applied four decimals to a metre, a degree and a percent alike, which is the "1.8284 m". The value
+aware citation check (section 12) then compared what the brief wrote against what the model was
+given, so rounding a number cost the brief a citation and the model stopped rounding. The rule fixes
+the data, not the prompt: the model is given the number an architect would write, so quoting it
+exactly is both correct and what passes the check.
+
+How a precision is chosen. Each field takes the coarser of what its unit deserves and what the sheet
+already prints, and where the sheet prints a value the two are the same, so no printed measurement
+changes. Rounding uses `toFixed`, because the sheet formats with `toFixed` and a multiply and divide
+form disagrees with it at a trailing .5.
+
+| Layer | Field | Decimals | Why |
+|---|---|---|---|
+| sun | `latitude`, `longitude` | 5 | The title block prints the site point at 5, about a metre. |
+| sun | `*.sunriseAzimuthDeg`, `*.sunsetAzimuthDeg`, `*.noonAltitudeDeg` | 1 | Degrees to 0.1. Finer than any shadow study needs. |
+| sun | `*.samples[].altitudeDeg`, `*.samples[].azimuthDeg` | 1 | Same, and they only plot the arc. |
+| sun | `*.daylightHours`, `daylightHoursByMonth[]` | 1 | Hours to six minutes. |
+| sun | `overhangRatioSouthGlazing` | 2 | The sheet prints "1 to 0.18". |
+| climate | `wind.*.sectors[].sectorDeg`, `prevailingSectorDeg` | 1 | Degrees to 0.1; sectors are 22.5 apart. |
+| climate | `wind.*.sectors[].frequencyPct`, `binsPct[]`, `calmSharePct` | 1 | Single digit percentages where a tenth separates two sectors. |
+| climate | `wind.*.binEdgesMs[]` | 1 | Bin edges are 0.5, 2, 4, 6, 8. |
+| climate | `wind.*.meanSpeedMs` | 2 | The sheet prints two decimals. |
+| climate | `wind.*.resultantLength` | 3 | A 0 to 1 ratio the sheet prints at three. |
+| climate | `monthly[].meanC`, `meanDailyMaxC`, `meanDailyMinC` | 1 | Temperature to 0.1 C, which is what ERA5 resolves. |
+| climate | `monthly[].meanRhPct` | 1 | |
+| climate | `monthly[].meanDailyRadiationKwhM2` | 2 | The sheet prints peak radiation at two. |
+| climate | `degreeDays.baseC` | 1 | |
+| climate | `degreeDays.hdd`, `cdd` | 0 | Degree days are whole days. |
+| climate | `comfortShare.pct` | 1 | |
+| climate | `period.years` | 0 | |
+| topo | `siteElevationM`, `reliefM`, `grid.values[]`, `sections.ew[]`, `sections.ns[]` | 1 | Elevations and section values to 0.1 m. 3DEP is a 1 m to 10 m surface. |
+| topo | `meanSlopePct` | 1 | Slope to 0.1 percent. |
+| topo | `aspectDeg` | 1 | Degrees to 0.1. |
+| topo | `grid.spacingM`, `contours.intervalM` | 1 | |
+| topo | `grid.n` | 0 | A count. |
+| seismic | `ss`, `s1`, `sms`, `sm1`, `sds`, `sd1`, `pgam` | 3 | ASCE 7-22 publishes and the sheet prints three. |
+| seismic | `tl` | 1 | Seconds, printed at a tenth. |
+| soil | `components[].percent` | 0 | SSURGO reports composition in whole percent. |
+| soil | `components[].slopePct` | 1 | |
+| osm | `buildings[].heightM` | 1 | Tagged metres; the sheet prints them whole. |
+| osm | `buildings[].levels`, `*.id`, `stats.buildingCount`, `ringCount`, `withHeight`, `withLevels`, `relationCount` | 0 | Counts and ids. |
+| osm | `transitStops[].x`, `transitStops[].y` | 1 | Local metres, to 0.1 m. |
+| osm | `stats.coverageRatio` | 3 | A 0 to 1 share; three decimals is a tenth of a percent. |
+| osm | `stats.sizeWarning.bytes`, `thresholdBytes` | 0 | |
+| walkshed | `reachKm.5`, `.10`, `.15` | 1 | Street kilometres, printed at a tenth. |
+| walkshed | `transitWithin.*`, `walkingSpeedMPerMin` | 0 | Counts, and a fixed 80 m per minute. |
+| walkshed | `startNodeOffsetM` | 1 | |
+| flood | `atPoint.staticBfeFt` | 1 | FEMA publishes base flood elevations to a tenth of a foot. |
+| census | all ACS counts and the two medians in dollars | 0 | People, households, units, dollars. |
+| census | `medianAge` | 1 | |
+| census | `avgHouseholdSize` | 2 | The sheet prints two. |
+| census | `tract.areaLandM2` | 0 | |
+| census | `derived.densityPerKm2` | 1 | |
+| census | `derived.renterSharePct`, `carFreeCommutePct`, `multifamily5plusSharePct` | 1 | Tract shares where a tenth of a percent is a household or two. |
+| census | `margins.<field>` | as `<field>` | A margin of error is in the unit of the estimate it qualifies. |
+
+Drawing geometry is deliberately not rounded and is listed in `GEOMETRY_PATHS`: contour lines,
+building and water rings, street lines, walk shed bands, flood polygon rings and the tract polygon.
+The serializer never sends geometry to the model (section 12), and `pathFrom` in `sheet/panel.ts`
+already rounds it as it writes the path, so rounding it here would only move drawn lines.
+
+A numeric field in neither list fails `e2e/unit/precision.spec.ts`, so a new field on any source
+cannot reach a brief at whatever precision that source happened to send.
+
+Two consequences on the record. Rounding the values the sheet plots from moves two derived display
+scalars: the vertical exaggeration printed on the topography panel (Miami 20.8 to 21.1, WaKeeney 8.5
+to 8.6), and two climate axis tick labels at WaKeeney that sat on a `toFixed(0)` boundary. Both are
+computed from the data rather than measured, neither is a citable field, and both now describe the
+data the sheet actually draws. Atlanta's 294 text nodes are unchanged. Stored metric vectors
+computed before this rule differ from new ones below any metric's sensitivity.
 
 ## 9. Data per layer
 
@@ -594,6 +678,35 @@ Rules:
 - Validity: the string must parse with `DOMParser` as `image/svg+xml` with no `parsererror`
   element. Playwright checks this and the group list after every export in the acceptance tests.
 
+### On screen viewer (added 2026-09-25)
+
+The document is 2592 by 1728 units and the smallest authored text is 6 units. Scaled to fit a
+1014 px column that is 0.391, which sets the 6 unit text at 2.3 px and makes 284 text nodes
+unreadable. The sheet is correct at that size; the container was wrong. The page therefore reads the
+sheet through a window rather than scaling it to the column
+(`src/app/projects/datum/panels/SheetViewer.tsx`, geometry in `src/lib/datum/sheet/view.ts`):
+
+- Drag pans, scroll and pinch zoom, and the pointer is the zoom origin: the sheet point under it
+  before a zoom is the sheet point under it after.
+- The default is fit to width. A control jumps to 100 percent, where one sheet unit is one CSS pixel
+  and the 6 unit text sets at 6 px.
+- The range runs from fit to width to 400 percent. 100 percent stays reachable on a window wider
+  than the sheet, where fit to width is already above 1.
+- Keyboard: arrows pan, Shift for a longer step, plus and minus zoom, 0 fits. The window is
+  focusable and carries its own label.
+- Touch: one finger pans, two pinch. `touch-action: none` is set on the window element only, so a
+  gesture starting anywhere else on the page still scrolls the page.
+- Full screen is a portal to the body, because `.card` sets `backdrop-filter` and would otherwise be
+  the containing block for a fixed child. Escape closes it, Tab is trapped inside it, the body does
+  not scroll behind it, and focus returns to the control that opened it.
+- The current zoom is shown in the `.meta` style.
+- Zoom is driven by the `viewBox` attribute and never by a CSS transform, which can be composited
+  from a bitmap rasterized at the pre transform size. The sheet stays vector at every zoom.
+
+The viewer holds no sheet state. `buildSheetGroups` is called with its own context and the export is
+the same builder strings joined, so what the viewer shows and what the export writes cannot
+disagree, and the view never reaches the exported file.
+
 ## 12. Site brief (Claude)
 
 Model: `claude-sonnet-4-6` (repo rule: every route on this model). Streaming through the SDK's
@@ -615,7 +728,10 @@ System prompt requirements (the exact text lives in the code; these are the cont
    `[layer.path.to.field]` copied exactly from the input keys.
 3. Never mention the neighbourhood, city, history, reputation, or anything not present in the
    input. If a layer is unavailable, say so in "What is missing" and do not reason about it.
-4. Numbers are quoted as given, with units, no rounding beyond what the input shows.
+4. Numbers are quoted as given, with units, no rounding beyond what the input shows. Since section 8
+   rule 7 the input carries values already rounded to their field's precision, so this rule now asks
+   the model to copy a number an architect would write rather than to copy a float. It is unchanged
+   in wording, and the defect it used to cause was in the data, not here.
 5. No headings other than the five section names, no markdown lists, no em dashes.
 
 Server side validation after the stream completes: extract every `[...]` citation, check each
@@ -637,6 +753,13 @@ validator logs every match decision (sentence index, value string, the matched p
 whether the earlier citation was found) at debug level, so a false pass is diagnosable. Restating a
 value already cited is not fabrication; requiring a bracket on every restatement produced citation
 spam and false positives (see PROGRESS.md, Phase 2 tripwire).
+
+The check compares against the rounded value, because since section 8 rule 7 the rounded value is
+the only value there is: the model is given "1.9" for a 1.9 m elevation, so writing 1.9 matches and
+passes. Before that rule the model was given "1.8284" and writing the 1.8 an architect would write
+found no match, so the check penalised correct rounding and the model learned to copy the float.
+That is what put nine decimal numbers in a brief. The check itself was not loosened to fix it, and
+must not be: a number that traces to nothing in the dataset still fails.
 
 SSE events:
 
