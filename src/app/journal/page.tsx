@@ -42,6 +42,7 @@ export default function JournalPage() {
                     year: "numeric",
                     month: "short",
                     day: "numeric",
+                    timeZone: "UTC",
                   })}
                 </span>
               </Link>

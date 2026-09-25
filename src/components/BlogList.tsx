@@ -28,6 +28,7 @@ export default function BlogList({ posts }: { posts: BlogPreview[] }) {
                 year: "numeric",
                 month: "short",
                 day: "numeric",
+                timeZone: "UTC",
               })}
             </span>
           </div>
