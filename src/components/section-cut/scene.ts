@@ -8,10 +8,15 @@ import { crossings, figure, type Model } from "./geometry";
 
 const NEAR_BAND = 8;        // metres behind the cut drawn in ink, the rest in hairline
 const HATCH = 0.16;         // poché hatch spacing in metres
-const CUT_WIDTH = 2.5;      // cut outline, CSS px
+// Three depths, three unmistakable weights: the cut, the near bay, and
+// hairlines beyond that fade out with distance.
+const CUT_WIDTH = 3.5;      // cut outline, CSS px
+const NEAR_WIDTH = 1.6;     // near bay, CSS px
+const FAR_FADE = 45;        // metres beyond the near bay over which far lines fade
+const FAR_FLOOR = 0.35;     // share of the hairline alpha left at the fade's end
 const TRAIL = 8;            // earlier cut positions kept as a fading wake
 const TRAIL_MS = 600;       // how long a wake section takes to fade out
-const TRAIL_STEP = 1.2;     // metres the cut must move before it leaves a wake
+const TRAIL_STEP = 2.5;     // metres the cut must move before it leaves a wake
 const IDLE_AFTER = 8000;    // ms without pointer movement before the model turns
 const IDLE_RAMP = 2500;     // ms over which the idle turn eases up to speed
 const IDLE_SPEED = 5;       // degrees of azimuth per second at full speed
@@ -45,6 +50,22 @@ function token(name: string) {
     return { color: new THREE.Color(`rgb(${r}, ${g}, ${b})`), alpha: parseFloat(a) };
   }
   return { color: new THREE.Color(raw || "#000"), alpha: 1 };
+}
+
+// Hairlines whose alpha falls off with distance past `edge.value` along X.
+function fadingMat(t: { color: THREE.Color; alpha: number }, clip: THREE.Plane[], edge: { value: number }) {
+  const m = lineMat(t, clip);
+  m.transparent = true;
+  m.onBeforeCompile = (shader) => {
+    shader.uniforms.uEdge = edge;
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying float vX;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvX = (modelMatrix * vec4(position, 1.0)).x;");
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", `#include <common>\nvarying float vX;\nuniform float uEdge;`)
+      .replace("#include <opaque_fragment>", `#include <opaque_fragment>\ngl_FragColor.a *= mix(1.0, ${FAR_FLOOR.toFixed(2)}, clamp((vX - uEdge) / ${FAR_FADE.toFixed(1)}, 0.0, 1.0));`);
+  };
+  return m;
 }
 
 function lineMat(t: { color: THREE.Color; alpha: number }, clip: THREE.Plane[]) {
@@ -86,8 +107,13 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
   const farStart = new THREE.Plane(new THREE.Vector3(1, 0, 0), 0);
 
   const scene = new THREE.Scene();
-  const far = new THREE.LineSegments(geo, lineMat(hair, [farStart]));
-  const near = new THREE.LineSegments(geo, lineMat(ink, [keepBehind, nearEnd]));
+  const farEdge = { value: 0 };
+  const far = new THREE.LineSegments(geo, fadingMat(hair, [farStart], farEdge));
+  const nearMat = new LineMaterial({ color: ink.color, linewidth: NEAR_WIDTH, depthTest: false, clippingPlanes: [keepBehind, nearEnd] });
+  const nearGeo = new LineSegmentsGeometry();
+  nearGeo.setPositions(m.lines);
+  const near = new LineSegments2(nearGeo, nearMat);
+  near.frustumCulled = false;
   const site = new THREE.LineSegments(siteGeo, lineMat(hair, [keepBehind]));
   const hatchGeo = new THREE.BufferGeometry();
   const hatch = new THREE.LineSegments(hatchGeo, lineMat({ color: cut.color, alpha: 0.35 }, []));
@@ -108,7 +134,7 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
   const peopleGeo = new THREE.BufferGeometry();
   const peopleBuf = new Float32Array((walkers.length + standing.length) * 8 * 6);
   peopleGeo.setAttribute("position", new THREE.BufferAttribute(peopleBuf, 3));
-  const peopleNear = new THREE.LineSegments(peopleGeo, near.material);
+  const peopleNear = new LineSegments2(new LineSegmentsGeometry(), nearMat);
   const peopleFar = new THREE.LineSegments(peopleGeo, far.material);
   peopleNear.frustumCulled = peopleFar.frustumCulled = false;
   peopleNear.renderOrder = 2; peopleFar.renderOrder = 1;
@@ -120,8 +146,8 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
     for (const s of standing) figure(figs, s);
     peopleBuf.set(figs);
     (peopleGeo.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
+    fillSegs(peopleNear, figs);
   }
-  placePeople(0);
 
   const bx = m.bounds;
   const center = new THREE.Vector3(
@@ -172,7 +198,7 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
 
   // The wake: earlier cut sections that fade out over TRAIL_MS, live mode only.
   const trail = mode === "live" ? Array.from({ length: TRAIL }, () => {
-    const mat = new LineMaterial({ color: cut.color, linewidth: 1.25, transparent: true, depthTest: false, opacity: 0 });
+    const mat = new LineMaterial({ color: cut.color, linewidth: 1, transparent: true, depthTest: false, opacity: 0 });
     const obj = new LineSegments2(new LineSegmentsGeometry(), mat);
     obj.frustumCulled = false;
     obj.renderOrder = 3.5;
@@ -204,6 +230,7 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
     keepBehind.constant = -x;
     nearEnd.constant = x + NEAR_BAND;
     farStart.constant = -(x + NEAR_BAND);
+    farEdge.value = x + NEAR_BAND;
 
     const rects: number[] = [];
     const hatchPts: number[] = [];
@@ -246,6 +273,7 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
     camera.top = half; camera.bottom = -half;
     camera.updateProjectionMatrix();
     outlineMat.resolution.set(w, h);
+    nearMat.resolution.set(w, h);
     for (const t of trail) t.mat.resolution.set(w, h);
   }
 
@@ -375,6 +403,7 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
     host.addEventListener("pointerleave", onLeave);
   }
 
+  placePeople(0);
   resize();
   request();
 
@@ -386,6 +415,7 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
     host.removeEventListener("pointerleave", onLeave);
     renderer.dispose();
     geo.dispose(); siteGeo.dispose(); hatchGeo.dispose(); outline.geometry.dispose(); peopleGeo.dispose();
+    nearGeo.dispose(); nearMat.dispose(); peopleNear.geometry.dispose();
     for (const t of trail) { t.obj.geometry.dispose(); t.mat.dispose(); }
     outlineMat.dispose();
   };
