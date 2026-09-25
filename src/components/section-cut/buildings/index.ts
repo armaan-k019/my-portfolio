@@ -11,8 +11,6 @@ export interface BuildingInfo {
 }
 
 export const BUILDINGS: BuildingInfo[] = [
-  { name: "Guggenheim Museum", architect: "Frank Lloyd Wright", year: 1959, load: () => import("./guggenheim") },
-  { name: "National Parliament House", architect: "Louis Kahn", year: 1982, load: () => import("./dhaka") },
   { name: "Sydney Opera House", architect: "Jørn Utzon", year: 1973, load: () => import("./sydney") },
 ];
 
