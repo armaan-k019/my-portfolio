@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { demos, type DemoConfig } from "@/lib/demos";
+import NodeField from "@/components/NodeField";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
@@ -121,8 +122,9 @@ function PrivateSection() {
 
 export default function DemosPage() {
   return (
-    <div className="min-h-screen">
-      <div className="max-w-4xl mx-auto px-6 py-16">
+    <div className="relative min-h-screen">
+      <NodeField />
+      <div className="relative max-w-4xl mx-auto px-6 py-16">
         <h1 className="font-display display-lg font-semibold text-ink mb-4">Demos</h1>
         <p className="text-sm text-brown-light leading-relaxed max-w-xl mb-2">
           Company-specific projects, each built around one problem I wanted to dig into.
