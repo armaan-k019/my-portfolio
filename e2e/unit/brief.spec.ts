@@ -251,6 +251,33 @@ test("a raw float never matches the four decimal value the model was sent", () =
   expect(raw.uncitedNumericSentences).toBe(1);
 });
 
+test("a negative value is read with its sign, and a hyphen is not a sign", () => {
+  const values = buildValueIndex({
+    layers: {
+      climate: { status: "ok", fields: { "climate.monthly[].meanDailyMinC": -7.05 } },
+    },
+  });
+  const paths = ["climate.monthly[].meanDailyMinC"];
+  const cited = "January mean daily minimum is -7.05 C [climate.monthly[].meanDailyMinC].";
+
+  const restated = validateCitations(
+    [cited, "A -7.05 C design minimum sets the envelope."].join("\n"),
+    paths,
+    values,
+  );
+  expect(restated.uncitedNumericSentences).toBe(0);
+  expect(restated.valueMatchedSentences).toBe(1);
+
+  // "5-minute" is one number and a word, not a five and a negative minute, and
+  // the 7.05 written without its sign is not the value the data carries.
+  const unsigned = validateCitations(
+    [cited, "A 5-minute walk meets a 7.05 C design minimum."].join("\n"),
+    paths,
+    values,
+  );
+  expect(unsigned.uncitedNumericSentences).toBe(1);
+});
+
 test("a value the serializer sent unrounded matches the string it sent", () => {
   // flattenLayer rounds the leaves it flattens and nothing else: a collapsed
   // array reports its min and max at full precision, and the site point is sent

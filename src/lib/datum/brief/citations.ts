@@ -188,11 +188,14 @@ export function buildValueIndex(input: unknown): ValueIndex {
 // ─── Numeric tokens ──────────────────────────────────────────────────────────
 
 /**
- * A number as a sentence writes it: digits, optional thousands groups, an
- * optional decimal part, an optional percent sign. Ordinal and count words
- * ("first", "all twenty") carry no digits and are not numbers here.
+ * A number as a sentence writes it: an optional minus sign, digits, optional
+ * thousands groups, an optional decimal part, an optional percent sign. Ordinal
+ * and count words ("first", "all twenty") carry no digits and are not numbers
+ * here. The minus is read only at the start of a word, so "5-minute" and
+ * "2023-2024" are not negative numbers, while "-7.05 C" is the value the data
+ * carries.
  */
-const NUMERIC_TOKEN = /\d+(?:,\d{3})*(?:\.\d+)?%?/g;
+const NUMERIC_TOKEN = /(?:(?<=^|[\s([])-)?\d+(?:,\d{3})*(?:\.\d+)?%?/g;
 /** A bare four digit year. A date is not a measurement. */
 const YEAR = /^(?:1[89]|20)\d{2}$/;
 
