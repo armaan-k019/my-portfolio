@@ -12,7 +12,7 @@ Started 2026-09-21 from `origin/main` at `c2c8517` (PR #22, rename to Datum).
 | 0 | `feat/datum-phase-0` | `main` | pending |
 | 1 | `feat/datum-phase-1` | `feat/datum-phase-0` | #24, gate closed 2026-09-25 |
 | 2 | `feat/datum-phase-2` | `feat/datum-phase-1` | #26, gate closed 2026-09-25 |
-| 3 | `feat/datum-phase-3` | `feat/datum-phase-2` | pending |
+| 3 | `feat/datum-phase-3` | `feat/datum-phase-2` | #27, built 2026-09-25, migration 0002 at the human gate |
 | 4 | BLOCKED | | |
 
 ## Pre flight
@@ -715,3 +715,75 @@ therefore sensitive to model output on every run, and that sensitivity is intend
 
 Next action: verify the follow up, push, then Phase 3 (branch feat/datum-phase-3 from the Phase 2
 head; migration 0002 goes to the human gate when written; open question 7 could fold into it).
+
+## Phase 3
+
+Status: built, pushed, PR #27 open (base feat/datum-phase-2). Independent review in progress.
+MIGRATION 0002 AT THE HUMAN GATE: written, reviewed, not applied. Builder: Opus. Started
+2026-09-25.
+
+### Build (`daa4ee7` to `f2af3ba`, six commits as the phase file names them)
+
+Migration 0002 verified by the orchestrator as byte identical to SPEC section 13 plus the revoke
+and grant on `metric_percentile` (mirroring `rate_limit_hit`); open question 7 not included.
+metrics.ts (fourteen components, fixed constants, all or nothing vector), memory.ts extended
+(writeMetrics, percentiles, similarSites, publicSites, countSites, sweep), context, map and ping
+routes, vercel.json daily cron, brief storage and replay, MemoryPanel and SitesMap, twelve seed
+sites each geocoded through the app's own route with the resolved name recorded, memory e2e.
+
+Gates (orchestrator re-run): tsc exit 0; `npm run test:unit` 319 passed; eslint 13 errors, 8
+warnings; both builds exit 0; the three memory routes in the route list; fallback grep only the
+two counters; no em dashes.
+
+e2e (builder): ping refuses a missing or wrong bearer (401) and answers 200 with the secret;
+offline run passes end to end (Atlanta analysed with SUPABASE_URL unreachable, panel shows the
+verbatim offline sentence, export works, no 5xx). The five database dependent tests (seed run,
+context, map, page screenshot, brief replay) skip with the named reason "migration 0002 is not
+applied" (a live probe on sites.metrics, not a flag). No percentile, similar site, map, replay,
+or n value has been measured yet.
+
+### Deviations recorded
+
+- Similar sites are ordered in TypeScript over a capped candidate set (2000, is_test gated)
+  because PostgREST cannot express `<->` and 0002 is fixed to the SPEC text; the HNSW index stays
+  for a future SQL function. Ordering and result are the same as the operator.
+- Under DATUM_INCLUDE_TEST_SITES=1 (non production only) percentiles run the same arithmetic in
+  code, since `metric_percentile` hard codes is_test = false; production uses the SQL function.
+  The same flag gates the map, otherwise the twelve is_test seeds could never satisfy the map
+  check.
+- Null metrics are omitted from the stored jsonb rather than stored as null, so
+  `metric_percentile` counts only sites that measured the metric.
+- Seed analyses run through the routes with a synthetic client IP per run (12 of 20 daily).
+- The ping reports the gated (non test in production) site count.
+- The builder amended its sixth commit twice before pushing, to fold two late fixes in; the
+  amended commit had never been pushed, so nothing published was rewritten. Recorded because
+  history rewriting is on the stop and ask list.
+- `docs/datum/screenshots/phase-3/atlanta-memory-offline.png` committed (the phase file names the
+  folder); `atlanta-memory.png` awaits the migration. `metrics.spec.ts` rather than `.test.ts`.
+
+### Stop and ask items raised by Phase 3 (open questions 11 to 15)
+
+11. PHASE-3 step 3.2 unit test 1 ("every component of the vector from the Atlanta fixtures lies
+    in [0, 1]") cannot hold: Atlanta and Miami are SSURGO "Urban land" with no hydrologic group,
+    and SPEC section 14 row 13 makes that component null, so those sites have no vector. The
+    builder kept the test honest by running it on a one field variant and added a test that the
+    unchanged fixtures yield vector null with the other thirteen values present. Decision: amend
+    the phase file criterion, or change the SPEC rule (for example treat Urban land as its own
+    category value) so dense urban sites can have a vector at all. As written, most urban sites
+    will never get "sites like this".
+12. New user visible copy in the memory panel beyond SPEC section 14's single example sentence:
+    five percentile labels shaped like "More sun than", the count line "Site Memory holds N
+    analyzed sites.", the percentile null case "Percentiles need ten analyzed sites; Site Memory
+    holds N so far.", fourteen short component labels, the panel closing note, and two map
+    strings. Approve, or supply wording.
+13. The "sites like this" null sentence names soil as unavailable when soil answered but carried
+    no hydrologic group (the only SPEC sentence). More accurate wording is new copy.
+14. `CRON_SECRET` is not set in .env.local or Vercel. The ping fails closed (503) until it is.
+    The builder used a random value for the run only. Dashboard action.
+15. `e2e/README.md` is out of date for the memory spec and its flags; outside the Phase 3 list.
+
+### Next action
+
+Owner applies migration 0002 (SQL handed over in chat), then the orchestrator runs the step 3.1
+verification queries through the app's client, the database mode memory spec, and the offline
+run; then Greptile pass on #27, then the final review and report.
