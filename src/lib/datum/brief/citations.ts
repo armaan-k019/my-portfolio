@@ -43,7 +43,7 @@ const CITATION = /\[((?:[^[\]\n]|\[\])+)\]/g;
  * file survives no round trip through a diff view, a copy and paste, or an
  * editor that strips it, and the sentence count would then change silently.
  */
-const DECIMAL_MARK = "";
+const DECIMAL_MARK = "\u0001";
 
 function sentencesOf(text: string): string[] {
   const guarded = text.replace(/(\d)\.(\d)/g, `$1${DECIMAL_MARK}$2`);

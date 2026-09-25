@@ -308,6 +308,23 @@ test("a value the serializer sent unrounded matches the string it sent", () => {
   expect(check.valueMatchedSentences).toBe(1);
 });
 
+// ─── No raw control bytes in the source ──────────────────────────────────────
+
+test("citations.ts carries no raw control byte other than newline and tab", () => {
+  const source = readFileSync(
+    path.join(process.cwd(), "src", "lib", "datum", "brief", "citations.ts"),
+    "utf8",
+  );
+  for (let index = 0; index < source.length; index += 1) {
+    const code = source.charCodeAt(index);
+    if (code < 0x20 && code !== 0x0a && code !== 0x09 && code !== 0x0d) {
+      throw new Error(
+        `control byte 0x${code.toString(16)} found at offset ${index}`,
+      );
+    }
+  }
+});
+
 // ─── Percent asymmetry (SPEC section 12) ─────────────────────────────────────
 
 const PERCENT_VALUE_INPUT = {
