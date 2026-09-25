@@ -781,6 +781,14 @@ or n value has been measured yet.
 14. `CRON_SECRET` is not set in .env.local or Vercel. The ping fails closed (503) until it is.
     The builder used a random value for the run only. Dashboard action.
 15. `e2e/README.md` is out of date for the memory spec and its flags; outside the Phase 3 list.
+16. DATUM_INCLUDE_TEST_SITES is inert under `next start` (production), which is what the phase
+    file's acceptance command runs, so the database mode memory spec must run against
+    `npm run dev` (as decision 6 settled for the source overrides), or the flag must be gated on
+    DATUM_ALLOW_TEST_FLAG alone. Changing the acceptance command text needs the owner.
+12b. Copy: with the honest per metric population, the panel can show "Site Memory holds 15
+    analyzed sites." and "Percentiles need ten analyzed sites; Site Memory holds 7 so far." in
+    the same view. Proposed wording for the second: "Percentiles need ten sites that measured
+    this; 7 have so far." Owner decides.
 
 ### Review round 1 (Opus, 2026-09-25)
 
@@ -801,6 +809,20 @@ Fix round 1 dispatched for everything in owned code (findings 1, 3 to 11, 13 to 
 question 16: run the memory spec against `npm run dev` with the flag, as decision 6 did for the
 overrides, which changes the phase file's acceptance command text; or gate the flag on
 DATUM_ALLOW_TEST_FLAG alone. Not changed until answered.
+
+### Fix round 1 (`86dd805` to `54e1640`, `fa61d70`) and re-verification
+
+Closed: 1 (no site id leaves the server; the spec asserts the exact key set), 4, 6, 7, 8, 9, 10,
+11, 13, 14 (stored key is `densityPerKm2` holding the raw density; free to rename because no
+row exists yet), 15, 16. Partly: 3 (the arithmetic is honest, per metric n carried and used for
+the threshold sentence; the panel can now print two "Site Memory holds N" sentences that
+disagree, the count line and the per metric line, which is copy and is open question 12b),
+5 (the wipe is prevented but a recompute with no vector left an older vector beside newer
+metrics; closed in fix round 2). No test weakened; three strengthened. Additive contract
+changes: `truncated` and `metricsWrite` on the context response, `n` on PercentileEntry.
+
+Fix round 2 (final for Phase 3): metrics and vector written together or not at all; unit
+coverage for the fix round 1 changes; the ping refusals split into their own test. In flight.
 
 ### Next action
 
