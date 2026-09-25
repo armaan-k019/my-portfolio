@@ -122,9 +122,16 @@ function renderedForms(value: number): string[] {
   return [...forms];
 }
 
-/** True when this path's value is a percentage, so "6.2%" is one of its forms. */
+/**
+ * True when this path's value is a percentage, so "6.2%" is one of its forms.
+ *
+ * Two spellings are in use. Most layers name the field `...Pct`, but the soil
+ * components carry `soil.components[].percent`, and with only the `Pct` rule a
+ * brief that restated a 97 as "97%" found no path for that form and the
+ * sentence was reported as unmatched against a number the model was given.
+ */
 function isPercentPath(path: string): boolean {
-  return /Pct(?:\[\])?$/.test(path);
+  return /(?:pct|percent)(?:\[\])?$/i.test(path);
 }
 
 function put(index: ValueIndex, form: string, path: string): void {

@@ -382,6 +382,35 @@ test("the bare number, with no percent sign, also matches the percentage path", 
   expect(check.valueMatchedSentences).toBe(1);
 });
 
+// The soil components name the field `percent` rather than `...Pct`, and the
+// percent form has to be indexed for both spellings or a restated "97%" is
+// reported as a number the model was never given.
+const SOIL_PERCENT_INPUT = {
+  site: { latitude: 38.99, longitude: -99.88 },
+  layers: {
+    soil: {
+      status: "ok",
+      fields: {
+        "soil.components[].percent": [97, 2, 1],
+        "soil.components[].slopePct": [1, 0, 1],
+      },
+    },
+  },
+};
+
+test("a soil component percentage takes the percent form", () => {
+  const check = validateCitations(
+    [
+      "The map unit is 97% Harney [soil.components[].percent].",
+      "That 97% share carries the drainage behaviour of the whole site.",
+    ].join("\n"),
+    ["soil.components[].percent", "soil.components[].slopePct"],
+    buildValueIndex(SOIL_PERCENT_INPUT),
+  );
+  expect(check.uncitedNumericSentences).toBe(0);
+  expect(check.valueMatchedSentences).toBe(1);
+});
+
 test("a bare number matches a plain path cited earlier", () => {
   const check = checkPercentValues(
     [
