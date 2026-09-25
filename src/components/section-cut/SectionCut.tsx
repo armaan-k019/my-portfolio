@@ -11,6 +11,7 @@ export default function SectionCut() {
   const viewRef = useRef<HTMLSpanElement>(null);
   const ptrRef = useRef<HTMLSpanElement>(null);
   const [failed, setFailed] = useState(false);
+  const [hasPointer, setHasPointer] = useState(true);
 
   useEffect(() => {
     let dispose: (() => void) | null = null;
@@ -24,6 +25,7 @@ export default function SectionCut() {
     const mode = !matchMedia("(pointer: fine)").matches ? "static"
       : matchMedia("(prefers-reduced-motion: reduce)").matches ? "reduced"
       : "live";
+    setHasPointer(mode !== "static");
     import("./scene")
       .then(({ mount }) => {
         if (cancelled) return;
@@ -36,13 +38,16 @@ export default function SectionCut() {
 
   if (failed) return null;
   return (
-    <div aria-hidden className="relative h-[85vw] md:absolute md:inset-0 md:h-auto pointer-events-none">
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
-      <div className="absolute inset-x-0 bottom-6 max-w-5xl mx-auto px-6 flex justify-end">
+    <div aria-hidden className="pointer-events-none md:absolute md:inset-0">
+      <div className="relative h-[85vw] md:absolute md:inset-0 md:h-auto">
+        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
+      </div>
+      <div className="max-w-5xl mx-auto px-6 pb-8 md:pb-0 md:absolute md:inset-x-0 md:bottom-6 flex justify-end">
         <dl className="grid grid-cols-[auto_auto] gap-x-3 gap-y-1 items-baseline">
           <dt className="meta">CUT</dt><dd className="coord whitespace-pre" ref={cutRef} />
           <dt className="meta">VIEW</dt><dd className="coord whitespace-pre" ref={viewRef} />
-          <dt className="meta">PTR</dt><dd className="coord whitespace-pre" ref={ptrRef} />
+          <dt className="meta" hidden={!hasPointer}>PTR</dt>
+          <dd className="coord whitespace-pre" ref={ptrRef} hidden={!hasPointer} />
         </dl>
       </div>
     </div>
