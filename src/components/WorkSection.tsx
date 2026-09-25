@@ -28,28 +28,60 @@ function LogoWithFallback({ src, alt, imageClassName }: { src: string; alt: stri
   );
 }
 
+// A role string like "A → B" is a progression; split it into its steps.
+const steps = (role: string) => role.split("→").map((t) => t.trim());
+
+const columns = [
+  { title: "Professional", entries: workEntries.filter((e) => e.type !== "studentOrg") },
+  { title: "Leadership", entries: workEntries.filter((e) => e.type === "studentOrg") },
+];
+
 export default function WorkSection() {
   const [selected, setSelected] = useState<WorkEntry | null>(null);
 
   return (
     <>
-      <ul style={{ borderTop: "var(--rule)" }}>
-        {workEntries.map((entry) => (
-          <li key={entry.name} style={{ borderBottom: "var(--rule)" }}>
-            <button
-              onClick={() => setSelected(entry)}
-              className="group grid w-full grid-cols-1 sm:grid-cols-[minmax(0,15rem)_1fr_auto] gap-x-6 gap-y-1 py-4 text-left items-baseline"
-            >
-              <span className="font-display text-lg font-semibold text-ink group-hover:text-terracotta transition-colors">
-                {entry.name}
-                {entry.type === "studentOrg" && <span className="meta ml-2">Student Org</span>}
-              </span>
-              <span className="text-sm text-brown-light">{entry.role}</span>
-              <span className="meta whitespace-nowrap">{entry.dates}</span>
-            </button>
-          </li>
+      <div className="grid lg:grid-cols-2 gap-x-12 gap-y-14">
+        {columns.map((col) => (
+          <section key={col.title}>
+            <h3 className="font-display text-xl font-semibold text-ink mb-1">{col.title}</h3>
+            <hr className="rule mb-2" />
+            <ul className="divide-y divide-line">
+              {col.entries.map((entry) => {
+                const roles = steps(entry.role);
+                return (
+                  <li key={entry.name}>
+                    <button
+                      onClick={() => setSelected(entry)}
+                      className="group flex w-full flex-wrap items-baseline gap-x-3 gap-y-1 py-4 text-left"
+                    >
+                      <span className="font-display text-lg font-semibold text-ink group-hover:text-terracotta transition-colors">
+                        {entry.name}
+                      </span>
+                      {roles.length === 1 ? (
+                        <>
+                          <span className="text-sm text-brown-light">{entry.role}</span>
+                          <span className="meta whitespace-nowrap">{entry.dates}</span>
+                        </>
+                      ) : (
+                        <span className="flex flex-col gap-0.5">
+                          {roles.map((r, i) => (
+                            <span key={r} className="text-sm text-brown-light" style={{ paddingLeft: `${i}rem` }}>
+                              {i > 0 && <span aria-hidden className="text-terracotta mr-1.5">&rarr;</span>}
+                              {r}
+                            </span>
+                          ))}
+                          <span className="meta whitespace-nowrap mt-1">{entry.dates}</span>
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
         ))}
-      </ul>
+      </div>
 
       <Modal open={!!selected} onClose={() => setSelected(null)} titleId="work-modal-title">
         {selected && (
@@ -60,7 +92,12 @@ export default function WorkSection() {
               </div>
               <div>
                 <h3 id="work-modal-title" className="font-display text-xl font-semibold text-ink">{selected.name}</h3>
-                <p className="text-sm text-brown-light">{selected.role}</p>
+                {steps(selected.role).map((r, i) => (
+                  <p key={r} className="text-sm text-brown-light" style={{ paddingLeft: `${i}rem` }}>
+                    {i > 0 && <span aria-hidden className="text-terracotta mr-1.5">&rarr;</span>}
+                    {r}
+                  </p>
+                ))}
               </div>
             </div>
             <hr className="rule mb-4" />
