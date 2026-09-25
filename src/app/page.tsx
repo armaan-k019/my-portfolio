@@ -8,7 +8,8 @@ import { getResearchEntries } from "@/lib/mdx";
 
 export default function Home() {
   const allProjects = projects;
-  const researchEntries = getResearchEntries();
+  // The Shape Machine lives on the Shape Computation Lab work entry instead.
+  const researchEntries = getResearchEntries().filter((e) => e.slug !== "shape-machine");
 
   return (
     <div>

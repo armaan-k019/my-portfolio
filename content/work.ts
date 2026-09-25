@@ -5,6 +5,7 @@ export interface WorkEntry {
   dates: string;
   bullets: string[];
   link?: string;
+  links?: { label: string; url: string }[];
   cardBg?: string;
   type?: "studentOrg" | "research";
 }
@@ -47,6 +48,10 @@ export const workEntries: WorkEntry[] = [
       "Contributing to academic documentation and experimental workflows exploring computational approaches to architectural form-finding",
     ],
     link: "",
+    links: [
+      { label: "Shape Computation Lab", url: "https://shape.gatech.edu/" },
+      { label: "Shape Machine", url: "https://shapemachine.design.gatech.edu/" },
+    ],
     cardBg: "#ffffff",
     type: "research",
   },

@@ -111,6 +111,21 @@ export default function WorkSection() {
                 </li>
               ))}
             </ul>
+            {selected.links && (
+              <div className="flex flex-wrap gap-x-5 gap-y-2 mt-5">
+                {selected.links.map((link) => (
+                  <a
+                    key={link.url}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-terracotta underline underline-offset-4 decoration-1 hover:text-terracotta-dark transition-colors"
+                  >
+                    {link.label}{" "}&rarr;
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </Modal>
