@@ -13,6 +13,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse, type NextRequest } from "next/server";
 import {
   SYSTEM_PROMPT,
+  buildValueIndex,
   citableFieldPaths,
   inputHash,
   serializeInput,
@@ -39,13 +40,12 @@ export const maxDuration = 60;
 
 const MODEL = "claude-sonnet-4-6";
 /**
- * SPEC section 12 budgets 900 output tokens. Measured on the Atlanta site, a
- * 350 word brief in five sections carries about 35 citations, and a citation
- * path such as [osm.stats.coverageRatio] costs far more tokens than the words
- * around it: every run at 900 stopped mid sentence in "Context and access".
- * A truncated brief is worse than a slightly dearer one, so the cap is 1400 and
- * the 350 word instruction in the prompt is what actually holds the length.
- * Recorded as a deviation from SPEC section 12.
+ * SPEC section 12 budgets 1400 output tokens (amended 2026-09-25 from 900).
+ * Measured on the Atlanta site, a 350 word brief in five sections carries about
+ * 35 citations, and a citation path such as [osm.stats.coverageRatio] costs far
+ * more tokens than the words around it: every run at 900 stopped mid sentence in
+ * "Context and access", and a truncated brief produces uncited sentences of its
+ * own. The 350 word instruction in the prompt is what actually holds the length.
  */
 const MAX_TOKENS = 1400;
 
@@ -150,6 +150,10 @@ export async function POST(request: NextRequest) {
 
   const input = serializeInput(site, layers);
   const fieldPaths = citableFieldPaths(layers);
+  // The value aware numeric check reads the same object the model is sent, so a
+  // number the brief restates is checked against what the model was given and
+  // never against a raw float (SPEC section 12).
+  const values = buildValueIndex(input);
   const hash = inputHash(input);
 
   const client = new Anthropic();
@@ -176,13 +180,14 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        const check = validateCitations(text, fieldPaths);
+        const check = validateCitations(text, fieldPaths, values);
         controller.enqueue(
           encoder.encode(
             sse("done", {
               invalidCitations: check.invalidCitations,
               validCitations: check.validCitations,
               uncitedNumericSentences: check.uncitedNumericSentences,
+              valueMatchedSentences: check.valueMatchedSentences,
               model: MODEL,
               inputHash: hash,
             }),

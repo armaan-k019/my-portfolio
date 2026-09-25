@@ -93,7 +93,8 @@ export default function SiteSheetApp() {
     brief.status === "done" &&
     briefFailedChecks({
       invalidCitations: brief.invalidCitations,
-      validCitations: brief.validCitations,
+      // The count of sentences that failed the value aware numeric check, as the
+      // server reported it on the `done` event (SPEC section 12).
       uncitedNumericSentences: brief.uncitedNumericSentences,
     });
 

@@ -244,6 +244,8 @@ export function userMessage(input: BriefInput): string {
 
 export {
   briefFailedChecks,
+  buildValueIndex,
   validateCitations,
   type CitationCheck,
+  type ValueIndex,
 } from "./citations";

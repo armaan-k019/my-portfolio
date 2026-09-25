@@ -8,6 +8,7 @@ import {
   FORBIDDEN_KEYS,
   SYSTEM_PROMPT,
   briefFailedChecks,
+  buildValueIndex,
   citableFieldPaths,
   flattenLayer,
   inputHash,
@@ -113,14 +114,174 @@ test("one bracket may carry several comma separated paths", () => {
 
 test("briefFailedChecks follows the SPEC section 12 thresholds", () => {
   expect(
-    briefFailedChecks({ invalidCitations: ["a", "b"], validCitations: [], uncitedNumericSentences: 0 }),
+    briefFailedChecks({ invalidCitations: ["a", "b"], uncitedNumericSentences: 0 }),
   ).toBe(false);
   expect(
-    briefFailedChecks({ invalidCitations: ["a", "b", "c"], validCitations: [], uncitedNumericSentences: 0 }),
+    briefFailedChecks({ invalidCitations: ["a", "b", "c"], uncitedNumericSentences: 0 }),
   ).toBe(true);
   expect(
-    briefFailedChecks({ invalidCitations: [], validCitations: [], uncitedNumericSentences: 1 }),
+    briefFailedChecks({ invalidCitations: [], uncitedNumericSentences: 1 }),
   ).toBe(true);
+});
+
+// ─── Value aware numeric check (SPEC section 12, amended 2026-09-25) ──────────
+
+/**
+ * The serialized shape the model is sent: one entry per layer, every leaf keyed
+ * by the path the brief must cite. These are the values the two sentences in the
+ * Phase 2 tripwire restated (PROGRESS.md).
+ */
+const VALUE_INPUT = {
+  site: { latitude: 33.7751, longitude: -84.392 },
+  layers: {
+    topo: { status: "ok", fields: { "topo.meanSlopePct": 6.2, "topo.reliefM": 29.9 } },
+    osm: { status: "ok", fields: { "osm.stats.buildingCount": 20 } },
+    census: { status: "ok", fields: { "census.population": 7396 } },
+  },
+};
+
+const VALUE_PATHS = [
+  "topo.meanSlopePct",
+  "topo.reliefM",
+  "osm.stats.buildingCount",
+  "census.population",
+];
+
+function checkValues(text: string) {
+  return validateCitations(text, VALUE_PATHS, buildValueIndex(VALUE_INPUT));
+}
+
+test("a restated percentage passes when its path was cited earlier", () => {
+  // The Atlanta tripwire sentence, verbatim from the run of record.
+  const check = checkValues(
+    [
+      "Ground",
+      "Mean slope across the frame is 6.2 percent [topo.meanSlopePct].",
+      "Plan entry level carefully: a 6.2% slope can force split-level access or significant cut and fill.",
+    ].join("\n"),
+  );
+  expect(check.uncitedNumericSentences).toBe(0);
+  expect(check.valueMatchedSentences).toBe(1);
+});
+
+test("a restated count passes when its path was cited earlier", () => {
+  // The WaKeeney tripwire sentence, verbatim from the run of record.
+  const check = checkValues(
+    [
+      "The frame holds 20 mapped structures [osm.stats.buildingCount].",
+      "Building heights are missing from all 20 mapped structures, so overshadowing and context massing studies cannot be confirmed from this data.",
+    ].join("\n"),
+  );
+  expect(check.uncitedNumericSentences).toBe(0);
+  expect(check.valueMatchedSentences).toBe(1);
+});
+
+test("the same restatements fail with no earlier citation", () => {
+  const slope = checkValues(
+    "Plan entry level carefully: a 6.2% slope can force split-level access or significant cut and fill.",
+  );
+  expect(slope.uncitedNumericSentences).toBe(1);
+  expect(slope.valueMatchedSentences).toBe(0);
+
+  const heights = checkValues(
+    "Building heights are missing from all 20 mapped structures, so overshadowing cannot be confirmed.",
+  );
+  expect(heights.uncitedNumericSentences).toBe(1);
+});
+
+test("a number that is not in the dataset fails the sentence", () => {
+  const check = checkValues(
+    [
+      "Mean slope across the frame is 6.2 percent [topo.meanSlopePct].",
+      "The ground rises 41 m to the ridge behind the site.",
+    ].join("\n"),
+  );
+  expect(check.uncitedNumericSentences).toBe(1);
+  expect(check.valueMatchedSentences).toBe(0);
+});
+
+test("a value whose path is cited only later fails the sentence", () => {
+  const check = checkValues(
+    [
+      "Relief across the grid is 29.9 m, which sets the section.",
+      "Relief across the grid is 29.9 m [topo.reliefM].",
+    ].join("\n"),
+  );
+  expect(check.uncitedNumericSentences).toBe(1);
+  expect(check.valueMatchedSentences).toBe(0);
+});
+
+test("thousands separators and percent signs are accepted forms", () => {
+  const check = checkValues(
+    [
+      "The tract holds 7396 people [census.population].",
+      "Mean slope is 6.2 percent [topo.meanSlopePct].",
+      "Housing 7,396 residents at a 6.2% grade shapes the ground floor program.",
+    ].join("\n"),
+  );
+  expect(check.uncitedNumericSentences).toBe(0);
+  expect(check.valueMatchedSentences).toBe(1);
+});
+
+test("a raw float never matches the four decimal value the model was sent", () => {
+  const values = buildValueIndex({
+    layers: {
+      sun: {
+        status: "ok",
+        fields: flattenLayer("sun", { june: { noonAltitudeDeg: 79.66248616336355 } }),
+      },
+    },
+  });
+  const paths = ["sun.june.noonAltitudeDeg"];
+  const cited = "June noon altitude is 79.6625 degrees [sun.june.noonAltitudeDeg].";
+
+  const rounded = validateCitations(
+    [cited, "A 79.6625 degree noon sun sets the overhang depth."].join("\n"),
+    paths,
+    values,
+  );
+  expect(rounded.uncitedNumericSentences).toBe(0);
+  expect(rounded.valueMatchedSentences).toBe(1);
+
+  const raw = validateCitations(
+    [cited, "A 79.66248616336355 degree noon sun sets the overhang depth."].join("\n"),
+    paths,
+    values,
+  );
+  expect(raw.uncitedNumericSentences).toBe(1);
+});
+
+test("every decision is logged only when DATUM_DEBUG_CITATIONS is set", () => {
+  const text = [
+    "Mean slope across the frame is 6.2 percent [topo.meanSlopePct].",
+    "A 6.2% slope can force split-level access.",
+  ].join("\n");
+  const lines: string[] = [];
+  const original = console.debug;
+  console.debug = (...args: unknown[]) => {
+    lines.push(args.map((arg) => String(arg)).join(" "));
+  };
+  try {
+    delete process.env.DATUM_DEBUG_CITATIONS;
+    checkValues(text);
+    expect(lines, "a production run logs nothing").toEqual([]);
+
+    process.env.DATUM_DEBUG_CITATIONS = "1";
+    checkValues(text);
+    expect(lines.length).toBeGreaterThan(0);
+    expect(
+      lines.some(
+        (line) =>
+          line.includes("token=6.2%") &&
+          line.includes("matched=topo.meanSlopePct") &&
+          line.includes("earlierCitation=topo.meanSlopePct"),
+      ),
+      `a decision line names the token, the path, and the earlier citation: ${lines.join(" | ")}`,
+    ).toBe(true);
+  } finally {
+    console.debug = original;
+    delete process.env.DATUM_DEBUG_CITATIONS;
+  }
 });
 
 // ─── Serializer ──────────────────────────────────────────────────────────────
