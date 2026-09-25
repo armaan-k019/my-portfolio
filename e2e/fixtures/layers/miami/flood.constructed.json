@@ -1,0 +1,133 @@
+{
+  "constructed": true,
+  "constructedFrom": "e2e/fixtures/fema, replayed through fetchFlood with a fake fetch",
+  "constructedWhy": "hazards.fema.gov has refused connections from this machine since 2026-09-22, so a live capture is unavailable (PROGRESS.md Phase 0 pending live check).",
+  "constructedAt": "2026-09-24T12:00:00.000Z",
+  "note": "Miami moderate at the point (zone X, 0.2 PCT) with AE and VE SFHA polygons within 400 m.",
+  "envelope": {
+    "layer": "flood",
+    "status": "ok",
+    "data": {
+      "atPoint": {
+        "zone": "X",
+        "subtype": "0.2 PCT ANNUAL CHANCE FLOOD HAZARD",
+        "sfha": false,
+        "staticBfeFt": null,
+        "class": "moderate"
+      },
+      "polygons": [
+        {
+          "zone": "AE",
+          "subtype": null,
+          "sfha": true,
+          "class": "sfha",
+          "rings": [
+            [
+              [
+                106.50645682595604,
+                -238.70715120001407
+              ],
+              [
+                400,
+                -238.70715120001407
+              ],
+              [
+                400,
+                203.58884880013363
+              ],
+              [
+                106.50645682595604,
+                203.58884880013363
+              ],
+              [
+                106.50645682595604,
+                -238.70715120001407
+              ]
+            ]
+          ]
+        },
+        {
+          "zone": "VE",
+          "subtype": null,
+          "sfha": true,
+          "class": "sfha",
+          "rings": [
+            [
+              [
+                206.72896254471408,
+                -128.13315119987894
+              ],
+              [
+                400,
+                -128.13315119987894
+              ],
+              [
+                400,
+                400
+              ],
+              [
+                206.72896254471408,
+                400
+              ],
+              [
+                206.72896254471408,
+                -128.13315119987894
+              ]
+            ]
+          ]
+        },
+        {
+          "zone": "X",
+          "subtype": "0.2 PCT ANNUAL CHANCE FLOOD HAZARD",
+          "sfha": false,
+          "class": "moderate",
+          "rings": [
+            [
+              [
+                -294.38356604622766,
+                -238.70715120001407
+              ],
+              [
+                -93.9385546101358,
+                -238.70715120001407
+              ],
+              [
+                -93.9385546101358,
+                93.0148487999985
+              ],
+              [
+                -294.38356604622766,
+                93.0148487999985
+              ],
+              [
+                -294.38356604622766,
+                -238.70715120001407
+              ]
+            ]
+          ]
+        }
+      ],
+      "coverage": true
+    },
+    "source": {
+      "name": "FEMA National Flood Hazard Layer",
+      "url": "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query?geometry=-80.193054,25.797541,-80.185072,25.804776&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=FLD_ZONE,ZONE_SUBTY,SFHA_TF,STATIC_BFE&returnGeometry=true&outSR=4326&geometryPrecision=6&f=json",
+      "fetchedAt": "2026-09-24T12:00:00.000Z",
+      "cached": false,
+      "licence": "FEMA National Flood Hazard Layer, public domain"
+    },
+    "fieldPaths": [
+      "atPoint.class",
+      "atPoint.sfha",
+      "atPoint.staticBfeFt",
+      "atPoint.subtype",
+      "atPoint.zone",
+      "coverage",
+      "polygons[].class",
+      "polygons[].rings[][][]",
+      "polygons[].sfha",
+      "polygons[].subtype",
+      "polygons[].zone"
+    ]
+  }
+}

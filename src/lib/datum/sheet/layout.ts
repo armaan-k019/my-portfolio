@@ -127,6 +127,22 @@ export const WALK_SHED_SUBGROUPS: string[] = [
 
 // ─── Projection (SPEC section 10) ────────────────────────────────────────────
 
+/**
+ * The tract locator box inside the demographics zone. SPEC section 10 fixes its
+ * scale at 1 in = 2000 ft, so a large tract runs past the box and has to be
+ * clipped; the box is declared here because both the builder and the clipPath
+ * in `<defs>` need the same rectangle.
+ */
+export const TRACT_LOCATOR: Zone = {
+  id: "tract-locator",
+  x: ZONES.demographics.x + 8 + 340,
+  y: ZONES.demographics.y + 42,
+  w: 168,
+  h: 168,
+};
+export const TRACT_LOCATOR_M_PER_IN = 2000 * M_PER_FT;
+export const TRACT_LOCATOR_PT_PER_M = PT_PER_IN / TRACT_LOCATOR_M_PER_IN;
+
 /** Points per metre on the site plan. */
 export const SITE_PLAN_PT_PER_M = PT_PER_IN / SITE_PLAN_M_PER_IN;
 /** Points per metre on the walk shed plan. */

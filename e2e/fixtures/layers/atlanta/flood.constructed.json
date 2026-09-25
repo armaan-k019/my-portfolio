@@ -1,0 +1,38 @@
+{
+  "constructed": true,
+  "constructedFrom": "e2e/fixtures/fema, replayed through fetchFlood with a fake fetch",
+  "constructedWhy": "hazards.fema.gov has refused connections from this machine since 2026-09-22, so a live capture is unavailable (PROGRESS.md Phase 0 pending live check).",
+  "constructedAt": "2026-09-24T12:00:00.000Z",
+  "note": "Atlanta minimal: zone X, AREA OF MINIMAL FLOOD HAZARD, SFHA F. No envelope fixture was captured before FEMA went unreachable, so the 800 m polygon request answers with an empty feature list.",
+  "envelope": {
+    "layer": "flood",
+    "status": "ok",
+    "data": {
+      "atPoint": {
+        "zone": "X",
+        "subtype": "AREA OF MINIMAL FLOOD HAZARD",
+        "sfha": false,
+        "staticBfeFt": null,
+        "class": "minimal"
+      },
+      "polygons": [],
+      "coverage": true
+    },
+    "source": {
+      "name": "FEMA National Flood Hazard Layer",
+      "url": "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query?geometry=-84.396298,33.771508,-84.387652,33.778743&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=FLD_ZONE,ZONE_SUBTY,SFHA_TF,STATIC_BFE&returnGeometry=true&outSR=4326&geometryPrecision=6&f=json",
+      "fetchedAt": "2026-09-24T12:00:00.000Z",
+      "cached": false,
+      "licence": "FEMA National Flood Hazard Layer, public domain"
+    },
+    "fieldPaths": [
+      "atPoint.class",
+      "atPoint.sfha",
+      "atPoint.staticBfeFt",
+      "atPoint.subtype",
+      "atPoint.zone",
+      "coverage",
+      "polygons[]"
+    ]
+  }
+}
