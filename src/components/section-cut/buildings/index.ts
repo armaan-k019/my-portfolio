@@ -12,6 +12,7 @@ export interface BuildingInfo {
 
 export const BUILDINGS: BuildingInfo[] = [
   { name: "Guggenheim Museum", architect: "Frank Lloyd Wright", year: 1959, load: () => import("./guggenheim") },
+  { name: "National Parliament House", architect: "Louis Kahn", year: 1982, load: () => import("./dhaka") },
 ];
 
 // Whole UTC days since the epoch: the same for every visitor on a given
