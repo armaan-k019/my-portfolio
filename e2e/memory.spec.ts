@@ -29,7 +29,8 @@ import { test, expect, type APIRequestContext, type Page } from "@playwright/tes
 import { seedSites, type SeedSite } from "./fixtures/seed-sites";
 import { siteKey } from "../src/lib/datum/geo";
 import { LAYER_NAMES } from "../src/lib/datum/types";
-import { getClient, hashIp } from "../src/lib/datum/memory";
+import { MEMORY_COPY, getClient, hashIp } from "../src/lib/datum/memory";
+import { briefFailedChecks } from "../src/lib/datum/brief/citations";
 
 const OUT_DIR = path.join(__dirname, "..", "docs", "datum", "screenshots", "phase-3");
 
@@ -212,10 +213,27 @@ test("datum memory: the twelve seed sites are analyzed and their metrics stored"
     ).toBe("online");
   }
 
-  expect(
-    analysed.size,
-    "all twelve seed sites should reach a stored analysis",
-  ).toBe(seedSites.length);
+  // Not that the map this test filled has twelve entries, which it does by
+  // construction, but that each seed site has a stored metrics_at, which is
+  // what makes it part of the population the later assertions draw on.
+  const client = getClient()!;
+  const keys = seedSites.map((site) => siteKey(site.lat, site.lng));
+  const { data, error } = await client
+    .from("sites")
+    .select("site_key, metrics_at")
+    .in("site_key", keys);
+  expect(error, "the seed rows should be readable").toBeNull();
+  const storedAt = new Map(
+    ((data ?? []) as Array<{ site_key: string; metrics_at: string | null }>).map(
+      (row) => [row.site_key, row.metrics_at],
+    ),
+  );
+  for (const site of seedSites) {
+    expect(
+      storedAt.get(siteKey(site.lat, site.lng)) ?? null,
+      `${site.slug}: the seed analysis should have stored metrics`,
+    ).not.toBeNull();
+  }
   console.log(
     `memory seed: ${seedSites.length - vectorless.length} of ${seedSites.length} sites got a vector` +
       `${vectorless.length > 0 ? `; no vector for ${vectorless.join(", ")}` : ""}`,
@@ -385,26 +403,25 @@ test("datum memory: the second Atlanta brief is the stored one", async ({ reques
   expect(siteId, "the seed test should have analyzed Atlanta").toBeTruthy();
 
   const first = await readBrief(request, siteId!);
-  if (first.done === null) {
-    console.log(`brief replay: the first brief did not complete (${first.error ?? "no done event"})`);
-    test.skip(true, "the first brief did not complete, so there is nothing to replay");
-  }
+  expect(
+    first.done,
+    `the first brief should complete (${first.error ?? "no done event"})`,
+  ).not.toBeNull();
+  // PHASE-3 step 3.6 item 5 asks for a replay, so the first brief has to be
+  // one that is stored. briefFailedChecks is the same rule the route applies
+  // when it decides to store, imported rather than restated here so the two
+  // cannot drift. A first brief that fails its checks fails this test.
+  expect(
+    briefFailedChecks(first.done!),
+    "the first brief should pass its citation checks, or there is nothing to store",
+  ).toBe(false);
+  expect(first.done!.cached, "the first brief was written, not replayed").toBe(false);
 
   const second = await readBrief(request, siteId!);
   expect(second.done, "the second request should complete").not.toBeNull();
 
-  if (first.done!.uncitedNumericSentences > 0 || first.done!.invalidCitations.length > 2) {
-    // A brief that failed its checks is deliberately never stored, so the
-    // second request writes a new one. That is the rule under test, not a
-    // failure of it.
-    expect(second.done!.cached, "a failed brief is never replayed").toBe(false);
-    console.log("brief replay: the first brief failed its checks, so it was not stored");
-    return;
-  }
-
   expect(second.done!.cached, "the second done event should be the stored brief").toBe(true);
   expect(second.text, "the replayed text is the stored text").toBe(first.text);
-  expect(first.done!.cached, "the first brief was written, not replayed").toBe(false);
   console.log(
     `brief replay: ${first.text.length} characters, ${first.done!.validCitations.length} valid citations, replayed identically`,
   );
@@ -532,10 +549,19 @@ test("datum memory: an analysis completes with Site Memory offline", async ({ pa
   await expect(panel, "the Site Memory panel is on the page").toBeVisible({
     timeout: 60_000,
   });
-  await expect(panel, "the panel says Site Memory is offline").toContainText(
-    "Site Memory is offline",
-    { timeout: 60_000 },
-  );
+  // The offline state, specifically. The panel has a second state that shows
+  // the same sentence, the one where the panel could not reach the route at
+  // all, and this test is about the route answering that Site Memory is down.
+  await expect(
+    panel,
+    "the panel is in its offline state, not its fetch error state",
+  ).toHaveAttribute("data-memory-state", "offline", { timeout: 60_000 });
+  // And the sentence shown is the one the route sent, not a literal the panel
+  // keeps for itself.
+  await expect(
+    panel.locator("[data-memory-reason]"),
+    "the reason is the route's own offline sentence",
+  ).toHaveText(MEMORY_COPY.offline, { timeout: 60_000 });
 
   // Export still works with no database behind it (SPEC section 13 item 3).
   const downloadPromise = page.waitForEvent("download");

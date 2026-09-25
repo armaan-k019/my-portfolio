@@ -105,9 +105,16 @@ export default function MemoryPanel({ siteId, ready }: Props) {
   const context = current ? current.context : null;
   const status = current === null ? "loading" : context === null ? "error" : "done";
   const offline = context !== null && context.memoryStatus === "offline";
+  // Four states, and "error" and "offline" are not the same one. Offline is the
+  // route saying Site Memory could not be reached; error is this panel failing
+  // to reach the route at all. They read the same to a visitor, which is right,
+  // and a test that asserts the offline path must not be satisfied by a fetch
+  // that fell over.
+  const state =
+    status === "loading" ? "loading" : status === "error" ? "error" : offline ? "offline" : "ready";
 
   return (
-    <section className="card" data-datum-memory>
+    <section className="card" data-datum-memory data-memory-state={state}>
       <p className="eyebrow">Site Memory</p>
 
       {status === "loading" ? (
@@ -118,7 +125,11 @@ export default function MemoryPanel({ siteId, ready }: Props) {
         <p className="meta mt-3">{OFFLINE_LINE}</p>
       ) : null}
 
-      {offline ? <p className="meta mt-3">{OFFLINE_LINE}</p> : null}
+      {offline ? (
+        <p className="meta mt-3" data-memory-reason>
+          {context.reasonIfNull ?? OFFLINE_LINE}
+        </p>
+      ) : null}
 
       {context && !offline ? (
         <>
