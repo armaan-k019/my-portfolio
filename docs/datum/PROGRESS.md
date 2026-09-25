@@ -11,7 +11,7 @@ Started 2026-09-21 from `origin/main` at `c2c8517` (PR #22, rename to Datum).
 |---|---|---|---|
 | 0 | `feat/datum-phase-0` | `main` | pending |
 | 1 | `feat/datum-phase-1` | `feat/datum-phase-0` | #24, gate closed 2026-09-25 |
-| 2 | `feat/datum-phase-2` | `feat/datum-phase-1` | in progress from 2026-09-25 |
+| 2 | `feat/datum-phase-2` | `feat/datum-phase-1` | #26, gate closed 2026-09-25 |
 | 3 | `feat/datum-phase-3` | `feat/datum-phase-2` | pending |
 | 4 | BLOCKED | | |
 
@@ -469,7 +469,8 @@ Model: from Phase 2 the build, review, and verification subagents run on Opus pe
 
 ## Phase 2
 
-Status: built, reviewed, fixed once; re-verification in progress. PR #26 (base `feat/datum-phase-1`).
+Status: GATE CLOSED 2026-09-25 on the code (see below); Greptile round and stop and ask items
+open. PR #26 (base `feat/datum-phase-1`).
 Builder: Opus. Reviewer: Opus. Fix round 1: Opus. Started 2026-09-25.
 
 ### Build (`29db1f6` to `e36b159`, six commits as the phase file names them)
@@ -633,3 +634,51 @@ Open questions for the owner added from Greptile (stop and ask items):
     field" while the brief is still streaming (both verdict lists are empty until done). Proposed:
     footer wording that reflects the verdict, group status including the numeric check, and a
     neutral pending chip state with its own tooltip and eyebrow wording. All user visible copy.
+
+### Fix round 2 (owner directed, value aware citations) and Phase 2 gate closure (2026-09-25)
+
+Commits `0502cc3` (value aware check per the amended SPEC section 12: value index over the
+serialized input, rendered forms only, earlier valid citation required, debug logging behind
+DATUM_DEBUG_CITATIONS=1, `valueMatchedSentences` on the done event), `97ad434` (index the value
+as the serializer sent it as well as its four decimal form), `03f550d` (negative numbers keep
+their sign), `79de948` (the normal three site run asserts unconditionally that the brief passed
+its checks; the flood excuse no longer applies to the brief), `41041d4` (site.latitude and
+site.longitude are citable input keys, per SPEC section 12's own statement that the coordinates
+are part of the input and citations come from input keys; orchestrator decision under the
+standing decisions, implementation not product), `d2a3578` (site citations highlight the title
+block, which prints the coordinates), `7c34618` (artifacts refreshed).
+
+What the value aware check caught that the old rule did not: Miami "At under 2 m above datum"
+(the model rounded 1.9666 m to 2) and WaKeeney "roughly 9 m lower" (9 traced to nothing cited).
+Both were fixed by the model on later runs; the check remains strict. Ambiguities resolved by the
+literal SPEC reading and recorded: a bare four digit year is skipped as a date only when it is a
+dataset value; written precision other than the serializer's ("20.0" for 20, "1.97 m" for
+1.9666) is rejected.
+
+Run of record (orchestrator verified the builder's run against a fresh webpack build; the
+orchestrator's own earlier run failed only on the site chip mapping fixed in `d2a3578`):
+
+| Site | Layers | Chips | Banner | Export |
+|---|---|---|---|---|
+| Atlanta | all ok except flood | 44 valid, 0 struck | none | 2.47 MB, 15 groups, brief ok |
+| Miami | all ok except flood | 33 valid, 0 struck | none | 1.25 MB, 15 groups, brief ok |
+| WaKeeney | all ok except flood | 39 valid, 0 struck | none | 0.27 MB, 15 groups, brief ok |
+
+Honest limits: FEMA (`hazards.fema.gov`) refused connections from this machine on every run, so
+flood was unavailable with upstream_error at all three sites. The owner's condition "all three
+must pass with FEMA up" is therefore NOT demonstrated; what is demonstrated is that all three pass
+with the brief assertion unconditional and the flood excuse removed. The two FEMA specific panel
+checks (WaKeeney no coverage stamp, Miami VE hatch) printed pending. Failure tests A and B passed
+on the dev server in fix round 1 and were not re-run after the validator change (they exercise
+overrides, not the validator).
+
+Gates at `7c34618`: tsc exit 0; `npm run test:unit` 266 passed; `npx eslint .` 13 errors, 8
+warnings; both builds exit 0; no em dashes; the three exports parse with 15 groups, brief group
+status ok, no raster, script, or data URIs.
+
+Attribution note: subagents running on other Claude models were instructed to end commit messages
+with the orchestrator's co-author line and did so; one commit on the Phase 0 branch (`a08824f`)
+names the Haiku subagent instead. Not rewritten (history rewriting is a stop and ask).
+
+Next action: Greptile round on PR #26 (fixes for the ten valid items in code this build owns,
+replies on every comment across #23, #24, #26), then Phase 3.
