@@ -59,6 +59,34 @@ const INDEPENDENT_LAYERS = LAYER_NAMES.filter(
   (layer) => layer !== "osm" && layer !== "walkshed",
 );
 
+/**
+ * Guards every state update against a stale run.
+ *
+ * A layer request or a brief stream from an earlier analysis can still be in
+ * flight when the visitor confirms a new point or resets. Without a guard its
+ * late response writes into the new run: an envelope for the wrong site, or a
+ * brief written about the previous address. Each run takes an id from `begin`,
+ * every asynchronous body captures that id once at entry, and nothing is
+ * written unless the captured id is still current.
+ */
+export interface RunGuard {
+  /** Starts a new run and returns its id. Every earlier run is now stale. */
+  begin(): number;
+  /** The id of the run that is currently allowed to write. */
+  current(): number;
+  /** True when `run` is still the run that is allowed to write. */
+  isCurrent(run: number): boolean;
+}
+
+export function createRunGuard(): RunGuard {
+  let run = 0;
+  return {
+    begin: () => (run += 1),
+    current: () => run,
+    isCurrent: (candidate: number) => candidate === run,
+  };
+}
+
 async function readJson(response: Response): Promise<unknown> {
   try {
     return await response.json();
@@ -97,6 +125,9 @@ export function useAnalysis(isTest: boolean) {
   // updates are batched, so the request needs a copy it can read synchronously.
   const settled = useRef<Partial<Record<LayerName, LayerEnvelope<unknown>>>>({});
   const briefStarted = useRef(false);
+  // Bumped on confirm and on reset. Captured by every layer fetch and by the
+  // brief stream reader, and checked before every state update.
+  const runGuard = useRef<RunGuard>(createRunGuard());
 
   const loadingCount = useMemo(
     () => LAYER_NAMES.filter((layer) => layers[layer] === "loading").length,
@@ -104,13 +135,18 @@ export function useAnalysis(isTest: boolean) {
   );
   const started = stage === "analyzing" || stage === "done";
 
-  const record = useCallback((layer: LayerName, envelope: LayerEnvelope<unknown>) => {
-    settled.current[layer] = envelope;
-    setLayers((previous) => ({ ...previous, [layer]: envelope }));
-  }, []);
+  const record = useCallback(
+    (layer: LayerName, envelope: LayerEnvelope<unknown>, run: number) => {
+      if (!runGuard.current.isCurrent(run)) return;
+      settled.current[layer] = envelope;
+      setLayers((previous) => ({ ...previous, [layer]: envelope }));
+    },
+    [],
+  );
 
   const fetchLayer = useCallback(
-    async (layer: LayerName, siteId: string) => {
+    async (layer: LayerName, siteId: string, run = runGuard.current.current()) => {
+      if (!runGuard.current.isCurrent(run)) return;
       setLayers((previous) => ({ ...previous, [layer]: "loading" }));
       try {
         const response = await fetch(
@@ -130,10 +166,11 @@ export function useAnalysis(isTest: boolean) {
                 ? message
                 : `The ${layer} request failed (HTTP ${response.status}). Retry in a moment.`,
             ),
+            run,
           );
           return;
         }
-        record(layer, body as LayerEnvelope<unknown>);
+        record(layer, body as LayerEnvelope<unknown>, run);
       } catch {
         record(
           layer,
@@ -141,13 +178,15 @@ export function useAnalysis(isTest: boolean) {
             layer,
             `The ${layer} request could not be sent. Check the connection and retry.`,
           ),
+          run,
         );
       }
     },
     [record],
   );
 
-  const runBrief = useCallback(async (siteId: string) => {
+  const runBrief = useCallback(async (siteId: string, run: number) => {
+    if (!runGuard.current.isCurrent(run)) return;
     setBrief({ ...EMPTY_BRIEF, status: "streaming" });
     try {
       const response = await fetch("/api/datum/brief", {
@@ -161,7 +200,9 @@ export function useAnalysis(isTest: boolean) {
           body && typeof body === "object" && "error" in body
             ? String((body as { error: { message?: string } }).error?.message ?? "")
             : "The brief request failed.";
-        setBrief({ ...EMPTY_BRIEF, status: "error", error: message });
+        if (runGuard.current.isCurrent(run)) {
+          setBrief({ ...EMPTY_BRIEF, status: "error", error: message });
+        }
         return;
       }
 
@@ -197,6 +238,10 @@ export function useAnalysis(isTest: boolean) {
             continue;
           }
 
+          // A reader from a previous run is still draining its socket after a
+          // confirm or a reset. It must not write a word into the new run.
+          if (!runGuard.current.isCurrent(run)) return;
+
           if (name === "delta" && typeof data.text === "string") {
             text += data.text;
             setBrief((previous) => ({ ...previous, text }));
@@ -227,6 +272,7 @@ export function useAnalysis(isTest: boolean) {
         }
       }
     } catch {
+      if (!runGuard.current.isCurrent(run)) return;
       setBrief({
         ...EMPTY_BRIEF,
         status: "error",
@@ -283,6 +329,8 @@ export function useAnalysis(isTest: boolean) {
   const confirm = useCallback(
     async (confirmed: { lat: number; lng: number }) => {
       setError(null);
+      // Every request still in flight from the previous run is stale from here.
+      const run = runGuard.current.begin();
       setStage("analyzing");
       briefStarted.current = false;
       settled.current = {};
@@ -302,6 +350,7 @@ export function useAnalysis(isTest: boolean) {
           | (SiteRecord & { error?: { code?: string } })
           | null;
         if (!response.ok || !body || typeof body.siteId !== "string") {
+          if (!runGuard.current.isCurrent(run)) return;
           setStage("confirm");
           setLayers({});
           setError(
@@ -313,12 +362,14 @@ export function useAnalysis(isTest: boolean) {
         }
         created = body;
       } catch {
+        if (!runGuard.current.isCurrent(run)) return;
         setStage("confirm");
         setLayers({});
         setError("The site record could not be created.");
         return;
       }
 
+      if (!runGuard.current.isCurrent(run)) return;
       setSite(created);
       setPoint((previous) =>
         previous
@@ -334,20 +385,21 @@ export function useAnalysis(isTest: boolean) {
       // Everything independent is in flight before anything is awaited. Only
       // osm is awaited, and only so the walk shed can follow it.
       const inFlight = INDEPENDENT_LAYERS.map((layer) =>
-        fetchLayer(layer, created.siteId),
+        fetchLayer(layer, created.siteId, run),
       );
-      const osmSettled = fetchLayer("osm", created.siteId);
+      const osmSettled = fetchLayer("osm", created.siteId, run);
       inFlight.push(osmSettled);
       await osmSettled;
-      inFlight.push(fetchLayer("walkshed", created.siteId));
+      inFlight.push(fetchLayer("walkshed", created.siteId, run));
 
       // The brief reads every envelope, so it opens once all nine have settled.
       await Promise.all(inFlight);
 
+      if (!runGuard.current.isCurrent(run)) return;
       setStage("done");
       if (!briefStarted.current) {
         briefStarted.current = true;
-        void runBrief(created.siteId);
+        void runBrief(created.siteId, run);
       }
     },
     [fetchLayer, isTest, runBrief],
@@ -357,13 +409,17 @@ export function useAnalysis(isTest: boolean) {
   const retry = useCallback(
     async (layer: LayerName) => {
       if (!site) return;
-      await fetchLayer(layer, site.siteId);
-      if (layer === "osm") await fetchLayer("walkshed", site.siteId);
+      // A retry belongs to the run that is on screen, not to a new one.
+      const run = runGuard.current.current();
+      await fetchLayer(layer, site.siteId, run);
+      if (layer === "osm") await fetchLayer("walkshed", site.siteId, run);
     },
     [fetchLayer, site],
   );
 
   const reset = useCallback(() => {
+    // Anything still in flight is stale the moment the sheet is cleared.
+    runGuard.current.begin();
     setStage("idle");
     setPoint(null);
     setSite(null);
