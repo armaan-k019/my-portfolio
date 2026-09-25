@@ -1,0 +1,26 @@
+{
+  "slug": "wakeeney",
+  "totalTimeMs": 44339,
+  "calls": [
+    {
+      "url": "http://localhost:3000/api/datum",
+      "status": 200,
+      "durationMs": 43466
+    },
+    {
+      "url": "http://localhost:3000/api/heat-island?lat=39.019769&lng=-99.883731&parksCount=0",
+      "status": 200,
+      "durationMs": 155
+    },
+    {
+      "url": "http://localhost:3000/api/flood-risk?lat=39.019769&lng=-99.883731",
+      "status": 200,
+      "durationMs": 180
+    },
+    {
+      "url": "http://localhost:3000/api/zoning?lat=39.019769&lng=-99.883731",
+      "status": 200,
+      "durationMs": 7726
+    }
+  ]
+}

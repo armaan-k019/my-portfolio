@@ -1,0 +1,26 @@
+{
+  "slug": "miami",
+  "totalTimeMs": 35267,
+  "calls": [
+    {
+      "url": "http://localhost:3000/api/datum",
+      "status": 200,
+      "durationMs": 34365
+    },
+    {
+      "url": "http://localhost:3000/api/heat-island?lat=25.8011588&lng=-80.1890627&parksCount=0",
+      "status": 200,
+      "durationMs": 176
+    },
+    {
+      "url": "http://localhost:3000/api/zoning?lat=25.8011588&lng=-80.1890627",
+      "status": 200,
+      "durationMs": 4156
+    },
+    {
+      "url": "http://localhost:3000/api/flood-risk?lat=25.8011588&lng=-80.1890627",
+      "status": 200,
+      "durationMs": 7984
+    }
+  ]
+}
