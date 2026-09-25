@@ -114,6 +114,30 @@ export const PERCENTILE_METRICS: Array<{ metric: MetricName; label: string }> = 
   { metric: "logDensity", label: "More density than" },
 ];
 
+/**
+ * A short plain name for each component, for the "sites like this" list.
+ *
+ * SPEC section 14 names the components in field terms, which is right for a
+ * stored metric and wrong for a sentence a visitor reads. Recorded as new user
+ * facing copy in the Phase 3 report.
+ */
+export const METRIC_LABELS: Record<MetricName, string> = {
+  annualMeanTempC: "mean temperature",
+  annualTempRangeC: "temperature range",
+  meanRhPct: "humidity",
+  dailyRadiationKwhM2: "sun",
+  meanWindMs: "wind speed",
+  windConcentration: "wind direction",
+  reliefM: "relief",
+  meanSlopePct: "slope",
+  buildingCoverage: "built coverage",
+  reach10Km: "street reach",
+  sfhaShare: "flood extent",
+  sds: "seismic demand",
+  logDensity: "density",
+  hydrologicGroup: "soil drainage",
+};
+
 /** The vector's dimension. Its square root is the largest possible distance. */
 export const VECTOR_LENGTH = METRIC_NAMES.length;
 

@@ -12,17 +12,29 @@ import { buildSheetGroups, sheetDocument, sheetFileName } from "@/lib/datum/shee
 import type { SheetContext } from "@/lib/datum/sheet/sheet";
 import { LAYER_NAMES, type LayerEnvelope, type LayerName } from "@/lib/datum/types";
 import AddressField from "./AddressField";
+import MemoryPanel from "./MemoryPanel";
 import LayerRail from "./panels/LayerRail";
 import SheetCanvas from "./panels/SheetCanvas";
 import { briefFailedChecks } from "@/lib/datum/brief/citations";
 import { useAnalysis } from "./analysis";
 
-// Leaflet is a heavy client dependency and belongs to this one component.
+// Leaflet is a heavy client dependency and belongs to the two components that
+// use it. Both are loaded with ssr: false so the library and its stylesheet
+// stay out of the shared bundle and off the server.
 const ConfirmMap = dynamic(() => import("./ConfirmMap"), {
   ssr: false,
   loading: () => (
     <div className="card flex h-[420px] items-center justify-center">
       <p className="meta">Loading the map</p>
+    </div>
+  ),
+});
+
+const SitesMap = dynamic(() => import("./SitesMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="card flex h-[420px] items-center justify-center">
+      <p className="meta">Loading the analyzed sites</p>
     </div>
   ),
 });
@@ -222,6 +234,13 @@ export default function SiteSheetApp() {
           </div>
 
           <div className="tick-rule" />
+
+          {/* Site Memory sits under the sheet and asks for this site's place
+              in the population only once every layer has settled, because the
+              vector needs all of them (SPEC section 14). */}
+          <MemoryPanel siteId={site?.siteId ?? null} ready={loadingCount === 0} />
+          <SitesMap lat={point?.lat ?? null} lng={point?.lng ?? null} />
+
           <p className="meta">
             Export is enabled once every source has settled. Unavailable panels
             export as unavailable panels, never blank and never with a stand in
