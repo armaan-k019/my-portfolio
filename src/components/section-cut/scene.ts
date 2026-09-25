@@ -31,7 +31,12 @@ function lineMat(t: { color: THREE.Color; alpha: number }, clip: THREE.Plane[]) 
   });
 }
 
-export function mount(canvas: HTMLCanvasElement) {
+// live: pointer drives the cut, render loop runs while the hero is visible.
+// reduced: fixed axonometric; the cut still follows the pointer, rendered on demand.
+// static: one axonometric frame, re-rendered only on resize.
+export type Mode = "live" | "reduced" | "static";
+
+export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode) {
   let renderer: THREE.WebGLRenderer;
   try {
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
@@ -120,13 +125,47 @@ export function mount(canvas: HTMLCanvasElement) {
 
   function render() { renderer.render(scene, camera); }
 
-  // Static frame: axonometric at 45/30, cut through the core.
+  // Pointer X across the hero sweeps the cut from just before the building to
+  // just short of its far end, so some of the model always remains.
+  const cutMin = bx.min[0] - 0.5, cutMax = bx.max[0] - 1;
+  let pointer: { x: number; y: number } | null = null;
+  const onMove = (e: PointerEvent) => {
+    if (e.pointerType === "touch") return;
+    const r = host.getBoundingClientRect();
+    pointer = { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
+    if (mode === "reduced") request();
+  };
+
+  function frame() {
+    const x = pointer ? cutMin + Math.min(1, Math.max(0, pointer.x)) * (cutMax - cutMin) : m.core;
+    setCut(x);
+    aim(-45, 30);
+    render();
+  }
+
+  // Loop control: live mode runs continuously while visible; the other modes
+  // only render on request.
+  let raf = 0, visible = true;
+  const running = () => mode === "live" && visible && document.visibilityState === "visible";
+  function tick() { raf = 0; frame(); if (running()) raf = requestAnimationFrame(tick); }
+  function request() { if (!raf) raf = requestAnimationFrame(tick); }
+
+  const io = new IntersectionObserver(([e]) => { visible = e.isIntersecting; if (running()) request(); });
+  const onVis = () => { if (running()) request(); };
+  const ro = new ResizeObserver(() => { resize(); request(); });
+  io.observe(host);
+  ro.observe(canvas);
+  document.addEventListener("visibilitychange", onVis);
+  if (mode !== "static") host.addEventListener("pointermove", onMove);
+
   resize();
-  setCut(m.core);
-  aim(-45, 30);
-  render();
+  request();
 
   return () => {
+    cancelAnimationFrame(raf);
+    io.disconnect(); ro.disconnect();
+    document.removeEventListener("visibilitychange", onVis);
+    host.removeEventListener("pointermove", onMove);
     renderer.dispose();
     geo.dispose(); siteGeo.dispose(); hatchGeo.dispose(); outlineGeo.dispose();
     outlineMat.dispose();

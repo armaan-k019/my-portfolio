@@ -60,9 +60,7 @@ export default function AboutSection() {
           </div>
         </motion.div>
       </div>
-      <div className="relative h-[85vw] md:absolute md:inset-0 md:h-auto">
-        <SectionCut />
-      </div>
+      <SectionCut />
     </section>
   );
 }
