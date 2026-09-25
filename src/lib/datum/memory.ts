@@ -752,7 +752,6 @@ export async function percentiles(
 }
 
 export interface SimilarSite {
-  siteId: string;
   locality: string | null;
   publicLat: number;
   publicLng: number;
@@ -763,7 +762,6 @@ export interface SimilarSite {
 }
 
 interface VectorRow {
-  id: string;
   locality: string | null;
   public_lat: number;
   public_lng: number;
@@ -807,7 +805,7 @@ export async function similarSites(
   const rows = await withMemory(async (db) => {
     let query = db
       .from("sites")
-      .select("id, locality, public_lat, public_lng, metrics_vector")
+      .select("locality, public_lat, public_lng, metrics_vector")
       .not("metrics_vector", "is", null)
       .neq("id", siteId);
     if (!includeTestSites()) query = query.eq("is_test", false);
@@ -825,8 +823,10 @@ export async function similarSites(
   }
   scored.sort((left, right) => left.distance - right.distance);
 
+  // The row id never leaves this function. SPEC section 14 displays a locality,
+  // a match percent and the closest components, and an id would be a handle on
+  // somebody else's analysis that the display has no use for.
   return scored.slice(0, limit).map((entry) => ({
-    siteId: entry.row.id,
     locality: entry.row.locality,
     publicLat: entry.row.public_lat,
     publicLng: entry.row.public_lng,

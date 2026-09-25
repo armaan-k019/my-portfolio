@@ -69,7 +69,6 @@ interface ContextResponse {
   n?: number | null;
   percentiles?: Array<{ metric: string; label: string; percentile: number }> | null;
   similar?: Array<{
-    siteId: string;
     locality: string | null;
     publicLat: number;
     publicLng: number;
@@ -266,7 +265,23 @@ test("datum memory: the Atlanta context carries percentiles and either matches o
       expect(similar.match, "match floor").toBeGreaterThanOrEqual(0);
       expect(similar.match, "match ceiling").toBeLessThanOrEqual(100);
       expect(similar.closest.length, "the closest components").toBeGreaterThan(0);
-      expect(similar.siteId, "a similar site is never this site").not.toBe(siteId);
+      // SPEC section 14 displays a locality, a match percent and the closest
+      // components. Nothing that identifies or locates another analysis more
+      // finely than the snapped point may ride along with them.
+      const keys = Object.keys(similar as Record<string, unknown>).sort();
+      expect(keys, "the similar entry carries the display fields and nothing else").toEqual([
+        "closest",
+        "locality",
+        "match",
+        "publicLat",
+        "publicLng",
+      ]);
+      for (const forbidden of ["siteId", "lat", "lng", "site_key"]) {
+        expect(
+          forbidden in (similar as Record<string, unknown>),
+          `a similar site never carries ${forbidden}`,
+        ).toBe(false);
+      }
     }
     console.log(
       `memory similar: ${context.similar

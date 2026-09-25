@@ -17,7 +17,6 @@ export interface PercentileEntry {
 }
 
 export interface SimilarSite {
-  siteId: string;
   locality: string | null;
   publicLat: number;
   publicLng: number;
@@ -147,7 +146,10 @@ export default function MemoryPanel({ siteId, ready }: Props) {
               <p className="eyebrow">Sites like this</p>
               <ul className="mt-2 space-y-2">
                 {context.similar.map((site) => (
-                  <li key={site.siteId} className="text-sm text-[var(--color-brown)]">
+                  <li
+                    key={`${site.publicLat},${site.publicLng},${site.match}`}
+                    className="text-sm text-[var(--color-brown)]"
+                  >
                     <span>{site.locality ?? "Locality not recorded"}</span>
                     <span className="meta ml-2" data-memory-match={site.match}>
                       {site.match}% match
