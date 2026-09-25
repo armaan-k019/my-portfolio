@@ -5,7 +5,8 @@
 // the client's own envelopes are the fallback. memory.ts is not changed here:
 // this module only reads through its client and its timeout wrapper.
 
-import { getClient, isLocalSiteId, withMemory } from "../memory";
+import { fieldPathsOf } from "../http";
+import { getClient, isLocalSiteId, memoryStatus, withMemory } from "../memory";
 import { LAYER_NAMES, type LayerEnvelope, type LayerName } from "../types";
 
 interface LayerResultRow {
@@ -43,6 +44,15 @@ export async function loadStoredLayers(
   return out;
 }
 
+/**
+ * True when Site Memory cannot answer, so nothing was stored for this analysis
+ * and the client's own envelopes are the only copy that exists. This is the one
+ * condition that admits them (SPEC section 12).
+ */
+export function memoryIsOffline(): boolean {
+  return getClient() === null || memoryStatus() === "offline";
+}
+
 /** A value that looks enough like an envelope to serialize and cite. */
 function isEnvelopeLike(value: unknown): value is LayerEnvelope<unknown> {
   if (!value || typeof value !== "object") return false;
@@ -70,7 +80,14 @@ export function parseClientLayers(
     if (!(LAYER_NAMES as string[]).includes(name)) continue;
     if (!isEnvelopeLike(candidate)) continue;
     if (candidate.layer !== name) continue;
-    out[name as LayerName] = candidate;
+    // fieldPaths is what the citation check validates against, so a client copy
+    // of it would let the caller decide which citations are valid and the check
+    // would mean nothing. It is recomputed from the data the same way the layer
+    // routes compute it.
+    out[name as LayerName] = {
+      ...candidate,
+      fieldPaths: candidate.data === null ? [] : fieldPathsOf(candidate.data),
+    };
   }
   return out;
 }
@@ -89,4 +106,33 @@ export function mergeLayers(
     if (chosen) out[layer] = chosen;
   }
   return out;
+}
+
+/**
+ * Which envelopes the brief is written from. The stored copy is the server's
+ * own record of what the sources answered, so when Site Memory is up and it has
+ * rows for this site, that record is the whole answer and the client's body is
+ * ignored: otherwise a caller could hand the model any numbers it liked and the
+ * brief would cite them as measurements.
+ *
+ * The client's copy is admitted in exactly two cases: Site Memory is offline,
+ * so nothing was stored, or memory is up but has no row for this site yet,
+ * which is the same situation one moment earlier.
+ */
+export function selectLayers(
+  stored: Partial<Record<LayerName, LayerEnvelope<unknown>>>,
+  fromClient: Partial<Record<LayerName, LayerEnvelope<unknown>>>,
+  offline: boolean,
+): {
+  layers: Partial<Record<LayerName, LayerEnvelope<unknown>>>;
+  usedClientLayers: boolean;
+} {
+  const storedCount = Object.keys(stored).length;
+  if (!offline && storedCount > 0) {
+    return { layers: mergeLayers(stored, {}), usedClientLayers: false };
+  }
+  return {
+    layers: mergeLayers(stored, fromClient),
+    usedClientLayers: Object.keys(fromClient).length > 0,
+  };
 }

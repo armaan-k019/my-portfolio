@@ -21,10 +21,19 @@ import {
 } from "@/lib/datum/brief/prompt";
 import {
   loadStoredLayers,
-  mergeLayers,
+  memoryIsOffline,
   parseClientLayers,
+  selectLayers,
 } from "@/lib/datum/brief/store";
-import { getSiteById, isLocalSiteId, verifyLocalSiteId } from "@/lib/datum/memory";
+import { SITE_FREE_LAYER_WINDOW_MS } from "@/lib/datum/constants";
+import {
+  clientIpFrom,
+  getSiteById,
+  hashIp,
+  isLocalSiteId,
+  peekRateLimit,
+  verifyLocalSiteId,
+} from "@/lib/datum/memory";
 
 export const maxDuration = 60;
 
@@ -80,9 +89,15 @@ export async function POST(request: NextRequest) {
   }
 
   // The point comes from the site record, never from the request, so a caller
-  // cannot ask for a brief about a point it did not analyse.
+  // cannot ask for a brief about a point it did not analyse. Resolving the site
+  // and peeking at the rate limit are the two things that must both pass before
+  // any model token is spent, and neither needs the other's answer.
   const local = isLocalSiteId(siteId);
-  const resolved = local ? await verifyLocalSiteId(siteId) : await getSiteById(siteId);
+  const ipHash = hashIp(clientIpFrom(request.headers.get("x-forwarded-for")));
+  const [resolved, rate] = await Promise.all([
+    local ? verifyLocalSiteId(siteId) : getSiteById(siteId),
+    peekRateLimit(ipHash),
+  ]);
   if (!resolved) {
     return NextResponse.json(
       { error: { code: "not_found", message: "Unknown site." } },
@@ -91,10 +106,31 @@ export async function POST(request: NextRequest) {
   }
   const site = { lat: resolved.lat, lng: resolved.lng };
 
-  // The stored envelopes are the server's own record. The client always sends
-  // its copy as well, because with Site Memory offline nothing was stored.
+  // The same non incrementing peek the layer routes make, with the same free
+  // window: a site created in the last 24 hours was already charged by the site
+  // route, and the brief belongs to that analysis. An older id is a saved link,
+  // and a local id never passed through the site route at all, so both are
+  // subject to the daily cap. The peek never increments: the count belongs to
+  // the analysis, not to the brief.
+  const createdAt = "created_at" in resolved ? Date.parse(resolved.created_at) : NaN;
+  const withinFreeWindow =
+    Number.isFinite(createdAt) && Date.now() - createdAt <= SITE_FREE_LAYER_WINDOW_MS;
+  if (!withinFreeWindow && !rate.allowed) {
+    return NextResponse.json(
+      { error: { code: "rate_limited", resetAt: rate.resetAt } },
+      { status: 429 },
+    );
+  }
+
+  // The stored envelopes are the server's own record and win outright. The
+  // client's copy is read only when Site Memory is offline or has no row for
+  // this site yet, because it is then the only copy that exists.
   const stored = await loadStoredLayers(siteId);
-  const layers = mergeLayers(stored, parseClientLayers(body.layers));
+  const { layers } = selectLayers(
+    stored,
+    parseClientLayers(body.layers),
+    memoryIsOffline(),
+  );
 
   const available = Object.values(layers).filter(
     (envelope) => envelope.status !== "unavailable" && envelope.data !== null,

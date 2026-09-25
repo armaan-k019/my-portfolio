@@ -18,7 +18,20 @@ import {
 import {
   mergeLayers,
   parseClientLayers,
+  selectLayers,
 } from "../../src/lib/datum/brief/store";
+import { NextRequest } from "next/server";
+import { POST } from "../../src/app/api/datum/brief/route";
+import { RATE_LIMIT_PER_DAY } from "../../src/lib/datum/constants";
+import {
+  checkRateLimit,
+  clientIpFrom,
+  getSiteById,
+  hashIp,
+  issueLocalSiteId,
+  memoryStatus,
+  setClientForTests,
+} from "../../src/lib/datum/memory";
 import { LAYER_NAMES, type LayerEnvelope, type LayerName } from "../../src/lib/datum/types";
 
 const LAYERS_DIR = path.join(process.cwd(), "e2e", "fixtures", "layers");
@@ -407,4 +420,120 @@ test("a soil series name and a tract name are still serialized", () => {
   const soil = input.layers.soil;
   if (soil.status === "unavailable") throw new Error("soil should be available");
   expect(Object.keys(soil.fields)).toContain("soil.components[].name");
+});
+
+// ─── Which envelopes the brief is written from ───────────────────────────────
+
+test("a client supplied fieldPaths list is never trusted", () => {
+  // fieldPaths is what the citation check validates against. A caller that
+  // could set it could declare any citation valid, and the check would mean
+  // nothing, so it is recomputed from the data the envelope carries.
+  const good = loadLayers("atlanta");
+  const parsed = parseClientLayers({
+    topo: { ...good.topo, fieldPaths: ["topo.anythingIWant", "invented.path"] },
+  });
+  const paths = parsed.topo?.fieldPaths ?? [];
+  expect(paths).not.toContain("topo.anythingIWant");
+  expect(paths).not.toContain("invented.path");
+  expect(paths).toEqual(good.topo?.fieldPaths);
+
+  // And the recomputed list is what citableFieldPaths then allows.
+  const citable = citableFieldPaths(parsed);
+  expect(citable).not.toContain("topo.topo.anythingIWant");
+  expect(citable.some((path) => path.startsWith("topo."))).toBe(true);
+});
+
+test("an envelope with no data gets an empty fieldPaths list", () => {
+  const parsed = parseClientLayers({
+    flood: {
+      layer: "flood",
+      status: "unavailable",
+      data: null,
+      source: {
+        name: "FEMA NFHL",
+        url: "",
+        fetchedAt: "2026-09-24T18:00:00.000Z",
+        cached: false,
+        licence: "",
+      },
+      fieldPaths: ["atPoint.zone"],
+    },
+  });
+  expect(parsed.flood?.fieldPaths).toEqual([]);
+});
+
+test("the client's envelopes are ignored while memory has rows for the site", () => {
+  const stored = loadLayers("atlanta");
+  const fromClient = loadLayers("miami");
+
+  // Memory online with rows: the server's own record is the whole answer.
+  const online = selectLayers({ topo: stored.topo }, fromClient, false);
+  expect(Object.keys(online.layers)).toEqual(["topo"]);
+  expect(online.layers.topo).toBe(stored.topo);
+  expect(online.usedClientLayers).toBe(false);
+
+  // Memory offline: nothing was stored, so the client's copy is the only copy.
+  const offline = selectLayers({}, fromClient, true);
+  expect(Object.keys(offline.layers)).toHaveLength(LAYER_NAMES.length);
+  expect(offline.layers.seismic).toBe(fromClient.seismic);
+  expect(offline.usedClientLayers).toBe(true);
+
+  // Memory online but nothing stored for this site yet: the same situation one
+  // moment earlier, so the client's copy is admitted.
+  const empty = selectLayers({}, fromClient, false);
+  expect(Object.keys(empty.layers)).toHaveLength(LAYER_NAMES.length);
+  expect(empty.usedClientLayers).toBe(true);
+
+  // Offline with a partial stored set: stored still wins where it exists.
+  const mixed = selectLayers({ topo: stored.topo }, fromClient, true);
+  expect(mixed.layers.topo).toBe(stored.topo);
+  expect(mixed.layers.seismic).toBe(fromClient.seismic);
+});
+
+// ─── The brief route's rate limit ────────────────────────────────────────────
+
+test("a brief past the daily cap is a 429 before the stream opens", async () => {
+  // The same non incrementing peek the layer route makes, and the same body the
+  // site route answers with. No model token is spent and no upstream is called.
+  setClientForTests(null);
+  await getSiteById("11111111-1111-1111-1111-111111111111");
+  expect(memoryStatus()).toBe("offline");
+
+  const ip = "203.0.113.77";
+  const ipHash = hashIp(clientIpFrom(ip));
+  for (let i = 0; i < RATE_LIMIT_PER_DAY + 1; i++) {
+    await checkRateLimit(ipHash);
+  }
+
+  const hadKey = process.env.ANTHROPIC_API_KEY;
+  process.env.ANTHROPIC_API_KEY = "unit-test-placeholder";
+  let calls = 0;
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async () => {
+    calls += 1;
+    return new Response("{}", { status: 200 });
+  }) as typeof fetch;
+  try {
+    const response = await POST(
+      new NextRequest("https://datum.test/api/datum/brief", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-forwarded-for": ip },
+        body: JSON.stringify({
+          siteId: issueLocalSiteId("33.775,-84.392"),
+          layers: {},
+        }),
+      }),
+    );
+    expect(response.status).toBe(429);
+    const body = (await response.json()) as {
+      error: { code: string; resetAt?: string };
+    };
+    expect(body.error.code).toBe("rate_limited");
+    expect(typeof body.error.resetAt).toBe("string");
+    expect(calls, "no upstream call").toBe(0);
+  } finally {
+    globalThis.fetch = realFetch;
+    if (hadKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+    else process.env.ANTHROPIC_API_KEY = hadKey;
+  }
 });
