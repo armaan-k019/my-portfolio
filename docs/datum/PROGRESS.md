@@ -863,3 +863,59 @@ warnings; both builds exit 0; fallback grep only the two counters; no em dashes.
 Owner applies migration 0002 (SQL handed over in chat), then the orchestrator runs the step 3.1
 verification queries through the app's client, the database mode memory spec, and the offline
 run; then Greptile pass on #27, then the final review and report.
+
+## Blocking items before merge (owner, 2026-09-25)
+
+Owner decisions recorded: the two extra deletions approved after the fact (question 1 closed);
+question 7 folded into migration 0002 before first application; question 17 accepted as a known
+limit (not fixed); question 6 closed, the baseline captures stay verbatim; FEMA outage does not
+block the merge; SPEC section 16 measurement stays deferred to production and a miss stays a
+release blocker.
+
+Blocking item 1 (question 11, design defect): SPEC section 14 amended (`8984862`): absent
+components are recorded not fatal, a site is eligible with at least 10 of 14 present, masked
+distance `sqrt((14 / k) * sum over shared)` with k at least 10 so shared absence never makes
+sites similar, `metrics_mask` column, no vector index; the null sentence now reads "Sites like
+this needs at least ten measures; <layers or components> were unavailable." (copy amended with
+section 14 because the old sentence became false). Code in `e54c905`: on the unchanged fixtures
+Atlanta and Miami have 13 of 14 present (soil group absent) and are eligible; WaKeeney has 13
+(flood coverage absent). "Similar sites for Atlanta and Miami" is NOT yet observed: it needs the
+migration and the seed run (blocking item 3).
+
+Blocking item 2 (item 10, cold instance plus offline 404): SPEC section 13 amended: the site
+route always returns a signed `fallbackId`, the client sends it on every layer and brief request,
+a route that cannot read the row proceeds from the fallback point with the rate limit peek and
+no storage; 404 only when memory is online, the row is absent, and no fallback was sent. Code in
+`ec87275` with unit tests (cold offline plus valid fallback 200 and no write; forged 400; online
+missing row no fallback 404; brief route same) and an offline e2e of four requests, the third of
+which (a uuid this server never saw plus a valid fallback, 200) is the cold instance case and the
+fourth (fallback stripped) shows the 200 came from the fallback.
+
+Flood rendering evidence (`03c39c0`): a local FEMA stub (`e2e/tools/fema-stub.mjs`) serves only
+the labelled fixtures; with `DATUM_SOURCE_OVERRIDES` pointing fema at it on the dev server, the
+Miami site plan renders paths filled with `url(#flood-ve)`, `url(#flood-sfha)` and
+`url(#flood-02pct)`, and the WaKeeney flood summary is `data-status="unavailable"` with the
+verbatim "FEMA has not published a flood hazard layer for this location." Screenshots and exports
+committed as `docs/datum/screenshots/phase-2/{miami,wakeeney}-flood-stub.{png,svg}`, labelled in
+the spec output, the commit message and the stub header as rendered against CONSTRUCTED fixtures
+through a local stub, not live FEMA. The two stub served rows written to the shared `api_cache`
+(`fema:25.801,-80.189`, `fema:39.020,-99.884`) were deleted by the orchestrator afterwards so a
+live run can never be served constructed data.
+
+Gates at `e439bab` (orchestrator re-run): tsc exit 0; 355 unit tests; eslint 13 errors, 8
+warnings; both builds exit 0; fallback grep only the two counters; no em dashes.
+
+Deviations recorded from this round: the builder amended an unpushed commit once (a twelve line
+rename belonging to item 1 sits inside the item 3 commit; nothing published was rewritten);
+`getOrCreateSite` now upserts on `(site_key, is_test)` with the 23505 branch kept as defence and
+the payload built without locality or tract when the request has none; the brief route's fallback
+test lives in brief.spec.ts. One new user facing error string (stop and ask, open question 18):
+a database site id with memory offline and no fallback sent now answers 503
+`dependency_unavailable` "Site Memory is offline and no fallback id was sent." rather than a
+404 that would call a possibly real site imaginary; unreachable from Datum's own client, which
+always sends the fallback.
+
+Next action: owner applies the amended migration 0002 and sets CRON_SECRET; then the orchestrator
+runs the step 3.1 checks, the seed run, percentiles, similar sites for Atlanta, Miami and
+WaKeeney, the map, the page screenshot, the brief replay, the ping with the secret, and the
+offline run, and records the observed values.
