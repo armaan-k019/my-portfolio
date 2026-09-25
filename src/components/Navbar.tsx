@@ -70,10 +70,8 @@ export default function Navbar() {
       <nav
         className="fixed top-0 left-0 right-0 z-50 border-b"
         style={{
-          backgroundColor: "rgba(246, 248, 244, 0.72)",
-          backdropFilter: "blur(14px) saturate(1.1)",
-          WebkitBackdropFilter: "blur(14px) saturate(1.1)",
-          borderBottomColor: "rgba(45, 90, 39, 0.1)",
+          backgroundColor: "var(--color-paper)",
+          borderBottomColor: "var(--color-line)",
         }}
       >
         <div className="max-w-5xl mx-auto px-6 flex items-center justify-between h-16">

@@ -63,7 +63,7 @@ export default function ContactSection() {
         </p>
 
         {status === "sent" ? (
-          <div className="bg-sage/10 border border-sage/30 rounded-xl px-5 py-4 text-sm text-sage font-medium">
+          <div className="bg-sage/10 border border-sage/30 px-5 py-4 text-sm text-sage font-medium">
             Thanks, feedback received!
           </div>
         ) : (
@@ -75,7 +75,7 @@ export default function ContactSection() {
                 <select
                   value={project}
                   onChange={(e) => setProject(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-tan/50 bg-white text-brown focus:outline-none focus:border-terracotta focus:ring-2 focus:ring-terracotta/15 transition-all"
+                  className="w-full px-0 py-2 text-sm bg-transparent border-0 border-b border-line rounded-none text-brown focus:border-terracotta transition-colors"
                 >
                   <option value="">Select a project…</option>
                   {PROJECT_OPTIONS.map((p) => (
@@ -94,7 +94,7 @@ export default function ContactSection() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="if you'd like a reply"
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-tan/50 bg-white text-brown placeholder:text-brown-light/40 focus:outline-none focus:border-terracotta focus:ring-2 focus:ring-terracotta/15 transition-all"
+                  className="w-full px-0 py-2 text-sm bg-transparent border-0 border-b border-line rounded-none text-brown placeholder:text-brown-light/40 focus:border-terracotta transition-colors"
                 />
               </div>
             </div>
@@ -108,7 +108,7 @@ export default function ContactSection() {
                 required
                 rows={4}
                 placeholder="Describe the issue, feature request, or suggestion…"
-                className="w-full px-3 py-2 text-sm rounded-lg border border-tan/50 bg-white text-brown placeholder:text-brown-light/40 focus:outline-none focus:border-terracotta focus:ring-2 focus:ring-terracotta/15 transition-all resize-none"
+                className="w-full px-0 py-2 text-sm bg-transparent border-0 border-b border-line rounded-none text-brown placeholder:text-brown-light/40 focus:border-terracotta transition-colors resize-none"
               />
             </div>
 
@@ -119,7 +119,7 @@ export default function ContactSection() {
             <button
               type="submit"
               disabled={status === "sending" || message.trim().length < 5}
-              className="px-5 py-2 rounded-lg bg-terracotta text-white text-sm font-medium hover:bg-terracotta-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-5 py-2 bg-terracotta text-white text-sm font-medium hover:bg-terracotta-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {status === "sending" ? "Sending…" : "Send feedback"}
             </button>

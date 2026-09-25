@@ -149,22 +149,19 @@ body {
 .tick-rule::after { right: 0; }
 
 /* ── Paper card ──────────────────────────────────────────────────────────── */
+/* A flat panel: paper, one hairline, square corners. No blur, shadow or lift. */
 .card {
   position: relative;
-  background: rgba(255, 255, 255, 0.74);
-  backdrop-filter: blur(10px) saturate(1.05);
-  -webkit-backdrop-filter: blur(10px) saturate(1.05);
-  border: 1px solid rgba(45, 90, 39, 0.09);
-  border-radius: 16px;
-  box-shadow: var(--shadow-card);
-  transition: transform 0.45s var(--ease-out-expo),
-    box-shadow 0.45s var(--ease-out-expo),
-    border-color 0.45s var(--ease-out-expo);
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: 0;
 }
-.card-hover:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-card-hover);
-  border-color: rgba(45, 90, 39, 0.2);
+/* Hover recolours the title only, matching the ruled rows. */
+.card-hover :is(h2, h3) {
+  transition: color 0.2s ease;
+}
+.card-hover:hover :is(h2, h3) {
+  color: var(--color-terracotta);
 }
 
 /* Reveal animation primitive (used by SectionReveal / staggered children) */
