@@ -45,9 +45,18 @@ export default function SitesMap({ lat, lng }: Props) {
     void (async () => {
       try {
         const response = await fetch("/api/datum/memory/map");
-        const body = (await response.json()) as { sites?: MapSite[] };
+        const body = (await response.json()) as {
+          sites?: MapSite[];
+          memoryStatus?: string;
+        };
         if (cancelled) return;
-        if (!response.ok || !Array.isArray(body.sites)) {
+        // An offline read returns an empty list, which is not a count of zero.
+        // Saying "0 points" there would present a fallback as a measurement.
+        if (
+          !response.ok ||
+          !Array.isArray(body.sites) ||
+          body.memoryStatus === "offline"
+        ) {
           setFailed(true);
           return;
         }

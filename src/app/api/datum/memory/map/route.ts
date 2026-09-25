@@ -5,7 +5,7 @@
 // never anything that could be walked back to an address.
 
 import { NextResponse } from "next/server";
-import { publicSites, type PublicSite } from "@/lib/datum/memory";
+import { memoryStatus, publicSites, type PublicSite } from "@/lib/datum/memory";
 
 export const maxDuration = 15;
 
@@ -17,7 +17,7 @@ let cached: { sites: PublicSite[]; until: number } | null = null;
 export async function GET() {
   const now = Date.now();
   if (cached && cached.until > now) {
-    return NextResponse.json({ sites: cached.sites });
+    return NextResponse.json({ sites: cached.sites, memoryStatus: "online" });
   }
 
   const sites = await publicSites();
@@ -25,5 +25,8 @@ export async function GET() {
   // must not blank the map for the next five minutes.
   if (sites.length > 0) cached = { sites, until: now + CACHE_MS };
 
-  return NextResponse.json({ sites });
+  // The status travels with the points so the map can tell "nobody has been
+  // analyzed" from "the database could not be asked". An empty list from an
+  // offline read is not a count of zero.
+  return NextResponse.json({ sites, memoryStatus: memoryStatus() });
 }

@@ -1028,8 +1028,10 @@ export async function buildMemoryContext(
   }
 
   const reasons: string[] = [];
-  if (entries.length === 0) {
-    reasons.push(MEMORY_COPY.notEnoughSites.replace("<n>", String(n ?? 0)));
+  // n is a number on this path: countSites returns null only when the read
+  // failed, and a failed read trips the guard, which the branch above catches.
+  if (entries.length === 0 && n !== null) {
+    reasons.push(MEMORY_COPY.notEnoughSites.replace("<n>", String(n)));
   }
   if (vector === null) {
     reasons.push(
