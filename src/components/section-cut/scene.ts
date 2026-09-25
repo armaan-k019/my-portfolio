@@ -9,6 +9,23 @@ import { massing, boxEdges, type Box } from "./massing";
 const NEAR_BAND = 8;        // metres behind the cut drawn in ink, the rest in hairline
 const HATCH = 0.16;         // poché hatch spacing in metres
 const CUT_WIDTH = 2.5;      // cut outline, CSS px
+const IDLE_AFTER = 3000;    // ms without pointer movement before the model turns
+const IDLE_SPEED = 5;       // degrees of azimuth per second while idle
+
+// Named orthographic views as [azimuth, elevation] in degrees. Azimuth -90 is
+// the camera on the -X side looking along +X, so the elevation is the section
+// seen face on; plan at azimuth 0 keeps +X running left to right.
+const PLAN = [0, 90], AXON = [-45, 30], ELEVATION = [-90, 0];
+
+const smooth = (t: number) => t * t * (3 - 2 * t);
+// Pointer height to view: plateaus hold each named view, smoothstep blends between.
+function viewAt(y: number): [number, number] {
+  const seg = (a: number[], b: number[], t: number): [number, number] => {
+    const k = smooth(Math.min(1, Math.max(0, t)));
+    return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
+  };
+  return y < 0.5 ? seg(PLAN, AXON, (y - 0.12) / 0.3) : seg(AXON, ELEVATION, (y - 0.58) / 0.3);
+}
 
 // Tailwind emits the theme tokens as hex; --color-line carries its alpha as
 // an 8-digit hex (#2d5a271a), which THREE.Color does not read.
@@ -129,17 +146,39 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode) 
   // just short of its far end, so some of the model always remains.
   const cutMin = bx.min[0] - 0.5, cutMax = bx.max[0] - 1;
   let pointer: { x: number; y: number } | null = null;
+  let lastMove = performance.now();
   const onMove = (e: PointerEvent) => {
     if (e.pointerType === "touch") return;
     const r = host.getBoundingClientRect();
     pointer = { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
+    lastMove = performance.now();
     if (mode === "reduced") request();
   };
 
+  // Camera state in degrees. Live mode eases toward the pointer's view and
+  // adds an idle orbit; the other modes hold the axonometric.
+  let az = AXON[0], el = AXON[1], orbit = 0, last = performance.now();
+
   function frame() {
+    const now = performance.now();
+    const dt = Math.min(0.1, (now - last) / 1000);
+    last = now;
+
     const x = pointer ? cutMin + Math.min(1, Math.max(0, pointer.x)) * (cutMax - cutMin) : m.core;
     setCut(x);
-    aim(-45, 30);
+
+    if (mode === "live") {
+      const [tAz, tEl] = pointer ? viewAt(pointer.y) : [AXON[0], AXON[1]];
+      const k = 1 - Math.exp(-8 * dt);
+      az += (tAz - az) * k;
+      el += (tEl - el) * k;
+      if (now - lastMove > IDLE_AFTER) orbit += IDLE_SPEED * dt;
+      else {
+        orbit = ((((orbit + 180) % 360) + 360) % 360) - 180; // unwind the short way
+        orbit *= Math.exp(-3 * dt);
+      }
+    }
+    aim(az + orbit, el);
     render();
   }
 
