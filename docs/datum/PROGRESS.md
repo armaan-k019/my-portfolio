@@ -841,6 +841,23 @@ Pct, so a restated soil component `percent` fails the value check (broaden to `p
     moment (SPEC section 13 change); (b) render `truncated` (new copy); (c) accept as recorded
     debt while the corpus is twelve sites. Recommended: (a).
 
+### Fix round 2 (`49cee54`, `95af628`, `cfa4186`, `c20fcac`) and the Greptile fix round (`9490649` to `bd87b15`)
+
+Fix round 2: metrics, vector and metrics_at written together or not at all (a recompute with
+no vector never displaces a stored vector; the write is skipped with a reason); unit coverage
+for the fix round 1 changes (similar sites carry no id, context with no metrics row, per metric
+n drives the threshold, non numeric n discards the metric, truncated at the cap, stored verdict
+unreadable is a miss; `storedBriefCheck` moved into memory.ts to be testable since route files
+cannot export helpers); the ping refusals are their own test and run in the offline run. 333
+unit tests. Greptile fix round: the memory panel refetches after a cancelled request or a retry
+(no unit test: a React renderer would be a new dependency); map and count include only rows
+with metrics_at set; soil `percent` paths take the percent form in the value index; the brief
+stream never enqueues after the reader has gone (`sseChannel` helper, five tests). 341 unit
+tests. All Greptile comments on #23, #24, #26, #27 answered. Both Phase 3 fix rounds used.
+
+Gates at `bd87b15` (orchestrator re-run): tsc exit 0; 341 unit tests; eslint 13 errors, 8
+warnings; both builds exit 0; fallback grep only the two counters; no em dashes.
+
 ### Next action
 
 Owner applies migration 0002 (SQL handed over in chat), then the orchestrator runs the step 3.1
