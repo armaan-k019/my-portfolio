@@ -68,11 +68,24 @@ export default function MemoryPanel({ siteId, ready }: Props) {
   const asked = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!siteId || !ready) return;
+    // A site that is gone, or a site whose layers are being analyzed again,
+    // releases the one shot. Without this a layer retry that flips `ready` back
+    // to false and then to true would leave the ref holding the same id, and
+    // the panel would keep showing the answer computed before the retry.
+    if (!siteId || !ready) {
+      asked.current = null;
+      return;
+    }
     if (asked.current === siteId) return;
     asked.current = siteId;
 
     let cancelled = false;
+    // True once this run has written an answer. A run that never gets that far
+    // has not answered for this site, so the one shot has to be released for
+    // the next run: a Strict Mode remount tears the first effect down while the
+    // request is still open, and the ref alone would then block the refetch and
+    // leave the panel loading forever.
+    let settled = false;
 
     void (async () => {
       try {
@@ -87,14 +100,18 @@ export default function MemoryPanel({ siteId, ready }: Props) {
         if (cancelled) return;
         const usable =
           response.ok && typeof body.memoryStatus === "string" ? body : null;
+        settled = true;
         setAnswer({ site: siteId, context: usable });
       } catch {
-        if (!cancelled) setAnswer({ site: siteId, context: null });
+        if (cancelled) return;
+        settled = true;
+        setAnswer({ site: siteId, context: null });
       }
     })();
 
     return () => {
       cancelled = true;
+      if (!settled && asked.current === siteId) asked.current = null;
     };
   }, [ready, siteId]);
 
