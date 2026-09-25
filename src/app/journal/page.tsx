@@ -71,7 +71,7 @@ export default function JournalPage() {
                 ))}
               </div>
               <span className="text-sm text-terracotta group-hover:text-terracotta-dark transition-colors">
-                View all {TOTAL_PHOTOS} photos &rarr;
+                View all {TOTAL_PHOTOS}{" "}photos &rarr;
               </span>
             </Link>
           </section>
