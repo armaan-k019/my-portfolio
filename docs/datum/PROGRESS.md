@@ -10,8 +10,8 @@ Started 2026-09-21 from `origin/main` at `c2c8517` (PR #22, rename to Datum).
 | Phase | Branch | Base | PR |
 |---|---|---|---|
 | 0 | `feat/datum-phase-0` | `main` | pending |
-| 1 | `feat/datum-phase-1` | `feat/datum-phase-0` | opened 2026-09-22, see Phase 1 |
-| 2 | `feat/datum-phase-2` | `feat/datum-phase-1` | pending |
+| 1 | `feat/datum-phase-1` | `feat/datum-phase-0` | #24, gate closed 2026-09-25 |
+| 2 | `feat/datum-phase-2` | `feat/datum-phase-1` | in progress from 2026-09-25 |
 | 3 | `feat/datum-phase-3` | `feat/datum-phase-2` | pending |
 | 4 | BLOCKED | | |
 
@@ -412,6 +412,35 @@ fallback, no em dash, no overstated commit subject.
 
 Per the owner's instruction the orchestrator stops here without proposing a fifth round. The
 Phase 1 gate is open on finding 1 (and 2 as a should fix); the owner re-plans.
+
+### Phase 1 gate: CLOSED by the owner on 2026-09-25, with items carried
+
+Closed on everything that passed against the live database: migration and grants verified from
+the app side, rate limit and forced failure specs passing in database mode with their tightened
+assertions, 182 unit tests, both builds, lint at baseline, four review rounds with all high
+findings from rounds one to three closed.
+
+Carried out of Phase 1 as recorded debt (not fixed, no fifth round by the owner's rule):
+- Fourth round review finding 1 (high): when Site Memory flips offline mid analysis, a database
+  site id gets 404 from the layer route instead of the offline path (SPEC section 13 item 3).
+  Smallest fix is a per instance memory of site rows in memory.ts. Needs an owner approved slot
+  because memory.ts is outside the Phase 2 file list.
+- Finding 2 (medium): the rate limit peek memo is unbounded per IP ever seen.
+- Findings 3 to 8 (low) as listed above, including the PHASE-1 step 1.10 doc drift.
+
+SPEC section 16 measurements of record: PENDING. To be taken once the phase stack is merged and
+deployed from main, where there is no preview scoping to fight. The preview attempts on
+2026-09-25 hit deployment protection (solved with the automation bypass header), then a build
+without runtime variables, then an address that turned out to be the main build; the owner
+stopped the chase. The local database mode numbers above stand as informational and include
+laptop to region latency. The 1500 ms threshold is unchanged. The pending measurement is a
+release blocker for Datum going live, not for Phase 2 starting.
+
+Decision 5 (grep rewordings): the original PHASE-1 acceptance lines stand until the owner has
+read the literal before and after text.
+
+Model: from Phase 2 the build, review, and verification subagents run on Opus per the owner's
+2026-09-24 instruction.
 
 ### Owner decisions pending (Phase 1), superseded by the answers above
 
