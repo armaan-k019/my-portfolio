@@ -14,6 +14,8 @@ export interface PercentileEntry {
   metric: string;
   label: string;
   percentile: number;
+  /** The sites that measured this metric. Carried for the route, not rendered. */
+  n: number;
 }
 
 export interface SimilarSite {

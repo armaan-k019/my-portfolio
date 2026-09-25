@@ -58,7 +58,15 @@ export const NORMALIZATION = {
   hydrologicGroupValues: { A: 0, B: 0.33, C: 0.67, D: 1 } as Record<string, number>,
 } as const;
 
-/** The fourteen component names, in vector order. Index i is component i. */
+/**
+ * The fourteen component names, in vector order. Index i is component i.
+ *
+ * Component 12 is named for what is stored, `densityPerKm2`, which is the raw
+ * density the census layer measured. The log is the normalization (the table in
+ * SPEC section 14 writes it as log10(1 + v) / 5) and lives in the normalizer, so
+ * a percentile over the stored values is a percentile over people per square
+ * kilometre rather than over a transformed number nobody reported.
+ */
 export const METRIC_NAMES = [
   "annualMeanTempC",
   "annualTempRangeC",
@@ -72,7 +80,7 @@ export const METRIC_NAMES = [
   "reach10Km",
   "sfhaShare",
   "sds",
-  "logDensity",
+  "densityPerKm2",
   "hydrologicGroup",
 ] as const;
 
@@ -92,7 +100,7 @@ export const METRIC_LAYERS: Record<MetricName, LayerName> = {
   reach10Km: "walkshed",
   sfhaShare: "flood",
   sds: "seismic",
-  logDensity: "census",
+  densityPerKm2: "census",
   hydrologicGroup: "soil",
 };
 
@@ -111,7 +119,7 @@ export const PERCENTILE_METRICS: Array<{ metric: MetricName; label: string }> = 
   { metric: "reach10Km", label: "More street reach than" },
   { metric: "reliefM", label: "More relief than" },
   { metric: "meanWindMs", label: "More wind than" },
-  { metric: "logDensity", label: "More density than" },
+  { metric: "densityPerKm2", label: "More density than" },
 ];
 
 /**
@@ -134,7 +142,7 @@ export const METRIC_LABELS: Record<MetricName, string> = {
   reach10Km: "street reach",
   sfhaShare: "flood extent",
   sds: "seismic demand",
-  logDensity: "density",
+  densityPerKm2: "density",
   hydrologicGroup: "soil drainage",
 };
 
@@ -254,7 +262,7 @@ const NORMALIZERS: Record<MetricName, Normalizer> = {
   reach10Km: (v) => clamp01(v / NORMALIZATION.reach10SpanKm),
   sfhaShare: (v) => clamp01(v),
   sds: (v) => clamp01(v / NORMALIZATION.sdsSpan),
-  logDensity: (v) =>
+  densityPerKm2: (v) =>
     clamp01(Math.log10(1 + Math.max(0, v)) / NORMALIZATION.densityLogDivisor),
   hydrologicGroup: (v) => clamp01(v),
 };
@@ -319,7 +327,7 @@ export function computeMetrics(
     reach10Km: numberOrNull(walkshed?.reachKm[10]),
     sfhaShare: sfhaShareOf(flood),
     sds: numberOrNull(seismic?.sds),
-    logDensity: numberOrNull(census?.derived.densityPerKm2),
+    densityPerKm2: numberOrNull(census?.derived.densityPerKm2),
     hydrologicGroup: hydrologicGroupValue(topComponent?.hydrologicGroup ?? null),
   };
 

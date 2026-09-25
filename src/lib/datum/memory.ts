@@ -674,6 +674,26 @@ export interface PercentileEntry {
   label: string;
   /** 0 to 100, already rounded. */
   percentile: number;
+  /** How many analyzed sites measured this metric, from metric_percentile. */
+  n: number;
+}
+
+/**
+ * One percentile metric and the population behind it, including the metrics
+ * that have no percentile yet.
+ *
+ * The population is per metric, not per site: `metric_percentile` counts the
+ * sites that measured that one metric, which is smaller than the site count
+ * whenever a layer failed for somebody. The sentence about needing ten sites is
+ * about this number, so it has to travel with the metric rather than be read
+ * off a count of rows.
+ */
+export interface MetricPopulation {
+  metric: string;
+  label: string;
+  /** 0 to 100 rounded, or null when fewer than ten sites measured the metric. */
+  percentile: number | null;
+  n: number;
 }
 
 /**
@@ -689,7 +709,7 @@ export interface PercentileEntry {
  */
 export async function percentiles(
   named: Record<string, number | null>,
-): Promise<PercentileEntry[]> {
+): Promise<MetricPopulation[] | null> {
   const wanted = PERCENTILE_METRICS.filter(
     (entry) => typeof named[entry.metric] === "number",
   );
@@ -705,8 +725,8 @@ export async function percentiles(
       if (error) throw new Error("sites metrics read failed");
       return (data ?? []) as Array<{ metrics: Record<string, unknown> | null }>;
     });
-    if (!rows) return [];
-    const out: PercentileEntry[] = [];
+    if (!rows) return null;
+    const out: MetricPopulation[] = [];
     for (const entry of wanted) {
       const value = named[entry.metric] as number;
       const population: number[] = [];
@@ -716,12 +736,15 @@ export async function percentiles(
           population.push(candidate);
         }
       }
-      if (population.length < PERCENTILE_MIN_SITES) continue;
+      // The same per metric n the SQL helper reports: the sites that measured
+      // this metric, not the sites that exist.
+      const n = population.length;
       const below = population.filter((other) => other < value).length;
       out.push({
         metric: entry.metric,
         label: entry.label,
-        percentile: Math.round((below / population.length) * 100),
+        percentile: n < PERCENTILE_MIN_SITES ? null : Math.round((below / n) * 100),
+        n,
       });
     }
     return out;
@@ -739,16 +762,24 @@ export async function percentiles(
         return (data ?? []) as Array<{ percentile: number | null; n: number }>;
       });
       const first = rows?.[0];
-      if (!first || typeof first.percentile !== "number") return null;
-      const found: PercentileEntry = {
+      if (!first || typeof first.n !== "number") return null;
+      const found: MetricPopulation = {
         metric: entry.metric,
         label: entry.label,
-        percentile: Math.round(first.percentile * 100),
+        percentile:
+          typeof first.percentile === "number"
+            ? Math.round(first.percentile * 100)
+            : null,
+        n: first.n,
       };
       return found;
     }),
   );
-  return results.filter((entry): entry is PercentileEntry => entry !== null);
+  const answered = results.filter(
+    (entry): entry is MetricPopulation => entry !== null,
+  );
+  // Every metric failing to answer is a failed read, not an empty population.
+  return answered.length === 0 ? null : answered;
 }
 
 export interface SimilarSite {
@@ -1010,11 +1041,22 @@ export async function buildMemoryContext(
     };
   }
 
-  const [n, entries, similar] = await Promise.all([
+  const [n, populations, similar] = await Promise.all([
     countSites(),
     percentiles(named),
     vector === null ? Promise.resolve(null) : similarSites(vector, siteId),
   ]);
+
+  // A percentile is shown when its own metric has ten sites behind it, so the
+  // entries are the populations that answered with one.
+  const entries: PercentileEntry[] = (populations ?? [])
+    .filter((entry) => entry.percentile !== null)
+    .map((entry) => ({
+      metric: entry.metric,
+      label: entry.label,
+      percentile: entry.percentile as number,
+      n: entry.n,
+    }));
 
   // The count read can itself be what trips the offline guard.
   if (memoryStatus() === "offline") {
@@ -1028,10 +1070,14 @@ export async function buildMemoryContext(
   }
 
   const reasons: string[] = [];
-  // n is a number on this path: countSites returns null only when the read
-  // failed, and a failed read trips the guard, which the branch above catches.
-  if (entries.length === 0 && n !== null) {
-    reasons.push(MEMORY_COPY.notEnoughSites.replace("<n>", String(n)));
+  // The sentence is about the population behind a percentile, so it takes the
+  // largest per metric n this site has, which is the most any one of its
+  // metrics was measured against. The count of site rows is a different number
+  // (a site whose climate layer failed is a row that measured none of these)
+  // and it has its own line in the panel.
+  if (entries.length === 0 && populations !== null && populations.length > 0) {
+    const measured = populations.reduce((best, entry) => Math.max(best, entry.n), 0);
+    reasons.push(MEMORY_COPY.notEnoughSites.replace("<n>", String(measured)));
   }
   if (vector === null) {
     reasons.push(

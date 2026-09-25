@@ -115,7 +115,7 @@ test("metrics: the real Atlanta fixtures have no vector, because Urban land has 
   // Everything else was still measured, so the site can still be placed in a
   // percentile for the metrics it does have.
   expect(named.dailyRadiationKwhM2, "radiation is still named").not.toBeNull();
-  expect(named.logDensity, "density is still named").not.toBeNull();
+  expect(named.densityPerKm2, "density is still named").not.toBeNull();
 });
 
 test("metrics: removing flood gives a null vector and a null sfhaShare, and keeps the rest", () => {
@@ -211,7 +211,7 @@ test("metrics: every normalization clamps to 0 and 1 at the edges of its constan
     ["reach10Km", -1, NORMALIZATION.reach10SpanKm * 10],
     ["sfhaShare", -1, 5],
     ["sds", -1, NORMALIZATION.sdsSpan * 4],
-    ["logDensity", -1, 10_000_000],
+    ["densityPerKm2", -1, 10_000_000],
     ["hydrologicGroup", -1, 5],
   ];
   expect(extremes.length, "one row per component").toBe(VECTOR_LENGTH);
@@ -254,8 +254,31 @@ test("metrics: the percentile metrics are the six SPEC section 14 names", () => 
     "reach10Km",
     "reliefM",
     "meanWindMs",
-    "logDensity",
+    "densityPerKm2",
   ]);
   // SPEC section 14 writes this one out; the rest follow its shape.
   expect(PERCENTILE_METRICS[0].label).toBe("More sun than");
+});
+
+test("metrics: the stored density is the raw one, and only the normalizer takes the log", () => {
+  const layers = atlantaWithSoilGroup("B");
+  const { named, vector } = computeMetrics(layers);
+  const census = JSON.parse(
+    readFileSync(path.join(FIXTURES, "atlanta", "census.json"), "utf8"),
+  ) as LayerEnvelope<{ derived: { densityPerKm2: number } }>;
+  const raw = census.data!.derived.densityPerKm2;
+
+  // The named value is what the census layer measured, people per square
+  // kilometre, so a percentile over the stored metrics is a percentile over a
+  // number somebody reported.
+  expect(named.densityPerKm2, "the stored key holds the raw density").toBeCloseTo(raw, 9);
+  expect(named.densityPerKm2!, "a raw density is far above the log of itself").toBeGreaterThan(1);
+
+  // The log is the normalization, SPEC section 14 row 12.
+  const expected = Math.log10(1 + raw) / NORMALIZATION.densityLogDivisor;
+  expect(normalizeMetric("densityPerKm2", raw), "the normalizer keeps the log").toBeCloseTo(
+    expected,
+    9,
+  );
+  expect(vector![12], "component 12 is the normalized density").toBeCloseTo(expected, 9);
 });
