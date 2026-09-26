@@ -9,6 +9,11 @@
 // 10.5. Ground to structure: bridging, embedded (abutments), cantilevered,
 // ramping along a contour. Secondary: mullions along both long faces,
 // joists under the deck, balustrades, the tower's treads.
+//
+// Life: a stream along the gorge floor, trees on both banks, the slopes and
+// the floor, people leaning on the lookout's rail and standing by the
+// water, and birds wheeling above the bridge and down inside the gorge. No
+// road reaches it, so no cars.
 import { Drawing, inside, noise, smooth, type Box } from "../kit";
 
 const X = 78, Z = 48, CONTOUR = 1;
@@ -25,8 +30,13 @@ export function build() {
   const west: Box = { x0: 12, x1: 22, z0: 16.5, z1: 27.5 }, east: Box = { x0: 56, x1: 66, z0: 16.5, z1: 27.5 };
   const tower: Box = { x0: 36, x1: 41, z0: 29, z1: 34 };
   const rampB: Box = { x0: 1, x1: 13, z0: 13.2, z1: 15.6 };
+  // The stream: west of the gorge's centre line, falling gently along it.
+  const sx = (z: number) => gx(z) - 4.2, level = (z: number) => -14.6 + 0.04 * z, HALF = 1.4;
+  const water = (x: number, z: number) => (Math.abs(x - sx(z)) < HALF ? level(z) : NaN);
   const ground = (x: number, z: number) => {
     let h = natural(x, z);
+    const dx = (x - sx(z)) / HALF;
+    if (Math.abs(dx) < 1) h = Math.min(h, level(z) - 0.5 * (1 - dx * dx));
     if (inside(west, x, z)) h = Math.min(h, -4);
     if (inside(east, x, z)) h = Math.min(h, -2);
     if (inside(tower, x, z)) h = Math.min(h, natural(38.5, 31.5));
@@ -100,11 +110,38 @@ export function build() {
   for (let k = 0; k < 6; k++) d.walk(2 + k * 2, 30 + k * 2, 6 + k * 2, 34 + k * 2, (x, z) => ground(x, z), 30 + k);
   d.stand(38, 3, 21, 0); d.stand(39, 3, 23, 3); d.stand(35, 3, 22, 1.5);
   d.stand(33, 7, 22, 0); d.stand(43, 7, 21, 3);
-  d.stand(51, 1.5, 32, 1.6); d.stand(48, 1.5, 32, 1.6); d.stand(52, 1.5, 29, 0);
+  // The lookout: leaning on its rail, looking out over the gorge.
+  d.stand(47.6, 1.5, 32.4, Math.PI / 2, "lean"); d.stand(49.9, 1.5, 32.4, Math.PI / 2, "lean");
+  d.stand(52.4, 1.5, 29.4, 0, "lean"); d.stand(48.7, 1.5, 31.8, Math.PI / 2, undefined, 0.6);
+  // A pair by the water on the gorge floor.
+  d.stand(40.4, ground(40.4, 10), 10, Math.PI, "talk"); d.stand(39.6, ground(39.6, 10.5), 10.5, -0.2);
   d.stand(38.5, 3, 27.5, 1.6); d.stand(60, 10.5, 22, 2); d.stand(20, 10.5, 22, 1);
   for (let k = 0; k < 6; k++) d.stand(14 + k * 9, 3, 25, -Math.PI / 2);
   d.stand(38.5, floorY + 0.2, 36, 0);
 
+  // The water's edges, level across and falling along the stream, with a
+  // few ripple marks on its surface.
+  for (let z = 0; z < Z - 1e-6; z += 1.5) {
+    for (const k of [-HALF, HALF]) d.site.push(sx(z) + k, level(z), z, sx(z + 1.5) + k, level(z + 1.5), z + 1.5);
+  }
+  for (const [z, o] of [[4, 0.3], [9, -0.4], [15, 0.1], [22, 0.5], [28, -0.2], [35, 0.4], [41, -0.5], [46, 0]])
+    d.site.push(sx(z) + o, level(z), z, sx(z + 0.9) + o, level(z + 0.9), z + 0.9);
+
+  // Trees on both banks, the slopes and the gorge floor, clear of the
+  // bridge, the tower, the lookout, the ramp, the paths and the water.
+  const built = (x: number, z: number) => (z > 15.5 && z < 28.5 && x > 10 && x < 68) || inside(tower, x, z)
+    || (x > 44 && x < 54 && z > 25 && z < 34) || (x < 14 && z > 12 && z < 17);
+  const clear = (x: number, z: number) => !built(x, z) && Math.abs(x - sx(z)) > 2.4 && Math.abs(x - gx(z)) > 1.2
+    && !(x < 20 && Math.abs(z - x - 28) < 3);
+  d.grove(ground, 7, { x0: 0, x1: 26, z0: 0, z1: 48 }, clear, 21);
+  d.grove(ground, 7, { x0: 52, x1: 78, z0: 0, z1: 48 }, clear, 22);
+  d.grove(ground, 4, { x0: 26, x1: 52, z0: 0, z1: 48 }, (x, z) => clear(x, z) && Math.abs(x - gx(z)) > 8, 23);
+  d.grove(ground, 4, { x0: 28, x1: 50, z0: 0, z1: 48 }, (x, z) => clear(x, z) && Math.abs(x - gx(z)) < 7, 24);
+
+  d.bird(39, -4, 20, 5, 16, 50, 1); d.bird(38, -8, 32, 4, 12, 40, 2); d.bird(30, 14, 24, 20, 10, 80, 3);
+  d.bird(55, 16, 12, 14, 10, 70, 4); d.bird(20, 18, 36, 12, 8, 60, 5); d.bird(60, 12, 38, 10, 8, 55, 6);
+  d.bird(39, 5, 8, 6, 5, 35, 7);
+
   const lo = d.contours(ground, X, Z, CONTOUR);
-  return d.model(ground, X, Z, CONTOUR, Math.floor(lo) - 2, 14);
+  return d.model(ground, X, Z, CONTOUR, Math.floor(lo) - 2, 14, water);
 }

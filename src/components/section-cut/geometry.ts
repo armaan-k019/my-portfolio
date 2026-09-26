@@ -13,8 +13,11 @@ export interface Prism { poly: Pt[]; y0: number; y1: number }
 export interface Box { min: Vec3; max: Vec3 }
 
 // A person: where they stand, the direction they face (radians in plan,
-// from +X towards +Z) and, for walkers, the stride phase.
-export interface Pose { p: Vec3; dir: number; phase?: number }
+// from +X towards +Z) and, for walkers, the stride phase. `kind` varies the
+// pose (sitting on a ledge at p, leaning on a rail, talking with one arm
+// raised) and `scale` draws a child. A bird uses the same shape: its phase
+// is the wing beat.
+export interface Pose { p: Vec3; dir: number; phase?: number; kind?: "sit" | "lean" | "talk"; scale?: number }
 
 export interface Model {
   lines: number[];       // flat xyz pairs, drawn and depth-graded
@@ -23,9 +26,11 @@ export interface Model {
   detail?: number[];     // flat xyz pairs: the secondary system, drawn lighter
   contour?: number;      // contour interval of the ground, metres
   // A ground surface the cut sections: height at (x, z), its extent across
-  // the cut, and the datum the earth is hatched down to.
-  ground?: { h: (x: number, z: number) => number; z0: number; z1: number; base: number };
+  // the cut, and the datum the earth is hatched down to. `water` is the
+  // surface height of standing water at (x, z), NaN where there is none.
+  ground?: { h: (x: number, z: number) => number; z0: number; z1: number; base: number; water?: (x: number, z: number) => number };
   people?: { walkers: ((t: number) => Pose)[]; standing: Pose[] };
+  birds?: ((t: number) => Pose)[];
   bounds: Box;           // building extent (site excluded)
   featured: number;      // X station shown before the pointer moves
 }
@@ -133,18 +138,46 @@ export function rng(seed: number) {
 
 // A figure 1.75 m tall in eight segments: head (3), torso, two arms, two
 // legs. A walking figure swings its legs and arms with the stride phase.
-export function figure(out: number[], { p, dir, phase }: Pose) {
+// Sitting, the legs become a thigh and a shin and one arm props behind.
+export function figure(out: number[], { p, dir, phase, kind, scale = 1 }: Pose) {
   const f: Vec3 = [Math.cos(dir), 0, Math.sin(dir)], s: Vec3 = [-f[2], 0, f[0]];
   const at = (fw: number, up: number, side: number): Vec3 =>
-    [p[0] + f[0] * fw + s[0] * side, p[1] + up, p[2] + f[2] * fw + s[2] * side];
+    [p[0] + (f[0] * fw + s[0] * side) * scale, p[1] + up * scale, p[2] + (f[2] * fw + s[2] * side) * scale];
+  const head = (fw: number, up: number) => {
+    const h0 = at(fw, up, -0.1), h1 = at(fw, up, 0.1), h2 = at(fw, up + 0.25, 0);
+    seg(out, h0, h1); seg(out, h1, h2); seg(out, h2, h0);
+  };
+  if (kind === "sit") {
+    const hip = at(0, 0, 0), knee = at(0.45, 0.05, 0), shoulder = at(-0.03, 0.48, 0);
+    seg(out, hip, at(-0.05, 0.55, 0));
+    seg(out, hip, knee);
+    seg(out, knee, at(0.5, -0.45, 0));
+    seg(out, shoulder, at(0.4, 0.1, 0.1));
+    seg(out, shoulder, at(-0.25, 0.02, -0.15));
+    head(-0.05, 0.6);
+    return;
+  }
+  const lean = kind === "lean" ? 0.28 : 0;
   const swing = phase === undefined ? 0 : Math.sin(phase) * 0.3;
   const stance = phase === undefined ? 0.13 : 0.08;
-  const hip = at(0, 0.95, 0), neck = at(0, 1.45, 0), shoulder = at(0, 1.4, 0);
+  const hip = at(0, 0.95, 0), neck = at(lean, 1.45, 0), shoulder = at(lean * 0.95, 1.4, 0);
   seg(out, hip, neck);
-  seg(out, hip, at(swing, 0, stance));
-  seg(out, hip, at(-swing, 0, -stance));
-  seg(out, shoulder, at(-swing * 0.8, 0.85, 0.2));
-  seg(out, shoulder, at(swing * 0.8, 0.85, -0.2));
-  const h0 = at(0, 1.5, -0.1), h1 = at(0, 1.5, 0.1), h2 = at(0, 1.75, 0);
-  seg(out, h0, h1); seg(out, h1, h2); seg(out, h2, h0);
+  seg(out, hip, at(swing - lean * 0.5, 0, stance));
+  seg(out, hip, at(-swing - lean * 0.5, 0, -stance));
+  if (kind === "lean") {
+    seg(out, shoulder, at(0.55, 1.08, 0.2));
+    seg(out, shoulder, at(0.55, 1.08, -0.2));
+  } else {
+    seg(out, shoulder, at(-swing * 0.8, 0.85, 0.2));
+    seg(out, shoulder, kind === "talk" ? at(0.42, 1.2, -0.22) : at(swing * 0.8, 0.85, -0.2));
+  }
+  head(lean * 1.1, 1.5);
+}
+
+// A bird in two segments, a shallow V: the wing tips either side of the
+// body and a little behind it, lifted and lowered by a slow beat.
+export function bird(out: number[], { p, dir, phase = 0 }: Pose) {
+  const f: Vec3 = [Math.cos(dir), 0, Math.sin(dir)], s: Vec3 = [-f[2], 0, f[0]];
+  const lift = 0.1 + 0.22 * Math.max(0, Math.sin(phase));
+  for (const k of [1, -1]) seg(out, p, [p[0] + s[0] * 0.6 * k - f[0] * 0.18, p[1] + lift, p[2] + s[2] * 0.6 * k - f[2] * 0.18]);
 }

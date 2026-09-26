@@ -12,6 +12,10 @@
 // retained, cantilevered, ramping along a contour. Contours every 0.5 m.
 // Secondary: facade, lantern and courtyard mullions, joists under the upper
 // floor and the terrace, balustrades, the treads of both stairs.
+//
+// Life: trees on the hillside above and on the lower ground past the drop,
+// two cars parked in the approach court (the only way in by road), people
+// gathered, sitting, leaning on the terrace rail, and birds over the slope.
 import { Drawing, inside, noise, smooth, type Box } from "../kit";
 
 const X = 76, Z = 48, CONTOUR = 0.5;
@@ -128,10 +132,29 @@ export function build() {
   d.walk(50, 20, 57, 24, at(-3.6), 7);
   d.walk(10, 20, 20, 20, at(8.4), 8);
   for (let k = 0; k < 10; k++) d.walk(2 + k * 7, 40, 6 + k * 7, 44, (x, z) => ground(x, z), 20 + k);
+  d.walk(16.7, 40, 20.7, 44, (x, z) => ground(x, z), 22);
+  d.walk(34, 25.4, 56, 25.4, at(4.2), 3);
+
+  // Trees on the hillside above the house, on the lower ground past the
+  // drop, and a few in front along the contour; none on the path.
+  const path = (x: number, z: number) => z > 38.5 && z < 45.5;
+  d.grove(ground, 12, { x0: 0, x1: 58, z0: 31, z1: 48 }, (x, z) => !path(x, z), 11);
+  d.grove(ground, 5, { x0: 63, x1: 76, z0: 31, z1: 48 }, (x, z) => !path(x, z), 12);
+  d.grove(ground, 4, { x0: 24, x1: 56, z0: 1, z1: 9 }, () => true, 13, 6);
+
+  d.bird(30, 14, 30, 22, 10, 70, 1); d.bird(55, 17, 20, 18, 14, 90, 2); d.bird(20, 19, 36, 14, 8, 60, 3);
+  d.bird(64, 8, 28, 9, 12, 55, 4); d.bird(45, 20, 10, 26, 8, 110, 5); d.bird(10, 13, 22, 9, 12, 50, 6);
+  d.bird(70, 15, 38, 8, 6, 45, 7);
   d.stand(42, -1, 16, 0); d.stand(44, -1, 19, 2); d.stand(40, -1, 14, 4);
   d.stand(26, 0, 18, 1); d.stand(28, 0, 16, 3); d.stand(27, 4.2, 25, -1.6);
-  d.stand(69, 4.2, 18, 0); d.stand(69, 4.2, 22, 0);
-  d.stand(3, -1.8, 6, 1); d.stand(5, -1.8, 5, 2);
+  d.stand(69.3, 4.2, 18, 0, "lean"); d.stand(69.3, 4.2, 21.5, 0, "lean"); d.stand(68.2, 4.2, 23.4, -0.4, "talk");
+  // The approach court: two cars parked, and a group met beside them.
+  d.car(1.5, -1.8, 6.6, Math.PI / 2); d.car(3.7, -1.8, 6.4, Math.PI / 2);
+  const talkTo = (x: number, z: number) => Math.atan2(6.1 - z, 5.9 - x);
+  d.stand(5.3, -1.8, 5.1, talkTo(5.3, 5.1), "talk"); d.stand(6.5, -1.8, 6.2, talkTo(6.5, 6.2));
+  d.stand(5.4, -1.8, 7, talkTo(5.4, 7), undefined, 0.6);
+  // Sitting on the edge of the ground floor above the sunken garden.
+  d.stand(37.8, 0, 16.5, 0, "sit"); d.stand(37.8, 0, 18.4, 0.3, "sit");
   d.stand(52, -3.6, 25, 0); d.stand(55, -3.6, 18, 1);
   for (let k = 0; k < 4; k++) d.stand(10 + k * 3, 0, 13, -Math.PI / 2);
 

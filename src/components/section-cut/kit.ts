@@ -29,6 +29,7 @@ export class Drawing {
   site: number[] = [];
   walkers: ((t: number) => Pose)[] = [];
   standing: Pose[] = [];
+  birds: ((t: number) => Pose)[] = [];
 
   // A solid box: cut as poché, drawn as its twelve edges.
   block(b: Box, y0: number, y1: number) {
@@ -127,17 +128,76 @@ export class Drawing {
       return { p: [x, y(x, z), z], dir: dir + (Math.cos(w * t + ph) >= 0 ? 0 : Math.PI), phase: t * 5.5 + ph };
     });
   }
-  stand(x: number, y: number, z: number, dir: number) { this.standing.push({ p: [x, y, z], dir }); }
+  stand(x: number, y: number, z: number, dir: number, kind?: Pose["kind"], scale?: number) { this.standing.push({ p: [x, y, z], dir, kind, scale }); }
 
-  model(ground: (x: number, z: number) => number, X: number, Z: number, contour: number, base: number, featured: number): Model {
+  // A bird on a slow elliptical circuit round (cx, cz) at height y, rising
+  // and falling a little; one circuit takes `period` seconds.
+  bird(cx: number, y: number, cz: number, rx: number, rz: number, period: number, seed: number) {
+    const r = rng(seed), ph = r() * Math.PI * 2, sense = r() < 0.5 ? 1 : -1, bob = 0.8 + r() * 1.6, beat = 1.6 + r();
+    this.birds.push((t) => {
+      const a = ph + (sense * Math.PI * 2 * t) / period;
+      const dx = -rx * Math.sin(a) * sense, dz = rz * Math.cos(a) * sense;
+      return { p: [cx + rx * Math.cos(a), y + bob * Math.sin(2 * a), cz + rz * Math.sin(a)], dir: Math.atan2(dz, dx), phase: t * beat + ph };
+    });
+  }
+
+  // A tree in twelve segments: a trunk of two, three branches, and a loose
+  // crown outline of seven points. The crown's plane turns to face the
+  // axonometric, near enough to read in elevation too, and wanders a little
+  // out of it for body. Height, spread and lean vary, and the crown sits off
+  // the trunk's axis.
+  tree(x: number, y: number, z: number, seed: number) {
+    const r = rng(seed), H = 5 + r() * 6, spread = H * (0.3 + r() * 0.25), th = Math.PI / 4 + (r() - 0.5) * 0.7, la = r() * Math.PI * 2;
+    const lean = (r() - 0.5) * 0.14 * H, lx = Math.cos(la) * lean, lz = Math.sin(la) * lean;
+    const u = [Math.cos(th), Math.sin(th)], w = [-Math.sin(th), Math.cos(th)], phi = r() * Math.PI * 2;
+    const fork: Vec3 = [x + lx * 0.5, y + H * 0.5, z + lz * 0.5], top: Vec3 = [x + lx, y + H * 0.72, z + lz];
+    const cx = x + lx * 1.2, cy = y + H * 0.68, cz = z + lz * 1.2, ry = H * 0.3;
+    const crown: Vec3[] = Array.from({ length: 7 }, (_, k) => {
+      const a = (k / 7) * Math.PI * 2 + (r() - 0.5) * 0.5, rad = 0.75 + r() * 0.4, out = spread * 0.12 * Math.sin(2 * a + phi);
+      const h = (spread / 2) * rad * Math.cos(a);
+      return [cx + u[0] * h + w[0] * out, cy + ry * rad * Math.sin(a), cz + u[1] * h + w[1] * out];
+    });
+    const toward = (a: Vec3, b: Vec3, k: number): Vec3 => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+    seg(this.detail, [x, y, z], fork); seg(this.detail, fork, top);
+    seg(this.detail, fork, toward(fork, crown[4], 0.8));
+    seg(this.detail, top, toward(top, crown[1], 0.75));
+    seg(this.detail, top, toward(top, crown[3], 0.7));
+    for (let k = 0; k < 7; k++) seg(this.detail, crown[k], crown[(k + 1) % 7]);
+  }
+
+  // Trees scattered over a plan area where `ok` allows, at least `gap`
+  // metres apart, standing on the ground. Placement is fixed by the seed.
+  grove(ground: (x: number, z: number) => number, n: number, area: Box, ok: (x: number, z: number) => boolean, seed: number, gap = 3.5) {
+    const r = rng(seed), at: [number, number][] = [];
+    for (let tries = 0; at.length < n && tries < n * 60; tries++) {
+      const x = area.x0 + r() * (area.x1 - area.x0), z = area.z0 + r() * (area.z1 - area.z0);
+      if (!ok(x, z) || at.some(([a, b]) => Math.hypot(a - x, b - z) < gap)) continue;
+      at.push([x, z]);
+      this.tree(x, ground(x, z), z, seed * 97 + at.length);
+    }
+  }
+
+  // A parked car as a profile mass in fourteen segments: the near side's
+  // outline, the far side's glasshouse, and four cross edges. (x, z) is its
+  // centre on the ground at y; it points along `dir`.
+  car(x: number, y: number, z: number, dir: number) {
+    const f = [Math.cos(dir), Math.sin(dir)], s = [-f[1], f[0]];
+    const P = (u: number, v: number, side: number): Vec3 => [x + f[0] * u + s[0] * side, y + v, z + f[1] * u + s[1] * side];
+    const prof: [number, number][] = [[-2.2, 0.35], [-2.15, 0.85], [-0.7, 0.95], [-0.2, 1.45], [1.4, 1.45], [2.2, 0.9], [2.2, 0.35]];
+    for (let k = 0; k < 7; k++) seg(this.detail, P(...prof[k], -0.9), P(...prof[(k + 1) % 7], -0.9));
+    for (const k of [2, 3, 4, 5]) seg(this.detail, P(...prof[k], -0.9), P(...prof[k], 0.9));
+    for (const k of [2, 3, 4]) seg(this.detail, P(...prof[k], 0.9), P(...prof[k + 1], 0.9));
+  }
+
+  model(ground: (x: number, z: number) => number, X: number, Z: number, contour: number, base: number, featured: number, water?: (x: number, z: number) => number): Model {
     let mn: Vec3 = [Infinity, Infinity, Infinity], mx: Vec3 = [-Infinity, -Infinity, -Infinity];
     for (const arr of [this.lines, this.site]) for (let i = 0; i < arr.length; i += 3) for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], arr[i + k]); mx[k] = Math.max(mx[k], arr[i + k]); }
     mn = [mn[0], mn[1], mn[2]]; mx = [mx[0], mx[1], mx[2]];
     return {
       lines: this.lines, detail: this.detail, solids: this.solids, site: this.site,
       bounds: { min: mn, max: mx }, featured, contour,
-      ground: { h: ground, z0: 0, z1: Z, base },
-      people: { walkers: this.walkers, standing: this.standing },
+      ground: { h: ground, z0: 0, z1: Z, base, water },
+      people: { walkers: this.walkers, standing: this.standing }, birds: this.birds,
     };
   }
 }

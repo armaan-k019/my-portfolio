@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
-import { crossings, figure, type Model } from "./geometry";
+import { bird, crossings, figure, type Model } from "./geometry";
 
 const NEAR_BAND = 8;        // metres behind the cut drawn in ink, the rest in hairline
 const HATCH = 0.16;         // poché hatch spacing in metres
@@ -130,9 +130,11 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
   scene.add(site, far, near, hatch, outline);
 
   // People share the building's near and far materials and cutting planes,
-  // so the cut reveals them exactly as it reveals the structure. Walkers only
-  // move in live mode; the other modes show the standing figures alone.
+  // so the cut reveals them exactly as it reveals the structure. Walkers and
+  // birds only exist in live mode; the other modes show the standing figures
+  // alone, since everything else in the drawing is still.
   const walkers = mode === "live" ? m.people?.walkers ?? [] : [];
+  const birds = mode === "live" ? m.birds ?? [] : [];
   const standing = m.people?.standing ?? [];
   // The secondary system: thin ink in the near bay, fainter beyond.
   const detailGeo = new THREE.BufferGeometry();
@@ -144,7 +146,7 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
   scene.add(detailNear, detailFar);
 
   const peopleGeo = new THREE.BufferGeometry();
-  const peopleBuf = new Float32Array((walkers.length + standing.length) * 8 * 6);
+  const peopleBuf = new Float32Array(((walkers.length + standing.length) * 8 + birds.length * 2) * 6);
   peopleGeo.setAttribute("position", new THREE.BufferAttribute(peopleBuf, 3));
   const peopleNear = new LineSegments2(new LineSegmentsGeometry(), nearMat);
   const peopleFar = new THREE.LineSegments(peopleGeo, far.material);
@@ -156,6 +158,7 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
     figs.length = 0;
     for (const w of walkers) figure(figs, w(t));
     for (const s of standing) figure(figs, s);
+    for (const b of birds) bird(figs, b(t));
     peopleBuf.set(figs);
     (peopleGeo.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
     fillSegs(peopleNear, figs);
@@ -253,7 +256,7 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
     if (m.ground) {
       // The ground in section: its profile, and earth hatched down to the
       // datum at a coarser spacing than the structure's poché.
-      const { h, z0, z1 } = m.ground;
+      const { h, z0, z1, water } = m.ground;
       const STEP = 0.5, EARTH = 0.9;
       // Hatch this section's earth to 2 m below its own lowest point, so a
       // deep drop elsewhere on the site does not bury every section.
@@ -265,6 +268,9 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
       for (let z = z0 + STEP; z <= z1 + 1e-6; z += STEP) {
         const y = h(x, z);
         rects.push(x, yp, zp, x, y, z);
+        // Standing water: its surface drawn light across the strip.
+        const wy = water ? water(x, z - STEP / 2) : NaN;
+        if (wy > Math.min(y, yp)) hatchPts.push(x, wy, zp, x, wy, z);
         // Lines y = z + c through this strip, clipped to base and profile.
         const cLo = base - z, cHi = Math.max(yp, y) - zp;
         for (let c = Math.ceil(cLo / EARTH) * EARTH; c <= cHi; c += EARTH) {
@@ -376,7 +382,7 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
     if (pointer && client) setCut(stationUnder(client.x, client.y, pointer.x));
     else if (!pointer) setCut(m.featured);
     fadeWake(now);
-    if (walkers.length) placePeople(now / 1000);
+    if (walkers.length || birds.length) placePeople(now / 1000);
     render();
     report();
   }

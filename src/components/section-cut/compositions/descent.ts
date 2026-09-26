@@ -11,6 +11,10 @@
 // Ground to structure: embedded, retained, cantilevered, bridging a gap.
 // Secondary: glazed fronts, balustrades on every terrace edge, joists under
 // the bridge and the cantilever, the stair's treads.
+//
+// Life: trees on the flat terraces of the face in front of and behind the
+// rooms, people sitting on the stair and leaning on the terrace rails, and
+// birds along the face. No road reaches it, so no cars.
 import { Drawing, inside, noise, smooth, type Box } from "../kit";
 
 const X = 80, Z = 46, CONTOUR = 1;
@@ -90,9 +94,10 @@ export function build() {
   rooms.forEach((r, i) => {
     d.walk(r.x0 + 1.5, 17, r.x1 - 1.5, 17, () => r.y, 1 + i);
     d.walk(r.x0 + 2, 24, r.x1 - 2, 24, () => r.y, 10 + i);
-    d.stand((r.x0 + r.x1) / 2, r.y + H, 16, -Math.PI / 2);
+    if (i % 2 === 0) d.stand((r.x0 + r.x1) / 2, r.y + H, 14.45, -Math.PI / 2, "lean");
+    else d.stand((r.x0 + r.x1) / 2, r.y + H, 16, -Math.PI / 2);
     d.stand(r.x0 + 3, r.y + H, 22, 0);
-    d.stand(r.x1 - 2, r.y, 20, Math.PI);
+    d.stand(r.x1 - 2, i === 3 ? -0.8 : r.y, 20, Math.PI);
   });
   for (let i = 0; i + 1 < rooms.length; i++) {
     const xa = rooms[i].x1 - 5, xb = rooms[i + 1].x0 + 3, y0 = levels[i], y1 = levels[i + 1];
@@ -100,7 +105,28 @@ export function build() {
   }
   d.walk(34.5, 19.5, 37.5, 19.5, (x) => 10 - (3.4 * (x - 34)) / 4, 30);
   for (let k = 0; k < 6; k++) d.walk(64 + k * 2, 36 + k, 66 + k * 2, 42, (x, z) => ground(x, z), 40 + k);
-  d.stand(74, -2, 20, 0); d.stand(75, -2, 24, 0);
+  d.walk(64.6, 36.4, 66.6, 42.4, (x, z) => ground(x, z), 40);
+  d.stand(74, -2, 20, 0, "talk"); d.stand(75, -2, 21.2, Math.PI, undefined, 0.6); d.stand(75, -2, 24, 0);
+  d.stand(56.8, 2, 21.8, -Math.PI / 2, "sit");
+
+  // Sitting on the stair, a few treads down a flight, facing down it.
+  const sitOn = (i: number, k: number) => {
+    const xa = rooms[i].x1 - 5, xb = rooms[i + 1].x0 + 3, y0 = levels[i], y1 = levels[i + 1];
+    const n = Math.max(2, Math.round(Math.abs(y1 - y0) / 0.18));
+    d.stand(xa + ((xb - xa) * (k + 0.6)) / n, y0 + ((y1 - y0) * (k + 1)) / n, 29.5, 0, "sit");
+  };
+  sitOn(1, 7); sitOn(3, 12);
+
+  // Trees on the flat terraces of the face, clear of the rooms, the stair
+  // and the path below.
+  const flat = (x: number, z: number) => Math.abs(ground(x + 0.8, z) - ground(x - 0.8, z)) < 0.9;
+  const clear = (x: number, z: number) => flat(x, z) && !(z > 12.5 && z < 32.5 && x > 8.5 && x < 77.5)
+    && !(x > 62 && z > 34.5 && z < 43.5);
+  d.grove(ground, 10, { x0: 0, x1: 80, z0: 0, z1: 12.5 }, clear, 31);
+  d.grove(ground, 10, { x0: 0, x1: 80, z0: 32.5, z1: 46 }, clear, 32);
+
+  d.bird(40, 23, 22, 26, 10, 90, 1); d.bird(20, 24, 8, 12, 8, 60, 2); d.bird(60, 10, 36, 14, 8, 55, 3);
+  d.bird(70, 4, 20, 8, 12, 45, 4); d.bird(30, 19, 38, 10, 6, 50, 5); d.bird(52, 15, 6, 18, 6, 75, 6);
 
   const lo = d.contours(ground, X, Z, CONTOUR);
   return d.model(ground, X, Z, CONTOUR, Math.floor(lo) - 2, 13);
