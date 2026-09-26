@@ -18,7 +18,6 @@ export default function BlogList({ posts }: { posts: BlogPreview[] }) {
           href={`/blog/${post.slug}`}
           className="group card card-hover block w-full text-left p-6 overflow-hidden"
         >
-          <span className="absolute left-0 top-0 h-full w-[3px] bg-terracotta opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="font-display text-xl font-semibold text-ink mb-1.5 leading-snug">{post.title}</h2>
@@ -29,6 +28,7 @@ export default function BlogList({ posts }: { posts: BlogPreview[] }) {
                 year: "numeric",
                 month: "short",
                 day: "numeric",
+                timeZone: "UTC",
               })}
             </span>
           </div>

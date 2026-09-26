@@ -114,7 +114,7 @@ function Lightbox({
             width={photo.w}
             height={photo.h}
             style={{ maxHeight: "85vh", maxWidth: "90vw", width: "auto", height: "auto", objectFit: "contain" }}
-            className="rounded-lg shadow-2xl"
+            className="shadow-2xl"
             priority
             unoptimized={photo.src.startsWith("http")}
           />
@@ -139,9 +139,9 @@ function PhotoCard({ photo, onClick }: { photo: Photo; onClick: () => void }) {
       className="block w-full break-inside-avoid mb-2 group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2D5A27]"
       aria-label={`Open photo from ${photo.location}`}
     >
-      {/* Inner div owns the rounding, clip, and skeleton background.
-          No fixed aspect-ratio here — the Image's natural height drives the layout. */}
-      <div className="relative rounded-lg overflow-hidden bg-[#D8E6D8]">
+      {/* Inner div owns the frame, clip, and loading background.
+          No fixed aspect-ratio here: the Image's natural height drives the layout. */}
+      <div className="card overflow-hidden">
         <Image
           src={photo.src}
           alt={photo.location}
@@ -216,7 +216,7 @@ export default function PhotographyPage() {
         <p className="eyebrow mb-3">Field survey</p>
         <h1 className="font-display display-lg font-semibold text-ink mb-3">Photography</h1>
         <p className="meta">
-          {DESTINATIONS.length} STATIONS &middot; {PHOTOS.length} PLATES &middot; SURVEYED ON FOOT
+          {DESTINATIONS.length} STATIONS &middot; {PHOTOS.length}{" "}PLATES &middot; SURVEYED ON FOOT
         </p>
       </div>
 
@@ -228,7 +228,7 @@ export default function PhotographyPage() {
             onClick={() => handleFilterChange("All")}
             className={`font-mono text-[11px] tracking-wide uppercase px-3 py-1.5 rounded-full border transition-all ${
               activeFilter === "All"
-                ? "bg-[#2D5A27] text-white border-[#2D5A27] shadow-sm"
+                ? "bg-[#2D5A27] text-white border-[#2D5A27]"
                 : "bg-transparent text-[#4A6B4A] border-[#D8E6D8] hover:border-[#2D5A27] hover:text-[#2D5A27]"
             }`}
           >
@@ -241,7 +241,7 @@ export default function PhotographyPage() {
               onClick={() => handleFilterChange(dest.name)}
               className={`font-mono text-[11px] tracking-wide uppercase px-3 py-1.5 rounded-full border transition-all ${
                 activeFilter === dest.name
-                  ? "bg-[#2D5A27] text-white border-[#2D5A27] shadow-sm"
+                  ? "bg-[#2D5A27] text-white border-[#2D5A27]"
                   : "bg-transparent text-[#4A6B4A] border-[#D8E6D8] hover:border-[#2D5A27] hover:text-[#2D5A27]"
               }`}
             >

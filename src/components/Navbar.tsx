@@ -8,7 +8,7 @@ import { AnimatePresence, motion } from "framer-motion";
 const sections = [
   { id: "work", label: "Experience" },
   { id: "projects", label: "Projects" },
-  { id: "research", label: "Research" },
+  { id: "research", label: "Publications" },
 ];
 
 const pages = [
@@ -70,10 +70,8 @@ export default function Navbar() {
       <nav
         className="fixed top-0 left-0 right-0 z-50 border-b"
         style={{
-          backgroundColor: "rgba(246, 248, 244, 0.72)",
-          backdropFilter: "blur(14px) saturate(1.1)",
-          WebkitBackdropFilter: "blur(14px) saturate(1.1)",
-          borderBottomColor: "rgba(45, 90, 39, 0.1)",
+          backgroundColor: "var(--color-paper)",
+          borderBottomColor: "var(--color-line)",
         }}
       >
         <div className="max-w-5xl mx-auto px-6 flex items-center justify-between h-16">
@@ -84,10 +82,7 @@ export default function Navbar() {
             >
               أك
             </span>
-            <div className="flex flex-col leading-tight">
-              <span className="font-display text-[15px] font-semibold text-darkblue tracking-tight">Armaan Kazi</span>
-              <span className="hidden sm:block font-mono text-[10px] tracking-wide uppercase text-brown-light/80">Architecture + CS · Georgia Tech · Sustainable Arch. Cert.</span>
-            </div>
+            <span className="font-display text-[15px] font-semibold text-darkblue tracking-tight">Armaan Kazi</span>
           </Link>
 
           {/* Desktop nav */}

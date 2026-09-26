@@ -29,15 +29,17 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
         <header className="mb-8">
           <div className="flex items-center gap-3 mb-3 flex-wrap">
             <h1 className="font-display display-md font-semibold text-ink">{project.title}</h1>
-            <span
-              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                project.status === "Coming Soon"
-                  ? "bg-tan/20 text-tan border-tan/40"
-                  : "bg-sage/20 text-sage border-sage/40"
-              }`}
-            >
-              {project.status}
-            </span>
+            {project.status && (
+              <span
+                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                  project.status === "Coming Soon"
+                    ? "bg-tan/20 text-tan border-tan/40"
+                    : "bg-sage/20 text-sage border-sage/40"
+                }`}
+              >
+                {project.status}
+              </span>
+            )}
           </div>
           <p className="text-brown-light leading-relaxed mb-4">{project.description}</p>
           {project.link && (

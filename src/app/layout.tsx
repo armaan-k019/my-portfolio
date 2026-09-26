@@ -4,11 +4,6 @@ import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import IsometricBackground from "@/components/IsometricBackground";
-import DrawingAwareScope from "@/components/DrawingAwareScope";
-import CustomCursor from "@/components/CustomCursor";
-import AtlasFrame from "@/components/AtlasFrame";
-import RenovationBanner from "@/components/RenovationBanner";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -53,22 +48,13 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${amiri.variable} ${fraunces.variable} ${plexMono.variable} antialiased`}>
       <body className="min-h-screen flex flex-col font-sans relative">
-        <IsometricBackground />
-        <AtlasFrame />
-        <CustomCursor />
-        <RenovationBanner />
-        <DrawingAwareScope>
-          <div className="relative z-10 flex flex-col min-h-screen">
-            <Navbar />
-            <main
-              className="flex-1"
-              style={{ paddingTop: "calc(4rem + var(--renovation-h, 0px))" }}
-            >
-              {children}
-            </main>
-            <Footer />
-          </div>
-        </DrawingAwareScope>
+        <div className="relative z-10 flex flex-col min-h-screen">
+          <Navbar />
+          <main className="flex-1 pt-16">
+            {children}
+          </main>
+          <Footer />
+        </div>
         <Analytics />
       </body>
     </html>
