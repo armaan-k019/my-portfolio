@@ -216,7 +216,7 @@ export default function PhotographyPage() {
         <p className="eyebrow mb-3">Field survey</p>
         <h1 className="font-display display-lg font-semibold text-ink mb-3">Photography</h1>
         <p className="meta">
-          {DESTINATIONS.length} STATIONS &middot; {PHOTOS.length} PLATES &middot; SURVEYED ON FOOT
+          {DESTINATIONS.length} STATIONS &middot; {PHOTOS.length}{" "}PLATES &middot; SURVEYED ON FOOT
         </p>
       </div>
 
