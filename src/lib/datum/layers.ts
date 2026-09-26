@@ -3,6 +3,7 @@
 // computation modules without ever editing this file.
 
 import { createCacheApi, type CacheClient } from "./cache";
+import { roundEnvelope } from "./precision";
 import { TTL_SECONDS, USER_AGENT } from "./constants";
 import { getClient } from "./memory";
 import { fetchCensus } from "./sources/census";
@@ -16,7 +17,7 @@ import { fetchSun } from "./solar";
 import { fetchWalkshed } from "./walkshed";
 import type { LayerFetcher, LayerName, SourceContext } from "./types";
 
-export const layerFetchers: Record<LayerName, LayerFetcher<unknown>> = {
+const fetchers: Record<LayerName, LayerFetcher<unknown>> = {
   sun: fetchSun,
   climate: fetchClimate,
   topo: fetchTopo,
@@ -27,6 +28,23 @@ export const layerFetchers: Record<LayerName, LayerFetcher<unknown>> = {
   flood: fetchFlood,
   census: fetchCensus,
 };
+
+/**
+ * Rounding happens here rather than in nine source modules: this is the one
+ * place every envelope passes through before it is returned to the page, stored
+ * in `layer_results`, or serialized for the brief, so a value with more
+ * precision than its field allows cannot reach any of them (SPEC section 8
+ * rule 7). A source module stays free to compute at full precision.
+ */
+function rounded(fetcher: LayerFetcher<unknown>): LayerFetcher<unknown> {
+  return async (input, ctx) => roundEnvelope(await fetcher(input, ctx));
+}
+
+export const layerFetchers: Record<LayerName, LayerFetcher<unknown>> = Object.freeze(
+  Object.fromEntries(
+    Object.entries(fetchers).map(([layer, fetcher]) => [layer, rounded(fetcher)]),
+  ),
+) as Record<LayerName, LayerFetcher<unknown>>;
 
 /** How long a stored layer_results row stays valid, per SPEC section 13. */
 export const LAYER_RESULT_TTL_SECONDS: Record<LayerName, number> = {

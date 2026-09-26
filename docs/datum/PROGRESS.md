@@ -949,3 +949,129 @@ context test failed on a stale key set assertion (the new `sharedComponents` fie
 
 Atlanta and Miami both receive similar sites after the section 14 amendment. The twelve seed
 rows remain in the database as is_test rows (the test mode corpus); no non test row exists.
+
+## Sheet viewer, rounding precision, and the line join check (2026-09-25)
+
+Three items from the owner, after running production.
+
+### 1. The sheet needed a viewer, not a column
+
+Measured on production at 1440x900: the sheet SVG has `viewBox="0 0 2592 1728"` and rendered at
+1014x676 CSS px, a scale of 0.391. The smallest authored text is 6 units, so it set at 2.3 px, and
+essentially none of the 284 text nodes were legible. The sheet was correct and the container was
+wrong.
+
+`src/app/projects/datum/panels/SheetViewer.tsx` now owns the `<svg>`, with the geometry in
+`src/lib/datum/sheet/view.ts` so it is testable without React. Drag pans, scroll and pinch zoom
+about the pointer, arrows pan, plus and minus zoom, 0 fits, and a control jumps to 100 percent where
+one sheet unit is one CSS pixel and the 6 unit text sets at 6 px. Range is fit to width to 400
+percent. Full screen is a portal to the body, because `.card` sets `backdrop-filter` and would
+otherwise be the containing block for a fixed child; Escape closes, Tab is trapped, the body does
+not scroll behind it, and focus returns to the opener. Zoom drives the `viewBox`, never a CSS
+transform, so the sheet stays vector. SPEC section 11 records the contract.
+
+The sheet's authored layout, type sizes and content are untouched.
+
+### 2. Rounding moved to the data layer
+
+The brief on 1111 Brickell Bay Drive printed "2.660512686 m", "0.777705908", "2.746897221" and
+"1.8284 m". Found by probing the serialized input over the fixtures, two causes:
+
+- `summarise` in `brief/prompt.ts` collapses an array longer than 16 to a count, a min and a max,
+  and took the extremes straight off the unrounded values. The terrain sections are 21 samples, so
+  every one of them went through it. That is the nine decimal values: Miami's `topo.sections.ew[]`
+  runs 0.060939878 to 3.818333626 in the fixture.
+- `roundLeaf` rounded every other leaf to four decimals, one rule for a metre, a degree and a
+  percent alike. That is "1.8284 m".
+
+Fixed at the source, not in the prompt. `src/lib/datum/precision.ts` holds a precision per field,
+`layers.ts` applies it to every envelope a fetcher returns, and `brief/store.ts` applies it again to
+stored rows and client sent envelopes. SPEC section 8 rule 7 carries the table and the reasoning;
+section 12 records why the value aware check now agrees with correct rounding. The check was not
+loosened and the prompt is unchanged.
+
+Scan of the fixtures before the change, for the record: the worst offenders were `sun.*` at 14 to 18
+decimals (computed and never rounded), `topo.grid.values`, `topo.sections.*` and
+`topo.siteElevationM` at 9 (3DEP raw), and `osm.transitStops[].x`/`.y` at 15 to 16.
+
+Drawing geometry is deliberately not rounded and says so in `GEOMETRY_PATHS`: the serializer never
+sends it and `pathFrom` rounds it as it writes the path.
+
+### 3. The missing spaces are an extraction artifact, not a defect
+
+Checked, not assumed. "totalrelief", "meanslope", "from-0.5" and "infiltration.Structural" are all
+the same thing: the brief panel sets one `<tspan>` per wrapped line, `wrapText` breaks on whitespace
+and the break consumes that space, so reading `textContent` joins the last word of one line to the
+first word of the next with nothing between them. On screen each tspan sits on its own baseline
+through its `dy`. `e2e/unit/sheet-line-joins.spec.ts` reproduces each reported string at the wrap
+width that produces it, then proves the general statement: at every break both words are whole and
+separated in the source, and the wrapped lines rejoined with one space are the paragraph with its
+whitespace collapsed. No character is lost.
+
+One thing found while checking, recorded so it is not mistaken for the same artifact later: the site
+plan footer reads "... are unavailable.  contours unavailable.  FEMA flood polygons unavailable",
+with a lowercase word after a period and two spaces before it. That is `footer.join(".  ")` joining
+sentence fragments in `builders/sitePlan.ts`. Nothing is missing from it.
+
+### Live verification (2026-09-25, local production build, `npm run start`)
+
+`e2e/precision-and-viewer.spec.ts` drives real runs of Atlanta and Miami against live sources and
+the live model, then checks every number the model wrote against the precision table.
+
+| Site | Sources | Brief | Terrain numbers as written |
+|---|---|---|---|
+| Atlanta | eight of nine; flood unavailable, upstream_error (see the FEMA note below) | 39 valid citations, 0 invalid | 281.7 m, 29.9 m, 275.2 to 297.1 m, 280.8 to 288.6 m, 6.2%, 311.6 degrees |
+| Miami | all nine | 38 valid citations, 0 invalid | 2 m, 0.7 percent, 4.4 m, 0.1 to 3.8 m, 1.7 to 3.2 m |
+
+Read against the four numbers the defect was reported at: "2.660512686 m", "0.777705908",
+"2.746897221" and "1.8284 m" are now "0.1 m", "3.8 m", "1.7 m", "3.2 m" and "2 m". Atlanta passed
+the check on two of two runs, Miami on two of three (the third is the flake below).
+
+No number in either brief carries more precision than its field allows. Both briefs are saved at
+`docs/datum/screenshots/viewer/<slug>.brief.txt`.
+
+FEMA: flaky, not recovered. Corrected by the owner 2026-09-26, and this entry previously said the
+standing outage had ended. It has not. The evidence in this one session is one success and one
+failure minutes apart: the Miami run returned flood data and the brief cites it (Zone X at the
+point, class moderate, Zone AE and Zone VE polygons adjacent), while the Atlanta run minutes earlier
+got `upstream_error` for the same layer. The owner's production run on 1111 Brickell Bay Drive (Zone
+AE, SFHA yes, static BFE 13.0 ft, 14 polygons, zone codes AE, VE, OPEN WATER and X) is the owner's
+observation, is a different point from the e2e Miami site (NE 25th St and Biscayne Blvd), and is one
+good sample rather than a recovery.
+
+Consequence: do not treat the flood layer as reliable. An `unavailable` flood panel on any run is
+expected behaviour, not a regression, and any acceptance condition of the form "all three sites with
+FEMA up" still cannot be demonstrated on demand. The constructed and labelled FEMA fixtures and the
+local stub (`e2e/tools/fema-stub.mjs`) remain how the flood rendering is actually exercised.
+
+Honest limit: the Atlanta run in this session did NOT return all nine sources. Flood came back
+`upstream_error` on that run while Miami's succeeded minutes later, so it reads as transient rather
+than as the earlier standing outage, but "both sites returned all nine" is not demonstrated from
+this machine. The owner's production runs are the evidence for that claim.
+
+Flake observed, not fixed, outside the file scope of this round. The Miami brief timed out once on
+the third consecutive run in this session: the server logged `[datum] brief stream failed Error:
+terminated / TypeError: terminated / Error: read ECONNRESET`, the Anthropic stream dropping mid
+flight. The same check passed on the run before it and on a re run immediately after, so it is
+transient. What is worth a look is that the page did not recover: the test waits up to 120 s for
+`data-brief-status` to reach `done` or `error` and got neither, so the sheet sat on `streaming`
+indefinitely rather than showing the brief's own error state. `brief/route.ts` does send an `error`
+event from its catch and `sseChannel` drops a write only once the channel is over, so the path from
+that drop to a stuck client is not established here and is not guessed at. `src/app/api/datum/` and
+`src/app/projects/datum/analysis.ts` were not in this round's scope and are untouched.
+
+### Gates
+
+`npx tsc --noEmit` exit 0. `npm run test:unit` 386 passed, 355 of them the suite before this work
+and 31 new across `sheet-view.spec.ts` (11), `precision.spec.ts` (15) and `sheet-line-joins.spec.ts`
+(5). `npm run build` succeeds. `npx eslint src/` 15 errors, the same count as the parent commit and
+none of them in a file touched here.
+
+Browser acceptance (`e2e/precision-and-viewer.spec.ts`, local production build at 1440x1000): the
+viewer fits to width at 39 percent on a 1014 px column, reaches 100 percent with the smallest text
+measured at its authored size through `getComputedStyle`, carries no CSS transform and no `<image>`
+or `<foreignObject>`; scroll zoom holds the sheet point under the pointer to within one CSS pixel at
+a pointer 78 percent across and 22 percent down; drag pans; arrows pan and reverse, minus zooms out,
+0 returns to the full sheet width; full screen fills the window, locks the body scroll, keeps focus
+inside the dialog across twelve tabs, closes on Escape and returns focus to the opener. Screenshots
+at `docs/datum/screenshots/viewer/atlanta-fit.png` and `atlanta-full-screen.png`.

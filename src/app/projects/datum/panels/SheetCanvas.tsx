@@ -2,11 +2,14 @@
 
 // The on screen sheet. PHASE-2-sheet.md step 2.4.
 //
-// One shared <svg viewBox="0 0 2592 1728"> that scales to the container width.
 // Each top level group is the string the builder produced, rendered through
 // dangerouslySetInnerHTML: the same strings the export concatenates, so what is
 // on screen is what is exported. The builders escape every text value, and no
 // string here carries anything a user typed.
+//
+// The <svg> itself belongs to SheetViewer, which owns the viewBox: the sheet is
+// read at a zoom the reader chooses rather than squeezed into the column. The
+// content below is identical either way, and the export never sees the view.
 //
 // The citation chips sit under the drawing as HTML, and hovering one dims every
 // panel but the one that carries the cited field (SPEC section 12). Nothing
@@ -17,6 +20,7 @@ import { useState } from "react";
 import { GROUP_ORDER } from "@/lib/datum/sheet/layout";
 import { buildSheetDefs } from "@/lib/datum/sheet/sheet";
 import CitationChips from "./CitationChips";
+import SheetViewer from "./SheetViewer";
 
 /**
  * The loading hairline animates on screen only, and the highlight dims the
@@ -64,14 +68,7 @@ export default function SheetCanvas({
       data-brief-invalid={invalidCitations.join(" ")}
       data-highlight-group={highlight ?? ""}
     >
-      <svg
-        viewBox="0 0 2592 1728"
-        className="block w-full"
-        role="img"
-        aria-label="Site analysis sheet"
-        xmlns="http://www.w3.org/2000/svg"
-        data-highlighting={highlight ? "true" : undefined}
-      >
+      <SheetViewer highlighting={highlight !== null}>
         <style>{SHEET_CSS}</style>
         <g dangerouslySetInnerHTML={{ __html: buildSheetDefs() }} />
         <rect x={0} y={0} width={2592} height={1728} fill="#FBFCFA" />
@@ -83,7 +80,7 @@ export default function SheetCanvas({
             dangerouslySetInnerHTML={{ __html: groups[id] ?? "" }}
           />
         ))}
-      </svg>
+      </SheetViewer>
       <CitationChips
         briefText={briefText}
         validCitations={validCitations}
