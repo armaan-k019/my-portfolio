@@ -1,7 +1,7 @@
 /*
  * Photography data — dimensions read from actual PNG headers.
- * Paths: /photography/[slug]/[slug]XX.png
- * Sweden excluded (0 photos).
+ * Paths: /photography/[slug]/[slug]XX.png, or the listed file names where a
+ * folder does not follow that pattern (Sweden).
  */
 
 export interface Photo {
@@ -14,7 +14,7 @@ export interface Photo {
 
 // ─── Per-photo data: [width, height] from PNG IHDR ───────────────────────────
 
-const photoData: { slug: string; name: string; dims: [number, number][] }[] = [
+const photoData: { slug: string; name: string; dims: [number, number][]; files?: string[] }[] = [
   {
     slug: "taiwan", name: "Taiwan",
     dims: [
@@ -81,6 +81,21 @@ const photoData: { slug: string; name: string; dims: [number, number][] }[] = [
     ],
   },
   {
+    slug: "sweden", name: "Sweden",
+    dims: [
+      [ 380,  352], [ 400,  404], [ 952, 1494], [2210, 1502],
+      [2184, 1106], [2232, 1458], [ 968, 1486], [1844, 1332],
+      [1400, 1510],
+    ],
+    files: [
+      "Screenshot 2026-04-14 at 1.11.03\u202fPM.png", "Screenshot 2026-04-14 at 1.11.19\u202fPM.png",
+      "Screenshot 2026-04-14 at 12.23.58\u202fPM.png", "Screenshot 2026-04-14 at 12.24.05\u202fPM.png",
+      "Screenshot 2026-04-14 at 12.24.19\u202fPM.png", "Screenshot 2026-04-14 at 12.24.31\u202fPM.png",
+      "Screenshot 2026-04-14 at 12.24.35\u202fPM.png", "Screenshot 2026-04-14 at 12.24.49\u202fPM.png",
+      "Screenshot 2026-04-14 at 12.25.10\u202fPM.png",
+    ],
+  },
+  {
     slug: "india", name: "India",
     dims: [
       [1608, 1176], [2270, 1794], [ 982, 1326], [1204, 1884],
@@ -90,12 +105,12 @@ const photoData: { slug: string; name: string; dims: [number, number][] }[] = [
 
 // ─── Generate PHOTOS ──────────────────────────────────────────────────────────
 
-export const PHOTOS: Photo[] = photoData.flatMap(({ slug, name, dims }, ri) =>
+export const PHOTOS: Photo[] = photoData.flatMap(({ slug, name, dims, files }, ri) =>
   dims.map(([w, h], fi) => {
     const n = String(fi + 1).padStart(2, "0");
     return {
       id: ri * 100 + fi + 1,
-      src: `/photography/${slug}/${slug}${n}.png`,
+      src: files ? `/photography/${slug}/${encodeURIComponent(files[fi])}` : `/photography/${slug}/${slug}${n}.png`,
       location: name,
       w,
       h,

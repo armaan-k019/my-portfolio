@@ -2,30 +2,15 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { motion } from "framer-motion";
 import Modal from "./Modal";
 import { workEntries, type WorkEntry } from "../../content/work";
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 30 },
-  visible: { opacity: 1, y: 0 },
-};
-
-function isDark(hex?: string) {
-  if (!hex) return false;
-  const c = hex.replace("#", "");
-  const r = parseInt(c.substring(0, 2), 16);
-  const g = parseInt(c.substring(2, 4), 16);
-  const b = parseInt(c.substring(4, 6), 16);
-  return (r * 299 + g * 587 + b * 114) / 1000 < 128;
-}
-
-function LogoWithFallback({ src, alt, dark, imageClassName }: { src: string; alt: string; dark?: boolean; imageClassName?: string }) {
+function LogoWithFallback({ src, alt, imageClassName }: { src: string; alt: string; imageClassName?: string }) {
   const [failed, setFailed] = useState(false);
 
   if (failed) {
     return (
-      <span className={`text-sm font-semibold text-center leading-snug ${dark ? "text-white" : "text-darkblue"}`}>
+      <span className="text-sm font-semibold text-center leading-snug text-darkblue">
         {alt}
       </span>
     );
@@ -43,46 +28,64 @@ function LogoWithFallback({ src, alt, dark, imageClassName }: { src: string; alt
   );
 }
 
+// A role string like "A → B" is a progression; split it into its steps.
+const steps = (role: string) => role.split("→").map((t) => t.trim());
+
+const columns = [
+  { title: "Professional", entries: workEntries.filter((e) => !e.type) },
+  { title: "Organizations", entries: workEntries.filter((e) => e.type === "studentOrg") },
+  { title: "Research", entries: workEntries.filter((e) => e.type === "research") },
+];
+
 export default function WorkSection() {
   const [selected, setSelected] = useState<WorkEntry | null>(null);
 
   return (
     <>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        {workEntries.map((entry, i) => {
-          const dark = isDark(entry.cardBg);
-          return (
-            <motion.button
-              key={entry.name}
-              variants={fadeUp}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-80px" }}
-              transition={{ duration: 0.5, delay: i * 0.08, ease: "easeOut" }}
-              onClick={() => setSelected(entry)}
-              className="group rounded-2xl border border-black/[0.04] hover:-translate-y-1 transition-all duration-[400ms] cursor-pointer overflow-hidden flex flex-col"
-              style={{ backgroundColor: entry.cardBg || "#ffffff", boxShadow: "var(--shadow-card)" }}
-              onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "var(--shadow-card-hover)")}
-              onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "var(--shadow-card)")}
-            >
-              {/* Logo area */}
-              <div className="flex-1 flex items-center justify-center p-5 min-h-[130px]">
-                <LogoWithFallback src={entry.logo} alt={entry.name} dark={dark} imageClassName={entry.name === "Jeeves" ? "object-contain max-h-36 w-auto" : "object-contain max-h-20 w-auto"} />
-              </div>
-              {/* Company name */}
-              <div className="px-3 py-3 text-center">
-                <p className={`text-xs font-semibold tracking-wide uppercase ${dark ? "text-white" : "text-darkblue"}`}>
-                  {entry.name}
-                </p>
-                {entry.type === "studentOrg" && (
-                  <p className={`text-[10px] mt-0.5 ${dark ? "text-white/50" : "text-brown-light/60"}`}>
-                    Student Org
-                  </p>
-                )}
-              </div>
-            </motion.button>
-          );
-        })}
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-14">
+        {columns.map((col) => (
+          <section key={col.title}>
+            <h2 className="font-display text-xl font-semibold text-ink mb-1">{col.title}</h2>
+            <hr className="rule mb-2" />
+            <ul className="divide-y divide-line">
+              {col.entries.map((entry) => {
+                const roles = steps(entry.role);
+                return (
+                  <li key={entry.name}>
+                    <button
+                      onClick={() => setSelected(entry)}
+                      aria-haspopup="dialog"
+                      className="group grid w-full grid-cols-[1fr_auto] items-baseline gap-x-3 -mx-2 px-2 py-4 text-left cursor-pointer transition-colors hover:bg-terracotta/5 focus-visible:bg-terracotta/5"
+                    >
+                      <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                        <span className="font-display text-lg font-semibold text-ink group-hover:text-terracotta group-focus-visible:text-terracotta transition-colors">
+                          {entry.name}
+                        </span>
+                        {roles.length === 1 ? (
+                          <>
+                            <span className="text-sm text-brown-light">{entry.role}</span>
+                            <span className="meta whitespace-nowrap basis-full">{entry.dates}</span>
+                          </>
+                        ) : (
+                          <span className="flex flex-col gap-0.5">
+                            {roles.map((r, i) => (
+                              <span key={r} className="text-sm text-brown-light" style={{ paddingLeft: `${i}rem` }}>
+                                {i > 0 && <span className="text-terracotta mr-1.5">&rarr;</span>}
+                                {r}
+                              </span>
+                            ))}
+                            <span className="meta whitespace-nowrap mt-1">{entry.dates}</span>
+                          </span>
+                        )}
+                      </span>
+                      <span aria-hidden className="meta text-sm leading-none group-hover:text-terracotta group-focus-visible:text-terracotta transition-colors">+</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ))}
       </div>
 
       <Modal open={!!selected} onClose={() => setSelected(null)} titleId="work-modal-title">
@@ -94,7 +97,12 @@ export default function WorkSection() {
               </div>
               <div>
                 <h3 id="work-modal-title" className="font-display text-xl font-semibold text-ink">{selected.name}</h3>
-                <p className="text-sm text-brown-light">{selected.role}</p>
+                {steps(selected.role).map((r, i) => (
+                  <p key={r} className="text-sm text-brown-light" style={{ paddingLeft: `${i}rem` }}>
+                    {i > 0 && <span className="text-terracotta mr-1.5">&rarr;</span>}
+                    {r}
+                  </p>
+                ))}
               </div>
             </div>
             <hr className="rule mb-4" />
@@ -107,6 +115,21 @@ export default function WorkSection() {
                 </li>
               ))}
             </ul>
+            {selected.links && (
+              <div className="flex flex-wrap gap-x-5 gap-y-2 mt-5">
+                {selected.links.map((link) => (
+                  <a
+                    key={link.url}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-terracotta underline underline-offset-4 decoration-1 hover:text-terracotta-dark transition-colors"
+                  >
+                    {link.label}{" "}&rarr;
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </Modal>

@@ -126,9 +126,6 @@ export default function FinePrintPage() {
       <header className="mb-10">
         <div className="flex items-center gap-3 mb-2 flex-wrap">
           <h1 className="text-2xl font-semibold text-darkblue">Fine Print</h1>
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-sage/20 text-sage border-sage/40">
-            CS
-          </span>
         </div>
         <p className="text-brown-light leading-relaxed">
           Upload any document, from board game rules to legal contracts, and let AI
@@ -167,7 +164,6 @@ export default function FinePrintPage() {
           </div>
         ) : (
           <div>
-            <div className="text-3xl mb-2 text-tan">&#128196;</div>
             <p className="text-brown font-medium">Drop a PDF or .txt file here</p>
             <p className="text-xs text-brown-light mt-1">or click to browse</p>
           </div>
