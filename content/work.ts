@@ -57,7 +57,7 @@ export const workEntries: WorkEntry[] = [
     name: "GT Trading Club",
     logo: "/logos/gt-trading-club.png",
     role: "Quantitative Researcher",
-    dates: "Nov 2025 to May 2026",
+    dates: "Nov 2025 – May 2026",
     summary: "risk neutral probabilities from the Deribit options surface: smile fitting, Breeden Litzenberger, digital pricing; cross asset consistency test against Polymarket BTC + ETH threshold contracts; calibration against realized outcomes, gaps across tails, horizons, liquidity, net of spreads, fees, hedging cost; reproducible repo, one command from raw data to every figure",
     link: "",
     cardBg: "#ffffff",
