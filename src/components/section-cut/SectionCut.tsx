@@ -22,6 +22,10 @@ export default function SectionCut() {
   // cut under the pointer but drops every autonomous movement. Re-read when
   // either preference changes while the page is open.
   const [mode, setMode] = useState<Mode | null>(null);
+  // Bumped when the WebGL context is lost: the canvas is keyed on it, so the
+  // drawing starts over on a fresh canvas and context. A context that keeps
+  // being lost gives up and leaves the hero as plain text.
+  const [generation, setGeneration] = useState(0);
 
   useEffect(() => {
     const fine = matchMedia("(pointer: fine)"), reduce = matchMedia("(prefers-reduced-motion: reduce)");
@@ -46,19 +50,30 @@ export default function SectionCut() {
         if (cancelled) return;
         const m = build();
         setContour(m.contour ?? null);
-        dispose = mount(canvas, host, mode, { cut, view }, m);
+        dispose = mount(canvas, host, mode, { cut, view }, m, () => {
+          if (generation >= 2) setFailed(true);
+          else setGeneration(generation + 1);
+        });
         if (!dispose) setFailed(true);
       })
       .catch(() => { if (!cancelled) setFailed(true); });
     return () => { cancelled = true; dispose?.(); };
-  }, [index, mode]);
+  }, [index, mode, generation]);
+
+  // The renderer lives as long as its canvas: across compositions and modes,
+  // released when the canvas is replaced, the hero gives up, or it unmounts. Declared after
+  // the effect above so its cleanup runs after the scene's.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    return () => { if (canvas) import("./scene").then(({ release }) => release(canvas)); };
+  }, [generation, failed]);
 
   if (failed) return null;
 
   return (
     <div className="pointer-events-none md:absolute md:inset-0">
       <div aria-hidden className="relative h-[85vw] md:absolute md:inset-0 md:h-auto">
-        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
+        <canvas key={generation} ref={canvasRef} className="absolute inset-0 w-full h-full" />
       </div>
       <div className="max-w-5xl mx-auto px-6 pb-8 md:pb-0 md:absolute md:inset-x-0 md:bottom-6 flex justify-end">
         <div className="grid justify-items-end gap-2">
