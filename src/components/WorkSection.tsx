@@ -107,18 +107,7 @@ export default function WorkSection() {
             </div>
             <hr className="rule mb-4" />
             <p className="text-xs text-brown-light mb-4">{selected.dates}</p>
-            {selected.summary ? (
-              <p className="text-sm text-brown-light">{selected.summary}</p>
-            ) : (
-              <ul className="space-y-2">
-                {selected.bullets?.map((bullet, i) => (
-                  <li key={i} className="text-sm text-brown-light flex gap-2">
-                    <span className="text-terracotta mt-1 shrink-0">&bull;</span>
-                    {bullet}
-                  </li>
-                ))}
-              </ul>
-            )}
+            <p className="text-sm text-brown-light">{selected.summary}</p>
             {selected.links && (
               <div className="flex flex-wrap gap-x-5 gap-y-2 mt-5">
                 {selected.links.map((link) => (

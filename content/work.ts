@@ -3,10 +3,7 @@ export interface WorkEntry {
   logo: string;
   role: string;
   dates: string;
-  // One line of short phrases, shown in the modal. Entries without one yet
-  // keep their original bullets until their line is written.
-  summary?: string;
-  bullets?: string[];
+  summary: string;
   link?: string;
   links?: { label: string; url: string }[];
   cardBg?: string;
@@ -89,11 +86,7 @@ export const workEntries: WorkEntry[] = [
     logo: "/logos/aias.png",
     role: "Liaison (1st yr) → Secretary (2nd yr)",
     dates: "Aug 2024 – May 2026",
-    bullets: [
-      "Represent studio interests in executive board meetings, contributing to strategic decisions that align organizational initiatives with design and academic objectives",
-      "Coordinate and streamline communication channels between leadership and stakeholders, supporting the execution of AIAS events and initiatives",
-      "Advise on studio-related operations, providing actionable recommendations that enhance workflows and promote engagement with architectural programming",
-    ],
+    summary: "chapter operations + communication channels; studio programming recommendations; liaison to secretary across two years",
     link: "",
     cardBg: "#ffffff",
     type: "studentOrg",
