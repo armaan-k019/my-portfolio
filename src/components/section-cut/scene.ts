@@ -82,15 +82,38 @@ export type Mode = "live" | "reduced" | "static";
 
 export interface Readout { cut: HTMLElement; view: HTMLElement }
 
-export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, readout: Readout, m: Model) {
-  let renderer: THREE.WebGLRenderer;
-  try {
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-  } catch {
-    return null;
+// One renderer per canvas, kept across compositions and modes. A renderer
+// holds per context state (programs, placeholder textures, framebuffers)
+// that its dispose() does not free, so a renderer per mount leaked all of it
+// into the shared context on every switch until the browser gave up.
+const renderers = new WeakMap<HTMLCanvasElement, THREE.WebGLRenderer>();
+
+// Frees the canvas's renderer and its context, once the canvas is done.
+export function release(canvas: HTMLCanvasElement) {
+  const r = renderers.get(canvas);
+  if (!r) return;
+  renderers.delete(canvas);
+  r.dispose();
+  try { r.forceContextLoss(); } catch { /* already lost */ }
+}
+
+export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, readout: Readout, m: Model, onLost: () => void) {
+  let shared = renderers.get(canvas);
+  if (!shared) {
+    try {
+      shared = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    } catch {
+      return null;
+    }
+    shared.localClippingEnabled = true;
+    renderers.set(canvas, shared);
   }
+  const renderer = shared;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.localClippingEnabled = true;
+  // Everything this mount allocates on the GPU, disposed on teardown while
+  // the renderer is still alive so their programs are released with them.
+  const materials: THREE.Material[] = [];
+  const own = <T extends THREE.Material>(mat: T) => { materials.push(mat); return mat; };
 
   const ink = token("--color-ink");
   const cut = token("--color-terracotta");
@@ -109,22 +132,22 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
   const farEdge = { value: 0 };
   // Structure beyond the near bay: thin ink, fading with distance, always
   // stronger than the ground drawing beside it.
-  const far = new THREE.LineSegments(geo, fadingMat({ color: ink.color, alpha: 0.45 }, [farStart], farEdge));
-  const nearMat = new LineMaterial({ color: ink.color, linewidth: NEAR_WIDTH, depthTest: false, clippingPlanes: [keepBehind, nearEnd] });
+  const far = new THREE.LineSegments(geo, own(fadingMat({ color: ink.color, alpha: 0.45 }, [farStart], farEdge)));
+  const nearMat = own(new LineMaterial({ color: ink.color, linewidth: NEAR_WIDTH, depthTest: false, clippingPlanes: [keepBehind, nearEnd] }));
   const nearGeo = new LineSegmentsGeometry();
   nearGeo.setPositions(m.lines);
   const near = new LineSegments2(nearGeo, nearMat);
   near.frustumCulled = false;
   // Ground lines (contours and survey marks): mid weight between the
   // structure's ink and the hairlines, fading with distance like the far.
-  const site = new THREE.LineSegments(siteGeo, fadingMat({ color: ink.color, alpha: 0.22 }, [keepBehind], farEdge));
+  const site = new THREE.LineSegments(siteGeo, own(fadingMat({ color: ink.color, alpha: 0.22 }, [keepBehind], farEdge)));
   const hatchGeo = new THREE.BufferGeometry();
-  const hatch = new THREE.LineSegments(hatchGeo, lineMat({ color: cut.color, alpha: 0.35 }, []));
+  const hatch = new THREE.LineSegments(hatchGeo, own(lineMat({ color: cut.color, alpha: 0.35 }, [])));
   // Cut buffers are allocated once and rewritten in place as the pointer
   // moves; they only grow (by doubling, disposing the old GPU buffers) when a
   // cut needs more room than they have.
   const outlineGeo = new LineSegmentsGeometry();
-  const outlineMat = new LineMaterial({ color: cut.color, linewidth: CUT_WIDTH, transparent: true, depthTest: false });
+  const outlineMat = own(new LineMaterial({ color: cut.color, linewidth: CUT_WIDTH, transparent: true, depthTest: false }));
   const outline = new LineSegments2(outlineGeo, outlineMat);
   site.renderOrder = 0; far.renderOrder = 1; near.renderOrder = 2; hatch.renderOrder = 3; outline.renderOrder = 4;
   scene.add(site, far, near, hatch, outline);
@@ -139,8 +162,8 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
   // The secondary system: thin ink in the near bay, fainter beyond.
   const detailGeo = new THREE.BufferGeometry();
   detailGeo.setAttribute("position", new THREE.Float32BufferAttribute(m.detail ?? [], 3));
-  const detailNear = new THREE.LineSegments(detailGeo, lineMat({ color: ink.color, alpha: 0.6 }, [keepBehind, nearEnd]));
-  const detailFar = new THREE.LineSegments(detailGeo, fadingMat({ color: ink.color, alpha: 0.2 }, [farStart], farEdge));
+  const detailNear = new THREE.LineSegments(detailGeo, own(lineMat({ color: ink.color, alpha: 0.6 }, [keepBehind, nearEnd])));
+  const detailFar = new THREE.LineSegments(detailGeo, own(fadingMat({ color: ink.color, alpha: 0.2 }, [farStart], farEdge)));
   detailNear.frustumCulled = detailFar.frustumCulled = false;
   detailNear.renderOrder = 2; detailFar.renderOrder = 1;
   scene.add(detailNear, detailFar);
@@ -213,7 +236,7 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
 
   // The wake: earlier cut sections that fade out over TRAIL_MS, live mode only.
   const trail = mode === "live" ? Array.from({ length: TRAIL }, () => {
-    const mat = new LineMaterial({ color: cut.color, linewidth: 1, transparent: true, depthTest: false, opacity: 0 });
+    const mat = own(new LineMaterial({ color: cut.color, linewidth: 1, transparent: true, depthTest: false, opacity: 0 }));
     const obj = new LineSegments2(new LineSegmentsGeometry(), mat);
     obj.frustumCulled = false;
     obj.renderOrder = 3.5;
@@ -404,10 +427,20 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
 
   // Loop control: live mode runs continuously while visible; the other modes
   // only render on request.
-  let raf = 0, visible = true;
-  const running = () => mode === "live" && visible && document.visibilityState === "visible";
-  function tick() { raf = 0; frame(); if (running()) raf = requestAnimationFrame(tick); }
-  function request() { if (!raf) raf = requestAnimationFrame(tick); }
+  let raf = 0, visible = true, lost = false;
+  const running = () => mode === "live" && visible && !lost && document.visibilityState === "visible";
+  function tick() { raf = 0; if (lost) return; frame(); if (running()) raf = requestAnimationFrame(tick); }
+  function request() { if (!raf && !lost) raf = requestAnimationFrame(tick); }
+
+  // A lost context: stop drawing at once and hand back to the component,
+  // which starts over on a fresh canvas rather than leave the hero blank.
+  const onContextLost = (e: Event) => {
+    e.preventDefault();
+    lost = true;
+    cancelAnimationFrame(raf); raf = 0;
+    onLost();
+  };
+  canvas.addEventListener("webglcontextlost", onContextLost);
 
   // intersectionRatio, not isIntersecting: when the hero only touches the
   // viewport edge it counts as intersecting and the loop would keep running.
@@ -430,16 +463,18 @@ export function mount(canvas: HTMLCanvasElement, host: HTMLElement, mode: Mode, 
   request();
 
   return () => {
-    cancelAnimationFrame(raf);
+    lost = true;
+    cancelAnimationFrame(raf); raf = 0;
     io.disconnect(); ro.disconnect();
     document.removeEventListener("visibilitychange", onVis);
+    canvas.removeEventListener("webglcontextlost", onContextLost);
     host.removeEventListener("pointermove", onMove);
     host.removeEventListener("pointerleave", onLeave);
-    renderer.dispose();
     geo.dispose(); siteGeo.dispose(); hatchGeo.dispose(); outline.geometry.dispose(); peopleGeo.dispose(); detailGeo.dispose();
-    nearGeo.dispose(); nearMat.dispose(); peopleNear.geometry.dispose();
-    for (const t of trail) { t.obj.geometry.dispose(); t.mat.dispose(); }
-    outlineMat.dispose();
+    nearGeo.dispose(); peopleNear.geometry.dispose();
+    for (const t of trail) t.obj.geometry.dispose();
+    for (const mat of materials) mat.dispose();
+    scene.clear();
   };
 }
 
