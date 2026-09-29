@@ -61,6 +61,12 @@ export default function AboutPage() {
           </div>
         </section>
 
+        <section>
+          <p className="eyebrow mb-3">Pages from my sketchbook</p>
+          <hr className="rule mb-6" />
+          <p className="meta">Coming soon</p>
+        </section>
+
       </div>
     </div>
   );
