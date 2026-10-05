@@ -1,0 +1,1 @@
+https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Tracts_Blocks/MapServer/0/query?where=GEOID%3D%2713121001002%27&outFields=GEOID,NAME,AREALAND&returnGeometry=true&outSR=4326&f=json

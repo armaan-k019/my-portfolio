@@ -1,0 +1,16 @@
+{
+  "_constructed": "CONSTRUCTED, NOT CAPTURED. hazards.fema.gov refused TLS connections from this machine during the build window (see UNREACHABLE.txt). The attribute values below are the ones verified by direct FEMA request on 2026-09-21 and recorded in docs/datum/SPEC.md section 5. The ArcGIS response envelope follows the shape recorded in docs/datum/baseline/probes.txt section d. Re-record with curl when FEMA answers.",
+  "displayFieldName": "STUDY_ID",
+  "fieldAliases": {
+    "STUDY_ID": "STUDY_ID"
+  },
+  "fields": [
+    {
+      "name": "STUDY_ID",
+      "type": "esriFieldTypeString",
+      "alias": "STUDY_ID",
+      "length": 20
+    }
+  ],
+  "features": []
+}

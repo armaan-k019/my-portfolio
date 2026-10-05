@@ -1,0 +1,55 @@
+FEMA NFHL was unreachable while Phase 1 module D (flood) was built.
+
+Host: hazards.fema.gov
+Attempted from: the build machine, directly with curl, not through the app.
+Result: every attempt was reset by the peer before any TLS bytes came back. This continues the
+outage recorded in docs/datum/PROGRESS.md ("Pending live check"), which logged 9 connection
+failures from about 15:00 UTC on 2026-09-22.
+
+Three attempts, spaced two minutes apart, each on the Miami layer 0 point query:
+
+  curl -sS -m 90 "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/0/query\
+?geometry=-80.1890627,25.8011588&geometryType=esriGeometryPoint&inSR=4326\
+&spatialRel=esriSpatialRelIntersects&outFields=STUDY_ID&returnGeometry=false&f=json"
+
+  === attempt 1 2026-09-22T15:43:48Z
+  curl: (35) Recv failure: Connection reset by peer
+  HTTP:000 SIZE:0
+
+  === attempt 2 2026-09-22T15:45:48Z
+  curl: (35) Recv failure: Connection reset by peer
+  HTTP:000 SIZE:0
+
+  === attempt 3 2026-09-22T15:47:49Z
+  curl: (35) Recv failure: Connection reset by peer
+  HTTP:000 SIZE:0
+
+  === ALL ATTEMPTS FAILED 2026-09-22T15:47:49Z
+
+An earlier single probe at 2026-09-22T15:41 UTC failed the same way. The layer 0 query is the
+first request the source makes, so the remaining four captures (Miami layer 28 point, Miami
+layer 28 800 m envelope with geometry, Atlanta layer 28 point, WaKeeney layer 0) were never
+attempted against a reachable host.
+
+Consequence, stated plainly: every .json file in this directory is CONSTRUCTED, NOT CAPTURED.
+Each one carries a "_constructed" key saying so, and each sibling .url.txt repeats it. The
+attribute values are the ones verified by direct FEMA request on 2026-09-21 and recorded in
+docs/datum/SPEC.md section 5 (Miami: FLD_ZONE X, ZONE_SUBTY "0.2 PCT ANNUAL CHANCE FLOOD
+HAZARD", SFHA_TF F, AE and VE SFHA T within 400 m; Atlanta: FLD_ZONE X, ZONE_SUBTY "AREA OF
+MINIMAL FLOOD HAZARD", SFHA_TF F; WaKeeney: no NFHL coverage, layer 0 empty). The response
+envelope around those values follows the ArcGIS shape recorded in
+docs/datum/baseline/probes.txt section d.
+
+Two things are therefore NOT verified against a live response and must be re-checked when FEMA
+answers:
+
+1. Whether the 800 m envelope query with returnGeometry=true and geometryPrecision=6 succeeds
+   rather than returning the ArcGIS side HTTP 500 that probes.txt section c recorded for the
+   older 0.1 degree envelope.
+2. The real clipped payload size for Miami. PROGRESS.md records about 17 MB unclipped for 43
+   features; the clipped size is unmeasured because no live response was obtained. No
+   miami-trimmed-clipped.json is committed, because producing one from constructed input would
+   only measure the constructed input.
+
+To re-record, run the URL in each .url.txt with curl, overwrite the sibling .json with the raw
+response, delete the "_constructed" note lines, and delete this file.

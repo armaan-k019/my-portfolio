@@ -1,0 +1,1 @@
+https://nominatim.openstreetmap.org/search?q=300%20Main%20St%2C%20WaKeeney%2C%20KS&format=jsonv2&limit=1&countrycodes=us

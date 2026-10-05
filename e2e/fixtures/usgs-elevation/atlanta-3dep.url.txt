@@ -1,0 +1,7 @@
+POST https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/getSamples
+Form encoded body:
+  geometry=<contents of atlanta-3dep-geometry.json>
+  geometryType=esriGeometryMultipoint
+  returnFirstValueOnly=true
+  f=json
+Recorded 2026-09-22. 21 x 21 grid at 40 m spacing around 33.7751258, -84.3919750.

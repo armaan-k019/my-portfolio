@@ -135,7 +135,7 @@ runs are comparable even if geocoding drifts:
 
 | Site | lat, lng | Tract GEOID | Facts verified |
 |---|---|---|---|
-| Techwood Drive NW, Atlanta, GA 30313 | 33.7751258, -84.3919750 | 13121001002 | EPQS 281.7 m. Soil "Urban land". Seismic (7-22, II, D): ss 0.25, s1 0.094, sds 0.21, sd1 0.13, sdc B, pgam 0.12. Flood: zone X, "AREA OF MINIMAL FLOOD HAZARD", SFHA F. OSM within 400 m: about 96 buildings, 11 with levels, 0 with height |
+| Techwood Drive NW, Atlanta, GA 30313 | 33.7751258, -84.3919750 | 13121001002 | EPQS 281.7 m. Soil "Urban land". Seismic (7-22, II, D): ss 0.25, s1 0.094, sds 0.21, sd1 0.13, sdc B, pgam 0.12. Flood: zone X, "AREA OF MINIMAL FLOOD HAZARD", SFHA F. OSM within 400 m (capture of 2026-09-22 in `e2e/fixtures/overpass/atlanta.raw.json`): 140 distinct building features (126 ways, 14 relations with 30 outer rings), 14 with a height tag, 49 with a levels tag. An earlier figure of 96, 11, 0 came from a probe centred about 400 m west and counting ways only; see PROGRESS.md |
 | NE 25th St and Biscayne Blvd, Miami, FL | 25.8011588, -80.1890627 | 12086002707 | EPQS 2.0 m. Soil "Urban land, 0 to 2 percent slopes". Seismic sds 0.044, sdc A. Flood at point: X, "0.2 PCT ANNUAL CHANCE FLOOD HAZARD", SFHA F; within 400 m: AE (25 polygons) and VE (15) SFHA T. OSM: about 258 buildings, 214 with height |
 | 300 Main St, WaKeeney, KS | 39.0197690, -99.8837310 | 20195955800 | EPQS 744.0 m. Soil "Harney silt loam, 0 to 1 percent slopes", hydrologic group C, well drained. Seismic ss 0.13, s1 0.046, sds 0.11, sd1 0.066, sdc A. Flood: no NFHL coverage (layer 0 and 28 both empty). OSM: about 21 buildings within 400 m |
 
@@ -266,6 +266,13 @@ Rules that apply to every source:
    `overpass.kumi.systems` once, each with its own 45 s timeout, inside the 60 s route budget only if
    the previous attempt failed fast. Total wall clock is capped at 55 s; when the cap is hit the
    envelope is `timeout`.
+7. Every numeric value is rounded to its field's precision before the envelope leaves the layer
+   (amended 2026-09-25). The table is below. `src/lib/datum/precision.ts` holds it and
+   `src/lib/datum/layers.ts` applies it to every envelope a fetcher returns, which is the single
+   point everything passes through before the page, the sheet, `layer_results`, the metrics, or the
+   brief serializer sees it. `brief/store.ts` applies it again to stored rows and to client sent
+   envelopes: a row written before this rule is still inside its TTL, and a client is not trusted to
+   have rounded anything.
 
 Per source unavailable messages (verbatim, so screenshots are comparable):
 
@@ -283,6 +290,83 @@ Per source unavailable messages (verbatim, so screenshots are comparable):
 | Census, failure | "Census ACS could not be reached (<code>)." |
 | Open-Meteo | "Open-Meteo climate archive could not be reached (<code>). Wind and climate are unavailable." |
 | Brief dependency | "The brief was written without <layer list>; those sources were unavailable." |
+
+### Rounding precision per field (rule 7)
+
+Why the rule exists. The brief on one Miami site printed "2.660512686 m" for a terrain section.
+Nine decimals on a 3DEP elevation is a float, not a measurement. Two causes: `summarise` in
+`brief/prompt.ts` collapses an array longer than 16 to a count, a min and a max, and took the
+extremes straight off the unrounded values, which is every 21 point terrain section; and `roundLeaf`
+applied four decimals to a metre, a degree and a percent alike, which is the "1.8284 m". The value
+aware citation check (section 12) then compared what the brief wrote against what the model was
+given, so rounding a number cost the brief a citation and the model stopped rounding. The rule fixes
+the data, not the prompt: the model is given the number an architect would write, so quoting it
+exactly is both correct and what passes the check.
+
+How a precision is chosen. Each field takes the coarser of what its unit deserves and what the sheet
+already prints, and where the sheet prints a value the two are the same, so no printed measurement
+changes. Rounding uses `toFixed`, because the sheet formats with `toFixed` and a multiply and divide
+form disagrees with it at a trailing .5.
+
+| Layer | Field | Decimals | Why |
+|---|---|---|---|
+| sun | `latitude`, `longitude` | 5 | The title block prints the site point at 5, about a metre. |
+| sun | `*.sunriseAzimuthDeg`, `*.sunsetAzimuthDeg`, `*.noonAltitudeDeg` | 1 | Degrees to 0.1. Finer than any shadow study needs. |
+| sun | `*.samples[].altitudeDeg`, `*.samples[].azimuthDeg` | 1 | Same, and they only plot the arc. |
+| sun | `*.daylightHours`, `daylightHoursByMonth[]` | 1 | Hours to six minutes. |
+| sun | `overhangRatioSouthGlazing` | 2 | The sheet prints "1 to 0.18". |
+| climate | `wind.*.sectors[].sectorDeg`, `prevailingSectorDeg` | 1 | Degrees to 0.1; sectors are 22.5 apart. |
+| climate | `wind.*.sectors[].frequencyPct`, `binsPct[]`, `calmSharePct` | 1 | Single digit percentages where a tenth separates two sectors. |
+| climate | `wind.*.binEdgesMs[]` | 1 | Bin edges are 0.5, 2, 4, 6, 8. |
+| climate | `wind.*.meanSpeedMs` | 2 | The sheet prints two decimals. |
+| climate | `wind.*.resultantLength` | 3 | A 0 to 1 ratio the sheet prints at three. |
+| climate | `monthly[].meanC`, `meanDailyMaxC`, `meanDailyMinC` | 1 | Temperature to 0.1 C, which is what ERA5 resolves. |
+| climate | `monthly[].meanRhPct` | 1 | |
+| climate | `monthly[].meanDailyRadiationKwhM2` | 2 | The sheet prints peak radiation at two. |
+| climate | `degreeDays.baseC` | 1 | |
+| climate | `degreeDays.hdd`, `cdd` | 0 | Degree days are whole days. |
+| climate | `comfortShare.pct` | 1 | |
+| climate | `period.years` | 0 | |
+| topo | `siteElevationM`, `reliefM`, `grid.values[]`, `sections.ew[]`, `sections.ns[]` | 1 | Elevations and section values to 0.1 m. 3DEP is a 1 m to 10 m surface. |
+| topo | `meanSlopePct` | 1 | Slope to 0.1 percent. |
+| topo | `aspectDeg` | 1 | Degrees to 0.1. |
+| topo | `grid.spacingM`, `contours.intervalM` | 1 | |
+| topo | `grid.n` | 0 | A count. |
+| seismic | `ss`, `s1`, `sms`, `sm1`, `sds`, `sd1`, `pgam` | 3 | ASCE 7-22 publishes and the sheet prints three. |
+| seismic | `tl` | 1 | Seconds, printed at a tenth. |
+| soil | `components[].percent` | 0 | SSURGO reports composition in whole percent. |
+| soil | `components[].slopePct` | 1 | |
+| osm | `buildings[].heightM` | 1 | Tagged metres; the sheet prints them whole. |
+| osm | `buildings[].levels`, `*.id`, `stats.buildingCount`, `ringCount`, `withHeight`, `withLevels`, `relationCount` | 0 | Counts and ids. |
+| osm | `transitStops[].x`, `transitStops[].y` | 1 | Local metres, to 0.1 m. |
+| osm | `stats.coverageRatio` | 3 | A 0 to 1 share; three decimals is a tenth of a percent. |
+| osm | `stats.sizeWarning.bytes`, `thresholdBytes` | 0 | |
+| walkshed | `reachKm.5`, `.10`, `.15` | 1 | Street kilometres, printed at a tenth. |
+| walkshed | `transitWithin.*`, `walkingSpeedMPerMin` | 0 | Counts, and a fixed 80 m per minute. |
+| walkshed | `startNodeOffsetM` | 1 | |
+| flood | `atPoint.staticBfeFt` | 1 | FEMA publishes base flood elevations to a tenth of a foot. |
+| census | all ACS counts and the two medians in dollars | 0 | People, households, units, dollars. |
+| census | `medianAge` | 1 | |
+| census | `avgHouseholdSize` | 2 | The sheet prints two. |
+| census | `tract.areaLandM2` | 0 | |
+| census | `derived.densityPerKm2` | 1 | |
+| census | `derived.renterSharePct`, `carFreeCommutePct`, `multifamily5plusSharePct` | 1 | Tract shares where a tenth of a percent is a household or two. |
+| census | `margins.<field>` | as `<field>` | A margin of error is in the unit of the estimate it qualifies. |
+
+Drawing geometry is deliberately not rounded and is listed in `GEOMETRY_PATHS`: contour lines,
+building and water rings, street lines, walk shed bands, flood polygon rings and the tract polygon.
+The serializer never sends geometry to the model (section 12), and `pathFrom` in `sheet/panel.ts`
+already rounds it as it writes the path, so rounding it here would only move drawn lines.
+
+A numeric field in neither list fails `e2e/unit/precision.spec.ts`, so a new field on any source
+cannot reach a brief at whatever precision that source happened to send.
+
+Two consequences on the record. Rounding the values the sheet plots from moves two derived display
+scalars: the vertical exaggeration printed on the topography panel (Miami 20.8 to 21.1, WaKeeney 8.5
+to 8.6), and two climate axis tick labels at WaKeeney that sat on a `toFixed(0)` boundary. Both are
+computed from the data rather than measured, neither is a citable field, and both now describe the
+data the sheet actually draws. Atlanta's 294 text nodes are unchanged. Stored metric vectors
+computed before this rule differ from new ones below any metric's sensitivity.
 
 ## 9. Data per layer
 
@@ -397,7 +481,11 @@ Data:
 - `water: [{ ring | line }]`, `streets: [{ id, highway, line: [x,y][], foot: boolean }]`,
   `transitStops: [{ id, kind: "bus" | "rail", x, y, name }]`.
 - `stats: { buildingCount, withHeight, withLevels, relationCount, coverageRatio }` where
-  `coverageRatio` is footprint area inside the 800 m frame divided by the frame area.
+  `coverageRatio` is building footprint area (rings clipped to the 800 m frame) divided by the
+  area of the 400 m fetch circle (pi times 400 squared, about 502655 m2), because buildings are
+  fetched within that circle and the frame corners outside it hold no data. Owner decision
+  2026-09-24. `buildingCount`, `withHeight`, `withLevels` count distinct features (one per way or
+  relation id); `ringCount` counts rings drawn.
 
 Sheet: figure-ground with buildings filled ink, streets as hairlines by class, water hatched,
 the site parcel is not known (no parcel source) so the site is a marked point with a 50 m ring,
@@ -590,10 +678,41 @@ Rules:
 - Validity: the string must parse with `DOMParser` as `image/svg+xml` with no `parsererror`
   element. Playwright checks this and the group list after every export in the acceptance tests.
 
+### On screen viewer (added 2026-09-25)
+
+The document is 2592 by 1728 units and the smallest authored text is 6 units. Scaled to fit a
+1014 px column that is 0.391, which sets the 6 unit text at 2.3 px and makes 284 text nodes
+unreadable. The sheet is correct at that size; the container was wrong. The page therefore reads the
+sheet through a window rather than scaling it to the column
+(`src/app/projects/datum/panels/SheetViewer.tsx`, geometry in `src/lib/datum/sheet/view.ts`):
+
+- Drag pans, scroll and pinch zoom, and the pointer is the zoom origin: the sheet point under it
+  before a zoom is the sheet point under it after.
+- The default is fit to width. A control jumps to 100 percent, where one sheet unit is one CSS pixel
+  and the 6 unit text sets at 6 px.
+- The range runs from fit to width to 400 percent. 100 percent stays reachable on a window wider
+  than the sheet, where fit to width is already above 1.
+- Keyboard: arrows pan, Shift for a longer step, plus and minus zoom, 0 fits. The window is
+  focusable and carries its own label.
+- Touch: one finger pans, two pinch. `touch-action: none` is set on the window element only, so a
+  gesture starting anywhere else on the page still scrolls the page.
+- Full screen is a portal to the body, because `.card` sets `backdrop-filter` and would otherwise be
+  the containing block for a fixed child. Escape closes it, Tab is trapped inside it, the body does
+  not scroll behind it, and focus returns to the control that opened it.
+- The current zoom is shown in the `.meta` style.
+- Zoom is driven by the `viewBox` attribute and never by a CSS transform, which can be composited
+  from a bitmap rasterized at the pre transform size. The sheet stays vector at every zoom.
+
+The viewer holds no sheet state. `buildSheetGroups` is called with its own context and the export is
+the same builder strings joined, so what the viewer shows and what the export writes cannot
+disagree, and the view never reaches the exported file.
+
 ## 12. Site brief (Claude)
 
 Model: `claude-sonnet-4-6` (repo rule: every route on this model). Streaming through the SDK's
-`client.messages.stream(...)`, forwarded as Server Sent Events. Max output 900 tokens.
+`client.messages.stream(...)`, forwarded as Server Sent Events. Max output 1400 tokens (amended
+2026-09-25 from 900: at 900 the brief truncated mid section in three of three runs, and a
+truncated brief produces uncited sentences of its own).
 
 Input serializer (`brief/prompt.ts`): a JSON object with one key per layer. Available layers carry
 their data with every leaf value keyed by its dotted path (the same `fieldPaths` list from the
@@ -609,16 +728,38 @@ System prompt requirements (the exact text lives in the code; these are the cont
    `[layer.path.to.field]` copied exactly from the input keys.
 3. Never mention the neighbourhood, city, history, reputation, or anything not present in the
    input. If a layer is unavailable, say so in "What is missing" and do not reason about it.
-4. Numbers are quoted as given, with units, no rounding beyond what the input shows.
+4. Numbers are quoted as given, with units, no rounding beyond what the input shows. Since section 8
+   rule 7 the input carries values already rounded to their field's precision, so this rule now asks
+   the model to copy a number an architect would write rather than to copy a float. It is unchanged
+   in wording, and the defect it used to cause was in the data, not here.
 5. No headings other than the five section names, no markdown lists, no em dashes.
 
 Server side validation after the stream completes: extract every `[...]` citation, check each
 against `fieldPaths` of the available layers, and send a final SSE event with the list of invalid
 citations. The client renders valid citations as chips that highlight the matching panel on hover,
 and renders invalid ones struck through with the tooltip "not a data field". If more than 2
-citations are invalid, or any sentence with a digit has no citation, the client shows the banner
-"This brief failed citation checks; treat it as unverified" above the text. The brief is stored
-(phase 3) only when it passes.
+citations are invalid, or any numeric sentence fails the value aware check below, the client shows
+the banner "This brief failed citation checks; treat it as unverified" above the text. The brief
+is stored (phase 3) only when it passes.
+
+Value aware numeric check (amended 2026-09-25; replaces "any sentence with a digit has no
+citation"). A sentence containing a numeric value passes when it carries a valid citation, or when
+every numeric value in it satisfies both conditions: the value matches a value present in the
+dataset fetched for that run, compared on the rendered string using the same rounding the
+serializer applies to the model's input (never on raw floats), and a path whose value renders to
+that string was cited by a valid citation earlier in the same brief. A numeric value that traces to
+nothing in the dataset fails the sentence, shows the banner, and fails the acceptance suite. The
+validator logs every match decision (sentence index, value string, the matched path or none, and
+whether the earlier citation was found) at debug level, so a false pass is diagnosable. Restating a
+value already cited is not fabrication; requiring a bracket on every restatement produced citation
+spam and false positives (see PROGRESS.md, Phase 2 tripwire).
+
+The check compares against the rounded value, because since section 8 rule 7 the rounded value is
+the only value there is: the model is given "1.9" for a 1.9 m elevation, so writing 1.9 matches and
+passes. Before that rule the model was given "1.8284" and writing the 1.8 an architect would write
+found no match, so the check penalised correct rounding and the model learned to copy the float.
+That is what put nine decimal numbers in a brief. The check itself was not loosened to fix it, and
+must not be: a number that traces to nothing in the dataset still fails.
 
 SSE events:
 
@@ -698,6 +839,17 @@ alter table rate_limits   enable row level security;
 -- The project has "automatically expose new tables" turned off, so grants are explicit.
 -- service_role only. Nothing is granted to anon or authenticated.
 grant select, insert, update, delete on api_cache, sites, layer_results, rate_limits to service_role;
+
+-- Atomic rate limit increment (owner decision, 2026-09-24). PostgREST cannot express
+-- "count = count + 1" in an upsert, so the increment lives in SQL. service_role only.
+create or replace function rate_limit_hit(p_ip_hash text, p_day date)
+returns int language sql as $$
+  insert into rate_limits (ip_hash, day, count) values (p_ip_hash, p_day, 1)
+  on conflict (ip_hash, day) do update set count = rate_limits.count + 1
+  returning count;
+$$;
+revoke execute on function rate_limit_hit(text, date) from public, anon, authenticated;
+grant execute on function rate_limit_hit(text, date) to service_role;
 ```
 
 Only `ok` and `partial` and `no_coverage` envelopes are written to `layer_results`; transient
@@ -708,14 +860,18 @@ failures are not persisted so a retry is never served a cached failure.
 ```sql
 create extension if not exists vector with schema extensions;
 
+-- Amended 2026-09-25 before first application (owner decisions, PROGRESS.md questions 7 and 11).
+-- A test row and a real row may coexist at the same rounded point.
+alter table sites drop constraint sites_site_key_key;
+alter table sites add constraint sites_site_key_is_test_key unique (site_key, is_test);
+
 alter table sites
-  add column metrics        jsonb,                      -- named, unnormalized values
-  add column metrics_vector extensions.vector(14),      -- normalized 0..1, see section 14
+  add column metrics        jsonb,                      -- named, unnormalized values; absent components omitted
+  add column metrics_vector extensions.vector(14),      -- normalized 0..1; absent components hold a placeholder 0
+  add column metrics_mask   smallint not null default 0, -- bit i set when component i is present (section 14)
   add column metrics_at     timestamptz;
 
-create index sites_metrics_vector_idx on sites
-  using hnsw (metrics_vector extensions.vector_l2_ops)
-  where is_test = false and metrics_vector is not null;
+-- No vector index: distance is masked and computed in code (section 14), so <-> is not used.
 
 create table briefs (
   site_id    uuid not null references sites(id) on delete cascade,
@@ -773,8 +929,8 @@ ping route deletes expired rows in batches of 500 as a side effect.
 
 20 uncached analyses per IP per day (UTC). "Uncached" means the `site` route created a new site
 row or the site's `last_analyzed_at` is older than 30 days. Re-opening an analyzed site is free.
-The `site` route increments `rate_limits.count` atomically (`insert ... on conflict do update set
-count = rate_limits.count + 1 returning count`) and returns 429 with `{ error: { code:
+The `site` route increments `rate_limits.count` atomically by calling the `rate_limit_hit` SQL
+function through `rpc` (the function body is the `insert ... on conflict do update ... returning count`) and returns 429 with `{ error: { code:
 "rate_limited", resetAt } }` when the count exceeds 20. Layer routes for a site created in the last
 24 hours are not separately limited. The IP is hashed with SHA-256 and a fixed string salt in code;
 raw IPs are never stored.
@@ -790,6 +946,13 @@ click in Studio, so the app must survive a paused database:
    which no further Supabase calls are attempted.
 3. While offline: caches fall back to an in memory `Map` per instance with the same TTLs; the
    `site` route returns a synthetic `siteId` prefixed `local-` and `memoryStatus: "offline"`; the
+   `site` route also always returns `fallbackId`, the signed local id for the point, whether
+   memory is online or offline (amended 2026-09-25). The client sends `fallback=<fallbackId>` on
+   every layer and brief request. When a layer or brief route cannot read the site row (memory
+   offline, or a cold instance that never saw the row), it verifies the fallback id and proceeds
+   with its point: the rate limit peek applies, nothing is stored, and the response is the normal
+   envelope. A 404 for a database site id is returned only when memory is online, the row does
+   not exist, and no valid fallback was sent. The
    rate limit falls back to an in memory per instance counter with the same cap; layers and the
    brief work normally; the Memory panel shows "Site Memory is offline; this analysis will not be
    saved." The sheet still exports.
@@ -800,9 +963,31 @@ click in Studio, so the app must survive a paused database:
 ## 14. Site metrics and similarity (phase 3)
 
 Fourteen components, each normalized to 0..1 with fixed constants so vectors never drift as the
-dataset grows. Clamp to the range. A site gets a vector only when all fourteen are available; a
-site with any unavailable component has `metrics_vector = null`, still gets percentiles for the
-metrics it does have, and shows "Sites like this needs all layers; <layers> were unavailable."
+dataset grows. Clamp to the range.
+
+Absent components (amended 2026-09-25, owner decision; replaces the all or nothing rule). A
+component that cannot be measured is recorded as absent, never as a value: soil with no
+hydrologic group (SSURGO "Urban land", which is most dense urban sites), flood without NFHL
+coverage, or any layer that was unavailable. Absence is not fatal. The site stores the fourteen
+normalized values in `metrics_vector` with absent components written as 0 as a storage
+placeholder, and a companion `metrics_mask` (smallint, bit i set when component i is present)
+that says which entries are real; a placeholder 0 is never read as a value, because distance only
+ever uses components whose bit is set in both sites. A site is eligible for similarity when at
+least 10 of the 14 components are present. Named metrics omit absent components and the context
+lists them under `missing`.
+
+Distance between two sites A and B: over the components present in both (k of them, k at least
+10 or the pair is not compared), `d = sqrt((14 / k) * sum over shared i of (A_i - B_i)^2)`. An
+absent component contributes nothing in either site, so two sites can never be made similar by a
+shared absence; absence only narrows the set of components compared, and the `14 / k` scaling
+keeps `d` on the same scale as a complete comparison. Match percent is `round((1 - d /
+sqrt(14)) * 100)` on the scaled distance. The context response carries the shared component
+count (`sharedComponents`) and the absent components of the current site, as data. Percentiles
+are unaffected: a metric is ranked among the sites that measured it.
+
+The null case sentence becomes "Sites like this needs at least ten measures; <layers or
+components> were unavailable." and is shown only when fewer than 10 components are present
+(copy amended with section 14, since the previous sentence would have been false).
 
 | i | Metric | Source field | Normalization |
 |---|---|---|---|
@@ -814,16 +999,20 @@ metrics it does have, and shows "Sites like this needs all layers; <layers> were
 | 5 | windConcentration | climate.wind.annual.resultantLength | v |
 | 6 | reliefM | topo.reliefM | log10(1 + v) / 2.5 |
 | 7 | meanSlopePct | topo.meanSlopePct | v / 30 |
-| 8 | buildingCoverage | osm.stats.coverageRatio | v |
+| 8 | buildingCoverage | osm.stats.coverageRatio (footprints over the 400 m circle area, section 9) | v |
 | 9 | reach10Km | walkshed.reachKm[10] | v / 25 |
 | 10 | sfhaShare | flood: SFHA polygon area inside frame over frame area; 0 when coverage exists and none; null when no coverage | v |
 | 11 | sds | seismic.sds | v / 2 |
 | 12 | logDensity | census.densityPerKm2 | log10(1 + v) / 5 |
-| 13 | hydrologicGroup | soil top component: A 0, B 0.33, C 0.67, D 1; dual groups use the second letter; Urban land with no group is null | v |
+| 13 | hydrologicGroup | soil top component: A 0, B 0.33, C 0.67, D 1; dual groups use the second letter; Urban land with no group is absent (mask bit clear), not a value | v |
 
-Similar sites: `select ... order by metrics_vector <-> $1 limit 5 where is_test = false and id <> $site`.
-Display: locality, distance score as "match" percent `= round((1 - d / sqrt(14)) * 100)`, and the
-three components that differ least. Percentiles use `metric_percentile()` on the named metrics
+Similar sites: candidates are non test sites other than the query site with at least 10 present
+components; the masked distance above is computed in code over the candidate set (ordered by
+`metrics_at` descending and capped at 2000; the cap is an accepted known limit, PROGRESS.md open
+question 17), keeping the five nearest. The pgvector column remains the storage type; the
+`<->` operator is not used while masks exist, and no vector index is created.
+Display: locality, distance score as "match" percent on the scaled distance, and the three
+shared components that differ least. Percentiles use `metric_percentile()` on the named metrics
 `dailyRadiationKwhM2` ("more sun than X percent of analyzed sites"), `buildingCoverage`, `reach10Km`,
 `reliefM`, `meanWindMs`, `logDensity`, shown only when `n >= 10`.
 
@@ -836,7 +1025,7 @@ three components that differ least. Percentiles use `metric_percentile()` on the
 | `SUPABASE_URL` | phase 1 | `memory.ts`, `cache.ts` | project URL |
 | `SUPABASE_SECRET_KEY` | phase 1 | same | an `sb_secret_` key; server only; never prefixed `NEXT_PUBLIC_`. Supabase is retiring legacy service_role keys by the end of 2026 |
 | `DATUM_ALLOW_TEST_FLAG` | phase 1, local and preview only | `site` route | `1` lets the client set `isTest`; unset in production |
-| `DATUM_SOURCE_OVERRIDES` | tests only | `sources/*` | JSON map of source name to base URL, honoured only when `NODE_ENV !== "production"`; used by e2e to point a source at an unreachable port and assert the unavailable state |
+| `DATUM_SOURCE_OVERRIDES` | tests only | `sources/*` | JSON map of source name to base URL, honoured only when `DATUM_ALLOW_TEST_FLAG=1` and `NODE_ENV !== "production"` (both conditions; inert in any production build, proven by a unit test); used by e2e to point a source at an unreachable port and assert the unavailable state |
 | `CRON_SECRET` | phase 3 | `memory/ping` | Vercel sets `Authorization: Bearer <CRON_SECRET>` on cron requests; the route rejects anything else |
 
 `.env.example` is updated in phase 1 to list these and to drop `EVENTBRITE_API_KEY` (already dead;
