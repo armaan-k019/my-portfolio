@@ -49,6 +49,13 @@ const demoCards: DemoCard[] = [
     pitch: "Paste any Midjourney prompt and image URL. Get a full token-by-token autopsy, a reusable style DNA block, and a live 3D parallax scene reconstructed from your image.",
     url: "/demos/midjourney",
   },
+  {
+    slug: "clay",
+    company: "Clay",
+    headline: "The Commons: cold email when personalization is free",
+    pitch: "An agent-based simulation of 1,200 prospects and 48 sellers. Set the price of looking personal and the price of knowing whom to write to, and watch where the channel holds and where it fails.",
+    url: "/demos/clay",
+  },
 ];
 
 // ─── Password section ────────────────────────────────────────────────────────
