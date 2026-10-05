@@ -202,7 +202,7 @@ export default function TerranoxPage() {
 
           {/* Invitation */}
           <p className="text-sm leading-relaxed mb-5" style={{ color: SUBTEXT }}>
-            You have a $2M budget, an 8 by 8 claim block, and two hidden uranium deposits. Every survey costs money and returns partial information. Every drill hole is expensive and definitive. Ask Terranox for the optimal next move, or play by intuition. Try not to run out of money before you find something.
+            $2M, an 8 by 8 claim block, two hidden uranium deposits. Surveys are cheap and partial; drill holes are expensive and definitive. Ask the engine for the next move, or play by feel.
           </p>
 
           {/* ── PLAY ─────────────────────────────────────────────────────── */}
@@ -453,16 +453,6 @@ export default function TerranoxPage() {
             )}
           </section>
 
-          {/* ── WHY A GAME ───────────────────────────────────────────────── */}
-          <section className="mb-10">
-            <h2 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: LABEL }}>Why a game</h2>
-            <div className="space-y-3 text-sm leading-relaxed" style={{ color: SUBTEXT }}>
-              <p>Games teach intuition about probability, cost, and information faster than articles or dashboards. Every drill hole in Prospect trains the same reasoning muscle a real exploration decision requires: is this hole worth $250k given what I already know, or is there a cheaper way to learn more first.</p>
-              <p>Sequential decision making under uncertainty is hard to explain in slides and easy to feel in one round. The first time a warm magnetics cell drills barren, the difference between a signal and a certainty stops being abstract.</p>
-              <p>What Terranox does in the real world is what you do here: choose the next move that maximizes information gain per dollar. The game teaches the intuition. Terranox's platform automates it across a real tenement, with real geophysics and a real budget.</p>
-            </div>
-          </section>
-
           {/* ── HOW PROSPECT MAPS TO REAL EXPLORATION ────────────────────── */}
           <section className="mb-10">
             <h2 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: LABEL }}>How Prospect maps to real exploration</h2>
@@ -484,19 +474,13 @@ export default function TerranoxPage() {
             </div>
           </section>
 
-          {/* ── BUILT FOR TERRANOX ───────────────────────────────────────── */}
-          <section className="mb-10">
-            <h2 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: LABEL }}>Built for Terranox</h2>
-            <div className="rounded-xl border px-5 py-4" style={{ borderColor: C.cardBorder, backgroundColor: C.accentBg }}>
-              <p className="text-sm leading-relaxed" style={{ color: SUBTEXT }}>
-                Terranox builds sequential decision intelligence for exploration: given everything a program has learned, what is the one move that buys the most information per dollar. Prospect is that method as a game. The belief model, the information gain scoring, and the vocabulary in the decision engine are Terranox's, scaled to a board you can finish in five minutes. It is meant to be useful as a first conversation with a junior, a training round for a new geologist, or a thing to hand a board member who asks why the next hole is where it is.
-              </p>
-            </div>
-          </section>
+          <p className="mb-10 text-sm leading-relaxed" style={{ color: SUBTEXT }}>
+            Terranox picks the exploration move that buys the most information per dollar. Prospect is that idea as a five minute game.
+          </p>
 
           {/* ── ABOUT ────────────────────────────────────────────────────── */}
           <footer className="border-t pt-5 text-xs" style={{ borderColor: C.cardBorder, color: LABEL }}>
-            Built by <Link href="/" className="underline hover:opacity-70">Armaan Kazi</Link>. Not affiliated with Terranox. The decision engine runs on Claude; when it is unreachable the local heuristic answers instead.
+            Built by <Link href="/" className="underline hover:opacity-70">Armaan Kazi</Link>. Not affiliated with Terranox. The engine runs on Claude, with a local heuristic as fallback.
           </footer>
         </div>
       </div>
