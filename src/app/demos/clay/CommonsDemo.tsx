@@ -227,7 +227,7 @@ function RegimeMap({ current }: { current: { personalCost: number; targetCost: n
           {running ? `Running ${done} of ${cells.length}` : done === cells.length ? "Run again" : "Run all 25"}
         </button>
         <p className="text-xs" style={{ color: "#9a8a7a" }}>
-          25 full runs, computed in your browser. Each cell is the same 180 days at a different pair of costs.
+          180 days per cell, run in your browser.
         </p>
       </div>
       <div className="overflow-x-auto">
@@ -272,7 +272,7 @@ function RegimeMap({ current }: { current: { personalCost: number; targetCost: n
         </table>
       </div>
       <p className="text-xs mt-2 leading-relaxed" style={{ color: "#9a8a7a" }}>
-        Number: total replies in the last 30 days divided by the first 30. Color: ending trust in personal-looking email, red low, green high. The outlined cell is closest to your current sliders.
+        Number: replies in the last 30 days over the first 30. Color: ending trust, red low, green high. Outlined: your sliders.
       </p>
     </div>
   );
@@ -448,7 +448,7 @@ export default function CommonsDemo() {
       {selected !== null ? (
         <Inspector sim={sim} i={selected} />
       ) : (
-        <p className="text-xs" style={{ color: "#9a8a7a" }}>Click any prospect to see what landed in their inbox and why they opened what they opened.</p>
+        <p className="text-xs" style={{ color: "#9a8a7a" }}>Click a prospect to see their inbox.</p>
       )}
 
       {/* Charts */}
@@ -471,7 +471,7 @@ export default function CommonsDemo() {
       <div className="rounded-xl border p-4" style={{ borderColor: "#e5e0d8", backgroundColor: "#ffffff" }}>
         <p className={`${label} mb-1`} style={{ color: "#9a8a7a" }}>Every pair of costs at once</p>
         <p className="text-xs leading-relaxed mb-3" style={{ color: "#6b6b6b" }}>
-          One run shows one market. This grid runs the whole model at 25 combinations of the two costs, so you can see where the channel holds and where it fails, instead of trusting the run above.
+          The full model at 25 cost pairs, so one run does not carry the claim.
         </p>
         <RegimeMap current={{ personalCost, targetCost }} />
       </div>
