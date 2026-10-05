@@ -1,0 +1,1 @@
+https://earthquake.usgs.gov/ws/building-codes/asce7-22/calculate?latitude=25.8011588&longitude=-80.1890627&riskCategory=II&siteClass=D&title=Datum

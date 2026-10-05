@@ -1,0 +1,25 @@
+{
+  "constructed": true,
+  "constructedFrom": "e2e/fixtures/fema, replayed through fetchFlood with a fake fetch",
+  "constructedWhy": "hazards.fema.gov has refused connections from this machine since 2026-09-22, so a live capture is unavailable (PROGRESS.md Phase 0 pending live check).",
+  "constructedAt": "2026-09-24T12:00:00.000Z",
+  "note": "WaKeeney: NFHL layer 0 is empty, so this is the no_coverage answer and no second request is made.",
+  "envelope": {
+    "layer": "flood",
+    "status": "unavailable",
+    "data": null,
+    "source": {
+      "name": "FEMA National Flood Hazard Layer",
+      "url": "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/0/query?geometry=-99.883731,39.019769&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=STUDY_ID&returnGeometry=false&f=json",
+      "fetchedAt": "2026-09-24T12:00:00.000Z",
+      "cached": false,
+      "licence": "FEMA National Flood Hazard Layer, public domain"
+    },
+    "unavailable": {
+      "code": "no_coverage",
+      "message": "FEMA has not published a flood hazard layer for this location. Check the community's status at msc.fema.gov.",
+      "retryable": false
+    },
+    "fieldPaths": []
+  }
+}
