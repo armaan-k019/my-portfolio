@@ -307,10 +307,8 @@ export default function TrajectoryDemo() {
       <div>
         <h3 className="text-sm font-semibold" style={{ color: "var(--ct-text)" }}>Candidate Trajectory</h3>
         <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ct-muted)" }}>
-          A resume is now an adversarial, AI-polished document, so this tool does
-          not extract claims, it audits them. Position is set only by Work Quality
-          (demonstrated substance, X) and Role Fit (alignment with the role, Y).
-          Pedigree is a lens, never a coordinate.
+          Audits resume claims instead of extracting them. Position is Work
+          Quality (X) and Role Fit (Y). Pedigree is a filter, never a coordinate.
         </p>
       </div>
 
@@ -336,9 +334,7 @@ export default function TrajectoryDemo() {
             <span className="text-[10px]" style={{ color: "var(--ct-dim)" }}>{SHOWCASE_SUMMARY}</span>
           </div>
           <p className="text-[11px] mt-1 leading-relaxed" style={{ color: "var(--ct-muted)" }}>
-            A curated pool is already placed by Work Quality and Role Fit against a fixed fintech product operations role.
-            Watch the off-field experts (a mechanical engineer, a civil engineer, a nurse) land in Strong but Off-target.
-            Switch to Try it yourself to paste your own role and resumes.
+            Note the off-field experts (a mechanical engineer, a civil engineer, a nurse) landing in Strong but Off-target.
           </p>
         </div>
       )}
@@ -369,7 +365,7 @@ export default function TrajectoryDemo() {
             <textarea
               value={jdText}
               onChange={(e) => setJdText(e.target.value)}
-              placeholder="Paste the role. It sets the bar and computes each candidate's Role Fit against the requirements. It does not keyword-match resumes."
+              placeholder="Paste the role. Role Fit is scored against it, not keyword-matched."
               rows={3}
               className="w-full text-xs rounded-lg border px-2.5 py-2 resize-y"
               style={{ borderColor: "var(--ct-card-border)", backgroundColor: "var(--ct-card-bg)", color: "var(--ct-text)" }}
@@ -477,7 +473,7 @@ export default function TrajectoryDemo() {
         <p className="text-[11px] text-center" style={{ color: "var(--ct-muted)" }}>
           {effectivePool.length === 0
             ? "Drop a resume PDF to add a candidate, then paste a job description to spread them by Role Fit."
-            : "Paste a job description to spread candidates by Role Fit. For now dots are parked at their real Work Quality (X) with a neutral Y."}
+            : "Paste a job description to place candidates by Role Fit."}
         </p>
       )}
 
@@ -493,12 +489,12 @@ export default function TrajectoryDemo() {
       {/* Self-aware caption */}
       <p className="text-[11px] italic leading-relaxed" style={{ color: "var(--ct-dim)" }}>
         {view === "chart" &&
-          "X is demonstrated Work Quality, Y is Role Fit against the role. Toggle LinkedIn to cross-check claimed work. Credentials are overlays and filters only, so you can see strong work without the pedigree, or an elite school on thin work. Pedigree never moves the dot."}
+          "Toggle LinkedIn to cross-check claimed work. Credentials are overlays and filters, never position."}
         {view === "dist" && distMetric === "quality" &&
-          "This distributes corroborated Work Quality across the pool. The dashed curve is the fitted normal; the real shape tends to be bimodal because cross-checking splits the pool into substantive and inflated work. Click any dot to see who."}
+          "Corroborated Work Quality across the pool. Dashed curve: fitted normal. Click a dot to see who."}
         {view === "dist" && distMetric === "fit" &&
-          "This distributes Role Fit across the pool for this role. The red tail is candidates whose work aligns least with the role. Click any dot to see who."}
-        {" "}This is a lens for a recruiter to think with, not an auto-decider.
+          "Role Fit across the pool. Red tail: least aligned. Click a dot to see who."}
+        {" "}A lens for a recruiter, not an auto-decider.
       </p>
 
       {/* Detail panel */}
