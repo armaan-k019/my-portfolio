@@ -893,7 +893,7 @@ export default function DriftDetectionPage() {
           {activeTab === "drift" && (
           <>
           <p className="leading-relaxed text-sm mb-10" style={{ color: SUBTEXT }}>
-            Most anomaly tools flag large one-off charges. This looks for slow patterns across six months of transactions: a category creeping up month over month, a vendor billing inconsistently, flat recurring charges nobody is watching. Each signal gets a severity and a projected cost.
+            Finds slow spend drift that one-off anomaly checks miss, in six months of synthetic transactions. Each signal gets a severity and projected cost.
           </p>
 
           {/* ── Section D: Try it ────────────────────────────────────────── */}
@@ -901,9 +901,6 @@ export default function DriftDetectionPage() {
             <h2 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: LABEL }}>
               Try it
             </h2>
-            <p className="text-sm mb-4" style={{ color: LABEL }}>
-              Synthetic data. Switch scenarios to compare.
-            </p>
 
             {/* Scenario switcher */}
             <div className="flex gap-3 mb-6">
@@ -928,13 +925,6 @@ export default function DriftDetectionPage() {
                 </button>
               ))}
             </div>
-
-            {/* Chart intro annotation */}
-            <p style={{ fontSize: 11, fontStyle: "italic", color: LABEL, marginBottom: 10 }}>
-              {scenario === "A"
-                ? "The chart below excludes payroll. Watch the SaaS line."
-                : "The chart below excludes payroll. Notice the flat, stable lines."}
-            </p>
 
             {/* Chart + Payroll callout */}
             <div className="flex flex-col sm:flex-row gap-4 mb-8">
