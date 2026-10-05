@@ -202,7 +202,7 @@ export default function TerranoxPage() {
 
           {/* Invitation */}
           <p className="text-sm leading-relaxed mb-5" style={{ color: SUBTEXT }}>
-            $2M, an 8 by 8 claim block, two hidden uranium deposits. Surveys are cheap and partial; drill holes are expensive and definitive. Ask the engine for the next move, or play by feel.
+            $2M, an 8 by 8 claim block, two hidden uranium deposits. Surveys are cheap and partial; drills are costly and definitive. Ask the engine for the move with the most information per dollar, or play by feel.
           </p>
 
           {/* ── PLAY ─────────────────────────────────────────────────────── */}
@@ -452,31 +452,6 @@ export default function TerranoxPage() {
               </div>
             )}
           </section>
-
-          {/* ── HOW PROSPECT MAPS TO REAL EXPLORATION ────────────────────── */}
-          <section className="mb-10">
-            <h2 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: LABEL }}>How Prospect maps to real exploration</h2>
-            <div className="space-y-2">
-              {ORDER.map((k) => {
-                const s = SURVEYS[k];
-                return (
-                  <div key={k} className="rounded-xl border p-4" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
-                    <div className="flex items-center justify-between gap-2 flex-wrap mb-1.5">
-                      <p className="text-xs font-semibold flex items-center gap-2" style={{ color: HEADING }}>
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />{s.label}
-                      </p>
-                      <p className="font-mono text-[10px]" style={{ color: LABEL }}>{fmtMoney(s.cost)} · {s.reads} · {s.quality}</p>
-                    </div>
-                    <p className="text-xs leading-relaxed" style={{ color: SUBTEXT }}>{s.real}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          <p className="mb-10 text-sm leading-relaxed" style={{ color: SUBTEXT }}>
-            Terranox picks the exploration move that buys the most information per dollar. Prospect is that idea as a five minute game.
-          </p>
 
           {/* ── ABOUT ────────────────────────────────────────────────────── */}
           <footer className="border-t pt-5 text-xs" style={{ borderColor: C.cardBorder, color: LABEL }}>

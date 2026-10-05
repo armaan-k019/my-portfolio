@@ -20,8 +20,6 @@ export interface SurveySpec {
   signal: string;
   quality: string;
   color: string;
-  // What it maps to in a real uranium program.
-  real: string;
 }
 
 export const SURVEYS: Record<SurveyKind, SurveySpec> = {
@@ -29,31 +27,26 @@ export const SURVEYS: Record<SurveyKind, SurveySpec> = {
     kind: "magnetics", label: "Airborne magnetics", short: "MAG", cost: 50_000, coverage: "block3",
     reads: "Structural anomalies across a 3 by 3 block",
     signal: "warm or cold per cell", quality: "Wide net, maps structure not ore", color: "#3b82f6",
-    real: "Flown over the whole tenement. Maps the faults and basin margins where uranium tends to sit, but not uranium itself.",
   },
   gravity: {
     kind: "gravity", label: "Ground gravity", short: "GRV", cost: 200_000, coverage: "cell",
     reads: "Density contrast at mid depth",
     signal: "anomaly or none", quality: "Moderate precision, best on buried basins", color: "#a855f7",
-    real: "A gravimeter on a station grid. Density contrast locates buried channels that host deposits. Used to firm up a target, not find one.",
   },
   radiometric: {
     kind: "radiometric", label: "Radiometric survey", short: "RAD", cost: 150_000, coverage: "cell",
     reads: "Gamma signature from uranium daughters",
     signal: "hit or miss", quality: "Very clean where it works, blind to buried ore", color: "#f59e0b",
-    real: "Reads surface gamma. Nearly unambiguous for outcropping uranium, blind to anything under cover.",
   },
   geochem: {
     kind: "geochem", label: "Geochem sampling", short: "GEO", cost: 75_000, coverage: "cell",
     reads: "Trace element halo within 200 m of surface",
     signal: "halo or none", quality: "Moderate, favours near surface targets", color: "#10b981",
-    real: "Soil and sediment assays. Groundwater spreads a halo above deposits too deep for gamma. Noisier, but sees further down.",
   },
   drill: {
     kind: "drill", label: "Drill hole", short: "DRL", cost: 250_000, coverage: "cell",
     reads: "Definitive presence or absence, full depth",
     signal: "intercept or barren", quality: "Ground truth", color: "#2d5a27",
-    real: "The only way to know, and the most expensive decision in the campaign. Everything else exists to put this hole in the right place.",
   },
 };
 
