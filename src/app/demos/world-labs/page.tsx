@@ -314,7 +314,7 @@ export default function WorldLabsPage() {
                 </span>
               </div>
               <p className="text-sm" style={{ color: C.muted }}>
-                Words become walkable space. Claude interprets, Marble constructs.
+                Claude reads a passage. Marble builds the world.
               </p>
             </div>
             <span className="text-xs flex-shrink-0" style={{ color: C.dim }}>
@@ -333,7 +333,7 @@ export default function WorldLabsPage() {
 
           <section className="mb-14">
             <p className="text-sm mb-5 max-w-2xl" style={{ color: SUBTEXT }}>
-              Pick a passage or paste your own. Claude reads it for spatial qualities, then Marble builds a world from that reading.
+              Pick a passage or paste your own.
             </p>
 
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)_minmax(0,1.15fr)] gap-4 items-start">
@@ -603,7 +603,7 @@ export default function WorldLabsPage() {
           </section>
 
           <p className="mb-10 max-w-3xl leading-relaxed text-sm" style={{ color: SUBTEXT }}>
-            A world model renders what a prompt states, and literature rarely states it: Poe never says how tall the seventh room is. The reading cites the words behind each choice and flags the one it had to invent, so the world traces back to the text.
+            Literature rarely states a space: Poe never says how tall the seventh room is. The reading cites the words behind each choice and flags the one it invented.
           </p>
         </div>
 
@@ -613,7 +613,7 @@ export default function WorldLabsPage() {
             <Link href="/" className="underline hover:opacity-70 transition-opacity">
               Armaan Kazi
             </Link>
-            . Not affiliated with World Labs. Two passages are original; the rest are credited on their cards.
+            . Not affiliated with World Labs.
           </p>
         </footer>
       </div>
