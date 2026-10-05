@@ -288,7 +288,7 @@ export default function WorldLabsPage() {
   );
 
   const worldPlaceholder = () => {
-    if (worldState === "unavailable") return "Marble world generation is temporarily unavailable. The interpretation is still visible to the left.";
+    if (worldState === "unavailable") return "Marble is unavailable right now. The reading still works.";
     if (worldState === "error") return worldError ?? "Generation failed.";
     if (preloaded) return "No cached world for this passage yet. See preloaded-worlds.ts, or generate one below.";
     if (reading) return "Ready to build from the reading.";
@@ -333,7 +333,7 @@ export default function WorldLabsPage() {
 
           <section className="mb-14">
             <p className="text-sm mb-5 max-w-2xl" style={{ color: SUBTEXT }}>
-              Pick a passage or paste your own. Claude reads it for spatial DNA in a few seconds. Marble then builds a world from that reading: instant for the preloaded passages, five to ten minutes for pasted text.
+              Pick a passage or paste your own. Claude reads it for spatial qualities, then Marble builds a world from that reading.
             </p>
 
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)_minmax(0,1.15fr)] gap-4 items-start">
@@ -409,7 +409,7 @@ export default function WorldLabsPage() {
                 )}
                 {!reading && !readLoading && !readError && (
                   <p className="text-xs mt-2 leading-relaxed" style={{ color: LABEL }}>
-                    Select a passage. The reading lists what a world would need: materials, scale, light, mood, composition, temperature, sound, and the one inference Claude had to make.
+                    Pick a passage to see its reading.
                   </p>
                 )}
                 {readLoading && (
@@ -553,7 +553,7 @@ export default function WorldLabsPage() {
                       {worldState === "error" || worldState === "unavailable" ? "Try generating again" : "Generate world"}
                     </button>
                     <p className="text-[10px] mt-1.5 leading-relaxed" style={{ color: LABEL }}>
-                      This takes 5 to 10 minutes. You can close this tab and come back to it if you save the link.
+                      Takes 5 to 10 minutes. Save the link to come back.
                     </p>
                   </div>
                 )}
@@ -602,51 +602,9 @@ export default function WorldLabsPage() {
             </div>
           </section>
 
-          <section className="mb-10 max-w-3xl">
-            <h2 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: LABEL }}>
-              Why interpretation matters
-            </h2>
-            <p className="leading-relaxed text-sm" style={{ color: SUBTEXT }}>
-              A world model renders what the prompt makes explicit. Literature almost never does. Poe never says how tall the seventh room is; Borges never says what the shelves are made of. A reader supplies those facts without noticing, and two readers supply different ones. Ekphrasis puts that step in the open. Claude reads the passage for the qualities a space needs, states which words drove each decision, and flags the one place it had to invent. The world Marble builds inherits a reading you can see and argue with, rather than a sentence that carries its ambiguity straight into the render.
-            </p>
-          </section>
-
-          <section className="mb-10">
-            <h2 className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: LABEL }}>
-              How this works
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {[
-                { title: "Pick or paste", body: "Six verified passages, or your own. Around 100 to 400 words gives Marble enough to work with." },
-                { title: "Claude reads", body: "Sonnet extracts the spatial DNA: materials, scale, light, mood, composition, temperature, sound. Every field cites the text or admits it is an inference." },
-                { title: "Marble builds", body: "The reading is compiled into one scene description and sent to the World API. Draft worlds take five to ten minutes; preloaded ones are cached." },
-                { title: "Claude annotates", body: "Three to five choices in the world are tied back to the exact phrase that motivated them, so the interpretation is inspectable." },
-              ].map((card) => (
-                <div key={card.title} className="rounded-xl border p-5" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: C.accent }} />
-                    <p className="text-xs font-semibold" style={{ color: HEADING }}>
-                      {card.title}
-                    </p>
-                  </div>
-                  <p className="text-xs leading-relaxed" style={{ color: LABEL }}>
-                    {card.body}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="mb-10 max-w-3xl">
-            <h2 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: LABEL }}>
-              Built for World Labs
-            </h2>
-            <div className="rounded-xl border px-5 py-4" style={{ borderColor: C.cardBorder, backgroundColor: C.accentBg }}>
-              <p className="text-sm leading-relaxed" style={{ color: SUBTEXT }}>
-                World Labs framed Marble as the move from words to worlds. This demo takes the phrase literally and adds the step in between. Marble does the constructing. Claude does the reading, and shows its work. Together they do something neither does alone: a world that can say which line of the text it came from. That legibility is what turns text to world from a novelty into a tool for people who care about the text.
-              </p>
-            </div>
-          </section>
+          <p className="mb-10 max-w-3xl leading-relaxed text-sm" style={{ color: SUBTEXT }}>
+            A world model renders what a prompt states, and literature rarely states it: Poe never says how tall the seventh room is. The reading cites the words behind each choice and flags the one it had to invent, so the world traces back to the text.
+          </p>
         </div>
 
         <footer className="border-t px-6 py-6 text-center mt-8" style={{ borderColor: C.cardBorder }}>
@@ -655,7 +613,7 @@ export default function WorldLabsPage() {
             <Link href="/" className="underline hover:opacity-70 transition-opacity">
               Armaan Kazi
             </Link>
-            . Not affiliated with World Labs. Quoted passages are credited on the card; two texts are original and labelled as such.
+            . Not affiliated with World Labs. Two passages are original; the rest are credited on their cards.
           </p>
         </footer>
       </div>
