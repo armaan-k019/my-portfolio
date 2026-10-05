@@ -155,39 +155,15 @@ export default function IllocaPage() {
             &#8592; Back to Demos
           </Link>
 
-          {/* Why precedents */}
-          <section className="mb-10">
-            <h2 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: LABEL }}>
-              Why this matters
-            </h2>
-            <p className="leading-relaxed text-sm" style={{ color: SUBTEXT }}>
-              Every good scheme starts with a precedent someone remembers. In practice, precedent study is how architects have always moved from brief to first idea. The recalled precedent carries spatial moves, structural logic, material strategies, and atmospheric intent that are otherwise invisible. This tool makes that memory explicit and grounded in a curated precedent library so the buildings are real and the facts are checked.
-            </p>
-          </section>
-
-          {/* What Illoca does */}
-          <section className="mb-10">
-            <h2 className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: LABEL }}>
-              How this fits Illoca
-            </h2>
-            <div className="rounded-xl border px-5 py-4" style={{ borderColor: C.cardBorder, backgroundColor: C.accentBg }}>
-              <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: LABEL }}>
-                Upstream of Tracing Paper
-              </p>
-              <p className="text-sm leading-relaxed" style={{ color: SUBTEXT }}>
-                Illoca builds tools for the fuzziest stage of early design, where a brief must become a first idea. Precedent study is foundational to that move. This engine does the recall so a small studio has the precedent knowledge of a large one, and gives the first meeting something concrete to react to before pencil hits paper.
-              </p>
-            </div>
-          </section>
+          <p className="leading-relaxed text-sm mb-10" style={{ color: SUBTEXT }}>
+            Precedent study is how a brief becomes a first idea. This picks three buildings from a fixed library of real ones, names one move to take from each, and combines them into a bubble diagram.
+          </p>
 
           {/* The tool */}
           <section className="mb-12">
             <h2 className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: LABEL }}>
               Describe your project
             </h2>
-            <p className="text-sm mb-4" style={{ color: LABEL }}>
-              Program, site, aspirations, constraints. Include square footage if you know it, site conditions, and what feeling you want the building to give.
-            </p>
 
             <div className="rounded-xl border p-4 shadow-sm mb-5" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
               <textarea
@@ -347,58 +323,9 @@ export default function IllocaPage() {
             )}
           </section>
 
-          {/* How this works */}
-          <section className="mb-10 border-t pt-10" style={{ borderColor: C.cardBorder }}>
-            <h2 className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: LABEL }}>
-              How this works
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-              {[
-                {
-                  title: "Understand the brief",
-                  body: "You describe the program, site, aspirations, and constraints. Claude identifies the core problems the design must solve.",
-                },
-                {
-                  title: "Match precedents",
-                  body: "From a grounded library of real, canonical buildings, three precedents are selected for solving similar problems well.",
-                },
-                {
-                  title: "Extract moves and synthesize",
-                  body: "Each precedent yields one specific spatial or structural move. These are combined into a bubble diagram and starting narrative.",
-                },
-              ].map((card) => (
-                <div key={card.title} className="rounded-xl border p-5" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: C.accent }} />
-                    <p className="text-xs font-semibold" style={{ color: HEADING }}>
-                      {card.title}
-                    </p>
-                  </div>
-                  <p className="text-xs leading-relaxed" style={{ color: LABEL }}>
-                    {card.body}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* Methodology tie-ins */}
-          <section className="mb-10 border-t pt-10" style={{ borderColor: C.cardBorder }}>
-            <h2 className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: LABEL }}>
-              About this tool
-            </h2>
-            <div className="space-y-3 text-xs leading-relaxed" style={{ color: SUBTEXT }}>
-              <p>
-                This tool automates the precedent-driven design methodology I used on my own studio work. The manual version ran the same way: three canonical precedents (Guggenheim spiral, PAMM lightness, Steven Holl&apos;s Winter House) merged into a new architectural parti.
-              </p>
-              <p>
-                The precedent selection logic here draws on research in multi-modal architectural precedent retrieval. If you are interested in the academic framing, see the CAADRIA 2026 Archipedia paper on computational precedent systems.
-              </p>
-              <p>
-                This is a phase one tool. It operates upstream of Illoca's Tracing Paper, which handles the iterative sketching and refinement. Precedent study is foundational. What follows is design.
-              </p>
-            </div>
-          </section>
+          <p className="text-xs leading-relaxed mb-10" style={{ color: LABEL }}>
+            This automates the method I used in studio, where three precedents (the Guggenheim spiral, PAMM, Steven Holl&apos;s Winter House) merged into one parti. Related: the CAADRIA 2026 Archipedia paper on precedent retrieval.
+          </p>
         </div>
 
         {/* Footer */}
@@ -408,7 +335,7 @@ export default function IllocaPage() {
             <Link href="/" className="underline hover:opacity-70 transition-opacity">
               Armaan Kazi
             </Link>
-            . Not affiliated with Illoca. Precedents are real. Facts are checked against a curated library.
+            . Not affiliated with Illoca.
           </p>
         </footer>
       </div>

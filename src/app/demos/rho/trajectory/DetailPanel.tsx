@@ -81,7 +81,7 @@ export default function DetailPanel({ candidate, fit, fitDetail, onClose }: { ca
               </p>
             </div>
             <p className="text-[11px] mb-2" style={{ color: "var(--ct-muted)" }}>
-              Signals from the demonstrated work (no pedigree). Corroboration scales it down where claims do not hold up.
+              From demonstrated work only. Scaled down where claims do not hold up.
             </p>
             <div className="space-y-1.5">
               <SignalBar label="Quantified outcomes" value={signals.quantified} />
@@ -116,7 +116,7 @@ export default function DetailPanel({ candidate, fit, fitDetail, onClose }: { ca
               </p>
             ) : (
               <p className="text-[11px] italic" style={{ color: "var(--ct-dim)" }}>
-                Paste a job description to compute Role Fit. Fit is alignment of their work against the role, not pedigree.
+                Paste a job description to compute Role Fit.
               </p>
             )}
           </div>

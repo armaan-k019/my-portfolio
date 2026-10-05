@@ -368,7 +368,7 @@ export default function WhopPage() {
               </span>
             </div>
             <p className="text-sm" style={{ color: C.muted }}>
-              Paste your product page. Get roasted. Ship better.
+              A graded critique of a Whop product page, with rewrites.
             </p>
           </div>
           <div className="flex-shrink-0">
@@ -393,84 +393,9 @@ export default function WhopPage() {
           &#8592; Back to Demos
         </Link>
 
-        {/* Section A */}
-        <section className="mb-10">
-          <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: C.dim }}>
-            What Whop does today
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="rounded-xl border p-4" style={{ backgroundColor: CARD, borderColor: BORDER }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: C.dim }}>
-                Today: creator storefront
-              </p>
-              <div className="space-y-2">
-                {["Product page with title + description", "Pricing block", "Affiliate program setup", "Purchase button"].map(item => (
-                  <div key={item} className="flex items-start gap-2">
-                    <span className="text-xs mt-0.5" style={{ color: C.dim }}>&#x2022;</span>
-                    <span className="text-xs" style={{ color: C.muted }}>{item}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="rounded-xl border p-4" style={{ backgroundColor: CARD, borderColor: PURPLE + "40" }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: PURPLE }}>
-                With Page Roaster
-              </p>
-              <div className="space-y-2">
-                {["Instant AI critique of your copy and pricing", "Specific headline, description, and pricing rewrites", "Conversion potential + trust score", "Affiliate pitch line suggestions"].map(item => (
-                  <div key={item} className="flex items-start gap-2">
-                    <span className="text-xs mt-0.5" style={{ color: PURPLE }}>✓</span>
-                    <span className="text-xs" style={{ color: C.text }}>{item}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Section B */}
-        <section className="mb-10">
-          <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: C.dim }}>
-            What this demo adds
-          </p>
-          <p className="text-sm leading-relaxed" style={{ color: C.muted }}>
-            Whop gives creators the infrastructure to sell, but knowing <em style={{ color: C.text }}>why</em> a page isn&apos;t converting is still guesswork. This tool analyzes your page copy the way a conversion expert would: grading your headline, description, pricing framing, and affiliate structure, then writing specific alternatives you can actually use.
-          </p>
-        </section>
-
-        {/* Section C */}
-        <section className="mb-10">
-          <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: C.dim }}>
-            Why it&apos;s better
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-            {[
-              {
-                title: "Specific, not generic",
-                body: "Every rewrite is based on your actual copy, not a template. The feedback addresses what your page says, not what a typical page says.",
-              },
-              {
-                title: "Grades that mean something",
-                body: "The rubric is calibrated to be honest. Most pages score C or D. An A is rare. If your page scores well, it actually scored well.",
-              },
-              {
-                title: "Affiliate-aware",
-                body: "Most conversion tools ignore affiliate programs entirely. This one evaluates your commission structure and generates pitch lines affiliates would actually use.",
-              },
-            ].map(card => (
-              <div key={card.title} className="rounded-xl border p-4" style={{ backgroundColor: CARD, borderColor: BORDER }}>
-                <p className="text-xs font-bold mb-2" style={{ color: C.text }}>{card.title}</p>
-                <p className="text-xs leading-relaxed" style={{ color: C.dim }}>{card.body}</p>
-              </div>
-            ))}
-          </div>
-          <div className="rounded-xl border px-5 py-4" style={{ borderColor: PURPLE + "40", backgroundColor: PURPLE + "0d" }}>
-            <p className="text-xs font-bold mb-1" style={{ color: PURPLE }}>Why This Is Different</p>
-            <p className="text-xs leading-relaxed" style={{ color: C.muted }}>
-              Whop creators lose revenue not because their product is bad, but because their page doesn&apos;t communicate value clearly. This turns &ldquo;why isn&apos;t my page converting&rdquo; from a vague question into a specific, fixable list.
-            </p>
-          </div>
-        </section>
+        <p className="text-sm leading-relaxed mb-10" style={{ color: C.muted }}>
+          Paste a product page. Claude grades the headline, description, pricing, and affiliate setup, then rewrites each one.
+        </p>
 
         {/* Try it label */}
         <p className="text-xs font-bold uppercase tracking-widest mb-6" style={{ color: C.dim }}>
@@ -506,7 +431,7 @@ export default function WhopPage() {
                 <textarea
                   value={pageCopy}
                   onChange={e => setPageCopy(e.target.value)}
-                  placeholder="Paste your Whop product page copy here: title, description, pricing, what's included, everything."
+                  placeholder="Paste the page copy: title, description, pricing, what's included."
                   rows={10}
                   className="w-full px-4 py-3 text-sm rounded-xl border resize-none transition-colors"
                   style={{ backgroundColor: BG, borderColor: BORDER, color: C.text }}
@@ -838,9 +763,6 @@ export default function WhopPage() {
               >
                 {result.one_thing}
               </p>
-              <p className="font-semibold" style={{ color: C.dim, fontSize: "14px", marginBottom: "16px" }}>
-                Ready to ship a better page?
-              </p>
               <a
                 href="https://whop.com"
                 target="_blank"
@@ -850,9 +772,6 @@ export default function WhopPage() {
               >
                 Open Whop &rarr;
               </a>
-              <p style={{ color: C.dim, fontSize: "13px", marginTop: "16px" }}>
-                Whop takes 3% on sales. No monthly fees. 100K+ creators.
-              </p>
             </div>
 
             {/* Reset */}
@@ -874,12 +793,11 @@ export default function WhopPage() {
       {/* Footer */}
       <footer className="border-t px-6 py-6 text-center" style={{ borderColor: BORDER }}>
         <p className="text-xs leading-relaxed" style={{ color: C.dim }}>
-          This roast is AI-generated and for educational purposes only. Results are illustrative.{" "}
           Built by{" "}
           <Link href="/" className="hover:text-gray-500 underline transition-colors">
             Armaan Kazi
-          </Link>{" "}
-          (not affiliated with Whop)
+          </Link>
+          . Not affiliated with Whop.
         </p>
       </footer>
     </div>

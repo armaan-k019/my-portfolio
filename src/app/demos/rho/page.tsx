@@ -564,10 +564,6 @@ function HealthScorecard({ scenario = "A" }: { scenario?: "A" | "B" }) {
           </div>
         ))}
       </div>
-
-      <p className="text-[10px] text-[#9A8070] mt-3 italic">
-        Score updates automatically when new transactions are analyzed.
-      </p>
     </div>
   );
 }
@@ -635,7 +631,7 @@ function BenchmarkTable({ scenario = "A" }: { scenario?: "A" | "B" }) {
         </table>
       </div>
       <p className="text-[10px] text-[#9A8070] mt-3 leading-relaxed">
-        Benchmark ranges are illustrative estimates based on publicly available Series A and Series B startup spending patterns. Not derived from Rho platform data.
+        Illustrative ranges from public Series A and B spending patterns, not Rho data.
         {scenario === "A" && <> This company&apos;s SaaS growth rate is {saasMultiple}x the Series A average.</>}
       </p>
     </div>
@@ -896,254 +892,15 @@ export default function DriftDetectionPage() {
 
           {activeTab === "drift" && (
           <>
-          {/* ── Section 1: What this is ──────────────────────────────────── */}
-          <section className="mb-10">
-            <h2 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: LABEL }}>
-              What this is
-            </h2>
-            <p className="leading-relaxed text-sm" style={{ color: SUBTEXT }}>
-              Rho processes every corporate card transaction, AP invoice, and bank transfer for a company in one place. Most anomaly detection tools flag large one-off transactions. Drift Detection surfaces something harder to catch: slow-moving patterns that compound over months - a SaaS category creeping up 12% month-over-month, a vendor billing inconsistently, recurring spend that nobody remembers approving.
-            </p>
-          </section>
-
-          {/* ── Section 2: What Rho currently shows ─────────────────────── */}
-          <section className="mb-10">
-            <h2 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: LABEL }}>
-              What Rho currently shows
-            </h2>
-            <p className="leading-relaxed text-sm mb-5" style={{ color: SUBTEXT }}>
-              Rho&apos;s dashboard shows account balances and transaction history. It does not surface multi-month trends, flag gradual spend drift, or distinguish intentional growth from unnoticed cost creep.
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Left: today */}
-              <div className="rounded-xl border p-4 shadow-sm" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
-                <p className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: LABEL }}>
-                  Today - transaction list
-                </p>
-                <div className="space-y-0">
-                  {[
-                    { date: "Mar 5",  vendor: "Figma",        amount: "$760.00"   },
-                    { date: "Mar 12", vendor: "Slack",         amount: "$441.00"   },
-                    { date: "Mar 15", vendor: "CloudOps Inc",  amount: "$5,100.00" },
-                  ].map((row) => (
-                    <div
-                      key={row.vendor}
-                      className="flex items-center justify-between py-1.5 last:border-0"
-                      style={{ borderBottom: `1px solid ${C.cardBorder}` }}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs w-12" style={{ color: LABEL }}>{row.date}</span>
-                        <span className="text-xs" style={{ color: HEADING }}>{row.vendor}</span>
-                      </div>
-                      <span className="text-xs font-mono" style={{ color: SUBTEXT }}>{row.amount}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Right: with drift detection */}
-              <div className="rounded-xl border p-4 shadow-sm" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
-                <p className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: LABEL }}>
-                  With Drift Detection
-                </p>
-                <div className="space-y-0">
-                  {[
-                    { date: "Mar 5",  vendor: "Figma",        amount: "$760.00",   drift: true  },
-                    { date: "Mar 12", vendor: "Slack",         amount: "$441.00",   drift: false },
-                    { date: "Mar 15", vendor: "CloudOps Inc",  amount: "$5,100.00", drift: false },
-                  ].map((row) => (
-                    <div
-                      key={row.vendor}
-                      className="flex items-center justify-between py-1.5 last:border-0"
-                      style={{ borderBottom: `1px solid ${C.cardBorder}` }}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs w-12" style={{ color: LABEL }}>{row.date}</span>
-                        <span className="text-xs" style={{ color: HEADING }}>{row.vendor}</span>
-                        {row.drift && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700">
-                            ↑ drift detected
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-xs font-mono" style={{ color: SUBTEXT }}>{row.amount}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* ── Section 2.5: What changes ────────────────────────────────── */}
-          <section className="mb-10">
-            <h2 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: LABEL }}>
-              What changes
-            </h2>
-
-            {/* Desktop table */}
-            <div className="hidden sm:block rounded-xl border overflow-hidden shadow-sm text-sm" style={{ borderColor: C.cardBorder }}>
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b" style={{ backgroundColor: `${C.cardBorder}40`, borderColor: C.cardBorder }}>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-widest w-[28%]" style={{ color: LABEL }}>Feature</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-widest w-[36%]" style={{ color: LABEL }}>Without Drift Detection</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-widest w-[36%]" style={{ color: LABEL }}>With Drift Detection</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#2C1810]/[0.06]">
-                  {[
-                    {
-                      feature: "Spend visibility",
-                      without: "Transaction list - amounts and dates only",
-                      with: "Trend analysis across 6 months per vendor",
-                    },
-                    {
-                      feature: "SaaS creep",
-                      without: "Invisible - looks normal month to month",
-                      with: "Flagged when category grows >8% MoM",
-                    },
-                    {
-                      feature: "Vendor anomalies",
-                      without: "No way to spot inconsistent billing",
-                      with: "Variance detected and surfaced automatically",
-                    },
-                    {
-                      feature: "Forgotten subscriptions",
-                      without: "Recurring charges go unnoticed indefinitely",
-                      with: "Flat recurring charges with no usage correlation flagged at low severity",
-                    },
-                    {
-                      feature: "CFO time",
-                      without: "Manual review of every line item",
-                      with: "AI surfaces only what needs attention",
-                    },
-                    {
-                      feature: "Data required",
-                      without: "Works with any bank",
-                      with: "Uniquely possible with Rho's unified cards + AP + banking data in one place",
-                    },
-                  ].map((row) => (
-                    <tr key={row.feature} style={{ backgroundColor: C.cardBg }}>
-                      <td className="px-4 py-3 text-xs font-semibold" style={{ color: HEADING }}>{row.feature}</td>
-                      <td className="px-4 py-3 text-xs bg-red-50/50" style={{ color: LABEL }}>{row.without}</td>
-                      <td className="px-4 py-3 text-xs bg-emerald-50/50" style={{ color: HEADING }}>
-                        <span className="text-emerald-600 mr-1.5">&#10003;</span>{row.with}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile stacked cards */}
-            <div className="sm:hidden flex flex-col gap-3">
-              {[
-                {
-                  feature: "Spend visibility",
-                  without: "Transaction list - amounts and dates only",
-                  with: "Trend analysis across 6 months per vendor",
-                },
-                {
-                  feature: "SaaS creep",
-                  without: "Invisible - looks normal month to month",
-                  with: "Flagged when category grows >8% MoM",
-                },
-                {
-                  feature: "Vendor anomalies",
-                  without: "No way to spot inconsistent billing",
-                  with: "Variance detected and surfaced automatically",
-                },
-                {
-                  feature: "Forgotten subscriptions",
-                  without: "Recurring charges go unnoticed indefinitely",
-                  with: "Flat recurring charges with no usage correlation flagged at low severity",
-                },
-                {
-                  feature: "CFO time",
-                  without: "Manual review of every line item",
-                  with: "AI surfaces only what needs attention",
-                },
-                {
-                  feature: "Data required",
-                  without: "Works with any bank",
-                  with: "Uniquely possible with Rho's unified cards + AP + banking data in one place",
-                },
-              ].map((row) => (
-                <div key={row.feature} className="rounded-xl border overflow-hidden shadow-sm" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
-                  <div className="px-4 py-2.5 border-b" style={{ borderColor: C.cardBorder }}>
-                    <span className="text-xs font-semibold" style={{ color: HEADING }}>{row.feature}</span>
-                  </div>
-                  <div className="grid grid-cols-2 divide-x" style={{ borderColor: C.cardBorder }}>
-                    <div className="px-3 py-2.5 bg-red-50/50">
-                      <p className="text-[9px] font-semibold uppercase tracking-widest mb-1" style={{ color: LABEL }}>Without</p>
-                      <p className="text-xs" style={{ color: LABEL }}>{row.without}</p>
-                    </div>
-                    <div className="px-3 py-2.5 bg-emerald-50/50">
-                      <p className="text-[9px] font-semibold uppercase tracking-widest text-emerald-600 mb-1">With</p>
-                      <p className="text-xs" style={{ color: HEADING }}><span className="text-emerald-600 mr-1">&#10003;</span>{row.with}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* ── Section B.5: What this demo adds ────────────────────────── */}
-          <section className="mb-10">
-            <h2 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: LABEL }}>
-              What this demo adds
-            </h2>
-            <p className="text-sm leading-relaxed" style={{ color: SUBTEXT }}>
-              Drift Detection runs six months of synthetic transaction data through a pattern analysis engine that looks for what standard dashboards miss: compounding spend trends, inconsistent vendor billing, and flat recurring charges that nobody is watching. It surfaces each signal with severity ranking and a projected cost if left unaddressed.
-            </p>
-          </section>
-
-          {/* ── Section C: Why it's better ──────────────────────────────── */}
-          <section className="mb-10">
-            <h2 className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: LABEL }}>
-              Why it&apos;s better
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-              {[
-                {
-                  title: "Catches what one-off detection misses",
-                  body: "Slow-moving patterns like SaaS creep at 12% MoM or inconsistent billing cycles are invisible to standard anomaly detection. Drift Detection finds them.",
-                },
-                {
-                  title: "Only possible with Rho's unified data",
-                  body: "Cards, AP, and bank transfers in one ledger means patterns can be correlated across sources. No other platform has this data advantage.",
-                },
-                {
-                  title: "Surfaces signal, not noise",
-                  body: "Instead of alerting on every large transaction, it ranks by severity and surfaces only what actually needs a CFO's attention.",
-                },
-              ].map((card) => (
-                <div key={card.title} className="rounded-xl border p-5" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: C.accent }} />
-                    <p className="text-xs font-semibold" style={{ color: HEADING }}>{card.title}</p>
-                  </div>
-                  <p className="text-xs leading-relaxed" style={{ color: LABEL }}>{card.body}</p>
-                </div>
-              ))}
-            </div>
-            <div className="rounded-xl border px-5 py-4" style={{ borderColor: C.cardBorder, backgroundColor: C.accentBg }}>
-              <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: LABEL }}>Why This Is Different</p>
-              <p className="text-sm leading-relaxed" style={{ color: SUBTEXT }}>
-                Most spend tools show you what happened. Drift Detection shows you what&apos;s <em>happening</em>: the gradual shifts that compound quietly until someone looks at the annual budget and wonders where $40k went.
-              </p>
-            </div>
-          </section>
+          <p className="leading-relaxed text-sm mb-10" style={{ color: SUBTEXT }}>
+            Finds slow spend drift that one-off anomaly checks miss, in six months of synthetic transactions. Each signal gets a severity and projected cost.
+          </p>
 
           {/* ── Section D: Try it ────────────────────────────────────────── */}
           <section>
-            <h2 className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: LABEL }}>
+            <h2 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: LABEL }}>
               Try it
             </h2>
-            <p className="text-sm mb-4" style={{ color: LABEL }}>
-              Six months of synthetic company transaction data. Switch scenarios to see how the detector responds.
-            </p>
 
             {/* Scenario switcher */}
             <div className="flex gap-3 mb-6">
@@ -1169,13 +926,6 @@ export default function DriftDetectionPage() {
               ))}
             </div>
 
-            {/* Chart intro annotation */}
-            <p style={{ fontSize: 11, fontStyle: "italic", color: LABEL, marginBottom: 10 }}>
-              {scenario === "A"
-                ? "The chart below excludes payroll. Watch the SaaS line."
-                : "The chart below excludes payroll. Notice the flat, stable lines."}
-            </p>
-
             {/* Chart + Payroll callout */}
             <div className="flex flex-col sm:flex-row gap-4 mb-8">
               <div className="flex-1 rounded-xl border p-5 shadow-sm" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
@@ -1200,7 +950,7 @@ export default function DriftDetectionPage() {
             {scenario === "A" ? (
               <div className="rounded-xl border p-5 shadow-sm mb-4" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
                 <p className="text-xs font-medium mb-1" style={{ color: HEADING }}>
-                  At current drift rates, here is where spend is heading
+                  Projected spend at current drift
                 </p>
                 <p style={{ fontSize: 11, fontStyle: "italic", color: LABEL, marginBottom: 10 }}>
                   Solid lines = actual · Dashed lines = projected
@@ -1238,7 +988,7 @@ export default function DriftDetectionPage() {
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm mb-8">
                 <p className="text-xs font-semibold text-emerald-700 mb-1">Spend trajectory is stable</p>
                 <p className="text-xs text-emerald-700 leading-relaxed">
-                  No significant drift detected. SaaS costs are growing in line with team size, infrastructure costs are predictable, and there are no forgotten subscriptions or vendor billing anomalies.
+                  No significant drift detected.
                 </p>
               </div>
             )}
@@ -1364,7 +1114,7 @@ export default function DriftDetectionPage() {
                   <div>
                     <p className="text-sm font-semibold text-emerald-800 mb-1">Spending patterns are well-controlled</p>
                     <p className="text-xs text-emerald-700 leading-relaxed">
-                      SaaS costs are growing in line with team size and infrastructure costs are predictable. No compounding drift detected across any category.
+                      No compounding drift in any category.
                     </p>
                   </div>
                 </div>
@@ -1376,8 +1126,8 @@ export default function DriftDetectionPage() {
               <div className="mt-4 space-y-3">
                 <p style={{ fontSize: 11, fontStyle: "italic", color: LABEL, marginBottom: 4 }}>
                   {scenario === "B"
-                    ? `${signals.length} informational note${signals.length === 1 ? "" : "s"} - no action required`
-                    : `${signals.length} patterns a CFO would miss scanning line by line`}
+                    ? `${signals.length} informational note${signals.length === 1 ? "" : "s"}, no action required`
+                    : `${signals.length} patterns found`}
                 </p>
                 {signals.map((signal, i) => (
                   <SignalCard key={signal.id ?? i} signal={signal} index={i} />
