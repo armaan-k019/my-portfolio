@@ -40,7 +40,7 @@ export default function ClayDemoPage() {
                 </span>
               </div>
               <p className="text-sm" style={{ color: C.muted }}>
-                What happens to cold email when making it look personal costs almost nothing.
+                Cold email when looking personal costs almost nothing: 1,200 prospects, 48 sellers, 180 days.
               </p>
             </div>
             <div className="flex-shrink-0">
@@ -62,13 +62,10 @@ export default function ClayDemoPage() {
           </Link>
 
           <section className="mb-10">
-            <p className="leading-relaxed text-sm mb-4" style={{ color: SUBTEXT }}>
-              An agent-based model of one market: 1,200 prospects with limited attention and 48 sellers on fixed budgets, over 180 days. You set two prices: making an email look personal, and the signal data that says whom to send it to.
-            </p>
             <div className="rounded-xl border px-5 py-4" style={{ borderColor: C.cardBorder, backgroundColor: C.accentBg }}>
               <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: LABEL }}>Finding</p>
               <p className="text-sm leading-relaxed" style={{ color: SUBTEXT }}>
-                Cold email fails when looking personal gets far cheaper than knowing whom to write to. When signal data is cheap too, cheap personalization raises replies instead.
+                Replies collapse when looking personal gets far cheaper than targeting. Cheap targeting reverses it.
               </p>
             </div>
           </section>
@@ -79,14 +76,10 @@ export default function ClayDemoPage() {
             <CommonsDemo />
           </section>
 
-          {/* ── How this works ────────────────────────────────────────────── */}
+          {/* ── Assumptions ────────────────────────────────────────────── */}
           <section className="mb-10">
-            <h2 className={`${H2} mb-4`} style={{ color: LABEL }}>How this works</h2>
-            <p className="text-sm leading-relaxed mb-4" style={{ color: SUBTEXT }}>
-              Each day prospects gain and lose needs, sellers spend their budgets, prospects open personal-looking email first while they still trust it, and sellers copy whichever peer earns more replies per dollar. The idea is Spence&apos;s 1973 signaling model: a signal carries information only while faking it is costly.
-            </p>
             <details className="rounded-xl border p-4 text-xs" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
-              <summary className="cursor-pointer font-semibold" style={{ color: HEADING }}>Every assumption in the model</summary>
+              <summary className="cursor-pointer font-semibold" style={{ color: HEADING }}>Assumptions</summary>
               <p className="mt-3 mb-2 leading-relaxed" style={{ color: SUBTEXT }}>
                 None are measured. All live in <code>src/app/demos/clay/model.ts</code>.
               </p>
@@ -120,7 +113,7 @@ export default function ClayDemoPage() {
             <p>
               Built by{" "}
               <Link href="/" className="underline hover:opacity-70" style={{ color: SUBTEXT }}>Armaan Kazi</Link>
-              . Not affiliated with Clay. A model, not data: no number here comes from Clay or a real inbox.
+              . Not affiliated with Clay. A model, not data, built on Spence&apos;s 1973 signaling idea.
             </p>
           </footer>
         </div>

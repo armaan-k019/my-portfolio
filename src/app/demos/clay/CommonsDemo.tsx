@@ -14,10 +14,10 @@ import { LineChart, SharesChart, Sparkline, STRATEGY_COLORS } from "./charts";
 
 const COLS = 40;
 
-const PRESETS: { label: string; note: string; personalCost: number; targetCost: number }[] = [
-  { label: "Hand research", note: "Personal emails cost $3, signal data $3", personalCost: 3, targetCost: 3 },
-  { label: "Cheap words, costly data", note: "Personal emails cost $0.03, signal data $3", personalCost: 0.03, targetCost: 3 },
-  { label: "Cheap words, cheap data", note: "Personal emails cost $0.03, signal data $0.60", personalCost: 0.03, targetCost: 0.6 },
+const PRESETS: { label: string; personalCost: number; targetCost: number }[] = [
+  { label: "Hand research", personalCost: 3, targetCost: 3 },
+  { label: "Cheap words, costly data", personalCost: 0.03, targetCost: 3 },
+  { label: "Cheap words, cheap data", personalCost: 0.03, targetCost: 0.6 },
 ];
 
 // Log-scale slider helpers: slider runs 0..100.
@@ -226,9 +226,6 @@ function RegimeMap({ current }: { current: { personalCost: number; targetCost: n
         >
           {running ? `Running ${done} of ${cells.length}` : done === cells.length ? "Run again" : "Run all 25"}
         </button>
-        <p className="text-xs" style={{ color: "#9a8a7a" }}>
-          180 days per cell, run in your browser.
-        </p>
       </div>
       <div className="overflow-x-auto">
         <table className="text-xs border-separate" style={{ borderSpacing: 3 }}>
@@ -272,7 +269,7 @@ function RegimeMap({ current }: { current: { personalCost: number; targetCost: n
         </table>
       </div>
       <p className="text-xs mt-2 leading-relaxed" style={{ color: "#9a8a7a" }}>
-        Number: replies in the last 30 days over the first 30. Color: ending trust, red low, green high. Outlined: your sliders.
+        Number: replies, last 30 days over first 30. Color: ending trust.
       </p>
     </div>
   );
@@ -340,7 +337,6 @@ export default function CommonsDemo() {
               style={{ borderColor: active ? "#2d5a27" : "#e5e0d8", backgroundColor: active ? "#eef2ec" : "#ffffff" }}
             >
               <p className="text-xs font-semibold" style={{ color: "#1a1a1a" }}>{p.label}</p>
-              <p className="text-[11px]" style={{ color: "#9a8a7a" }}>{p.note}</p>
             </button>
           );
         })}
@@ -349,8 +345,8 @@ export default function CommonsDemo() {
       {/* Sliders */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {[
-          { name: "Cost to make one email look personal", value: personalCost, min: 0.01, max: 5, set: (v: number) => { setPersonalCost(v); reset({ personalCost: v }); } },
-          { name: "Cost of signal data to target one email", value: targetCost, min: 0.1, max: 5, set: (v: number) => { setTargetCost(v); reset({ targetCost: v }); } },
+          { name: "Personalization cost per email", value: personalCost, min: 0.01, max: 5, set: (v: number) => { setPersonalCost(v); reset({ personalCost: v }); } },
+          { name: "Targeting cost per email", value: targetCost, min: 0.1, max: 5, set: (v: number) => { setTargetCost(v); reset({ targetCost: v }); } },
         ].map((s) => (
           <label key={s.name} className="block">
             <span className="flex justify-between text-xs mb-1">
@@ -404,9 +400,9 @@ export default function CommonsDemo() {
           style={{ borderColor: "#e5e0d8", color: "#1a1a1a" }}
           aria-label="Days per frame"
         >
-          <option value={1}>1 day per frame</option>
-          <option value={2}>2 days per frame</option>
-          <option value={5}>5 days per frame</option>
+          <option value={1}>1x speed</option>
+          <option value={2}>2x speed</option>
+          <option value={5}>5x speed</option>
         </select>
         <span className="text-xs font-mono ml-auto" style={{ color: "#6b6b6b" }}>day {sim.day} of {days}</span>
       </div>
@@ -415,13 +411,13 @@ export default function CommonsDemo() {
       <div className="grid grid-cols-1 md:grid-cols-[1fr_15rem] gap-4">
         <div className="rounded-xl border p-3" style={{ borderColor: "#e5e0d8", backgroundColor: "#ffffff" }}>
           <p className={`${label} mb-2`} style={{ color: "#9a8a7a" }}>
-            {sim.params.prospects.toLocaleString()} prospects. Color is trust in personal-looking email. A dot means they replied to someone today.
+            Color: trust in personal email. Dot: replied today.
           </p>
           <Field sim={sim} tick={tick} selected={selected} onSelect={setSelected} />
         </div>
         <div className="space-y-3">
           {[
-            { k: "Emails per inbox today", v: last ? last.inbox.toFixed(1) : "0" },
+            { k: "Inbox size", v: last ? last.inbox.toFixed(1) : "0" },
             { k: "Replies today", v: last ? String(last.replies) : "0" },
             { k: "Average trust", v: last ? `${Math.round(last.trust * 100)}%` : `${Math.round(DEFAULT_PARAMS.trustPrior * 100)}%` },
           ].map((s) => (
@@ -448,13 +444,13 @@ export default function CommonsDemo() {
       {selected !== null ? (
         <Inspector sim={sim} i={selected} />
       ) : (
-        <p className="text-xs" style={{ color: "#9a8a7a" }}>Click a prospect to see their inbox.</p>
+        <p className="text-xs" style={{ color: "#9a8a7a" }}>Click a prospect.</p>
       )}
 
       {/* Charts */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="rounded-xl border p-3" style={{ borderColor: "#e5e0d8", backgroundColor: "#ffffff" }}>
-          <p className={`${label} mb-1`} style={{ color: "#9a8a7a" }}>Replies per day, all sellers</p>
+          <p className={`${label} mb-1`} style={{ color: "#9a8a7a" }}>Replies per day</p>
           <LineChart history={h} days={days} value={(d) => d.replies} max={maxReplies} color="#1a1a1a" label="Replies per day" format={(v) => String(Math.round(v))} />
         </div>
         <div className="rounded-xl border p-3" style={{ borderColor: "#e5e0d8", backgroundColor: "#ffffff" }}>
@@ -469,10 +465,7 @@ export default function CommonsDemo() {
 
       {/* Regime map */}
       <div className="rounded-xl border p-4" style={{ borderColor: "#e5e0d8", backgroundColor: "#ffffff" }}>
-        <p className={`${label} mb-1`} style={{ color: "#9a8a7a" }}>Every pair of costs at once</p>
-        <p className="text-xs leading-relaxed mb-3" style={{ color: "#6b6b6b" }}>
-          The full model at 25 cost pairs, so one run does not carry the claim.
-        </p>
+        <p className={`${label} mb-1`} style={{ color: "#9a8a7a" }}>All 25 cost pairs</p>
         <RegimeMap current={{ personalCost, targetCost }} />
       </div>
     </div>
