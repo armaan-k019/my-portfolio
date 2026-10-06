@@ -35,7 +35,7 @@ const columns = [
   { title: "Professional", entries: workEntries.filter((e) => !e.type) },
   { title: "Organizations", entries: workEntries.filter((e) => e.type === "studentOrg") },
   { title: "Research", entries: workEntries.filter((e) => e.type === "research") },
-  { title: "Awards & Certifications", entries: workEntries.filter((e) => e.type === "award") },
+  { title: "Awards", entries: workEntries.filter((e) => e.type === "award") },
 ].filter((col) => col.entries.length > 0);
 
 // Static class names so Tailwind generates them.
