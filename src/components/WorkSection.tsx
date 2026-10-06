@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Modal from "./Modal";
-import { workEntries, type WorkEntry } from "../../content/work";
+import { workEntries, SHOW_WORK_SUMMARIES, type WorkEntry } from "../../content/work";
 
 function LogoWithFallback({ src, alt, imageClassName }: { src: string; alt: string; imageClassName?: string }) {
   const [failed, setFailed] = useState(false);
@@ -35,14 +35,18 @@ const columns = [
   { title: "Professional", entries: workEntries.filter((e) => !e.type) },
   { title: "Organizations", entries: workEntries.filter((e) => e.type === "studentOrg") },
   { title: "Research", entries: workEntries.filter((e) => e.type === "research") },
-];
+  { title: "Awards", entries: workEntries.filter((e) => e.type === "award") },
+].filter((col) => col.entries.length > 0);
+
+// Static class names so Tailwind generates them.
+const lgCols: Record<number, string> = { 3: "lg:grid-cols-3", 4: "lg:grid-cols-4 lg:gap-x-8" };
 
 export default function WorkSection() {
   const [selected, setSelected] = useState<WorkEntry | null>(null);
 
   return (
     <>
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-14">
+      <div className={`grid md:grid-cols-2 ${lgCols[columns.length] ?? "lg:grid-cols-3"} gap-x-12 gap-y-14`}>
         {columns.map((col) => (
           <section key={col.title}>
             <h2 className="font-display text-xl font-semibold text-ink mb-1">{col.title}</h2>
@@ -63,8 +67,8 @@ export default function WorkSection() {
                         </span>
                         {roles.length === 1 ? (
                           <>
-                            <span className="text-sm text-brown-light">{entry.role}</span>
-                            <span className="meta whitespace-nowrap basis-full">{entry.dates}</span>
+                            {entry.role && <span className="text-sm text-brown-light">{entry.role}</span>}
+                            {entry.dates && <span className="meta whitespace-nowrap basis-full">{entry.dates}</span>}
                           </>
                         ) : (
                           <span className="flex flex-col gap-0.5">
@@ -92,9 +96,11 @@ export default function WorkSection() {
         {selected && (
           <div>
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-10 h-10 flex items-center justify-center overflow-hidden">
-                <LogoWithFallback src={selected.logo} alt={selected.name} imageClassName="object-contain max-h-10 max-w-10 w-auto h-auto" />
-              </div>
+              {selected.logo && (
+                <div className="w-10 h-10 flex items-center justify-center overflow-hidden">
+                  <LogoWithFallback src={selected.logo} alt={selected.name} imageClassName="object-contain max-h-10 max-w-10 w-auto h-auto" />
+                </div>
+              )}
               <div>
                 <h3 id="work-modal-title" className="font-display text-xl font-semibold text-ink">{selected.name}</h3>
                 {steps(selected.role).map((r, i) => (
@@ -106,8 +112,8 @@ export default function WorkSection() {
               </div>
             </div>
             <hr className="rule mb-4" />
-            <p className="text-xs text-brown-light mb-4">{selected.dates}</p>
-            <p className="text-sm text-brown-light">{selected.summary}</p>
+            {selected.dates && <p className="text-xs text-brown-light mb-4">{selected.dates}</p>}
+            {SHOW_WORK_SUMMARIES && <p className="text-sm text-brown-light">{selected.summary}</p>}
             {selected.links && (
               <div className="flex flex-wrap gap-x-5 gap-y-2 mt-5">
                 {selected.links.map((link) => (

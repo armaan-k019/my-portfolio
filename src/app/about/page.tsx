@@ -1,3 +1,19 @@
+import fs from "fs";
+import path from "path";
+import SketchbookGrid, { type SketchbookEntry } from "@/components/SketchbookGrid";
+
+// Sketchbook pages are image files dropped into public/sketchbook/, shown in
+// filename order (page-01.jpg, page-02.jpg, ...). An empty folder shows "Coming soon".
+function getSketchbookEntries(): SketchbookEntry[] {
+  const dir = path.join(process.cwd(), "public", "sketchbook");
+  if (!fs.existsSync(dir)) return [];
+  return fs
+    .readdirSync(dir)
+    .filter((f) => /\.(jpe?g|png|webp|avif)$/i.test(f))
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    .map((f) => ({ src: `/sketchbook/${f}` }));
+}
+
 const favColumns = [
   {
     label: "Watches",
@@ -9,7 +25,7 @@ const favColumns = [
     label: "Reads",
     labelColor: "text-darkblue",
     dotColor: "bg-darkblue",
-    items: ["The Catcher in the Rye", "The Odyssey", "A Canticle for Leibowitz"],
+    items: ["The Catcher in the Rye", "Crime and Punishment", "A Canticle for Leibowitz"],
   },
   {
     label: "Listens",
@@ -21,7 +37,7 @@ const favColumns = [
     label: "Sports Teams",
     labelColor: "text-darkblue",
     dotColor: "bg-darkblue",
-    items: ["Baltimore Ravens", "Washington Wizards", "Juventus"],
+    items: ["Baltimore Ravens", "Washington Wizards", "Brighton & Hove Albion"],
   },
   {
     label: "Favorite Architects",
@@ -38,6 +54,8 @@ const favColumns = [
 ];
 
 export default function AboutPage() {
+  const sketchbook = getSketchbookEntries();
+
   return (
     <div className="min-h-screen">
       <div className="max-w-5xl mx-auto px-6 pt-16 md:pt-24 pb-20">
@@ -64,7 +82,7 @@ export default function AboutPage() {
         <section>
           <p className="eyebrow mb-3">Pages from my sketchbook</p>
           <hr className="rule mb-6" />
-          <p className="meta">Coming soon</p>
+          {sketchbook.length > 0 ? <SketchbookGrid entries={sketchbook} /> : <p className="meta">Coming soon</p>}
         </section>
 
       </div>

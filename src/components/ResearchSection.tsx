@@ -32,8 +32,16 @@ export default function ResearchSection({ entries }: { entries: ResearchEntry[] 
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <h3 className="font-display text-lg font-semibold text-darkblue leading-snug mb-1 group-hover:text-terracotta transition-colors">{entry.title}</h3>
-                  {entry.status && (
-                    <p className="meta text-terracotta/80 mb-1.5">{entry.status}</p>
+                  {(entry.conference || entry.status) && (
+                    <p className="flex flex-wrap items-baseline gap-x-2 mb-1.5">
+                      {entry.conference && (
+                        <span className="text-base font-semibold text-terracotta">{entry.conference}</span>
+                      )}
+                      {entry.status && <span className="meta text-terracotta/80">{entry.status}</span>}
+                    </p>
+                  )}
+                  {entry.disclaimer && (
+                    <p className="text-xs text-brown-light italic mb-1.5">{entry.disclaimer}</p>
                   )}
                   <p className="text-[13px] text-brown-light line-clamp-2 leading-relaxed">{entry.preview}</p>
                 </div>
@@ -55,8 +63,16 @@ export default function ResearchSection({ entries }: { entries: ResearchEntry[] 
           <div>
             <div className="mb-4">
               <h3 id="research-modal-title" className="font-display text-xl font-semibold text-ink leading-snug">{selected.title}</h3>
-              {selected.status && (
-                <p className="meta text-terracotta/80 mt-1.5">{selected.status}</p>
+              {(selected.conference || selected.status) && (
+                <p className="flex flex-wrap items-baseline gap-x-2 mt-1.5">
+                  {selected.conference && (
+                    <span className="text-base font-semibold text-terracotta">{selected.conference}</span>
+                  )}
+                  {selected.status && <span className="meta text-terracotta/80">{selected.status}</span>}
+                </p>
+              )}
+              {selected.disclaimer && (
+                <p className="text-xs text-brown-light italic mt-1.5">{selected.disclaimer}</p>
               )}
             </div>
             <hr className="rule mb-4" />
@@ -64,29 +80,6 @@ export default function ResearchSection({ entries }: { entries: ResearchEntry[] 
             {selected.authors && (
               <p className="text-xs text-brown-light mb-3">
                 <span className="font-semibold text-brown">Authors:</span> {selected.authors}
-              </p>
-            )}
-
-            {/* Modal body paragraph (from MDX content, first paragraph) */}
-            <div className="text-sm text-brown-light leading-relaxed mb-5">
-              {selected.content.split(/\n## /)[0].trim().split("\n").filter(Boolean).map((p, i) => (
-                <p key={i} className="mb-3">{p}</p>
-              ))}
-            </div>
-
-            {/* Full abstract (for entries that have ## Abstract in content) */}
-            {selected.content.includes("## Abstract") && (
-              <div className="mb-5">
-                <h4 className="text-sm font-semibold text-brown mb-2">Abstract</h4>
-                <p className="text-sm text-brown-light leading-relaxed">
-                  {selected.content.split("## Abstract")[1].trim()}
-                </p>
-              </div>
-            )}
-
-            {selected.keywords && (
-              <p className="text-xs text-brown-light mb-4">
-                <span className="font-semibold text-brown">Keywords:</span> {selected.keywords}
               </p>
             )}
 
@@ -117,7 +110,7 @@ export default function ResearchSection({ entries }: { entries: ResearchEntry[] 
             )}
 
             {selected.footer && (
-              <div className="border-t border-tan/30 pt-4 mt-4">
+              <div>
                 <p className="text-xs text-brown-light italic">{selected.footer}</p>
               </div>
             )}

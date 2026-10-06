@@ -1,5 +1,11 @@
+// Summaries are kept in source but not shown on the site for now. Flip to true
+// to show them again in the entry modal.
+export const SHOW_WORK_SUMMARIES = false;
+
 export interface WorkEntry {
   name: string;
+  // Empty logo, role or dates are left out of the rendering. Club and research
+  // links were each checked against the live page on 2026-10-06.
   logo: string;
   role: string;
   dates: string;
@@ -7,7 +13,7 @@ export interface WorkEntry {
   link?: string;
   links?: { label: string; url: string }[];
   cardBg?: string;
-  type?: "studentOrg" | "research";
+  type?: "studentOrg" | "research" | "award";
 }
 
 export const workEntries: WorkEntry[] = [
@@ -30,6 +36,17 @@ export const workEntries: WorkEntry[] = [
     cardBg: "#ffffff",
   },
   {
+    name: "Pre- and Post-",
+    logo: "",
+    role: "",
+    dates: "May 2026 – Aug 2026",
+    summary: "",
+    link: "",
+    links: [{ label: "Pre- and Post-", url: "https://preandpost.net/" }],
+    cardBg: "#ffffff",
+    type: "research",
+  },
+  {
     name: "Shape Computation Lab",
     logo: "/logos/shape-computation-lab.png",
     role: "Undergraduate Research Assistant",
@@ -50,6 +67,7 @@ export const workEntries: WorkEntry[] = [
     dates: "Aug 2025 – Jun 2026",
     summary: "evidence based research: cognitive + emotional benefits of horticulture therapy for elderly residents; therapeutic horticulture space: sensory engagement, accessibility, measurable wellbeing outcomes; research findings to spatial design decisions",
     link: "",
+    links: [{ label: "A.G. Rhodes", url: "https://www.agrhodes.org/" }],
     cardBg: "#ffffff",
     type: "research",
   },
@@ -60,6 +78,7 @@ export const workEntries: WorkEntry[] = [
     dates: "Aug 2025 – Present",
     summary: "single day service event, one of the Southeast's largest: 1,500 to 2,000+ volunteers annually, 50+ Atlanta nonprofit partners; logistics + community outreach; 25+ year organization, Homecoming Week programming",
     link: "",
+    links: [{ label: "TEAM Buzz", url: "https://civic-engagement.gatech.edu/service-organizations/team-buzz" }],
     cardBg: "#ffffff",
     type: "studentOrg",
   },
@@ -70,6 +89,7 @@ export const workEntries: WorkEntry[] = [
     dates: "Nov 2025 – May 2026",
     summary: "risk neutral probabilities from the Deribit options surface: smile fitting, Breeden Litzenberger, digital pricing; cross asset consistency test against Polymarket BTC + ETH threshold contracts; calibration against realized outcomes, gaps across tails, horizons, liquidity, net of spreads, fees, hedging cost; reproducible repo, one command from raw data to every figure",
     link: "",
+    links: [{ label: "Trading Club @ GT", url: "https://www.tradingclubgt.com/" }],
     cardBg: "#ffffff",
     type: "studentOrg",
   },
@@ -80,6 +100,7 @@ export const workEntries: WorkEntry[] = [
     dates: "Sep 2025 – May 2026",
     summary: "Green Labs documentation standard: sustainable operations guidelines for campus buildings + research facilities; high impact areas with campus stakeholders: energy reduction, waste management, material efficiency; replicable framework adaptable beyond Georgia Tech",
     link: "",
+    links: [{ label: "ElectrifyGT", url: "https://gatech.campuslabs.com/engage/organization/electrify-gt" }],
     cardBg: "#ffffff",
     type: "studentOrg",
   },
@@ -108,7 +129,42 @@ export const workEntries: WorkEntry[] = [
     dates: "Aug 2024 – May 2026",
     summary: "chapter operations + communication channels; studio programming recommendations; liaison to secretary across two years",
     link: "",
+    links: [{ label: "AIAS at Georgia Tech", url: "https://arch.gatech.edu/student-organizations" }],
     cardBg: "#ffffff",
     type: "studentOrg",
+  },
+  // Awards. Names and roles as the owner gave them on 2026-10-06; years and
+  // issuers not yet supplied, so dates and logos stay empty.
+  {
+    name: "Harvard Architectural Imagination",
+    logo: "",
+    role: "",
+    dates: "",
+    summary: "",
+    type: "award",
+  },
+  {
+    name: "Scheller Sustainability",
+    logo: "",
+    role: "Fellow + Ambassador",
+    dates: "",
+    summary: "",
+    type: "award",
+  },
+  {
+    name: "Georgia Tech Undergraduate Portfolio Competition",
+    logo: "",
+    role: "Finalist",
+    dates: "2024/25",
+    summary: "",
+    type: "award",
+  },
+  {
+    name: "National Merit Scholar",
+    logo: "",
+    role: "",
+    dates: "",
+    summary: "",
+    type: "award",
   },
 ];
