@@ -35,6 +35,16 @@ export const workEntries: WorkEntry[] = [
     cardBg: "#ffffff",
   },
   {
+    name: "Pre- and- Post",
+    logo: "",
+    role: "",
+    dates: "May 2026 – Aug 2026",
+    summary: "",
+    link: "",
+    cardBg: "#ffffff",
+    type: "research",
+  },
+  {
     name: "Shape Computation Lab",
     logo: "/logos/shape-computation-lab.png",
     role: "Undergraduate Research Assistant",
