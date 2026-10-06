@@ -1,3 +1,7 @@
+// Summaries are kept in source but not shown on the site for now. Flip to true
+// to show them again in the entry modal.
+export const SHOW_WORK_SUMMARIES = false;
+
 export interface WorkEntry {
   name: string;
   logo: string;

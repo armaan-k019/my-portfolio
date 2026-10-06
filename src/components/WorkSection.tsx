@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Modal from "./Modal";
-import { workEntries, type WorkEntry } from "../../content/work";
+import { workEntries, SHOW_WORK_SUMMARIES, type WorkEntry } from "../../content/work";
 
 function LogoWithFallback({ src, alt, imageClassName }: { src: string; alt: string; imageClassName?: string }) {
   const [failed, setFailed] = useState(false);
@@ -107,7 +107,7 @@ export default function WorkSection() {
             </div>
             <hr className="rule mb-4" />
             <p className="text-xs text-brown-light mb-4">{selected.dates}</p>
-            <p className="text-sm text-brown-light">{selected.summary}</p>
+            {SHOW_WORK_SUMMARIES && <p className="text-sm text-brown-light">{selected.summary}</p>}
             {selected.links && (
               <div className="flex flex-wrap gap-x-5 gap-y-2 mt-5">
                 {selected.links.map((link) => (
