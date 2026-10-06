@@ -25,6 +25,9 @@ export interface ResearchEntry {
   authors?: string;
   keywords?: string;
   conferenceDates?: string;
+  // Short conference label shown on the card, e.g. "CAADRIA 26".
+  conference?: string;
+  disclaimer?: string;
   footer?: string;
   projectLink?: string;
   projectLinks?: { label: string; url: string }[];
@@ -75,6 +78,8 @@ export function getResearchEntries(): ResearchEntry[] {
         authors: data.authors,
         keywords: data.keywords,
         conferenceDates: data.conferenceDates,
+        conference: data.conference,
+        disclaimer: data.disclaimer,
         footer: data.footer,
         projectLink: data.projectLink,
         projectLinks: data.projectLinks,

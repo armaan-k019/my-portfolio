@@ -32,8 +32,13 @@ export default function ResearchSection({ entries }: { entries: ResearchEntry[] 
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <h3 className="font-display text-lg font-semibold text-darkblue leading-snug mb-1 group-hover:text-terracotta transition-colors">{entry.title}</h3>
-                  {entry.status && (
-                    <p className="meta text-terracotta/80 mb-1.5">{entry.status}</p>
+                  {(entry.conference || entry.status) && (
+                    <p className="meta text-terracotta/80 mb-1.5">
+                      {[entry.conference, entry.status].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
+                  {entry.disclaimer && (
+                    <p className="text-xs text-brown-light italic mb-1.5">{entry.disclaimer}</p>
                   )}
                   <p className="text-[13px] text-brown-light line-clamp-2 leading-relaxed">{entry.preview}</p>
                 </div>
@@ -55,8 +60,13 @@ export default function ResearchSection({ entries }: { entries: ResearchEntry[] 
           <div>
             <div className="mb-4">
               <h3 id="research-modal-title" className="font-display text-xl font-semibold text-ink leading-snug">{selected.title}</h3>
-              {selected.status && (
-                <p className="meta text-terracotta/80 mt-1.5">{selected.status}</p>
+              {(selected.conference || selected.status) && (
+                <p className="meta text-terracotta/80 mt-1.5">
+                  {[selected.conference, selected.status].filter(Boolean).join(" · ")}
+                </p>
+              )}
+              {selected.disclaimer && (
+                <p className="text-xs text-brown-light italic mt-1.5">{selected.disclaimer}</p>
               )}
             </div>
             <hr className="rule mb-4" />
