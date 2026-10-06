@@ -35,14 +35,18 @@ const columns = [
   { title: "Professional", entries: workEntries.filter((e) => !e.type) },
   { title: "Organizations", entries: workEntries.filter((e) => e.type === "studentOrg") },
   { title: "Research", entries: workEntries.filter((e) => e.type === "research") },
-];
+  { title: "Awards & Certifications", entries: workEntries.filter((e) => e.type === "award") },
+].filter((col) => col.entries.length > 0);
+
+// Static class names so Tailwind generates them.
+const lgCols: Record<number, string> = { 3: "lg:grid-cols-3", 4: "lg:grid-cols-4 lg:gap-x-8" };
 
 export default function WorkSection() {
   const [selected, setSelected] = useState<WorkEntry | null>(null);
 
   return (
     <>
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-14">
+      <div className={`grid md:grid-cols-2 ${lgCols[columns.length] ?? "lg:grid-cols-3"} gap-x-12 gap-y-14`}>
         {columns.map((col) => (
           <section key={col.title}>
             <h2 className="font-display text-xl font-semibold text-ink mb-1">{col.title}</h2>

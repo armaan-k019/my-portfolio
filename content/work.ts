@@ -11,7 +11,7 @@ export interface WorkEntry {
   link?: string;
   links?: { label: string; url: string }[];
   cardBg?: string;
-  type?: "studentOrg" | "research";
+  type?: "studentOrg" | "research" | "award";
 }
 
 export const workEntries: WorkEntry[] = [
