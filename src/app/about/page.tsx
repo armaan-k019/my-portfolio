@@ -9,7 +9,7 @@ const favColumns = [
     label: "Reads",
     labelColor: "text-darkblue",
     dotColor: "bg-darkblue",
-    items: ["The Catcher in the Rye", "The Odyssey", "A Canticle for Leibowitz"],
+    items: ["The Catcher in the Rye", "Crime and Punishment", "A Canticle for Leibowitz"],
   },
   {
     label: "Listens",
@@ -21,7 +21,7 @@ const favColumns = [
     label: "Sports Teams",
     labelColor: "text-darkblue",
     dotColor: "bg-darkblue",
-    items: ["Baltimore Ravens", "Washington Wizards", "Juventus"],
+    items: ["Baltimore Ravens", "Washington Wizards", "Brighton & Hove Albion"],
   },
   {
     label: "Favorite Architects",
