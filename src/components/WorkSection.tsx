@@ -67,8 +67,8 @@ export default function WorkSection() {
                         </span>
                         {roles.length === 1 ? (
                           <>
-                            <span className="text-sm text-brown-light">{entry.role}</span>
-                            <span className="meta whitespace-nowrap basis-full">{entry.dates}</span>
+                            {entry.role && <span className="text-sm text-brown-light">{entry.role}</span>}
+                            {entry.dates && <span className="meta whitespace-nowrap basis-full">{entry.dates}</span>}
                           </>
                         ) : (
                           <span className="flex flex-col gap-0.5">
@@ -96,9 +96,11 @@ export default function WorkSection() {
         {selected && (
           <div>
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-10 h-10 flex items-center justify-center overflow-hidden">
-                <LogoWithFallback src={selected.logo} alt={selected.name} imageClassName="object-contain max-h-10 max-w-10 w-auto h-auto" />
-              </div>
+              {selected.logo && (
+                <div className="w-10 h-10 flex items-center justify-center overflow-hidden">
+                  <LogoWithFallback src={selected.logo} alt={selected.name} imageClassName="object-contain max-h-10 max-w-10 w-auto h-auto" />
+                </div>
+              )}
               <div>
                 <h3 id="work-modal-title" className="font-display text-xl font-semibold text-ink">{selected.name}</h3>
                 {steps(selected.role).map((r, i) => (
@@ -110,7 +112,7 @@ export default function WorkSection() {
               </div>
             </div>
             <hr className="rule mb-4" />
-            <p className="text-xs text-brown-light mb-4">{selected.dates}</p>
+            {selected.dates && <p className="text-xs text-brown-light mb-4">{selected.dates}</p>}
             {SHOW_WORK_SUMMARIES && <p className="text-sm text-brown-light">{selected.summary}</p>}
             {selected.links && (
               <div className="flex flex-wrap gap-x-5 gap-y-2 mt-5">

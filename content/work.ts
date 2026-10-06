@@ -4,6 +4,7 @@ export const SHOW_WORK_SUMMARIES = false;
 
 export interface WorkEntry {
   name: string;
+  // Empty logo, role or dates are left out of the rendering.
   logo: string;
   role: string;
   dates: string;
@@ -114,5 +115,39 @@ export const workEntries: WorkEntry[] = [
     link: "",
     cardBg: "#ffffff",
     type: "studentOrg",
+  },
+  // Awards. Names and roles as the owner gave them on 2026-10-06; years and
+  // issuers not yet supplied, so dates and logos stay empty.
+  {
+    name: "Harvard Architectural Imagination",
+    logo: "",
+    role: "",
+    dates: "",
+    summary: "",
+    type: "award",
+  },
+  {
+    name: "Scheller Sustainability",
+    logo: "",
+    role: "Fellow + Ambassador",
+    dates: "",
+    summary: "",
+    type: "award",
+  },
+  {
+    name: "National Merit Scholar",
+    logo: "",
+    role: "",
+    dates: "",
+    summary: "",
+    type: "award",
+  },
+  {
+    name: "Georgia Tech Undergraduate Portfolio",
+    logo: "",
+    role: "Finalist",
+    dates: "",
+    summary: "",
+    type: "award",
   },
 ];
