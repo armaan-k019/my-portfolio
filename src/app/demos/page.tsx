@@ -31,8 +31,8 @@ const demoCards: DemoCard[] = [
   {
     slug: "illoca",
     company: "Illoca",
-    headline: "The Precedent Interpreter",
-    pitch: "Describe a project and get three precedent buildings, what to steal from each, and a first bubble diagram to start from.",
+    headline: "Pin-Up: where reviewers disagree",
+    pitch: "Four reviewers mark up one plan. A least squares solve over wall positions finds the closest compromise, overlays it like tracing paper, and ranks the requests nobody can satisfy together.",
     url: "/demos/illoca",
   },
   {
@@ -45,8 +45,8 @@ const demoCards: DemoCard[] = [
   {
     slug: "midjourney",
     company: "Midjourney",
-    headline: "Prompt Autopsy + 3D Parallax",
-    pitch: "Paste any Midjourney prompt and image URL. Get a full token-by-token autopsy, a reusable style DNA block, and a live 3D parallax scene reconstructed from your image.",
+    headline: "Taste Model: personalization in miniature",
+    pitch: "Pick between public-domain paintings. A Bradley-Terry model over eight measured image traits learns your taste, and chooses each next pair to learn the most from it.",
     url: "/demos/midjourney",
   },
   {

@@ -32,13 +32,13 @@ export const demos: Record<string, DemoConfig> = {
     url: "/demos/mayo-dental",
   },
 
-  // ── Midjourney — prompt autopsy + 3D parallax viewer ──────────────────────
+  // ── Midjourney: taste model (pairwise preference learning) ──────────────────
   "midjourney": {
     company: "Midjourney",
     role: "Prompt Research",
     accentColor: "#FF3366",
-    headline: "Prompt Autopsy + 3D Parallax",
-    pitch: "Paste any Midjourney prompt and image URL. Get a full token-by-token autopsy showing which words drove which visual choices, a reusable style DNA block, and a live 3D parallax scene reconstructed from your image.",
+    headline: "Taste Model: personalization in miniature",
+    pitch: "Pick between public-domain paintings. A Bradley-Terry model over eight measured image traits learns your taste, and chooses each next pair to learn the most from it.",
     sections: [],
     url: "/demos/midjourney",
   },
