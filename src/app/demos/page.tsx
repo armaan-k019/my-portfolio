@@ -31,8 +31,8 @@ const demoCards: DemoCard[] = [
   {
     slug: "illoca",
     company: "Illoca",
-    headline: "The Precedent Interpreter",
-    pitch: "Describe a project and get three precedent buildings, what to steal from each, and a first bubble diagram to start from.",
+    headline: "Pin-Up: where reviewers disagree",
+    pitch: "Four reviewers mark up one plan. A least squares solve over wall positions finds the closest compromise, overlays it like tracing paper, and ranks the requests nobody can satisfy together.",
     url: "/demos/illoca",
   },
   {
