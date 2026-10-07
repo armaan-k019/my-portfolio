@@ -45,8 +45,8 @@ const demoCards: DemoCard[] = [
   {
     slug: "midjourney",
     company: "Midjourney",
-    headline: "Prompt Autopsy + 3D Parallax",
-    pitch: "Paste any Midjourney prompt and image URL. Get a full token-by-token autopsy, a reusable style DNA block, and a live 3D parallax scene reconstructed from your image.",
+    headline: "Taste Model: personalization in miniature",
+    pitch: "Pick between public-domain paintings. A Bradley-Terry model over eight measured image traits learns your taste, and chooses each next pair to learn the most from it.",
     url: "/demos/midjourney",
   },
   {
