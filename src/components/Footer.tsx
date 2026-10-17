@@ -30,6 +30,9 @@ export default function Footer() {
           <Link href="/about" className="text-white/75 hover:text-tan transition-colors">
             About
           </Link>
+          <Link href="/" className="text-white/75 hover:text-tan transition-colors">
+            All sites
+          </Link>
         </nav>
         <p className="meta w-full" style={{ color: "rgba(255, 255, 255, 0.6)" }}>
           Want to get in touch with someone I&apos;ve worked with? Reach out and I&apos;ll make the introduction.
