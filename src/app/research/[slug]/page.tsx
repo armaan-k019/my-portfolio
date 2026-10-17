@@ -21,7 +21,7 @@ export default async function ResearchPage({ params }: { params: Promise<{ slug:
   return (
     <div className="max-w-3xl mx-auto px-6 py-16">
       <Link
-        href="/#research"
+        href="/home#research"
         className="text-sm text-terracotta hover:text-terracotta-dark transition-colors mb-8 inline-block"
       >
         &larr; Back to research

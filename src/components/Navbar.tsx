@@ -20,7 +20,7 @@ export default function Navbar() {
   const [activeSection, setActiveSection] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
-  const isHome = pathname === "/";
+  const isHome = pathname === "/home";
 
   const handleIntersection = useCallback((entries: IntersectionObserverEntry[]) => {
     for (const entry of entries) {
@@ -61,9 +61,12 @@ export default function Navbar() {
   const handleSectionClick = (id: string) => {
     setMobileOpen(false);
     if (!isHome) {
-      window.location.href = `/#${id}`;
+      window.location.href = `/home#${id}`;
     }
   };
+
+  // The chooser at / is a page of its own, without the site's navigation.
+  if (pathname === "/") return null;
 
   return (
     <>
@@ -75,7 +78,7 @@ export default function Navbar() {
         }}
       >
         <div className="max-w-5xl mx-auto px-6 flex items-center justify-between h-16">
-          <Link href="/" className="group flex items-center gap-3 shrink-0">
+          <Link href="/home" className="group flex items-center gap-3 shrink-0">
             <span
               className="text-darkblue select-none leading-none transition-transform duration-300 group-hover:scale-105"
               style={{ fontFamily: 'var(--font-amiri), "Amiri", serif', fontSize: '1.65rem' }}
@@ -90,7 +93,7 @@ export default function Navbar() {
             {sections.map((s) => (
               <a
                 key={s.id}
-                href={isHome ? `#${s.id}` : `/#${s.id}`}
+                href={isHome ? `#${s.id}` : `/home#${s.id}`}
                 onClick={(e) => { if (e.detail > 0) e.currentTarget.blur(); }}
                 className={navLinkClass(activeSection === s.id && isHome)}
               >
@@ -155,7 +158,7 @@ export default function Navbar() {
               {sections.map((s) => (
                 <a
                   key={s.id}
-                  href={isHome ? `#${s.id}` : `/#${s.id}`}
+                  href={isHome ? `#${s.id}` : `/home#${s.id}`}
                   className="text-lg text-brown hover:text-terracotta transition-colors"
                   onClick={(e) => { if (e.detail > 0) e.currentTarget.blur(); handleSectionClick(s.id); }}
                 >

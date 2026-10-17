@@ -64,7 +64,7 @@ export default function ArchProjectLayout({ content }: { content: ArchProjectCon
   return (
     <div className="max-w-3xl mx-auto px-6 py-16">
       <Link
-        href="/#projects"
+        href="/home#projects"
         className="text-sm text-terracotta hover:text-terracotta-dark transition-colors mb-12 inline-block"
       >
         &larr; Back to projects

@@ -296,7 +296,7 @@ export default function YieldPage() {
   return (
     <div className="max-w-3xl mx-auto px-6 py-16">
       <Link
-        href="/#projects"
+        href="/home#projects"
         className="text-sm text-terracotta hover:text-terracotta-dark transition-colors mb-8 inline-block"
       >
         &larr; Back to projects

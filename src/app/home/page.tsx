@@ -4,7 +4,7 @@ import ProjectsSection from "@/components/ProjectsSection";
 import ContactSection from "@/components/ContactSection";
 import NodeField from "@/components/NodeField";
 import ResearchSection from "@/components/ResearchSection";
-import { projects } from "../../content/projects";
+import { projects } from "../../../content/projects";
 import { getResearchEntries } from "@/lib/mdx";
 
 export default function Home() {
