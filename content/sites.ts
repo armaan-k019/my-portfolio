@@ -32,7 +32,7 @@ export const sites: Site[] = [
     name: "Lab",
     blurb: "kazi lab, a multi-agent research lab over a corpus of academic papers.",
     href: "https://lab.armaankazi.com",
-    note: "lab.armaankazi.com · view only without a password",
+    note: "lab.armaankazi.com · view only",
     external: true,
   },
   {
