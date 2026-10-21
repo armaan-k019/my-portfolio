@@ -1,54 +1,67 @@
-import WorkSection from "@/components/WorkSection";
-import AboutSection from "@/components/AboutSection";
-import ProjectsSection from "@/components/ProjectsSection";
-import ContactSection from "@/components/ContactSection";
-import NodeField from "@/components/NodeField";
-import ResearchSection from "@/components/ResearchSection";
-import { projects } from "../../content/projects";
-import { getResearchEntries } from "@/lib/mdx";
+import type { Metadata } from "next";
+import { sites } from "../../content/sites";
+import ChooserGrid, { type Tile } from "@/components/chooser/ChooserGrid";
+import SectionCut from "@/components/section-cut/SectionCut";
+import DraftingSheet from "@/components/chooser/DraftingSheet";
+import LabField from "@/components/chooser/LabField";
+import SkillsGraph, { type SkillsGraphData } from "@/components/chooser/SkillsGraph";
 
-export default function Home() {
-  const allProjects = projects;
-  // The Shape Machine lives on the Shape Computation Lab work entry instead.
-  const researchEntries = getResearchEntries().filter((e) => e.slug !== "shape-machine");
+export const metadata: Metadata = {
+  title: "Armaan Kazi",
+  description: "Website, architecture portfolio, research lab, and workflow.",
+};
+
+// Rebuilt daily so the Workflow tile follows the ark-skills repo.
+export const revalidate = 86400;
+
+const GRAPH_URL = "https://raw.githubusercontent.com/armaan-k019/ark-skills/main/viz/data/graph.json";
+
+// The public ark-skills graph, reduced to what the tile draws. On any failure
+// the tile shows no graph rather than a made-up one.
+async function loadSkillsGraph(): Promise<SkillsGraphData | null> {
+  try {
+    const res = await fetch(GRAPH_URL, { next: { revalidate } });
+    if (!res.ok) return null;
+    const g = await res.json();
+    return {
+      families: g.families.map((f: { id: string }) => f.id),
+      nodes: g.nodes.map((n: { id: string; kind: string; family: string; lines: number }) => ({
+        id: n.id, kind: n.kind, family: n.family, lines: n.lines,
+      })),
+      edges: g.edges.map((e: { source: string; target: string }) => ({ source: e.source, target: e.target })),
+    };
+  } catch {
+    return null;
+  }
+}
+
+// The chooser: armaankazi.com opens here, and each tile leads to one site.
+export default async function Chooser() {
+  const graph = await loadSkillsGraph();
+  const [website, portfolio, lab, workflow] = sites;
+  const tiles: Tile[] = [
+    { site: website, visual: (
+        // The hero drawing, kept above the tile's text. Its numeric readout is
+        // hidden here, and below md its canvas is pinned to the tile instead
+        // of taking the hero's 85vw height.
+        <div className="absolute inset-x-0 top-0 bottom-12 md:bottom-16 [&_dl]:hidden [&>div]:absolute [&>div]:inset-0 [&>div>div:first-child]:absolute [&>div>div:first-child]:inset-0 [&>div>div:first-child]:h-auto">
+          <SectionCut />
+        </div>
+      ), dark: false, surface: "bg-[var(--color-paper)]" },
+    { site: portfolio, visual: <DraftingSheet />, dark: false, surface: "bg-[#F7F2E8]" },
+    { site: lab, visual: <LabField />, dark: true, surface: "bg-[#0C120E]" },
+    { site: workflow, visual: graph ? <SkillsGraph data={graph} /> : null, dark: false, surface: "bg-white" },
+  ];
 
   return (
-    <div>
-      {/* About (merged Hero + About) */}
-      <AboutSection />
-
-      {/* Everything below the hero sits over the ambient node field. */}
-      <div className="relative">
-        <NodeField />
-        <div className="relative">
-          {/* Work */}
-          <section id="work" className="py-20 md:py-24">
-            <div className="max-w-5xl mx-auto px-6">
-              <h2 className="font-display display-md font-semibold text-darkblue mb-10">Experience</h2>
-              <WorkSection />
-            </div>
-          </section>
-
-          {/* Projects */}
-          <section id="projects" className="py-20 md:py-24">
-            <div className="max-w-5xl mx-auto px-6">
-              <h2 className="font-display display-md font-semibold text-darkblue mb-10">Selected Projects</h2>
-              <ProjectsSection projects={allProjects} />
-            </div>
-          </section>
-
-          {/* Research */}
-          <section id="research" className="py-20 md:py-24">
-            <div className="max-w-5xl mx-auto px-6">
-              <h2 className="font-display display-md font-semibold text-darkblue mb-10">Publications</h2>
-              <ResearchSection entries={researchEntries} />
-            </div>
-          </section>
-
-          {/* Contact */}
-          <ContactSection />
-        </div>
-      </div>
+    <div className="-mt-16 flex flex-col min-h-screen">
+      <header className="absolute inset-x-0 top-0 z-30 flex items-baseline justify-center gap-3 pt-6 md:pt-8">
+        <span className="text-tan leading-none" style={{ fontFamily: 'var(--font-amiri), "Amiri", serif', fontSize: "1.65rem" }}>
+          أك
+        </span>
+        <span className="font-display text-[17px] font-semibold text-[#EFF4EF] tracking-tight">Armaan Kazi</span>
+      </header>
+      <ChooserGrid tiles={tiles} />
     </div>
   );
 }
