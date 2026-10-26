@@ -26,4 +26,11 @@ export const projects: Project[] = [
     description: "Enter an address, confirm the point on a map, and Datum draws a 36 by 24 inch site analysis sheet: figure ground, streets, and water from OpenStreetMap; a walk shed computed from that street network with 5, 10, and 15 minute bands; contours and two sections from USGS 3DEP; seismic design values from the USGS ASCE 7-22 service; soil from the USDA SSURGO survey; flood hazard polygons from the FEMA National Flood Hazard Layer; tract demographics from the Census ACS 5-year tables; and wind roses and monthly climate normals from the Open-Meteo ERA5 archive. The sun path is computed in the app from the NOAA solar position equations, with the archive supplying only the time zone the sun times are printed in. Every number traces to a named source and a named field, and a source that fails shows an unavailable panel with the reason rather than a default. Building heights print only where OpenStreetMap carries a height tag; nothing is inferred from floor counts. A Claude written brief cites the data field behind every claim and the citations are checked on the server. Export is true vector SVG with one named group per layer, so the sheet opens in Illustrator and Rhino as a tracing base.",
     stack: ["Next.js", "Supabase", "OpenStreetMap", "USGS", "FEMA", "Census ACS", "Open-Meteo", "Claude API", "SVG"],
   },
+  {
+    slug: "acoustic-form",
+    title: "Acoustic Form",
+    blurb: "A 3D acoustic simulation tool for architectural shapes.",
+    description: "A browser-based tool that lets architects define a closed 3D shape by inputting vertices or describing it in natural language, then visualizes how sound waves propagate within that volume. Designed to give architects an intuitive, early-stage read on the acoustic behavior of a space before detailed modeling.",
+    stack: ["Three.js", "Next.js", "Claude API"],
+  },
 ];
