@@ -19,8 +19,8 @@ Acoustic Form is a browser-based 3D acoustic simulation tool for architectural s
 ## Run Locally
 
 ```bash
-git clone https://github.com/armaan-k019/acoustic-form
-cd acoustic-form
+git clone https://github.com/armaan-k019/my-portfolio
+cd my-portfolio
 npm install
 cp .env.example .env.local
 # Fill in your ANTHROPIC_API_KEY in .env.local
