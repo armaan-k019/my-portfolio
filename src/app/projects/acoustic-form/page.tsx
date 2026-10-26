@@ -353,7 +353,7 @@ export default function AcousticFormPage() {
             Two things came out of building it. Enriching the presets from bare names to descriptions like that one dramatically improved the generated forms, which is a plain lesson about giving a generative model real spatial context to work from. And scale constraints matter more than expected: a generated structure has to land near the default room&rsquo;s size or the acoustic simulation loses coherence.
           </p>
           <p className="text-base text-brown leading-relaxed">
-            Built in April 2026 as a personal project exploring computational design and acoustic experience. It is currently dormant and not actively maintained. The tool is desktop only; the 3D interactions do not translate to touch reliably, so phones and tablets see a notice instead. AI structure generation is offline pending an API key rotation. There are no screenshots or recorded walkthrough of it yet, which this page does not paper over.
+            Built in April 2026 as a personal project exploring computational design and acoustic experience. It is currently dormant and not actively maintained. The tool is desktop only; the 3D interactions do not translate to touch reliably, so phones and tablets see a notice instead. There are no screenshots or recorded walkthrough of it yet, which this page does not paper over.
           </p>
         </div>
 
