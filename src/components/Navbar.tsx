@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import SignatureMark from "./SignatureMark";
-import SiteHomeButtons from "./SiteHomeButtons";
+import AllSitesLink from "./AllSitesLink";
+import { sectionFor } from "@/lib/sections";
 
 const sections = [
   { id: "work", label: "Experience" },
@@ -20,9 +21,15 @@ const pages = [
 
 export default function Navbar() {
   const [activeSection, setActiveSection] = useState("");
-  const [mobileOpen, setMobileOpen] = useState(false);
+  // The drawer remembers the page it was opened on, so any navigation (the
+  // back button included) closes it and releases the scroll lock.
+  const [openPath, setOpenPath] = useState<string | null>(null);
   const pathname = usePathname();
   const isHome = pathname === "/home";
+  const section = sectionFor(pathname);
+  const isWebsite = section.id === "website";
+  const mobileOpen = isWebsite && openPath === pathname;
+  const setMobileOpen = (open: boolean) => setOpenPath(open ? pathname : null);
 
   const handleIntersection = useCallback((entries: IntersectionObserverEntry[]) => {
     for (const entry of entries) {
@@ -80,55 +87,75 @@ export default function Navbar() {
         }}
       >
         <div className="max-w-5xl mx-auto px-6 flex items-center justify-between h-16">
-          <Link href="/home" aria-label="Armaan Kazi, website home" className="group flex items-center gap-3 shrink-0">
-            <SignatureMark className="bg-darkblue transition-transform duration-300 group-hover:scale-105" />
-            <span className="hidden sm:inline font-display text-[15px] font-semibold text-darkblue tracking-tight">Armaan Kazi</span>
-          </Link>
-
-          <div className="flex items-center gap-3 lg:gap-6">
-            {/* Desktop nav */}
-            <div className="hidden lg:flex items-center gap-6 ml-16">
-              {sections.map((s) => (
-                <a
-                  key={s.id}
-                  href={isHome ? `#${s.id}` : `/home#${s.id}`}
-                  onClick={(e) => { if (e.detail > 0) e.currentTarget.blur(); }}
-                  className={navLinkClass(activeSection === s.id && isHome)}
-                >
-                  {s.label}
-                </a>
-              ))}
-
-              {/* Vertical separator */}
-              <div className="w-px h-[18px] bg-sage/30" />
-
-              {pages.map((p) => (
-                <Link
-                  key={p.href}
-                  href={p.href}
-                  onClick={(e) => { if (e.detail > 0) e.currentTarget.blur(); }}
-                  className={navLinkClass(pathname.startsWith(p.href))}
-                >
-                  {p.label}
-                </Link>
-              ))}
-            </div>
-
-            <div className="hidden lg:block w-px h-[18px] bg-sage/30" />
-            <SiteHomeButtons />
-
-            {/* Mobile hamburger */}
-            <button
-              className="lg:hidden flex flex-col gap-1 p-2"
-              onClick={() => setMobileOpen(!mobileOpen)}
-              aria-label="Toggle menu"
-              aria-expanded={mobileOpen}
-            >
-              <span className={`w-5 h-0.5 bg-darkblue transition-transform ${mobileOpen ? "rotate-45 translate-y-1.5" : ""}`} />
-              <span className={`w-5 h-0.5 bg-darkblue transition-opacity ${mobileOpen ? "opacity-0" : ""}`} />
-              <span className={`w-5 h-0.5 bg-darkblue transition-transform ${mobileOpen ? "-rotate-45 -translate-y-1.5" : ""}`} />
-            </button>
+          {/* Every section's header starts the same way: back to the four
+              sites, then the section's own name, which leads to its start. */}
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <AllSitesLink />
+            <div className="w-px h-[18px] bg-sage/30" />
+            {isWebsite ? (
+              <Link href="/home" aria-label="Armaan Kazi, website home" className="group flex items-center gap-3 shrink-0">
+                <SignatureMark className="bg-darkblue transition-transform duration-300 group-hover:scale-105" />
+                <span className="hidden sm:inline font-display text-[15px] font-semibold text-darkblue tracking-tight">Armaan Kazi</span>
+              </Link>
+            ) : (
+              <Link
+                href={section.start}
+                title={`Back to the start of ${section.name}`}
+                onClick={() => {
+                  // Already on the start page: go back to its top.
+                  if (pathname === section.start) window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                className="font-display text-[17px] font-semibold text-darkblue tracking-tight truncate hover:text-terracotta transition-colors"
+              >
+                {section.name}
+              </Link>
+            )}
           </div>
+
+          {/* Only the Website has page links; the other sections are single pages. */}
+          {isWebsite && (
+            <div className="flex items-center gap-3 lg:gap-6">
+              {/* Desktop nav */}
+              <div className="hidden lg:flex items-center gap-6">
+                {sections.map((s) => (
+                  <a
+                    key={s.id}
+                    href={isHome ? `#${s.id}` : `/home#${s.id}`}
+                    onClick={(e) => { if (e.detail > 0) e.currentTarget.blur(); }}
+                    className={navLinkClass(activeSection === s.id && isHome)}
+                  >
+                    {s.label}
+                  </a>
+                ))}
+
+                {/* Vertical separator */}
+                <div className="w-px h-[18px] bg-sage/30" />
+
+                {pages.map((p) => (
+                  <Link
+                    key={p.href}
+                    href={p.href}
+                    onClick={(e) => { if (e.detail > 0) e.currentTarget.blur(); }}
+                    className={navLinkClass(pathname.startsWith(p.href))}
+                  >
+                    {p.label}
+                  </Link>
+                ))}
+              </div>
+
+              {/* Mobile hamburger */}
+              <button
+                className="lg:hidden flex flex-col gap-1 p-2"
+                onClick={() => setMobileOpen(!mobileOpen)}
+                aria-label="Toggle menu"
+                aria-expanded={mobileOpen}
+              >
+                <span className={`w-5 h-0.5 bg-darkblue transition-transform ${mobileOpen ? "rotate-45 translate-y-1.5" : ""}`} />
+                <span className={`w-5 h-0.5 bg-darkblue transition-opacity ${mobileOpen ? "opacity-0" : ""}`} />
+                <span className={`w-5 h-0.5 bg-darkblue transition-transform ${mobileOpen ? "-rotate-45 -translate-y-1.5" : ""}`} />
+              </button>
+            </div>
+          )}
         </div>
       </nav>
 
