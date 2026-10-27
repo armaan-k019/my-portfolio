@@ -44,7 +44,7 @@ export default function ChooserGrid({ tiles }: { tiles: Tile[] }) {
     <div
       ref={stageRef}
       onPointerMove={onMove}
-      className="relative flex-1 flex flex-col items-center justify-center px-4 py-10 overflow-hidden"
+      className="relative flex-1 flex flex-col items-center justify-center px-4 pt-24 pb-10 md:pt-28 overflow-hidden"
       style={{
         backgroundColor: "#0F1A12",
         backgroundImage: [
