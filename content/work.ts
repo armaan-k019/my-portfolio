@@ -19,6 +19,16 @@ export interface WorkEntry {
 
 export const workEntries: WorkEntry[] = [
   {
+    name: "Illoca",
+    logo: "",
+    role: "Shapers Program",
+    dates: "Oct 2026 – Present",
+    summary: "",
+    link: "https://illoca.com/",
+    links: [{ label: "Demo: The Precedent Interpreter", url: "/demos/illoca" }],
+    cardBg: "#ffffff",
+  },
+  {
     name: "Rho",
     logo: "/logos/rho.png",
     role: "Engineering Intern",
@@ -153,6 +163,13 @@ export const workEntries: WorkEntry[] = [
     role: "Fellow + Ambassador",
     dates: "",
     summary: "",
+    links: [
+      {
+        label: "Scheller Sustainability Fellows + Ambassadors",
+        url: "https://www.scheller.gatech.edu/centers-and-initiatives/ray-c-anderson-center-for-sustainable-business/education/fellows-ambassadors/index.html",
+      },
+      { label: "Chainparency", url: "https://chainparency.com/" },
+    ],
     type: "award",
   },
   {
