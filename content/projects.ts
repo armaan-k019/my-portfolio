@@ -27,6 +27,14 @@ export const projects: Project[] = [
     stack: ["Next.js", "Supabase", "OpenStreetMap", "USGS", "FEMA", "Census ACS", "Open-Meteo", "Claude API", "SVG"],
   },
   {
+    slug: "options-consistency",
+    title: "Options vs. Polymarket",
+    blurb: "Do Polymarket BTC and ETH threshold contracts agree with the probabilities implied by Deribit options?",
+    description: "A pre-registered study comparing Polymarket \"above $X at time T\" contracts with the probability implied by Deribit options for the same event: which is better calibrated against realized outcomes, where gaps concentrate, and whether any gap survives spread, fees and hedging cost. A live logger snapshots both venues every 60 seconds. The option side is Black-76 on an SVI smile, interpolated in total variance to the contract's resolution time, with the smile slope term in the digital probability. The hypotheses were committed before any code touched real outcomes, and the primary runs are registered for November 1 and December 1, 2026. No results yet.",
+    stack: ["Python", "Black-76", "SVI", "Deribit", "Polymarket", "Parquet"],
+    status: "In Progress",
+  },
+  {
     slug: "acoustic-form",
     title: "Acoustic Form",
     blurb: "A 3D acoustic simulation tool for architectural shapes.",
