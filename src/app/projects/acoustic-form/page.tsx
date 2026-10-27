@@ -321,46 +321,20 @@ export default function AcousticFormPage() {
   return (
     <div className="py-16">
 
-      {/* Case study shell, patterned on /projects/framed */}
       <div className="max-w-3xl mx-auto px-6">
         <Link
-          href="/#projects"
-          className="text-sm text-terracotta hover:text-terracotta-dark transition-colors mb-12 inline-block"
+          href="/home#projects"
+          className="text-sm text-terracotta hover:text-terracotta-dark transition-colors mb-8 inline-block"
         >
           &larr; Back to projects
         </Link>
 
-        <header className="mb-14">
+        <header className="mb-10">
           <h1 className="text-4xl font-semibold text-darkblue tracking-tight mb-3">Acoustic Form</h1>
-          <p className="text-sm text-brown-light">April 2026 &middot; Personal Project &middot; Next.js &middot; Three.js &middot; Claude &middot; Desktop only</p>
-          <div className="w-10 h-[2px] bg-terracotta mt-5" />
+          <p className="text-brown-light leading-relaxed">
+            A 3D acoustic simulation tool for architectural shapes. Assign materials to a room&rsquo;s surfaces and see how sound moves through it.
+          </p>
         </header>
-
-        <div className="space-y-6 mb-14">
-          <p className="text-base text-brown leading-relaxed">
-            Acoustic Form is a browser based structural acoustics visualizer. It renders a three dimensional interior, lets you assign materials to its surfaces, runs an acoustic simulation against that geometry, and can generate a new interior from a written architectural description.
-          </p>
-          <p className="text-base text-brown leading-relaxed">
-            Understanding how a room&rsquo;s form shapes its sound normally requires tools like Odeon or EASE and an acoustic engineer to run them. Most architects never get that feedback during early design, which is the only point at which it would change the shape of the room. Acoustic Form tries to make the relationship between form and sound legible to a non specialist by putting the simulation next to the model and letting the form itself be prompted.
-          </p>
-          <p className="text-base text-brown leading-relaxed">
-            Three.js renders a default room of roughly 10 by 8 by 4 units. A materials panel assigns surfaces to walls, floor, and ceiling, and the simulation recomputes against the current geometry and assignments. A structure generator accepts an architectural description and returns a matching form scaled into the default room&rsquo;s bounding box; Claude does the generation. Eight presets ship with it (Ziggurat, Eiffel Tower, Castle, Cathedral, Pyramid, Pagoda, Colosseum, Lighthouse), and each one is a full description rather than a name. The Cathedral preset reads:
-          </p>
-          <blockquote className="border-l-2 border-terracotta pl-5 text-sm text-brown-light leading-relaxed italic">
-            &ldquo;A Gothic cathedral nave interior 40 meters long, 18 meters wide, and 28 meters tall at the vault crown. Pointed stone ribbed vaulting overhead, thick stone columns dividing the nave from side aisles, large stained glass clerestory windows, a stone floor, and an apse at the east end. Extremely long reverberation time expected due to hard parallel surfaces and height.&rdquo;
-          </blockquote>
-          <p className="text-base text-brown leading-relaxed">
-            Two things came out of building it. Enriching the presets from bare names to descriptions like that one dramatically improved the generated forms, which is a plain lesson about giving a generative model real spatial context to work from. And scale constraints matter more than expected: a generated structure has to land near the default room&rsquo;s size or the acoustic simulation loses coherence.
-          </p>
-          <p className="text-base text-brown leading-relaxed">
-            Built in April 2026 as a personal project exploring computational design and acoustic experience. It is currently dormant and not actively maintained. The tool is desktop only; the 3D interactions do not translate to touch reliably, so phones and tablets see a notice instead. There are no screenshots or recorded walkthrough of it yet, which this page does not paper over.
-          </p>
-        </div>
-
-        <p className="text-sm font-semibold tracking-widest uppercase text-terracotta mb-4">The tool</p>
-        <p className="text-sm text-brown-light leading-relaxed mb-6">
-          Desktop required. The viewer below runs in a desktop browser with the 3D room, materials, and simulation working; structure generation is disabled until the key rotation. Live demo pending capture of session assets; contact for a walkthrough.
-        </p>
       </div>
 
       <div className="lg:hidden max-w-3xl mx-auto px-6">
