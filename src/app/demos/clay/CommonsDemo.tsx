@@ -275,6 +275,76 @@ function RegimeMap({ current }: { current: { personalCost: number; targetCost: n
   );
 }
 
+// ─── Explainer ────────────────────────────────────────────────────────────────
+
+const SAMPLE_EVERY = 15;
+
+function Explainer({ sim, personalCost, targetCost, running }: { sim: Sim; personalCost: number; targetCost: number; running: boolean }) {
+  type Status = "idle" | "loading" | "done" | "error";
+  const [saved, setState] = useState<{ sim: Sim | null; status: Status; text: string; day: number }>({ sim: null, status: "idle", text: "", day: 0 });
+  // An explanation belongs to one run. A reset, preset, seed or slider change makes a new sim and clears it.
+  const state = saved.sim === sim ? saved : { sim, status: "idle" as Status, text: "", day: 0 };
+
+  const h = sim.history;
+  const ready = !running && h.length >= SAMPLE_EVERY * 2;
+
+  async function explain() {
+    const rows = h.filter((d, k) => k % SAMPLE_EVERY === 0 || k === h.length - 1).map((d) => ({
+      day: d.day,
+      replies: d.replies,
+      trust: d.trust,
+      inbox: d.inbox,
+      shares: d.shares,
+    }));
+    const day = sim.day;
+    setState({ sim, status: "loading", text: "", day });
+    try {
+      const res = await fetch("/api/demos/clay/explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ personalCost, targetCost, days: day, rows }),
+      });
+      const data = (await res.json()) as { text?: string; error?: string };
+      if (data.text) setState({ sim, status: "done", text: data.text, day });
+      else setState({ sim, status: "error", text: data.error ?? "The explainer could not be reached. Try again.", day });
+    } catch {
+      setState({ sim, status: "error", text: "The explainer could not be reached. Try again.", day });
+    }
+  }
+
+  return (
+    <div className="rounded-xl border p-4" style={{ borderColor: "#e5e0d8", backgroundColor: "#ffffff" }}>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#9a8a7a" }}>What happened in this run</p>
+        <button
+          onClick={explain}
+          disabled={!ready || state.status === "loading"}
+          className="text-xs font-semibold px-3 py-1.5 rounded-lg border transition-opacity disabled:opacity-50"
+          style={{ borderColor: "#2d5a27", color: "#2d5a27" }}
+        >
+          {state.status === "loading" ? "Reading the run" : state.status === "done" ? "Explain again" : "Explain this run"}
+        </button>
+      </div>
+      {state.status === "idle" && (
+        <p className="text-xs mt-2 leading-relaxed" style={{ color: "#9a8a7a" }}>
+          {ready ? "Claude reads the numbers from this run and explains the turns." : "Run at least 30 days, then pause or let it finish."}
+        </p>
+      )}
+      {state.status === "done" && (
+        <div className="mt-3 space-y-2">
+          {state.text.split(/\n\s*\n/).map((para, k) => (
+            <p key={k} className="text-sm leading-relaxed" style={{ color: "#1a1a1a" }}>{para}</p>
+          ))}
+          <p className="text-[10px]" style={{ color: "#9a8a7a" }}>Written by Claude from days 0 to {state.day - 1} of this run.</p>
+        </div>
+      )}
+      {state.status === "error" && (
+        <p className="text-xs mt-2" style={{ color: "#c2410c" }}>{state.text}</p>
+      )}
+    </div>
+  );
+}
+
 // ─── Demo ─────────────────────────────────────────────────────────────────────
 
 export default function CommonsDemo() {
@@ -462,6 +532,8 @@ export default function CommonsDemo() {
           <SharesChart history={h} days={days} sellers={sim.params.sellers} />
         </div>
       </div>
+
+      <Explainer sim={sim} personalCost={personalCost} targetCost={targetCost} running={running} />
 
       {/* Regime map */}
       <div className="rounded-xl border p-4" style={{ borderColor: "#e5e0d8", backgroundColor: "#ffffff" }}>
