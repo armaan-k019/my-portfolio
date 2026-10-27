@@ -265,6 +265,8 @@ type AnticPose = {
   eyesClosed?: number; // 0..1
   gazeFollow?: number; // 0..1 extra cursor-follow weight
   sparkle?: boolean; // request a small sparkle burst
+  footL?: number; // added foot lift (running)
+  footR?: number;
 };
 type AnticDef = { name: string; duration: number; weight: number; pose: (p: number, r: number) => AnticPose };
 
@@ -394,6 +396,93 @@ const ANTICS: AnticDef[] = [
       flipR: -(1.9 + 0.5 * Math.sin(p * 26)) * plateau(p, 0.28, 0.4, 0.7, 0.88),
       rotZ: -0.04 * plateau(p, 0.28, 0.4, 0.7, 0.88),
     }),
+  },
+  // Guide antics. Weight 0 means never picked at random: "fly" and "run"
+  // only make sense while BirdGuide moves the whole bird across the page, and
+  // their durations match the page-level paths there.
+  {
+    name: "fly",
+    duration: 5.2,
+    weight: 0,
+    pose: (p) => {
+      const air = plateau(p, 0.04, 0.14, 0.86, 0.97);
+      return {
+        flipL: (0.6 + 1.3 * Math.sin(p * 150)) * air,
+        flipR: -(0.6 + 1.3 * Math.sin(p * 150)) * air,
+        y: 0.16 * air + 0.03 * Math.sin(p * 40) * air,
+        rotX: 0.22 * air,
+        rotZ: 0.22 * Math.sin(p * Math.PI * 2) * air, // banks into the turns
+        squashDelta: -0.1 * win(p, 0, 0.06) + 0.06 * air - 0.12 * win(p, 0.94, 1),
+        footL: 0.05 * air,
+        footR: 0.05 * air,
+      };
+    },
+  },
+  {
+    name: "run",
+    duration: 4.0,
+    weight: 0,
+    pose: (p) => {
+      const go = plateau(p, 0.02, 0.08, 0.92, 0.98);
+      const stride = Math.sin(p * 70);
+      return {
+        // Faces left on the way out, right on the way back.
+        rotY: -0.85 * plateau(p, 0.0, 0.06, 0.42, 0.5) + 0.85 * plateau(p, 0.5, 0.58, 0.94, 1),
+        rotX: 0.2 * go,
+        rotZ: 0.1 * stride * go,
+        y: 0.06 * Math.abs(stride) * go,
+        flipL: 1.6 * Math.sin(p * 90) * go, // panicked windmilling
+        flipR: -1.6 * Math.sin(p * 90 + Math.PI) * go,
+        footL: 0.09 * Math.max(0, stride) * go,
+        footR: 0.09 * Math.max(0, -stride) * go,
+        squashDelta: 0.04 * go,
+      };
+    },
+  },
+  {
+    name: "faceplant",
+    duration: 2.8,
+    weight: 0.5,
+    pose: (p) => ({
+      // Trips, lies there a beat, pops back up and shakes it off.
+      rotX: 0.95 * plateau(p, 0.08, 0.2, 0.5, 0.62),
+      y: -0.06 * plateau(p, 0.08, 0.2, 0.5, 0.62),
+      flipL: 1.6 * win(p, 0.06, 0.24),
+      flipR: -1.6 * win(p, 0.06, 0.24),
+      eyesClosed: plateau(p, 0.18, 0.22, 0.5, 0.58),
+      rotY: 0.3 * Math.sin((p - 0.66) * 60) * win(p, 0.66, 0.9),
+      squashDelta: -0.1 * win(p, 0.55, 0.68),
+      sparkle: p >= 0.62 && p <= 0.66,
+    }),
+  },
+  {
+    name: "barrel_roll",
+    duration: 1.8,
+    weight: 0.45,
+    pose: (p) => ({
+      squashDelta: -0.12 * win(p, 0, 0.2) - 0.1 * win(p, 0.82, 0.96),
+      y: 0.22 * win(p, 0.2, 0.84),
+      rotZ: p >= 0.25 && p < 0.78 ? Math.PI * 2 * easeInOutCubic((p - 0.25) / 0.53) : p >= 0.78 ? Math.PI * 2 : 0,
+      flipL: 1.2 * win(p, 0.2, 0.8),
+      flipR: -1.2 * win(p, 0.2, 0.8),
+    }),
+  },
+  {
+    name: "moonwalk",
+    duration: 3.4,
+    weight: 0.45,
+    pose: (p) => {
+      const slide = plateau(p, 0.05, 0.12, 0.88, 0.95);
+      const step = Math.sin(p * 44);
+      return {
+        rotY: 0.75 * slide, // faces right while gliding left
+        x: -0.32 * Math.sin(Math.PI * p) * slide,
+        footL: 0.06 * Math.max(0, step) * slide,
+        footR: 0.06 * Math.max(0, -step) * slide,
+        rotX: -0.08 * slide,
+        flipR: -0.6 * slide,
+      };
+    },
   },
 ];
 
@@ -892,7 +981,7 @@ export function GuideBird3D({
     let lastAnticName = "";
     let nextAnticAt = performance.now() + 5000;
     const pickAntic = (prof: BotProfile): AnticDef => {
-      const pool = ANTICS.filter((a) => a.name !== lastAnticName);
+      const pool = ANTICS.filter((a) => a.weight > 0 && a.name !== lastAnticName);
       const weights = pool.map((a) => a.weight * (prof.anticWeights[a.name] ?? 1));
       const total = weights.reduce((s, w) => s + w, 0);
       let r = rand() * total;
@@ -1119,6 +1208,11 @@ export function GuideBird3D({
         if (ap >= 1) {
           activeAntic = null;
           anticForced = false;
+          // Full turns (spin, barrel roll) end a whole turn away from rest;
+          // drop the turn so the ease back does not unwind it.
+          const TURN = Math.PI * 2;
+          cur.rotY -= TURN * Math.round(cur.rotY / TURN);
+          cur.rotZ -= TURN * Math.round(cur.rotZ / TURN);
         } else {
           aPose = activeAntic.pose(ap, anticSeed);
           if (!anticAllowed && anticFade < 0.02) {
@@ -1189,8 +1283,8 @@ export function GuideBird3D({
       lean.rotation.y = cur.rotY;
       flipperL.rotation.z = cur.flipL;
       flipperR.rotation.z = cur.flipR;
-      feet[0].position.y = feetBaseY[0] + footL;
-      feet[1].position.y = feetBaseY[1] + footR;
+      feet[0].position.y = feetBaseY[0] + footL + (aPose.footL ?? 0) * af;
+      feet[1].position.y = feetBaseY[1] + footR + (aPose.footR ?? 0) * af;
 
       // Eyes: arcs crossfade with open eyes at the halfway point; sad tilts
       // outer corners down; gaze shifts the whole face subtly (antic

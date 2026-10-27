@@ -27,6 +27,22 @@ const BUBBLE_HOLD_PER_CHAR_MS = 45;
 const SUCCESS_HOLD_MS = 1_300;
 const ERROR_HOLD_MS = 2_400;
 const HIDDEN_KEY = "guide-hidden";
+// Excursions: now and then the bird leaves its corner, flying a loop over the
+// page or sprinting off and back. Durations match the "fly" and "run" antics.
+const FIRST_EXCURSION_MS = 22_000;
+const EXCURSION_INTERVAL_MS = 40_000;
+const EXCURSION_JITTER_MS = 30_000;
+const FLY_MS = 5_200;
+const RUN_MS = 4_000;
+const FIRST_QUIP: Quip = { text: "Click on me to ask me anything about Armaan." };
+
+// Page-level paths as [x, y] offsets from the corner, in viewport units.
+const FLY_PATH: [number, number][] = [
+  [0, 0], [-6, -14], [-22, -34], [-40, -40], [-52, -26], [-40, -12], [-24, -22], [-10, -12], [0, 0],
+];
+const RUN_PATH: { offset: number; x: number }[] = [
+  { offset: 0, x: 0 }, { offset: 0.45, x: -45 }, { offset: 0.55, x: -45 }, { offset: 1, x: 0 },
+];
 
 const SUGGESTIONS = [
   "How can I get in contact with Armaan?",
@@ -90,21 +106,30 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
   const lastQuipRef = useRef(-1);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const flightRef = useRef<HTMLDivElement | null>(null);
   const openRef = useRef(open);
   openRef.current = open;
+  const busyRef = useRef(false); // a quip or a question is in progress
+  busyRef.current = quip !== null || pending || birdState !== "idle";
 
   useEffect(() => {
     setHidden(readHidden());
     setSize(window.matchMedia("(max-width: 640px)").matches ? BIRD_SIZE_MOBILE_PX : BIRD_SIZE_PX);
   }, []);
 
-  // Occasional quips, never the same one twice in a row.
+  // Occasional quips, never the same one twice in a row. The first one of a
+  // visit always says what clicking does.
   useEffect(() => {
     if (hidden) return;
     let timer = 0;
+    let first = true;
     const schedule = (delay: number) => {
       timer = window.setTimeout(() => {
-        if (!openRef.current && document.visibilityState === "visible") {
+        if (first && !openRef.current) {
+          first = false;
+          setQuip(FIRST_QUIP);
+          apiRef.current?.fireAntic("notice_wave");
+        } else if (!openRef.current && document.visibilityState === "visible") {
           let i = Math.floor(Math.random() * QUIPS.length);
           if (i === lastQuipRef.current) i = (i + 1) % QUIPS.length;
           lastQuipRef.current = i;
@@ -116,6 +141,39 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
     };
     schedule(FIRST_QUIP_MS);
     return () => window.clearTimeout(timer);
+  }, [hidden]);
+
+  // Excursions: fly a loop or sprint off and back, only while nothing else is
+  // going on, and never with reduced motion.
+  useEffect(() => {
+    if (hidden) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let timer = 0;
+    let anim: Animation | null = null;
+    const schedule = (delay: number) => {
+      timer = window.setTimeout(() => {
+        const el = flightRef.current;
+        if (el && !openRef.current && !busyRef.current && document.visibilityState === "visible") {
+          const fly = Math.random() < 0.5;
+          apiRef.current?.fireAntic(fly ? "fly" : "run");
+          anim = fly
+            ? el.animate(
+                FLY_PATH.map(([x, y]) => ({ transform: `translate(${x}vw, ${y}vh)` })),
+                { duration: FLY_MS, easing: "ease-in-out" },
+              )
+            : el.animate(
+                RUN_PATH.map((k) => ({ offset: k.offset, transform: `translateX(${k.x}vw)` })),
+                { duration: RUN_MS, easing: "cubic-bezier(0.45, 0, 0.55, 1)" },
+              );
+        }
+        schedule(EXCURSION_INTERVAL_MS + Math.random() * EXCURSION_JITTER_MS);
+      }, delay);
+    };
+    schedule(FIRST_EXCURSION_MS);
+    return () => {
+      window.clearTimeout(timer);
+      anim?.cancel();
+    };
   }, [hidden]);
 
   // Typewriter reveal, then hold scaled to length, then clear.
@@ -321,7 +379,7 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
         </div>
       )}
 
-      <div className="pointer-events-auto">
+      <div ref={flightRef} className="pointer-events-auto will-change-transform">
         <GuideBird3D
           state={birdState}
           size={size}
