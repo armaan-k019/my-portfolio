@@ -80,11 +80,14 @@ function parseReply(text: string): { lines: GuideLine[]; links: string[] } | nul
     const raw = Array.isArray(obj.lines) ? obj.lines : typeof obj.answer === "string" ? [{ who: "huginn", text: obj.answer }] : [];
     const lines = raw
       .filter((l): l is GuideLine =>
-        typeof l === "object" && l !== null && (l.who === "huginn" || l.who === "muninn") && typeof l.text === "string" && l.text.trim() !== "")
-      .slice(0, 2);
-    if (lines.length === 0) return null;
+        typeof l === "object" && l !== null && (l.who === "huginn" || l.who === "muninn") && typeof l.text === "string" && l.text.trim() !== "");
+    // Huginn always answers first; Muninn gets at most one line after him.
+    const answerLine = lines.find((l) => l.who === "huginn");
+    if (!answerLine) return null;
+    const quip = lines.find((l) => l.who === "muninn");
+    const ordered = quip ? [answerLine, quip] : [answerLine];
     const links = Array.isArray(obj.links) ? obj.links.filter((l): l is string => typeof l === "string") : [];
-    return { lines, links };
+    return { lines: ordered, links };
   } catch {
     return null;
   }

@@ -181,6 +181,9 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
     const schedule = (delay: number) => {
       timer = window.setTimeout(() => {
         if (!openRef.current && !busyRef.current && document.visibilityState === "visible") {
+          // Only the current excursion is kept, so finished ones are released.
+          anims.splice(0).forEach((a) => a.cancel());
+          followTimers.splice(0).forEach((t) => window.clearTimeout(t));
           const fly = Math.random() < 0.5;
           // Huginn leads, Muninn follows a beat behind on the same path.
           BIRDS.forEach((b) => {
