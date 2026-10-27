@@ -117,16 +117,6 @@ export function calculateSurfaceArea(vertices: Vector3D[], faces: Face[]): numbe
   return area;
 }
 
-/** Sabine's formula: RT60 = 0.161 * V / A, where A = Σ(Si * αi) */
-export function calculateRT60(
-  volume: number,
-  surfaceArea: number,
-  absorptionCoeff = 0.2,
-): number {
-  if (surfaceArea < 1e-6 || absorptionCoeff < 1e-6) return 0;
-  return (0.161 * volume) / (surfaceArea * absorptionCoeff);
-}
-
 /**
  * Computes RT60 per octave band using Sabine's formula with per-surface materials.
  * For each band b: A_b = Σ(area_group * alpha_material_b), RT60_b = 0.161*V / A_b
