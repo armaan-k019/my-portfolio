@@ -26,7 +26,7 @@ export default function CorvidExplorer({ snapshot }: { snapshot: Pick<CorvidSnap
               onMouseEnter={() => setHover(c.index)}
               onClick={() => setPinned((p) => (p === c.index ? null : c.index))}
               aria-pressed={pinned === c.index}
-              className={`meta flex items-center gap-2 transition-colors ${active === null || active === c.index ? "text-brown" : "text-brown-light/60"}`}
+              className={`meta flex items-center gap-2 text-left transition-colors ${active === null || active === c.index ? "text-brown" : "text-brown-light/60"}`}
             >
               <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: communityColor(c.index) }} />
               {c.label}

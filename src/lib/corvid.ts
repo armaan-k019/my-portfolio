@@ -33,7 +33,7 @@ export interface CorvidSnapshot {
   counts: { papers: number; communities: number; findings: number; libraries: number };
   communities: { index: number; label: string; size: number | null }[];
   nodes: CorvidNode[];
-  edges: [number, number][];
+  edges: [number, number, number][]; // [from, to, weight]
   findings: CorvidFinding[];
   libraries: CorvidLibrary[];
 }
@@ -46,4 +46,10 @@ export const UNASSIGNED_COLOR = "#8a95a8";
 
 export function communityColor(index: number | null): string {
   return index === null || index < 0 ? UNASSIGNED_COLOR : COMMUNITY_COLORS[index % COMMUNITY_COLORS.length];
+}
+
+const FIELD_NAMES = new Map(corvid.communities.map((c) => [c.index, c.label]));
+
+export function communityLabel(index: number): string {
+  return FIELD_NAMES.get(index) ?? `field ${index}`;
 }
