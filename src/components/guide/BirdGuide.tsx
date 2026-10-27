@@ -14,8 +14,8 @@ import { QUIPS, type Quip } from "@/lib/guide/quips";
 // dropped into the other sites, pointed at this site's /api/guide.
 // ---------------------------------------------------------------------------
 
-const BIRD_SIZE_PX = 96;
-const BIRD_SIZE_MOBILE_PX = 72;
+const BIRD_SIZE_PX = 116;
+const BIRD_SIZE_MOBILE_PX = 84;
 // Quips: the first comes a little after load, then occasionally, never while
 // the chat is open or the tab is hidden.
 const FIRST_QUIP_MS = 7_000;
