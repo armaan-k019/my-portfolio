@@ -95,7 +95,8 @@ export class BookScene {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.setClearColor(0x000000, 0);
-    this.renderer.domElement.style.touchAction = "none";
+    // Vertical swipes scroll the page (down to the footer); horizontal ones turn pages.
+    this.renderer.domElement.style.touchAction = "pan-y";
     this.renderer.domElement.setAttribute("aria-hidden", "true");
     host.appendChild(this.renderer.domElement);
 
@@ -569,6 +570,15 @@ export class BookScene {
     if (ptr.leaf && ptr.local) return ptr.local.x >= 0 ? this.next() : this.prev();
   };
 
+  // The browser took the gesture (a vertical scroll): drop it without turning anything.
+  private onCancel = (e: PointerEvent) => {
+    const ptr = this.pointer;
+    if (!ptr || ptr.id !== e.pointerId) return;
+    this.pointer = null;
+    this.renderer.domElement.style.cursor = "default";
+    if (ptr.dragging && ptr.leaf) this.turn(ptr.leaf.index, ptr.leaf.target, 0);
+  };
+
   private onLeave = () => {
     this.parallaxGoal.set(0, 0);
     if (this.peeked) this.nudge(this.peeked, this.peeked.target);
@@ -580,7 +590,7 @@ export class BookScene {
     el.addEventListener("pointermove", this.onMove);
     el.addEventListener("pointerdown", this.onDown);
     el.addEventListener("pointerup", this.onUp);
-    el.addEventListener("pointercancel", this.onUp);
+    el.addEventListener("pointercancel", this.onCancel);
     el.addEventListener("pointerleave", this.onLeave);
   }
 
@@ -589,7 +599,7 @@ export class BookScene {
     el.removeEventListener("pointermove", this.onMove);
     el.removeEventListener("pointerdown", this.onDown);
     el.removeEventListener("pointerup", this.onUp);
-    el.removeEventListener("pointercancel", this.onUp);
+    el.removeEventListener("pointercancel", this.onCancel);
     el.removeEventListener("pointerleave", this.onLeave);
   }
 }

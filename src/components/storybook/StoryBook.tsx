@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useReducedMotion } from "framer-motion";
 import { storybook } from "../../../content/storybook";
 import { facingPages, flippedForPage, leafCount, paginate, type PageSide } from "@/lib/storybook/paginate";
-import { BookScene, type BookState } from "./book-scene";
+import type { BookScene, BookState } from "./book-scene";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -35,17 +35,20 @@ export default function StoryBook() {
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
-    let scene: BookScene;
-    try {
-      scene = new BookScene(host, storybook, layout, reduce, setState);
-    } catch {
-      // WebGL is unavailable; show the text version of the pages instead.
-      queueMicrotask(() => setFailed(true));
-      return;
-    }
-    sceneRef.current = scene;
+    // Three.js loads with the scene, only on this route and only in the browser.
+    let scene: BookScene | null = null;
+    let cancelled = false;
+    import("./book-scene")
+      .then(({ BookScene }) => {
+        if (cancelled) return;
+        scene = new BookScene(host, storybook, layout, reduce, setState);
+        sceneRef.current = scene;
+      })
+      // WebGL is unavailable (or the chunk failed); show the text version of the pages instead.
+      .catch(() => { if (!cancelled) setFailed(true); });
     return () => {
-      scene.dispose();
+      cancelled = true;
+      scene?.dispose();
       sceneRef.current = null;
     };
   }, [layout, reduce]);
@@ -54,6 +57,8 @@ export default function StoryBook() {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (target?.closest("input, textarea, select, [contenteditable]")) return;
+      // Inside the contents menu, paging keys scroll the list rather than the book.
+      if (target?.closest("[data-book-menu]") && e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Escape") return;
       const scene = sceneRef.current;
       if (!scene) return;
       if (e.key === "ArrowRight" || e.key === "PageDown") scene.next();
@@ -137,7 +142,7 @@ export default function StoryBook() {
       {!failed && (
         <nav aria-label="Book controls" className="absolute inset-x-0 bottom-0 z-10 flex flex-col items-center gap-3 pb-5 md:pb-7 px-4">
           {menu && (
-            <div className="w-full max-w-sm max-h-[calc(100svh-15rem)] overflow-y-auto bg-[#0C120E]/95 ring-1 ring-white/10 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.8)] p-2">
+            <div data-book-menu className="w-full max-w-sm max-h-[calc(100svh-15rem)] overflow-y-auto bg-[#0C120E]/95 ring-1 ring-white/10 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.8)] p-2">
               <button onClick={() => { sceneRef.current?.goTo(0); setMenu(false); }} className="w-full flex justify-between px-3 py-2 text-left font-mono text-[12px] text-[#EFF4EF]/80 hover:bg-white/5 hover:text-tan">
                 <span>Cover</span><span className="text-[#EFF4EF]/40">00</span>
               </button>
