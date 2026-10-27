@@ -8,7 +8,7 @@ export default function AllSitesLink() {
       href="/"
       aria-label="All sites"
       title="Back to the four sites"
-      className="inline-flex shrink-0 items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.1em] text-brown-light transition-colors hover:text-terracotta"
+      className="-mx-2 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 px-2 font-mono text-[11px] uppercase tracking-[0.1em] text-brown-light transition-colors hover:text-terracotta"
     >
       <GridIcon />
       <span className="hidden sm:inline">All sites</span>

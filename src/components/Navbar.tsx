@@ -21,11 +21,15 @@ const pages = [
 
 export default function Navbar() {
   const [activeSection, setActiveSection] = useState("");
-  const [mobileOpen, setMobileOpen] = useState(false);
+  // The drawer remembers the page it was opened on, so any navigation (the
+  // back button included) closes it and releases the scroll lock.
+  const [openPath, setOpenPath] = useState<string | null>(null);
   const pathname = usePathname();
   const isHome = pathname === "/home";
   const section = sectionFor(pathname);
   const isWebsite = section.id === "website";
+  const mobileOpen = isWebsite && openPath === pathname;
+  const setMobileOpen = (open: boolean) => setOpenPath(open ? pathname : null);
 
   const handleIntersection = useCallback((entries: IntersectionObserverEntry[]) => {
     for (const entry of entries) {
@@ -157,7 +161,7 @@ export default function Navbar() {
 
       {/* Mobile drawer */}
       <AnimatePresence>
-        {mobileOpen && isWebsite && (
+        {mobileOpen && (
           <>
             <motion.div
               initial={{ opacity: 0 }}
