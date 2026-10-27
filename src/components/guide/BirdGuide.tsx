@@ -235,6 +235,8 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
           i++;
         }
       }
+      // A new question cancels a trip the last answer had planned.
+      window.clearTimeout(goTimerRef.current);
       setMessages((m) => [...m, { role: "user", text: q }]);
       setDraft("");
       setPending(true);
@@ -280,6 +282,7 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
 
   const toggleOpen = useCallback(() => {
     setQuip(null);
+    window.clearTimeout(goTimerRef.current);
     setOpen((o) => {
       if (!o) {
         apiRef.current.thought?.fireAntic("notice_wave");
