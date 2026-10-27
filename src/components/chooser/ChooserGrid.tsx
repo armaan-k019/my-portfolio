@@ -70,7 +70,7 @@ export default function ChooserGrid({ tiles }: { tiles: Tile[] }) {
             className={`group relative overflow-hidden w-[var(--s)] h-[var(--s)] ring-1 ring-white/10 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.8)] ${t.surface}`}
           >
             <div className="absolute inset-0">{t.visual}</div>
-            {t.dark && <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 z-[15] bg-gradient-to-t from-[#0C120E] to-transparent" />}
+            {t.dark && <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 z-[15] bg-gradient-to-t from-[#121A16] to-transparent" />}
             <div className="pointer-events-none absolute inset-0 z-20 flex flex-col justify-between p-3 md:p-5">
               <div className="flex justify-between">
                 <span className="flex items-baseline gap-2">

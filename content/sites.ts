@@ -1,5 +1,6 @@
-// The four sites the chooser at / links to. Website and Portfolio live in this
-// app; Lab and Workflow will be separate deployments on their own subdomains.
+// The four sites the chooser at / links to. Website, Portfolio, and a
+// read-only view of the Lab live in this app; Workflow will be a separate
+// deployment on its own subdomain.
 // While a site is being built, its tile is not a link: clicking it says so.
 export interface Site {
   index: string;
@@ -34,11 +35,11 @@ export const sites: Site[] = [
   {
     index: "03",
     name: "Lab",
-    blurb: "kazi lab, a multi-agent research lab over a corpus of academic papers.",
-    href: "https://lab.armaankazi.com",
-    note: "Coming soon",
-    external: true,
-    building: true,
+    blurb: "corvid, a multi-agent research lab over a corpus of academic papers.",
+    href: "/lab",
+    note: "armaankazi.com/lab",
+    external: false,
+    building: false,
   },
   {
     index: "04",
