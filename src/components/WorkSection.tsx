@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import Modal from "./Modal";
 import { workEntries, SHOW_WORK_SUMMARIES, type WorkEntry } from "../../content/work";
 
@@ -131,17 +132,27 @@ export default function WorkSection() {
             {SHOW_WORK_SUMMARIES && <p className="text-sm text-brown-light">{selected.summary}</p>}
             {selected.links && (
               <div className="flex flex-wrap gap-x-5 gap-y-2 mt-5">
-                {selected.links.map((link) => (
-                  <a
-                    key={link.url}
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm font-medium text-terracotta underline underline-offset-4 decoration-1 hover:text-terracotta-dark transition-colors"
-                  >
-                    {link.label}{" "}&rarr;
-                  </a>
-                ))}
+                {selected.links.map((link) =>
+                  link.url.startsWith("/") ? (
+                    <Link
+                      key={link.url}
+                      href={link.url}
+                      className="text-sm font-medium text-terracotta underline underline-offset-4 decoration-1 hover:text-terracotta-dark transition-colors"
+                    >
+                      {link.label}{" "}&rarr;
+                    </Link>
+                  ) : (
+                    <a
+                      key={link.url}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-medium text-terracotta underline underline-offset-4 decoration-1 hover:text-terracotta-dark transition-colors"
+                    >
+                      {link.label}{" "}&rarr;
+                    </a>
+                  ),
+                )}
               </div>
             )}
           </div>

@@ -90,7 +90,10 @@ export const workEntries: WorkEntry[] = [
     dates: "Nov 2025 – May 2026",
     summary: "risk neutral probabilities from the Deribit options surface: smile fitting, Breeden Litzenberger, digital pricing; cross asset consistency test against Polymarket BTC + ETH threshold contracts; calibration against realized outcomes, gaps across tails, horizons, liquidity, net of spreads, fees, hedging cost; reproducible repo, one command from raw data to every figure",
     link: "",
-    links: [{ label: "Trading Club @ GT", url: "https://www.tradingclubgt.com/" }],
+    links: [
+      { label: "Trading Club @ GT", url: "https://www.tradingclubgt.com/" },
+      { label: "Project: Options vs. Polymarket", url: "/projects/options-consistency" },
+    ],
     cardBg: "#ffffff",
     type: "studentOrg",
   },
