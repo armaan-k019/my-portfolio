@@ -4,6 +4,7 @@ import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import BirdGuide from "@/components/guide/BirdGuide";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -55,6 +56,8 @@ export default function RootLayout({
           </main>
           <Footer />
         </div>
+        {/* The guide birds sit on every page, and stay mounted across navigation. */}
+        <BirdGuide />
         <Analytics />
       </body>
     </html>
