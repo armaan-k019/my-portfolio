@@ -5,6 +5,7 @@ import SectionCut from "@/components/section-cut/SectionCut";
 import DraftingSheet from "@/components/chooser/DraftingSheet";
 import LabField from "@/components/chooser/LabField";
 import SkillsGraph, { type SkillsGraphData } from "@/components/chooser/SkillsGraph";
+import SignatureMark from "@/components/SignatureMark";
 import BirdGuide from "@/components/guide/BirdGuide";
 
 export const metadata: Metadata = {
@@ -56,10 +57,8 @@ export default async function Chooser() {
 
   return (
     <div className="-mt-16 flex flex-col min-h-screen">
-      <header className="absolute inset-x-0 top-0 z-30 flex items-baseline justify-center gap-3 pt-6 md:pt-8">
-        <span className="text-tan leading-none" style={{ fontFamily: 'var(--font-amiri), "Amiri", serif', fontSize: "1.65rem" }}>
-          أك
-        </span>
+      <header className="absolute inset-x-0 top-0 z-30 flex items-center justify-center gap-3 pt-6 md:pt-8">
+        <SignatureMark className="bg-tan" />
         <span className="font-display text-[17px] font-semibold text-[#EFF4EF] tracking-tight">Armaan Kazi</span>
       </header>
       <ChooserGrid tiles={tiles} />
