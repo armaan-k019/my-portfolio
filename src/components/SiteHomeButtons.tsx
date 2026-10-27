@@ -17,6 +17,7 @@ const WEBSITE: Section = { name: "Website", start: "/home" };
 // Sections other than the website that live in this app, by route prefix.
 const SECTIONS: { prefix: string; section: Section }[] = [
   { prefix: "/architecture", section: { name: "Portfolio", start: "/architecture" } },
+  { prefix: "/lab", section: { name: "Lab", start: "/lab" } },
   { prefix: "/setup", section: { name: "Workflow", start: "/setup" } },
 ];
 

@@ -2,10 +2,11 @@
 
 import { useEffect, useRef } from "react";
 
-// The Lab tile's backdrop: a drifting graph of points in kazi lab's own dark
-// palette, joined when close. Decorative only. Reduced motion draws one frame.
-const BG = "#0C120E";
-const NODE = "61, 214, 140";   // kazi lab --green
+// The Lab tile's backdrop: a drifting graph of points in corvid's (the lab's)
+// own dark palette, joined when close. Decorative only. Reduced motion draws
+// one frame.
+const BG = "#121A16";
+const NODE = "159, 212, 180";  // corvid --green
 const LINK = 110;
 const AREA_PER_POINT = 2600;   // px² of tile per point
 const MAX_POINTS = 46;
