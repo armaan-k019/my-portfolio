@@ -446,7 +446,7 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
           onClick={hide}
           aria-label="Hide the birds"
           title="Hide the birds"
-          className="pointer-events-auto absolute left-0 top-0 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-[#16241A]/15 bg-[#FBFCFA]/90 font-mono text-[11px] leading-none text-[#4A6B4A] opacity-60 shadow-sm transition-opacity hover:opacity-100 focus-visible:opacity-100"
+          className="pointer-events-auto absolute right-1 top-1 z-10 flex h-3 w-3 items-center justify-center rounded-full font-mono text-[9px] leading-none text-[#4A6B4A] opacity-50 transition-opacity hover:opacity-100 focus-visible:opacity-100"
         >
           &times;
         </button>
