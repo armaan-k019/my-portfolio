@@ -43,10 +43,10 @@ export default async function Chooser() {
   const [website, portfolio, lab, workflow] = sites;
   const tiles: Tile[] = [
     { site: website, visual: (
-        // The hero drawing, kept above the tile's text. Its numeric readout is
-        // hidden here, and below md its canvas is pinned to the tile instead
-        // of taking the hero's 85vw height.
-        <div className="absolute inset-x-0 top-0 bottom-12 md:bottom-16 [&_dl]:hidden [&>div]:absolute [&>div]:inset-0 [&>div>div:first-child]:absolute [&>div>div:first-child]:inset-0 [&>div>div:first-child]:h-auto">
+        // The hero drawing, kept above the tile's text. Its numeric readout,
+        // controls hint and backdrop wash are hidden here, and below md its
+        // canvas is pinned to the tile instead of taking the hero's 85vw height.
+        <div className="absolute inset-x-0 top-0 bottom-12 md:bottom-16 [&_dl]:hidden [&_[data-hint]]:hidden [&_[data-wash]]:hidden [&>div]:absolute [&>div]:inset-0 [&>div>div:first-child]:absolute [&>div>div:first-child]:inset-0 [&>div>div:first-child]:h-auto">
           <SectionCut />
         </div>
       ), dark: false, surface: "bg-[var(--color-paper)]" },
