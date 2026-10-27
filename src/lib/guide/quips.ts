@@ -6,8 +6,9 @@
 export type BirdId = "thought" | "memory";
 
 // Display names, in one place so a rename is one edit. The ids say who is who:
-// the purple one answers, the green one heckles. The birds never call
-// themselves thought or memory; that stays an easter egg.
+// the purple one does the thinking and answers, the green one does the
+// remembering and heckles. They can joke about that, but never name
+// themselves Thought or Memory; that stays an easter egg.
 export const BIRD_NAMES: Record<BirdId, string> = { thought: "Huey", memory: "Muni" };
 const T = BIRD_NAMES.thought;
 const M = BIRD_NAMES.memory;
@@ -23,7 +24,7 @@ export interface Quip {
 export const FIRST_QUIP: Quip = {
   who: "thought",
   text: "Click on us to ask us anything about Armaan.",
-  reply: `I'm ${M}, he's ${T}. We come as a pair. Like socks, but louder.`,
+  reply: `I'm ${M}, he's ${T}. He does the thinking. I do the remembering. And the complaining.`,
 };
 
 export const QUIPS: Quip[] = [
@@ -52,7 +53,7 @@ export const QUIPS: Quip[] = [
   { who: "thought", text: "I do my best work while walking in small circles." },
   { text: "The journal has essays. I have read them. I nodded at the good parts.", href: "/journal" },
   // Two-bird bits, mostly bickering.
-  { who: "thought", text: "I am the brains of this operation.", reply: "Bold claim from a bird who walked into a wall this morning." },
+  { who: "thought", text: "I am the brains of this operation.", reply: "I remember you saying that yesterday too. And the day before." },
   { who: "memory", text: `${T}, what were we doing?`, reply: "Standing here. Looking good. Same as always." },
   { who: "memory", text: "Why are you purple?", reply: "Why are you green? We do not ask each other these questions." },
   { who: "thought", text: "Those feathers on your head look ridiculous.", reply: "Says the bird wearing glasses with no lenses." },
@@ -61,5 +62,5 @@ export const QUIPS: Quip[] = [
   { who: "thought", text: "Stop standing so close to me.", reply: "We overlap by 22 percent. It is in the code. Take it up with Armaan." },
   { who: "memory", text: "I was here first.", reply: "We were rendered in the same frame." },
   { who: "thought", text: "Somewhere, a one-eyed guy is wondering where we went.", reply: "Do not tell him. The snacks here are better." },
-  { who: "memory", text: `${T} talks. I heckle. It works out.` },
+  { who: "memory", text: `${T} thinks. I remember. Together we forget nothing and overthink everything.` },
 ];
