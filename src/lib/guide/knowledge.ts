@@ -35,8 +35,8 @@ const PAGE_LINKS: GuideLink[] = [
 
 // How the guide itself was made. Kept here because no content module covers it.
 const GUIDE_SELF = [
-  "The guide is two small robot ravens: a purple one with glasses who thinks and answers, and a green one with a feather crest who remembers.",
-  "They started as the scheduler bot in Armaan's research lab, a multi-agent research lab over academic papers. Each is drawn procedurally in Three.js (no model files): a lathe-turned body, a white belly panel, flippers, feet, an antenna or a feather crest, and glasses on the thinker, animated with squash and stretch.",
+  "The guide is two small robot ravens: a purple one with glasses who answers, and a green one with a feather crest who heckles him.",
+  "They started as the scheduler bot in Armaan's research lab, a multi-agent research lab over academic papers. Each is drawn procedurally in Three.js (no model files): a lathe-turned body, a white belly panel, flippers, feet, an antenna or a feather crest, and glasses on the purple one, animated with squash and stretch.",
   "Their answers come from Claude on the server, given only the content of this website.",
 ].join(" ");
 
