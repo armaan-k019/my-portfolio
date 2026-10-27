@@ -55,9 +55,11 @@ export default function RootLayout({
             {children}
           </main>
           <Footer />
+          {/* The guide birds sit on every page and stay mounted across
+              navigation. Inside this wrapper so the menu and lightbox (z-50)
+              still draw above them. */}
+          <BirdGuide />
         </div>
-        {/* The guide birds sit on every page, and stay mounted across navigation. */}
-        <BirdGuide />
         <Analytics />
       </body>
     </html>

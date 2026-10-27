@@ -105,6 +105,8 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
   const pathname = usePathname() ?? "/";
   const router = useRouter();
   const goTimerRef = useRef(0);
+  const pathRef = useRef(pathname);
+  pathRef.current = pathname;
   // null until the saved choice is read, so a hidden bird never loads.
   const [hidden, setHidden] = useState<boolean | null>(null);
   const [open, setOpen] = useState(false);
@@ -205,6 +207,9 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
     setBirdState(s);
     settleTimerRef.current = window.setTimeout(() => setBirdState("idle"), ms);
   }, []);
+  // The birds stay mounted across pages, so a trip planned on one page is
+  // dropped once the visitor goes somewhere else on their own.
+  useEffect(() => () => window.clearTimeout(goTimerRef.current), [pathname]);
   useEffect(() => () => {
     window.clearTimeout(settleTimerRef.current);
     window.clearTimeout(goTimerRef.current);
@@ -255,7 +260,7 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
         const text = lines.map((l) => `${BIRD_NAMES[l.who]}: ${l.text}`).join("\n");
         setMessages((m) => [...m, { role: "assistant", text, lines, links: data.links ?? [] }]);
         settle("success", SUCCESS_HOLD_MS);
-        if (data.go) {
+        if (data.go && pathRef.current === pathname) {
           const go = data.go;
           window.clearTimeout(goTimerRef.current);
           goTimerRef.current = window.setTimeout(() => goTo(go), GO_DELAY_MS);
