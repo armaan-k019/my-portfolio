@@ -41,6 +41,35 @@ const STAGES: { name: string; what: string; status: string }[] = [
   },
 ];
 
+// Simulated placeholder results, one per pre-registered card. Not real output.
+const RESULTS: { card: string; result: string; verdict: string }[] = [
+  {
+    card: "Power",
+    result: "412 matched contracts across 63 events. The minimum detectable Brier difference at 80% power is 0.008.",
+    verdict: "Adequately powered for the calibration test.",
+  },
+  {
+    card: "Calibration",
+    result: "Brier score 0.162 for Polymarket against 0.151 for the option-implied probability. Difference 0.011, 95% CI 0.003 to 0.019, clustered by event.",
+    verdict: "Options better calibrated. Null rejected.",
+  },
+  {
+    card: "Tail gap",
+    result: "Where the option side puts the event below 10%, Polymarket prices it 3.4 points higher on average (CI 1.9 to 4.9).",
+    verdict: "Consistent with a favorite-longshot bias.",
+  },
+  {
+    card: "Lead-lag",
+    result: "Option-implied moves lead Polymarket by a median of two minutes, and about 60% of a new gap closes within five.",
+    verdict: "Options lead.",
+  },
+  {
+    card: "Cost-aware gap",
+    result: "After spread, fees and delta-hedging cost, 4 of 412 contracts show a gap larger than the cost of trading it.",
+    verdict: "Too few to tell from chance. Null not rejected.",
+  },
+];
+
 export default function OptionsConsistencyPage() {
   return (
     <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-28 sm:px-10">
@@ -107,13 +136,24 @@ export default function OptionsConsistencyPage() {
         </ol>
       </section>
 
-      <section className="mt-16 max-w-3xl">
+      <section className="mt-16">
         <h2 className="font-display display-md text-[var(--color-ink)]">Status</h2>
-        <p className="mt-4 text-base leading-relaxed text-[var(--color-brown)]">
-          No results yet, and nothing on this page is a finding. The primary
-          runs are registered for 2026-11-01 and 2026-12-01, on the live data
-          logged up to each date, with the same code and the same cards.
-        </p>
+        <ol className="mt-6" style={{ borderTop: "var(--rule)" }}>
+          {RESULTS.map((r) => (
+            <li
+              key={r.card}
+              style={{ borderBottom: "var(--rule)" }}
+              className="grid grid-cols-1 gap-x-6 gap-y-1 py-4 sm:grid-cols-[minmax(0,13rem)_1fr]"
+            >
+              <p className="font-display text-lg font-semibold text-ink">{r.card}</p>
+              <div>
+                <p className="text-sm leading-relaxed text-brown-light">{r.result}</p>
+                <p className="meta mt-1">{r.verdict}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+        <p className="meta mt-3 opacity-70">Simulated results, for illustration only.</p>
       </section>
     </main>
   );
