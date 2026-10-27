@@ -102,7 +102,22 @@ export default function WorkSection() {
                 </div>
               )}
               <div>
-                <h3 id="work-modal-title" className="font-display text-xl font-semibold text-ink">{selected.name}</h3>
+                <h3 id="work-modal-title" className="font-display text-xl font-semibold text-ink">
+                  {selected.link ? (
+                    <a
+                      href={selected.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline underline-offset-4 decoration-1 decoration-terracotta/50 hover:text-terracotta hover:decoration-terracotta transition-colors"
+                    >
+                      {selected.name}
+                      <span aria-hidden className="ml-1.5 text-base text-terracotta">&#8599;</span>
+                      <span className="sr-only"> (opens in a new tab)</span>
+                    </a>
+                  ) : (
+                    selected.name
+                  )}
+                </h3>
                 {steps(selected.role).map((r, i) => (
                   <p key={r} className="text-sm text-brown-light" style={{ paddingLeft: `${i}rem` }}>
                     {i > 0 && <span className="text-terracotta mr-1.5">&rarr;</span>}

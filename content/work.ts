@@ -5,7 +5,8 @@ export const SHOW_WORK_SUMMARIES = false;
 export interface WorkEntry {
   name: string;
   // Empty logo, role or dates are left out of the rendering. Club and research
-  // links were each checked against the live page on 2026-10-06.
+  // links were each checked against the live page on 2026-10-06. `link` is the
+  // company's official site; the modal title links to it when set.
   logo: string;
   role: string;
   dates: string;
@@ -23,7 +24,7 @@ export const workEntries: WorkEntry[] = [
     role: "Engineering Intern",
     dates: "2026 – Present",
     summary: "Meter, AI native ATS: prototype to production across sourcing, scheduling, offer; headcount as a financial object: seats as budget lines, persistent IDs across backfills + promotions, vacancy ledger; interview panel scheduler against per interviewer availability; candidate synthesis engine: applications + interview feedback",
-    link: "",
+    link: "https://www.rho.co/",
     cardBg: "#ffffff",
   },
   {
@@ -32,7 +33,7 @@ export const workEntries: WorkEntry[] = [
     role: "AI Research Engineering Intern",
     dates: "Sep 2025 – May 2026",
     summary: "competitive intelligence agent: autonomous monitoring of competitor pricing, product changes, market activity across North + South American fintech; AI first transformation: opportunity prototypes with the research team; prompt engineering, hypothesis driven experimentation, model fine tuning, transcription pipelines for internal AI services",
-    link: "",
+    link: "https://www.tryjeeves.com/",
     cardBg: "#ffffff",
   },
   {
@@ -110,7 +111,7 @@ export const workEntries: WorkEntry[] = [
     role: "Software Engineering Intern",
     dates: "Sep 2024 – May 2025",
     summary: "ML resource forecasting: workforce movement + company diversification via architectural space planning principles; data preprocessing pipelines; model evaluation across multiple forecasting horizons; model outputs to planning recommendations for leadership",
-    link: "",
+    link: "https://www.ncrvoyix.com/",
     cardBg: "#ffffff",
   },
   {
@@ -119,7 +120,7 @@ export const workEntries: WorkEntry[] = [
     role: "Assistant Manager",
     dates: "Jul 2022 – Aug 2024",
     summary: "daily store operations, staff coordination, customer experience, quality standards at a high volume location; certified frozen yogurt enthusiast, self proclaimed mixologist",
-    link: "",
+    link: "https://www.sweetfrog.com/",
     cardBg: "#ffffff",
   },
   {
