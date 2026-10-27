@@ -5,6 +5,14 @@ import type { Mode } from "./scene";
 
 import { COMPOSITIONS, compositionOfTheDay } from "./compositions";
 
+// How to drive the drawing, per mode. Touch gets one still frame, and reduced
+// motion holds the axonometric, so each hint names only what actually works.
+const HINT: Record<Mode, [string, string][]> = {
+  live: [["\u2194 MOVE", "slide the section cut"], ["\u2195 MOVE", "plan, axon, elevation"], ["\u2190 \u2192", "switch drawing"]],
+  reduced: [["\u2194 MOVE", "slide the section cut"], ["\u2190 \u2192", "switch drawing"]],
+  static: [["\u2190 \u2192", "switch drawing"]],
+};
+
 // Decorative canvas behind the hero text: one of three compositions of
 // ground and structure, sectioned by the pointer. three and each
 // composition load on demand so the rest of the site never pays for them; if
@@ -73,10 +81,21 @@ export default function SectionCut() {
   return (
     <div className="pointer-events-none md:absolute md:inset-0">
       <div aria-hidden className="relative h-[85vw] md:absolute md:inset-0 md:h-auto">
+        {/* A soft wash of green and tan where the model sits, so the drawing
+            reads as its own field and not as a faint texture on the page. */}
+        <div data-wash className="absolute inset-0 bg-[radial-gradient(ellipse_45%_55%_at_70%_52%,color-mix(in_srgb,var(--color-terracotta)_11%,transparent),color-mix(in_srgb,var(--color-tan)_10%,transparent)_50%,transparent_78%)]" />
         <canvas key={generation} ref={canvasRef} className="absolute inset-0 w-full h-full" />
       </div>
       <div className="max-w-5xl mx-auto px-6 pb-8 md:pb-0 md:absolute md:inset-x-0 md:bottom-6 flex justify-end">
         <div className="grid justify-items-end gap-2">
+          {mode !== null && (
+            <div data-hint className="grid grid-cols-[auto_auto] gap-x-3 gap-y-0.5 items-baseline mb-2 pb-2 border-b border-[var(--color-line)]">
+              <span className="eyebrow col-span-2 mb-1">Controls</span>
+              {HINT[mode].map(([key, does]) => (
+                <span key={key} className="contents"><span className="meta">{key}</span><span className="coord">{does}</span></span>
+              ))}
+            </div>
+          )}
           <dl className="grid grid-cols-[auto_auto_auto] gap-x-3 gap-y-1 items-baseline">
             <dt className="meta" aria-hidden>{index === null ? "\u00a0" : `0${index + 1} / 0${COMPOSITIONS.length}`}</dt>
             <dd />
