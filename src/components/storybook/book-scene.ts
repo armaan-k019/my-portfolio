@@ -242,9 +242,12 @@ export class BookScene {
     return tex;
   }
 
-  private setBoardFace(mesh: THREE.Mesh, face: number, canvas: HTMLCanvasElement) {
+  // Covers stamp their logo after it loads, so the texture is refreshed then.
+  private setBoardFace(mesh: THREE.Mesh, face: number, draw: (onUpdate: () => void) => HTMLCanvasElement) {
     const mats = mesh.material as THREE.MeshStandardMaterial[];
-    const tex = this.canvasTexture(canvas);
+    let tex: THREE.CanvasTexture | null = null;
+    const canvas = draw(() => { if (tex) tex.needsUpdate = true; });
+    tex = this.canvasTexture(canvas);
     mats[face].map = tex;
     mats[face].color.set("#ffffff");
     mats[face].needsUpdate = true;
@@ -266,10 +269,11 @@ export class BookScene {
       mats[0].needsUpdate = true;
     }
     this.disposables.push(clothTex);
-    this.setBoardFace(front, 4, drawFrontCover(w, h, this.config.cover, f));
-    this.setBoardFace(front, 5, drawEndpaper(w, h, false));
-    this.setBoardFace(back, 4, drawEndpaper(w, h, true));
-    this.setBoardFace(back, 5, drawBackCover(w, h, this.config.cover, f));
+    const cover = this.config.cover;
+    this.setBoardFace(front, 4, (u) => drawFrontCover(w, h, cover, f, u));
+    this.setBoardFace(front, 5, () => drawEndpaper(w, h, false));
+    this.setBoardFace(back, 4, () => drawEndpaper(w, h, true));
+    this.setBoardFace(back, 5, (u) => drawBackCover(w, h, cover, u));
   }
 
   // Page textures are built only near the open spread, so a long book stays light on memory.

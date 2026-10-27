@@ -14,7 +14,6 @@ export interface Fonts {
   display: string;
   mono: string;
   sans: string;
-  arabic: string;
 }
 
 // The next/font families, read from the CSS variables the root layout sets.
@@ -25,7 +24,6 @@ export function readFonts(): Fonts {
     display: read("--font-fraunces", "Georgia, serif"),
     mono: read("--font-plex-mono", "ui-monospace, monospace"),
     sans: read("--font-inter", "system-ui, sans-serif"),
-    arabic: read("--font-amiri", "serif"),
   };
 }
 
@@ -35,8 +33,8 @@ export function readFonts(): Fonts {
 // otherwise reject the load before the real face arrives.
 export async function loadFonts(f: Fonts): Promise<void> {
   const first = (stack: string) => stack.split(",")[0].trim();
-  const faces = [`600 64px ${first(f.display)}`, `400 64px ${first(f.display)}`, `500 20px ${first(f.mono)}`, `400 24px ${first(f.sans)}`, `400 64px ${first(f.arabic)}`];
-  await Promise.all(faces.map((face) => document.fonts.load(face, face.includes("Amiri") ? "أك" : "Aa").catch(() => [])));
+  const faces = [`600 64px ${first(f.display)}`, `400 64px ${first(f.display)}`, `500 20px ${first(f.mono)}`, `400 24px ${first(f.sans)}`];
+  await Promise.all(faces.map((face) => document.fonts.load(face, "Aa").catch(() => [])));
 }
 
 function makeCanvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
@@ -298,7 +296,29 @@ function foil(ctx: CanvasRenderingContext2D) {
   ctx.shadowBlur = 1;
 }
 
-export function drawFrontCover(w: number, h: number, cover: { title: string; subtitle: string; mark: string }, f: Fonts): HTMLCanvasElement {
+// Stamps an alpha mask image (the signature) in foil, centered on (cx, cy),
+// once it loads. `onUpdate` fires after the canvas changes.
+function stampLogo(ctx: CanvasRenderingContext2D, src: string, cx: number, cy: number, width: number, onUpdate: () => void) {
+  const img = new Image();
+  img.onload = () => {
+    const w = width, h = width * (img.naturalHeight / img.naturalWidth);
+    const [tint, t] = makeCanvas(Math.ceil(w), Math.ceil(h));
+    t.drawImage(img, 0, 0, w, h);
+    t.globalCompositeOperation = "source-in";
+    t.fillStyle = TAN;
+    t.fillRect(0, 0, w, h);
+    ctx.save();
+    ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
+    ctx.shadowOffsetY = 1;
+    ctx.shadowBlur = 1;
+    ctx.drawImage(tint, cx - w / 2, cy - h / 2);
+    ctx.restore();
+    onUpdate();
+  };
+  img.src = src;
+}
+
+export function drawFrontCover(w: number, h: number, cover: { title: string; subtitle: string; logo: string }, f: Fonts, onUpdate: () => void): HTMLCanvasElement {
   const [c, ctx] = makeCanvas(w, h);
   const s = w / 1024;
   cloth(ctx, w, h);
@@ -316,8 +336,6 @@ export function drawFrontCover(w: number, h: number, cover: { title: string; sub
 
   const cx = 110 * s + (w - 190 * s) / 2;
   ctx.textAlign = "center";
-  ctx.font = `400 ${150 * s}px ${f.arabic}`;
-  ctx.fillText(cover.mark, cx, h * 0.38);
   ctx.font = `600 ${92 * s}px ${f.display}`;
   ctx.fillText(cover.title, cx, h * 0.56);
   ctx.fillRect(cx - 30 * s, h * 0.6, 60 * s, 2 * s);
@@ -325,21 +343,17 @@ export function drawFrontCover(w: number, h: number, cover: { title: string; sub
   ctx.fillText(cover.subtitle.toUpperCase().split("").join(" "), cx, h * 0.65);
   ctx.textAlign = "left";
   ctx.shadowColor = "transparent";
+  stampLogo(ctx, cover.logo, cx, h * 0.37, 400 * s, onUpdate);
   return c;
 }
 
-export function drawBackCover(w: number, h: number, cover: { mark: string }, f: Fonts): HTMLCanvasElement {
+export function drawBackCover(w: number, h: number, cover: { logo: string }, onUpdate: () => void): HTMLCanvasElement {
   const [c, ctx] = makeCanvas(w, h);
   const s = w / 1024;
   cloth(ctx, w, h);
   ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
   ctx.fillRect(w - 39 * s, 0, 5 * s, h);
-  foil(ctx);
-  ctx.textAlign = "center";
-  ctx.font = `400 ${64 * s}px ${f.arabic}`;
-  ctx.fillText(cover.mark, w / 2, h * 0.86);
-  ctx.textAlign = "left";
-  ctx.shadowColor = "transparent";
+  stampLogo(ctx, cover.logo, w / 2, h * 0.86, 170 * s, onUpdate);
   return c;
 }
 

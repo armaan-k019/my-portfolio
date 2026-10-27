@@ -31,13 +31,14 @@ export type StoryEntry =
 export interface StorybookConfig {
   // Page proportions, width by height. 8.5 by 11 opens to an 11 by 17 spread.
   page: { width: number; height: number };
-  cover: { title: string; subtitle: string; mark: string };
+  // logo: an image whose alpha is the mark (like the signature), stamped in foil.
+  cover: { title: string; subtitle: string; logo: string };
   entries: StoryEntry[];
 }
 
 export const storybook: StorybookConfig = {
   page: { width: 8.5, height: 11 },
-  cover: { title: "Armaan Kazi", subtitle: "Architecture Portfolio", mark: "أك" },
+  cover: { title: "Armaan Kazi", subtitle: "Architecture Portfolio", logo: "/logos/signature.png" },
   entries: [
     { kind: "text", eyebrow: "Portfolio", title: "Architecture", body: "Selected work. This book is being assembled, and the pages that follow are placeholders for drawings, models, and photographs still to come." },
     { kind: "contents" },
