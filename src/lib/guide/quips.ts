@@ -10,6 +10,8 @@ export type BirdId = "thought" | "memory";
 // remembering and heckles. They can joke about that, but never name
 // themselves Thought or Memory; that stays an easter egg.
 export const BIRD_NAMES: Record<BirdId, string> = { thought: "Huey", memory: "Muni" };
+// Their full names, used when they introduce themselves.
+export const FULL_NAMES: Record<BirdId, string> = { thought: "Huginn", memory: "Muninn" };
 const T = BIRD_NAMES.thought;
 const M = BIRD_NAMES.memory;
 
@@ -24,7 +26,7 @@ export interface Quip {
 export const FIRST_QUIP: Quip = {
   who: "thought",
   text: "Click on us to ask us anything about Armaan.",
-  reply: `I'm ${M}, he's ${T}. He does the thinking. I do the remembering. And the complaining.`,
+  reply: `I'm ${FULL_NAMES.memory}, he's ${FULL_NAMES.thought}. ${M} and ${T} for short. He does the thinking, I do the remembering.`,
 };
 
 export const QUIPS: Quip[] = [
