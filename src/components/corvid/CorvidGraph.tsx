@@ -24,9 +24,14 @@ interface Props {
 export default function CorvidGraph({ nodes, edges, highlight }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const highlightRef = useRef<(c: number | null) => void>(() => {});
+  // The latest selection, so one made while three.js is still loading is
+  // applied once the scene exists.
+  const latestHighlight = useRef(highlight);
   const [hover, setHover] = useState<{ x: number; y: number; label: string } | null>(null);
+  const [noWebGL, setNoWebGL] = useState(false);
 
   useEffect(() => {
+    latestHighlight.current = highlight;
     highlightRef.current(highlight);
   }, [highlight]);
 
@@ -50,7 +55,15 @@ export default function CorvidGraph({ nodes, edges, highlight }: Props) {
       const scale = radius > 0 ? 1 / radius : 1;
       const pos = nodes.map((n) => new THREE.Vector3(...n.p).sub(center).multiplyScalar(scale));
 
-      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      // No WebGL (disabled, blocked, or a lost context): show a note instead
+      // of an empty panel.
+      let renderer: InstanceType<typeof THREE.WebGLRenderer>;
+      try {
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+      } catch {
+        setNoWebGL(true);
+        return;
+      }
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.setClearColor(BG);
       mount.appendChild(renderer.domElement);
@@ -106,7 +119,7 @@ export default function CorvidGraph({ nodes, edges, highlight }: Props) {
         if (points.instanceColor) points.instanceColor.needsUpdate = true;
         edgeMat.opacity = h === null ? EDGE_ALPHA : EDGE_ALPHA * 0.4;
       };
-      highlightRef.current(highlight);
+      highlightRef.current(latestHighlight.current);
 
       const resize = () => {
         const w = mount.clientWidth;
@@ -140,16 +153,29 @@ export default function CorvidGraph({ nodes, edges, highlight }: Props) {
       renderer.domElement.addEventListener("pointermove", onMove);
       renderer.domElement.addEventListener("pointerleave", onLeave);
 
+      // Draw only while the panel is on screen.
       let raf = 0;
       const loop = () => {
         raf = requestAnimationFrame(loop);
         controls.update();
         renderer.render(scene, camera);
       };
-      loop();
+      const stop = () => {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      };
+      const io = new IntersectionObserver(([e]) => {
+        if (e.isIntersecting) {
+          if (!raf) loop();
+        } else {
+          stop();
+        }
+      });
+      io.observe(mount);
 
       cleanup = () => {
-        cancelAnimationFrame(raf);
+        stop();
+        io.disconnect();
         ro.disconnect();
         renderer.domElement.removeEventListener("pointermove", onMove);
         renderer.domElement.removeEventListener("pointerleave", onLeave);
@@ -167,20 +193,43 @@ export default function CorvidGraph({ nodes, edges, highlight }: Props) {
       disposed = true;
       cleanup();
     };
-    // The graph data is static for the page's lifetime.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes, edges]);
 
   return (
-    <div ref={mountRef} className="relative h-full w-full cursor-grab active:cursor-grabbing">
-      {hover && (
-        <div
-          className="pointer-events-none absolute z-10 max-w-xs rounded-sm bg-[#18221D]/95 px-2.5 py-1.5 text-[12px] leading-snug text-[#EFF4EF]"
-          style={{ left: Math.min(hover.x + 12, (mountRef.current?.clientWidth ?? 400) - 240), top: hover.y + 12 }}
-        >
-          {hover.label}
-        </div>
+    <div
+      ref={mountRef}
+      role="img"
+      aria-label={`A 3D map of ${nodes.length} papers, each colored by the field it clustered into.`}
+      className="relative h-full w-full cursor-grab active:cursor-grabbing"
+    >
+      {noWebGL && (
+        <p className="meta absolute inset-0 flex items-center justify-center px-6 text-center text-[#9FB0A6]">
+          This browser has WebGL turned off, so the paper map can&apos;t be drawn here.
+        </p>
       )}
+      {hover && <Tooltip hover={hover} panel={mountRef.current} />}
+    </div>
+  );
+}
+
+// Opens below and right of the pointer, flipping above or left near the
+// panel's edges so the title is never clipped.
+function Tooltip({ hover, panel }: { hover: { x: number; y: number; label: string }; panel: HTMLDivElement | null }) {
+  const w = panel?.clientWidth ?? 400;
+  const h = panel?.clientHeight ?? 400;
+  const flipX = hover.x > w - 252;
+  const flipY = hover.y > h - 72;
+  return (
+    <div
+      className="pointer-events-none absolute z-10 max-w-60 rounded-sm bg-[#18221D]/95 px-2.5 py-1.5 text-[12px] leading-snug text-[#EFF4EF]"
+      style={{
+        left: flipX ? undefined : hover.x + 12,
+        right: flipX ? w - hover.x + 12 : undefined,
+        top: flipY ? undefined : hover.y + 12,
+        bottom: flipY ? h - hover.y + 12 : undefined,
+      }}
+    >
+      {hover.label}
     </div>
   );
 }
