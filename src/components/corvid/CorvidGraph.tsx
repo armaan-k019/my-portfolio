@@ -58,7 +58,7 @@ const DAMPING_FACTOR = 0.06;
 const IDLE_ROTATE_DELAY_MS = 5000;
 const IDLE_ROTATE_SPEED = 0.4;
 const IDLE_ROTATE_EASE = 0.02;
-const RAY_POINT_THRESHOLD = 1.5;
+const PICK_MIN_RADIUS_PX = 5; // smallest hover target around a paper
 
 const BLOOM_STRENGTH = 0.5;
 const BLOOM_RADIUS = 0.55;
@@ -318,8 +318,16 @@ export default function CorvidGraph({ nodes, edges, highlight }: Props) {
       type Drawn = { a: number; b: number; w: number };
       const bridgesAll: Drawn[] = [];
       const intraAll: Drawn[] = [];
+      // A pair can appear more than once (a semantic link and a citation);
+      // keep only its strongest edge so it counts once toward the top K.
+      const strongest = new Map<string, Drawn>();
       for (const [a, b, w] of edges) {
         if (a === b) continue;
+        const key = a < b ? `${a}-${b}` : `${b}-${a}`;
+        const seen = strongest.get(key);
+        if (!seen || w > seen.w) strongest.set(key, { a, b, w });
+      }
+      for (const { a, b, w } of strongest.values()) {
         const ca = nodes[a].community;
         const cb = nodes[b].community;
         (ca === null || cb === null || ca !== cb ? bridgesAll : intraAll).push({ a, b, w });
@@ -574,9 +582,30 @@ export default function CorvidGraph({ nodes, edges, highlight }: Props) {
       controls.addEventListener("start", onStart);
 
       // Hover: raycast the points.
-      const ray = new THREE.Raycaster();
-      ray.params.Points = { threshold: RAY_POINT_THRESHOLD };
-      const ndc = new THREE.Vector2();
+      // Hover picks in screen space: the paper whose drawn sprite is under
+      // the pointer, nearest the pointer, not the nearest one along a ray.
+      const projected = new THREE.Vector3();
+      const viewPos = new THREE.Vector3();
+      const pickAt = (px: number, py: number, w: number, h: number) => {
+        let best = -1;
+        let bestD = Infinity;
+        for (let i = 0; i < n; i++) {
+          viewPos.copy(pos[i]).applyMatrix4(camera.matrixWorldInverse);
+          const depth = -viewPos.z;
+          if (depth <= 0) continue;
+          projected.copy(pos[i]).project(camera);
+          const dx = (projected.x * 0.5 + 0.5) * w - px;
+          const dy = (-projected.y * 0.5 + 0.5) * h - py;
+          // gl_PointSize is in device pixels; halve it for a CSS-pixel radius.
+          const radius = Math.max(PICK_MIN_RADIUS_PX, (sizes[i] * POINT_SIZE_SCALE) / Math.max(depth, 1) / renderer.getPixelRatio() / 2);
+          const d = Math.hypot(dx, dy);
+          if (d <= radius && d < bestD) {
+            best = i;
+            bestD = d;
+          }
+        }
+        return best;
+      };
       let hovered = -1;
       const setHovered = (i: number) => {
         if (i === hovered) return;
@@ -587,12 +616,12 @@ export default function CorvidGraph({ nodes, edges, highlight }: Props) {
       };
       const onMove = (e: PointerEvent) => {
         const r = renderer.domElement.getBoundingClientRect();
-        ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-        ray.setFromCamera(ndc, camera);
-        const hit = ray.intersectObject(points)[0];
-        if (hit && hit.index !== undefined) {
-          setHovered(hit.index);
-          setHover({ x: e.clientX - r.left, y: e.clientY - r.top, label: nodes[hit.index].label });
+        const x = e.clientX - r.left;
+        const y = e.clientY - r.top;
+        const hit = pickAt(x, y, r.width, r.height);
+        if (hit >= 0) {
+          setHovered(hit);
+          setHover({ x, y, label: nodes[hit].label });
           onStart();
         } else {
           setHovered(-1);
