@@ -39,7 +39,7 @@ const BOT = {
 export type BotProfileName = "calm" | "curious" | "playful" | "focused";
 
 export type BotTuning = {
-  bodyGreen: string; // base green hex; flippers/antenna/feet derive from it
+  bodyColor: string; // base body hex; flippers, antenna, crest, and feet derive from it
   bellyCoverage: number; // 0.4..0.8; fraction of the front the white panel covers
   eyeSize: number; // 0.7..1.4 multiplier; bigger = cuter up to a point
   eyeHeight: number; // -0.15..0.25 vertical offset; LOW eyes read cute, high reads alien
@@ -54,10 +54,13 @@ export type BotTuning = {
   waddleSpeed: number; // step rate multiplier; raise = busier walk
   anticFrequency: number; // antic rate multiplier; raise = more of a ham
   wanderRadius: number; // how far from center it wanders (world units)
+  headgear: "antenna" | "crest"; // antenna nub vs a three-feather tuft
+  glasses: boolean; // round wire glasses over the eyes
+  build: number; // 0.9..1.15; above 1 = taller and slimmer, below = squatter
 };
 
 export const BOT_DEFAULTS: BotTuning = {
-  bodyGreen: BOT.bodyGreen, // THE living green from the design tokens
+  bodyColor: BOT.bodyGreen, // THE living green from the design tokens
   bellyCoverage: 0.62,
   eyeSize: 1.0,
   eyeHeight: 0.0,
@@ -72,6 +75,9 @@ export const BOT_DEFAULTS: BotTuning = {
   waddleSpeed: 1.0,
   anticFrequency: 1.0,
   wanderRadius: 0.7,
+  headgear: "antenna",
+  glasses: false,
+  build: 1,
 };
 
 // ---------------------------------------------------------------------------
@@ -168,7 +174,8 @@ const MOUTH_COLOR = 0x2a3034; // curved-line mouth (FACE_STYLE "mouth")
 const CHEEK_COLOR = BOT.cheek; // faint blush, warmed to sit in the palette
 const CHEEK_OPACITY = 0.28; // sprite peak alpha; the soft texture makes it read ~0.05
 const FEET_TINT = BOT.feetTint; // feet darken the body green by this factor
-const ANTENNA_TINT = 0.8; // antenna darkens the body green by this factor
+const ANTENNA_TINT = 0.8; // antenna and crest darken the body color by this factor
+const GLASSES_COLOR = 0x2a2723; // wire frames, a touch warmer than the eyes
 const SHADOW_OPACITY = 0.26; // ground contact shadow; raise = heavier grounding
 
 // Face layout (relative to the body; eyeHeight tuning shifts on top of this).
@@ -750,11 +757,11 @@ export function GuideBird3D({
     const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
     bodyMesh.scale.z = BODY_RZ_SCALE;
     lean.add(bodyMesh);
-    paintBody(bodyGeo, tuningRef.current.bodyGreen, tuningRef.current.bellyCoverage);
+    paintBody(bodyGeo, tuningRef.current.bodyColor, tuningRef.current.bellyCoverage);
 
     // Flippers: squashed capsules pivoted at the shoulder.
     const flipperGeo = track(new THREE.CapsuleGeometry(0.1, 0.36, 6, 14));
-    let flipperMat = track(mats.solid(tuningRef.current.bodyGreen));
+    let flipperMat = track(mats.solid(tuningRef.current.bodyColor));
     const makeFlipper = (side: -1 | 1) => {
       const pivot = new THREE.Group();
       pivot.position.set(side * BODY_RX * 0.94, 0.12, 0.02);
@@ -773,7 +780,7 @@ export function GuideBird3D({
 
     // Feet: tiny rounded nubs peeking from under the front.
     const feetGeo = track(new THREE.SphereGeometry(0.115, 20, 14));
-    const feetColor = new THREE.Color(tuningRef.current.bodyGreen).multiplyScalar(FEET_TINT);
+    const feetColor = new THREE.Color(tuningRef.current.bodyColor).multiplyScalar(FEET_TINT);
     let feetMat = track(mats.solid(`#${feetColor.getHexString()}`));
     const feet: THREE.Mesh[] = [];
     for (const side of [-1, 1] as const) {
@@ -785,7 +792,7 @@ export function GuideBird3D({
     }
 
     // Antenna nub: the one small detail that sells "robot".
-    const antennaColor = new THREE.Color(tuningRef.current.bodyGreen).multiplyScalar(ANTENNA_TINT);
+    const antennaColor = new THREE.Color(tuningRef.current.bodyColor).multiplyScalar(ANTENNA_TINT);
     let antennaMat = track(mats.solid(`#${antennaColor.getHexString()}`));
     const antennaStemGeo = track(new THREE.CylinderGeometry(0.02, 0.025, 0.12, 10));
     const antennaTipGeo = track(new THREE.SphereGeometry(0.05, 14, 10));
@@ -798,6 +805,22 @@ export function GuideBird3D({
     antenna.position.set(0.12, BODY_RY * 0.99, 0);
     antenna.rotation.z = -0.12;
     lean.add(antenna);
+
+    // Crest: three feathers fanned on top of the head, the other headgear.
+    const crestGeo = track(new THREE.CapsuleGeometry(0.065, 0.26, 4, 10));
+    const crest = new THREE.Group();
+    for (const [i, tilt] of [-0.55, 0, 0.55].entries()) {
+      const pivot = new THREE.Group();
+      pivot.rotation.z = tilt;
+      const feather = new THREE.Mesh(crestGeo, antennaMat);
+      feather.position.y = 0.16 + (i === 1 ? 0.05 : 0);
+      feather.scale.z = 0.6;
+      pivot.add(feather);
+      crest.add(pivot);
+    }
+    crest.position.set(-0.02, BODY_RY * 0.9, -0.04);
+    crest.rotation.x = -0.25; // swept back a little
+    lean.add(crest);
 
     // Face group: eyes (rounded rects + highlight), happy arcs, beak/mouth,
     // cheeks. Everything on the white panel, low-set.
@@ -826,6 +849,24 @@ export function GuideBird3D({
     };
     const eyeL = makeEye(-1);
     const eyeR = makeEye(1);
+
+    // Glasses: two wire rings and a bridge, in front of the eyes.
+    const glassesMat = track(new THREE.MeshStandardMaterial({ color: GLASSES_COLOR, roughness: 0.35, metalness: 0.4 }));
+    const ringGeo = track(new THREE.TorusGeometry(0.2, 0.022, 10, 36));
+    const bridgeGeo = track(new THREE.CylinderGeometry(0.018, 0.018, 0.2, 8));
+    const glasses = new THREE.Group();
+    for (const side of [-1, 1] as const) {
+      const ring = new THREE.Mesh(ringGeo, glassesMat);
+      ring.position.x = side * EYE_SPACING;
+      ring.rotation.y = side * 0.22; // follow the curve of the face
+      glasses.add(ring);
+    }
+    const bridge = new THREE.Mesh(bridgeGeo, glassesMat);
+    bridge.rotation.z = Math.PI / 2;
+    bridge.position.y = 0.04;
+    glasses.add(bridge);
+    glasses.position.z = EYE_Z + 0.07;
+    face.add(glasses);
 
     // Beak (rounded nub) and mouth (curved line): FACE_STYLE picks one.
     const beakGeo = track(new THREE.ConeGeometry(0.085, 0.16, 18));
@@ -910,25 +951,30 @@ export function GuideBird3D({
         c.visible = t.cheeks;
         c.position.y = EYE_BASE_Y + t.eyeHeight + CHEEK_Y_OFFSET;
       }
+      glasses.visible = t.glasses;
+      glasses.position.y = EYE_BASE_Y + t.eyeHeight;
+      glasses.scale.setScalar(t.eyeSize);
+      antenna.visible = t.headgear === "antenna";
+      crest.visible = t.headgear === "crest";
     };
     let currentMaterialStyle = tuningRef.current.materialStyle;
     const applyTuning = (t: BotTuning) => {
-      paintBody(bodyGeo, t.bodyGreen, t.bellyCoverage);
+      paintBody(bodyGeo, t.bodyColor, t.bellyCoverage);
       if (t.materialStyle !== currentMaterialStyle) {
         currentMaterialStyle = t.materialStyle;
         mats = makeMaterials(t.materialStyle, toonGradient);
         const newBody = track(mats.body);
         bodyMesh.material = newBody;
         bodyMat = newBody;
-        const newFlipper = track(mats.solid(t.bodyGreen));
+        const newFlipper = track(mats.solid(t.bodyColor));
         flipperL.children[0] && ((flipperL.children[0] as THREE.Mesh).material = newFlipper);
         flipperR.children[0] && ((flipperR.children[0] as THREE.Mesh).material = newFlipper);
         flipperMat = newFlipper;
-        const fc = new THREE.Color(t.bodyGreen).multiplyScalar(FEET_TINT);
+        const fc = new THREE.Color(t.bodyColor).multiplyScalar(FEET_TINT);
         const newFeet = track(mats.solid(`#${fc.getHexString()}`));
         for (const f of feet) f.material = newFeet;
         feetMat = newFeet;
-        const ac = new THREE.Color(t.bodyGreen).multiplyScalar(ANTENNA_TINT);
+        const ac = new THREE.Color(t.bodyColor).multiplyScalar(ANTENNA_TINT);
         const newAntenna = track(mats.solid(`#${ac.getHexString()}`));
         stem.material = newAntenna;
         tip.material = newAntenna;
@@ -937,9 +983,9 @@ export function GuideBird3D({
         const setColor = (m: THREE.Material, hex: THREE.Color) => {
           (m as THREE.MeshPhysicalMaterial).color.copy(hex);
         };
-        setColor(flipperMat, new THREE.Color(t.bodyGreen));
-        setColor(feetMat, new THREE.Color(t.bodyGreen).multiplyScalar(FEET_TINT));
-        setColor(antennaMat, new THREE.Color(t.bodyGreen).multiplyScalar(ANTENNA_TINT));
+        setColor(flipperMat, new THREE.Color(t.bodyColor));
+        setColor(feetMat, new THREE.Color(t.bodyColor).multiplyScalar(FEET_TINT));
+        setColor(antennaMat, new THREE.Color(t.bodyColor).multiplyScalar(ANTENNA_TINT));
       }
       applyFaceLayout(t);
     };
@@ -1291,7 +1337,9 @@ export function GuideBird3D({
       // waddle owns root x/z; the yaw turns the whole content group.
       const sq = Math.max(0.5, cur.squash);
       const xz = cur.hoverScale / Math.sqrt(sq);
-      root.scale.set(xz, sq * cur.hoverScale, xz);
+      // build stretches from the ground up, so the feet stay planted.
+      const bw = 1 / Math.sqrt(t.build);
+      root.scale.set(xz * bw, sq * cur.hoverScale * t.build, xz * bw);
       root.position.set(posX + (aPose.x ?? 0) * af, GROUND_Y + cur.y, posZ);
       content.rotation.y = yaw;
       lean.rotation.z = cur.rotZ;
@@ -1350,6 +1398,8 @@ export function GuideBird3D({
     const renderStatic = () => {
       const st = stateRef.current;
       cur.hoverScale = 1;
+      const b = tuningRef.current.build;
+      root.scale.set(1 / Math.sqrt(b), b, 1 / Math.sqrt(b));
       lean.rotation.set(0, 0, 0);
       flipperL.rotation.z = FLIP_REST;
       flipperR.rotation.z = -FLIP_REST;
@@ -1365,7 +1415,8 @@ export function GuideBird3D({
         flipperL.rotation.z = 2.45;
         flipperR.rotation.z = -2.45;
       } else if (st === "error") {
-        root.scale.set(1.02, ERROR_DEFLATE, 1.02);
+        const bw = 1.02 / Math.sqrt(tuningRef.current.build);
+        root.scale.set(bw, ERROR_DEFLATE * tuningRef.current.build, bw);
         flipperL.rotation.z = 0.1;
         flipperR.rotation.z = -0.1;
         eyeL.group.rotation.z = 0.24;
@@ -1439,7 +1490,7 @@ export function GuideBird3D({
         <span
           aria-hidden="true"
           className="absolute inset-[18%] rounded-[50%_50%_46%_46%/58%_58%_42%_42%] shadow-md"
-          style={{ background: `radial-gradient(ellipse 34% 40% at 50% 62%, ${BOT.belly} 96%, transparent), ${BOT.bodyGreen}` }}
+          style={{ background: `radial-gradient(ellipse 34% 40% at 50% 62%, ${BOT.belly} 96%, transparent), ${tuning?.bodyColor ?? BOT.bodyGreen}` }}
         />
       )}
     </div>

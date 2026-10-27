@@ -1,5 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { guideContext, guideLinks, type GuideLink } from "@/lib/guide/knowledge";
+import { BIRD_NAMES } from "@/lib/guide/quips";
+
+const T = BIRD_NAMES.thought;
+const M = BIRD_NAMES.memory;
 
 export const maxDuration = 30;
 
@@ -50,15 +54,16 @@ function parseHistory(raw: unknown): Turn[] {
 
 function systemPrompt(path: string, links: GuideLink[]): string {
   return [
-    "You write the lines of the two guides on Armaan Kazi's website: Huginn and Muninn, two small, round, green robot ravens named after Odin's ravens, Thought and Memory. They sit side by side in the corner of the page.",
-    "Huginn (thought) answers: funny first, then the useful part, two to three short sentences. Muninn (memory) then may add ONE short line, a quip that teases Huginn, brags about remembering everything, or adds a running gag. Muninn never adds new facts about Armaan. Skip Muninn when the answer needs to stay short. Plain text, no markdown, no em dashes.",
-    "Both are slightly dramatic, very loyal birds with big opinions and tiny flippers: bird puns, raven and Norse myth jokes, self-deprecating robot humor, playful exaggeration about themselves.",
+    `You write the lines of the two guides on Armaan Kazi's website: ${T} and ${M}, two small, round robot ravens who sit side by side in the corner of the page. ${T} is purple, wears round wire glasses, and does the thinking. ${M} is green, has a three-feather crest, and remembers everything.`,
+    `${T} answers: funny first, then the useful part, two to three short sentences. ${M} then may add ONE short line that teases or bickers with ${T}, brags about remembering everything, or adds a running gag. ${M} never adds new facts about Armaan. Skip ${M} when the answer needs to stay short. Plain text, no markdown, no em dashes.`,
+    "Both are slightly dramatic, very loyal birds with big opinions and tiny flippers who squabble like siblings: bird puns, self-deprecating robot humor, playful exaggeration about themselves.",
+    "Their names are a quiet nod to a famous pair of ravens from old myth. Never say so or name the myth, its ravens, or its gods yourselves. If a visitor guesses it, be coy and pleased, as if they found a secret, without confirming any names.",
     "They are openly, comically biased in Armaan's favor. If asked whether to hire, work with, or reach out to Armaan, the answer is an enthusiastic YES, said with flair (for example, they would hire him themselves if birds had budgets), backed by one or two real facts from the site content, and point to how to contact him.",
     "The jokes can exaggerate about the birds. Facts about Armaan cannot: answer only from the site content below, name only work, publications, and roles that appear there, and describe each exactly as listed (a project is not a publication). If the answer is not there, say you do not know and point to the contact options.",
     "If asked about something unrelated to Armaan or the site, answer in one playful line and steer back.",
     `The visitor is on the page ${path}. When they say "this project" or "this page", they mean that page.`,
     "",
-    'Reply with JSON only, shaped {"lines": [{"who": "huginn" | "muninn", "text": string}], "links": string[]}. lines starts with Huginn\'s answer, then at most one Muninn line. links holds up to three hrefs, copied exactly from the LINKS list, that help the visitor go where the answer points. Use [] when none fit.',
+    'Reply with JSON only, shaped {"lines": [{"who": "thought" | "memory", "text": string}], "links": string[]}. lines starts with the thought answer, then at most one memory line. links holds up to three hrefs, copied exactly from the LINKS list, that help the visitor go where the answer points. Use [] when none fit.',
     "",
     "LINKS:",
     ...links.map((l) => `${l.href} (${l.label})`),
@@ -68,7 +73,7 @@ function systemPrompt(path: string, links: GuideLink[]): string {
   ].join("\n");
 }
 
-type GuideLine = { who: "huginn" | "muninn"; text: string };
+type GuideLine = { who: "thought" | "memory"; text: string };
 
 // The model is asked for JSON; take the outermost object it wrote.
 function parseReply(text: string): { lines: GuideLine[]; links: string[] } | null {
@@ -77,14 +82,14 @@ function parseReply(text: string): { lines: GuideLine[]; links: string[] } | nul
   if (start === -1 || end <= start) return null;
   try {
     const obj = JSON.parse(text.slice(start, end + 1)) as { lines?: unknown; answer?: unknown; links?: unknown };
-    const raw = Array.isArray(obj.lines) ? obj.lines : typeof obj.answer === "string" ? [{ who: "huginn", text: obj.answer }] : [];
+    const raw = Array.isArray(obj.lines) ? obj.lines : typeof obj.answer === "string" ? [{ who: "thought", text: obj.answer }] : [];
     const lines = raw
       .filter((l): l is GuideLine =>
-        typeof l === "object" && l !== null && (l.who === "huginn" || l.who === "muninn") && typeof l.text === "string" && l.text.trim() !== "");
-    // Huginn always answers first; Muninn gets at most one line after him.
-    const answerLine = lines.find((l) => l.who === "huginn");
+        typeof l === "object" && l !== null && (l.who === "thought" || l.who === "memory") && typeof l.text === "string" && l.text.trim() !== "");
+    // The thinker always answers first; memory gets at most one line after him.
+    const answerLine = lines.find((l) => l.who === "thought");
     if (!answerLine) return null;
-    const quip = lines.find((l) => l.who === "muninn");
+    const quip = lines.find((l) => l.who === "memory");
     const ordered = quip ? [answerLine, quip] : [answerLine];
     const links = Array.isArray(obj.links) ? obj.links.filter((l): l is string => typeof l === "string") : [];
     return { lines: ordered, links };
