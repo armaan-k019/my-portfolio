@@ -43,7 +43,7 @@ Four content systems feed the site, and knowing which one owns a page saves a lo
 
 Two separate mechanisms, easy to confuse:
 
-- **Public demo cards.** `src/app/demos/page.tsx` holds a hardcoded `demoCards` array. This array, not `src/lib/demos.ts`, decides what is listed publicly. Currently: World Labs, Illoca, Rho, Midjourney.
+- **Public demo cards.** `content/demos.ts` holds the `demoCards` array that `src/app/demos/page.tsx` renders (the site guide reads it too). This array, not `src/lib/demos.ts`, decides what is listed publicly. Currently: World Labs, Illoca, Rho, Midjourney, Clay.
 - **Access code demos.** `src/lib/demos.ts` maps a code string to a `DemoConfig`. Entering a code on `/demos` either renders an inline `DemoView` from `sections`, or redirects to `url`. Current codes: `mayodentalkeer`, `midjourney`, `terranox_2026`, `whop_2026`, `demo123`. Codes are client side and deliberately not secure, as the file comments say. Never put anything sensitive behind one.
 - Terranox and Whop have pages under `src/app/demos/` but no public card; they are reachable only through their access code, which is the intended state after the portfolio focus cuts. Midjourney is unusual in having both a public card and an access code that redirects to the same page.
 
