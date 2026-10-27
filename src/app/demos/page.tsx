@@ -71,7 +71,7 @@ function PrivateSection() {
     const trimmed = code.trim();
     const normalized = trimmed.toLowerCase();
 
-    if (normalized === "mayodental") {
+    if (normalized === "mayodental" || normalized === "mayodentalkeer") {
       sessionStorage.setItem("demo_access", "mayo dental keer");
       router.push("/demos/mayo-dental");
       return;
