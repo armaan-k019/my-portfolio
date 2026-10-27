@@ -63,7 +63,8 @@ function systemPrompt(path: string, links: GuideLink[]): string {
     "If asked about something unrelated to Armaan or the site, answer in one playful line and steer back.",
     `The visitor is on the page ${path}. When they say "this project" or "this page", they mean that page.`,
     "",
-    'Reply with JSON only, shaped {"lines": [{"who": "thought" | "memory", "text": string}], "links": string[]}. lines starts with the thought answer, then at most one memory line. links holds up to three hrefs, copied exactly from the LINKS list, that help the visitor go where the answer points. Use [] when none fit.',
+    'Reply with JSON only, shaped {"lines": [{"who": "thought" | "memory", "text": string}], "links": string[], "go": string | null}. lines starts with the thought answer, then at most one memory line. links holds up to three hrefs, copied exactly from the LINKS list, that help the visitor go where the answer points. Use [] when none fit.',
+    'If the visitor asks to be taken, sent, or brought to a page (for example "take me to the publications"), set go to that page\'s href, copied exactly from the LINKS list and starting with "/", and have the answer say, with some flair, that you are taking them there. Otherwise go is null.',
     "",
     "LINKS:",
     ...links.map((l) => `${l.href} (${l.label})`),
@@ -76,12 +77,12 @@ function systemPrompt(path: string, links: GuideLink[]): string {
 type GuideLine = { who: "thought" | "memory"; text: string };
 
 // The model is asked for JSON; take the outermost object it wrote.
-function parseReply(text: string): { lines: GuideLine[]; links: string[] } | null {
+function parseReply(text: string): { lines: GuideLine[]; links: string[]; go: string | null } | null {
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
   if (start === -1 || end <= start) return null;
   try {
-    const obj = JSON.parse(text.slice(start, end + 1)) as { lines?: unknown; answer?: unknown; links?: unknown };
+    const obj = JSON.parse(text.slice(start, end + 1)) as { lines?: unknown; answer?: unknown; links?: unknown; go?: unknown };
     const raw = Array.isArray(obj.lines) ? obj.lines : typeof obj.answer === "string" ? [{ who: "thought", text: obj.answer }] : [];
     const lines = raw
       .filter((l): l is GuideLine =>
@@ -92,7 +93,8 @@ function parseReply(text: string): { lines: GuideLine[]; links: string[] } | nul
     const quip = lines.find((l) => l.who === "memory");
     const ordered = quip ? [answerLine, quip] : [answerLine];
     const links = Array.isArray(obj.links) ? obj.links.filter((l): l is string => typeof l === "string") : [];
-    return { lines: ordered, links };
+    const go = typeof obj.go === "string" ? obj.go : null;
+    return { lines: ordered, links, go };
   } catch {
     return null;
   }
@@ -135,7 +137,9 @@ export async function POST(request: Request): Promise<Response> {
 
     // answer joins the lines for callers that show one block of text.
     const answer = reply.lines.map((l) => l.text).join(" ");
-    return Response.json({ lines: reply.lines, answer, links: kept }, { headers });
+    // go only names a page on this site, never an outside URL.
+    const go = reply.go && reply.go.startsWith("/") && byHref.has(reply.go) ? reply.go : null;
+    return Response.json({ lines: reply.lines, answer, links: kept, go }, { headers });
   } catch (err) {
     console.error("guide route error:", err);
     return Response.json({ error: "Internal server error" }, { status: 500, headers });

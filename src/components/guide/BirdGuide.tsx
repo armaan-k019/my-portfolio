@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { BotApi, BotTuning, GuideBirdState } from "./GuideBird3D";
 import { BIRD_NAMES, FIRST_QUIP, QUIPS, type BirdId, type Quip } from "@/lib/guide/quips";
 
@@ -31,6 +31,8 @@ const BUBBLE_HOLD_PER_CHAR_MS = 45;
 // The bird's success beat runs about 1.2s, then it goes back to idling.
 const SUCCESS_HOLD_MS = 1_300;
 const ERROR_HOLD_MS = 2_400;
+// When asked to go somewhere, the birds answer first, then take the visitor.
+const GO_DELAY_MS = 1_600;
 const HIDDEN_KEY = "guide-hidden";
 type Bird = { id: BirdId; tuning: Partial<BotTuning> };
 // The birds stay in their corner: a short, slow shuffle in place, nothing that
@@ -54,6 +56,7 @@ const SUGGESTIONS = [
   "Where are Armaan's projects?",
   "Where are Armaan's publications?",
   "What is this page, and how did Armaan build it?",
+  "Take me to Armaan's projects.",
 ];
 
 type GuideLink = { href: string; label: string };
@@ -100,6 +103,8 @@ function GuideLinkChip({ link, onClick }: { link: GuideLink; onClick?: () => voi
 
 export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: string }) {
   const pathname = usePathname() ?? "/";
+  const router = useRouter();
+  const goTimerRef = useRef(0);
   // null until the saved choice is read, so a hidden bird never loads.
   const [hidden, setHidden] = useState<boolean | null>(null);
   const [open, setOpen] = useState(false);
@@ -200,7 +205,21 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
     setBirdState(s);
     settleTimerRef.current = window.setTimeout(() => setBirdState("idle"), ms);
   }, []);
-  useEffect(() => () => window.clearTimeout(settleTimerRef.current), []);
+  useEffect(() => () => {
+    window.clearTimeout(settleTimerRef.current);
+    window.clearTimeout(goTimerRef.current);
+  }, []);
+
+  // Pages are hrefs on the site that serves the endpoint. On another site the
+  // endpoint is absolute, so the trip is a full load of that site's page.
+  const goTo = useCallback(
+    (href: string) => {
+      setOpen(false);
+      if (/^https?:\/\//.test(endpoint)) window.location.assign(new URL(href, endpoint).toString());
+      else router.push(href);
+    },
+    [endpoint, router],
+  );
 
   const ask = useCallback(
     async (question: string) => {
@@ -227,13 +246,18 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ question: q, path: pathname, history }),
         });
-        const data = (await res.json()) as { lines?: Line[]; answer?: string; links?: GuideLink[]; error?: string };
+        const data = (await res.json()) as { lines?: Line[]; answer?: string; links?: GuideLink[]; go?: string | null; error?: string };
         const lines = data.lines?.length ? data.lines : typeof data.answer === "string" ? [{ who: "thought" as const, text: data.answer }] : null;
         if (!res.ok || !lines) throw new Error(data.error ?? `HTTP ${res.status}`);
         // History carries the exchange as one block with speaker names.
         const text = lines.map((l) => `${BIRD_NAMES[l.who]}: ${l.text}`).join("\n");
         setMessages((m) => [...m, { role: "assistant", text, lines, links: data.links ?? [] }]);
         settle("success", SUCCESS_HOLD_MS);
+        if (data.go) {
+          const go = data.go;
+          window.clearTimeout(goTimerRef.current);
+          goTimerRef.current = window.setTimeout(() => goTo(go), GO_DELAY_MS);
+        }
       } catch {
         // Say plainly that the call failed, so it never reads as "nothing to say".
         setMessages((m) => [
@@ -251,7 +275,7 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
         setPending(false);
       }
     },
-    [endpoint, messages, pathname, pending, settle],
+    [endpoint, goTo, messages, pathname, pending, settle],
   );
 
   const toggleOpen = useCallback(() => {
