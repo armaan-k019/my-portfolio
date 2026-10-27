@@ -6,7 +6,7 @@ import Link from 'next/link';
 import type { RoomShape, Vector3D, AcousticMetrics, SoundRay, SurfaceGroup, ReceiverPoint } from '@/types';
 import { getDefaultRoom } from '@/lib/geometry';
 import {
-  calculateVolume, calculateSurfaceArea, calculateRT60,
+  calculateVolume, calculateSurfaceArea,
   calculateOctaveBandRT60, detectSurfaceGroups, castSoundRays,
 } from '@/lib/acoustics';
 import ShapeInputPanel from '@/components/ShapeInputPanel';
@@ -29,7 +29,7 @@ function computeMetrics(
   const volume = calculateVolume(shape.vertices, shape.faces);
   const surfaceArea = calculateSurfaceArea(shape.vertices, shape.faces);
   const octaveBandRT60 = calculateOctaveBandRT60(volume, shape.vertices, shape.faces, surfaceGroups);
-  const rt60 = calculateRT60(volume, surfaceArea);
+  const rt60 = octaveBandRT60.hz500;
   const earlyReflections = rays.reduce((sum, r) => sum + r.bounces.length, 0);
   return { volume, surfaceArea, rt60, octaveBandRT60, earlyReflections };
 }
