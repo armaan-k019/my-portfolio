@@ -5,6 +5,7 @@ import SectionCut from "@/components/section-cut/SectionCut";
 import DraftingSheet from "@/components/chooser/DraftingSheet";
 import LabField from "@/components/chooser/LabField";
 import SkillsGraph, { type SkillsGraphData } from "@/components/chooser/SkillsGraph";
+import BirdGuide from "@/components/guide/BirdGuide";
 
 export const metadata: Metadata = {
   title: "Armaan Kazi",
@@ -62,6 +63,7 @@ export default async function Chooser() {
         <span className="font-display text-[17px] font-semibold text-[#EFF4EF] tracking-tight">Armaan Kazi</span>
       </header>
       <ChooserGrid tiles={tiles} />
+      <BirdGuide />
     </div>
   );
 }
