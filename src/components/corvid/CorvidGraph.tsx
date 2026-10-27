@@ -26,6 +26,9 @@ const POINT_SIZE_SCALE = 300;
 const HOVER_SCALE = 1.45;
 const DIM_ALPHA = 0.14;
 const LEGEND_DIM = 0.55; // dim mix for papers outside the emphasized field
+const EGO_EDGE_BOOST = 1.8; // edge alpha multiple inside a selected paper's network
+const EDGE_DIM_FACTOR = 0.12; // edges outside it keep this fraction
+const CAMERA_EASE_MS = 420;
 
 const MAX_EDGES_DRAWN = 3000;
 const INTRA_TOP_K = 4;
@@ -178,9 +181,10 @@ interface Props {
   nodes: CorvidNode[];
   edges: [number, number, number][];
   highlight: number | null; // community to emphasize, or null
+  legendAction: number; // bumps on every legend hover or click; clears a selection
 }
 
-export default function CorvidGraph({ nodes, edges, highlight }: Props) {
+export default function CorvidGraph({ nodes, edges, highlight, legendAction }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const highlightRef = useRef<(c: number | null) => void>(() => {});
   // The latest selection, so one made while three.js is still loading is
@@ -188,6 +192,13 @@ export default function CorvidGraph({ nodes, edges, highlight }: Props) {
   const latestHighlight = useRef(highlight);
   const [hover, setHover] = useState<{ x: number; y: number; label: string } | null>(null);
   const [noWebGL, setNoWebGL] = useState(false);
+  const [selected, setSelected] = useState<{ label: string; community: number | null; connected: number } | null>(null);
+  const clearRef = useRef<() => void>(() => {});
+
+  // Any legend action hands control back to the legend, as in the lab.
+  useEffect(() => {
+    if (legendAction > 0) clearRef.current();
+  }, [legendAction]);
 
   useEffect(() => {
     latestHighlight.current = highlight;
@@ -537,24 +548,96 @@ export default function CorvidGraph({ nodes, edges, highlight }: Props) {
         return { sprite, mat, tex, ci, center };
       });
 
-      // Field emphasis from the legend: dim other papers, their edges, clouds
-      // and names, with the lab's factors.
+      // Adjacency over the drawn edges: a click lights what the eye can follow.
+      const adjacency = new Map<number, Set<number>>();
+      for (const e of [...drawnIntra, ...drawnBridges]) {
+        if (!adjacency.has(e.a)) adjacency.set(e.a, new Set());
+        if (!adjacency.has(e.b)) adjacency.set(e.b, new Set());
+        adjacency.get(e.a)!.add(e.b);
+        adjacency.get(e.b)!.add(e.a);
+      }
+
+      // Visual state, as in the lab: a selected paper's network (root plus
+      // neighbors) wins over legend emphasis; hover always lifts its paper.
       let emphasis: number | null = null;
-      highlightRef.current = (h) => {
-        emphasis = h;
-        nodes.forEach((d, i) => (dims[i] = h === null || d.community === h ? 0 : LEGEND_DIM));
+      let selectedSet: Set<number> | null = null;
+      let selectedRoot = -1;
+      let hovered = -1;
+      const applyVisualState = () => {
+        for (let i = 0; i < n; i++) {
+          let hi = 0;
+          let dim = 0;
+          if (selectedSet) {
+            if (i === selectedRoot) hi = 1;
+            else if (selectedSet.has(i)) hi = 0.45;
+            else dim = 1;
+          } else if (emphasis !== null && nodes[i].community !== emphasis) {
+            dim = LEGEND_DIM;
+          }
+          if (i === hovered) hi = 1;
+          highlights[i] = hi;
+          dims[i] = dim;
+        }
+        highlightAttr.needsUpdate = true;
         dimAttr.needsUpdate = true;
         const apply = (drawn: Drawn[], base: Float32Array, out: Float32Array, per: number, attr: THREEType.BufferAttribute) => {
           drawn.forEach((e, k) => {
-            const ca = nodes[e.a].community;
-            const cb = nodes[e.b].community;
-            const f = h === null ? 1 : ca === h && cb === h ? 1.4 : ca === h || cb === h ? 0.7 : 0.35;
+            let f = 1;
+            if (selectedSet) {
+              f = selectedSet.has(e.a) && selectedSet.has(e.b) ? EGO_EDGE_BOOST : EDGE_DIM_FACTOR;
+            } else if (emphasis !== null) {
+              const ca = nodes[e.a].community;
+              const cb = nodes[e.b].community;
+              f = ca === emphasis && cb === emphasis ? 1.4 : ca === emphasis || cb === emphasis ? 0.7 : 0.35;
+            }
             for (let s = 0; s < per; s++) out[k * per + s] = base[k * per + s] * f;
           });
           attr.needsUpdate = true;
         };
         apply(drawnIntra, intraBase, intraAlpha, 2, intraAlphaAttr);
         apply(drawnBridges, bridgeBase, bridgeAlpha, segs * 2, bridgeAlphaAttr);
+      };
+
+      // Camera easing toward a selected paper (instant under reduced motion).
+      let ease: { t0: number; from: THREEType.Vector3; to: THREEType.Vector3 } | null = null;
+      const easeTargetTo = (to: THREEType.Vector3) => {
+        if (reducedMotion) controls.target.copy(to);
+        else ease = { t0: performance.now(), from: controls.target.clone(), to: to.clone() };
+      };
+
+      const selectIndex = (idx: number, expand: boolean) => {
+        if (expand && selectedSet && selectedRoot >= 0) {
+          // Shift-click grows the network by one hop.
+          const grown = new Set(selectedSet);
+          for (const m of selectedSet) for (const nb of adjacency.get(m) ?? []) grown.add(nb);
+          selectedSet = grown;
+        } else {
+          selectedRoot = idx;
+          selectedSet = new Set([idx, ...(adjacency.get(idx) ?? [])]);
+        }
+        applyVisualState();
+        easeTargetTo(pos[selectedRoot]);
+        const root = nodes[selectedRoot];
+        setSelected({ label: root.label, community: root.community, connected: selectedSet.size - 1 });
+      };
+      const clearSelection = () => {
+        if (!selectedSet) return;
+        selectedSet = null;
+        selectedRoot = -1;
+        applyVisualState();
+        setSelected(null);
+      };
+      clearRef.current = clearSelection;
+
+      // Legend emphasis replaces a selection, as in the lab.
+      highlightRef.current = (h) => {
+        emphasis = h;
+        if (h !== null && selectedSet) {
+          selectedSet = null;
+          selectedRoot = -1;
+          setSelected(null);
+        }
+        applyVisualState();
       };
       highlightRef.current(latestHighlight.current);
 
@@ -606,13 +689,11 @@ export default function CorvidGraph({ nodes, edges, highlight }: Props) {
         }
         return best;
       };
-      let hovered = -1;
       const setHovered = (i: number) => {
         if (i === hovered) return;
-        if (hovered >= 0) highlights[hovered] = 0;
-        if (i >= 0) highlights[i] = 1;
         hovered = i;
-        highlightAttr.needsUpdate = true;
+        applyVisualState();
+        renderer.domElement.style.cursor = i >= 0 ? "pointer" : "";
       };
       const onMove = (e: PointerEvent) => {
         const r = renderer.domElement.getBoundingClientRect();
@@ -632,8 +713,38 @@ export default function CorvidGraph({ nodes, edges, highlight }: Props) {
         setHovered(-1);
         setHover(null);
       };
+      // Click lights a paper's network (shift-click grows a hop); a click on
+      // empty space or Esc clears. Drags are orbits, not clicks.
+      let downAt: { x: number; y: number } | null = null;
+      let dragged = false;
+      const onDown = (e: PointerEvent) => {
+        downAt = { x: e.clientX, y: e.clientY };
+        dragged = false;
+      };
+      const onDrag = (e: PointerEvent) => {
+        if (downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 5) dragged = true;
+      };
+      const onUp = () => {
+        downAt = null;
+      };
+      const onClick = (e: MouseEvent) => {
+        if (dragged) return;
+        onStart();
+        const r = renderer.domElement.getBoundingClientRect();
+        const hit = pickAt(e.clientX - r.left, e.clientY - r.top, r.width, r.height);
+        if (hit >= 0) selectIndex(hit, e.shiftKey);
+        else clearSelection();
+      };
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === "Escape") clearSelection();
+      };
       renderer.domElement.addEventListener("pointermove", onMove);
       renderer.domElement.addEventListener("pointerleave", onLeave);
+      renderer.domElement.addEventListener("pointerdown", onDown);
+      window.addEventListener("pointermove", onDrag);
+      window.addEventListener("pointerup", onUp);
+      renderer.domElement.addEventListener("click", onClick);
+      window.addEventListener("keydown", onKey);
 
       // Draw only while the panel is on screen.
       let raf = 0;
@@ -672,6 +783,12 @@ export default function CorvidGraph({ nodes, edges, highlight }: Props) {
         intraMat.uniforms.uTime.value = now / 1000;
         bridgeMat.uniforms.uTime.value = now / 1000;
 
+        if (ease) {
+          const t = Math.min(1, (now - ease.t0) / CAMERA_EASE_MS);
+          const k = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+          controls.target.lerpVectors(ease.from, ease.to, k);
+          if (t >= 1) ease = null;
+        }
         controls.update();
         composer.render();
       };
@@ -698,6 +815,12 @@ export default function CorvidGraph({ nodes, edges, highlight }: Props) {
         controls.removeEventListener("start", onStart);
         renderer.domElement.removeEventListener("pointermove", onMove);
         renderer.domElement.removeEventListener("pointerleave", onLeave);
+        renderer.domElement.removeEventListener("pointerdown", onDown);
+        window.removeEventListener("pointermove", onDrag);
+        window.removeEventListener("pointerup", onUp);
+        renderer.domElement.removeEventListener("click", onClick);
+        window.removeEventListener("keydown", onKey);
+        clearRef.current = () => {};
         controls.dispose();
         for (const geo of [pointGeo, starGeo, intraGeo, bridgeGeo]) geo.dispose();
         for (const mat of [pointMat, starMat, intraMat, bridgeMat]) mat.dispose();
@@ -731,6 +854,21 @@ export default function CorvidGraph({ nodes, edges, highlight }: Props) {
         <p className="meta absolute inset-0 flex items-center justify-center px-6 text-center text-[#9FB0A6]">
           This browser has WebGL turned off, so the paper map can&apos;t be drawn here.
         </p>
+      )}
+      {selected && (
+        <div className="absolute left-3 top-3 z-10 max-w-[min(22rem,calc(100%-1.5rem))] rounded-sm bg-[#18221D]/90 px-3 py-2 text-[12px] leading-snug text-[#EFF4EF]">
+          <p className="font-medium">{selected.label}</p>
+          <p className="mt-1 text-[#9FB0A6]">
+            {selected.community === null ? "unassigned" : communityLabel(selected.community)} · {selected.connected} connected{" "}
+            {selected.connected === 1 ? "paper" : "papers"}
+          </p>
+          <p className="mt-1.5 flex items-center gap-3 text-[#9FB0A6]">
+            <span>shift-click grows a hop</span>
+            <button type="button" onClick={() => clearRef.current()} className="underline-offset-2 hover:text-[#EFF4EF] hover:underline">
+              clear
+            </button>
+          </p>
+        </div>
       )}
       {hover && <Tooltip hover={hover} panel={mountRef.current} />}
     </div>
