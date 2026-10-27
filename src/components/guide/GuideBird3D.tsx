@@ -404,30 +404,6 @@ const ANTICS: AnticDef[] = [
       rotZ: -0.04 * plateau(p, 0.28, 0.4, 0.7, 0.88),
     }),
   },
-  // Guide antic. Weight 0 means never picked at random: "run" only makes
-  // sense while BirdGuide moves the whole bird across the page, and its
-  // duration matches the page-level path there.
-  {
-    name: "run",
-    duration: 4.0,
-    weight: 0,
-    pose: (p) => {
-      const go = plateau(p, 0.02, 0.08, 0.92, 0.98);
-      const stride = Math.sin(p * 70);
-      return {
-        // Faces left on the way out, right on the way back.
-        rotY: -0.85 * plateau(p, 0.0, 0.06, 0.42, 0.5) + 0.85 * plateau(p, 0.5, 0.58, 0.94, 1),
-        rotX: 0.2 * go,
-        rotZ: 0.1 * stride * go,
-        y: 0.06 * Math.abs(stride) * go,
-        flipL: 1.6 * Math.sin(p * 90) * go, // panicked windmilling
-        flipR: -1.6 * Math.sin(p * 90 + Math.PI) * go,
-        footL: 0.09 * Math.max(0, stride) * go,
-        footR: 0.09 * Math.max(0, -stride) * go,
-        squashDelta: 0.04 * go,
-      };
-    },
-  },
   {
     name: "faceplant",
     duration: 2.8,
