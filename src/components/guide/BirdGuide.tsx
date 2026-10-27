@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { BotApi, BotTuning, GuideBirdState } from "./GuideBird3D";
-import { BIRD_NAMES, FIRST_QUIP, QUIPS, type BirdId, type Quip } from "@/lib/guide/quips";
+import { BIRD_NAMES, FIRST_QUIP, FULL_NAMES, QUIPS, type BirdId, type Quip } from "@/lib/guide/quips";
 
 // ---------------------------------------------------------------------------
 // The site guide: two robot ravens, a purple one with glasses who answers, and
@@ -346,7 +346,7 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
                 <p>
                   <span className={`font-mono text-[11px] uppercase tracking-wider ${LABEL_CLASS.thought}`}>{BIRD_NAMES.thought}</span>
                   <br />
-                  Hi. I am {BIRD_NAMES.thought}, he is {BIRD_NAMES.memory}, and between us we know this whole site. Ask us anything about Armaan.
+                  Hi. I am {FULL_NAMES.thought}, he is {FULL_NAMES.memory}, {BIRD_NAMES.thought} and {BIRD_NAMES.memory} for short. Between us we know this whole site. Ask us anything about Armaan.
                 </p>
                 <div className="flex flex-col items-start gap-1.5">
                   {SUGGESTIONS.map((s) => (
