@@ -6,6 +6,7 @@ import NodeField from "@/components/NodeField";
 import ResearchSection from "@/components/ResearchSection";
 import { projects } from "../../../content/projects";
 import { getResearchEntries } from "@/lib/mdx";
+import BirdGuide from "@/components/guide/BirdGuide";
 
 export default function Home() {
   const allProjects = projects;
@@ -49,6 +50,7 @@ export default function Home() {
           <ContactSection />
         </div>
       </div>
+      <BirdGuide />
     </div>
   );
 }

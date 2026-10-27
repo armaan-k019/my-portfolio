@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
+import SignatureMark from "./SignatureMark";
 
 const sections = [
   { id: "work", label: "Experience" },
@@ -79,12 +80,7 @@ export default function Navbar() {
       >
         <div className="max-w-5xl mx-auto px-6 flex items-center justify-between h-16">
           <Link href="/home" className="group flex items-center gap-3 shrink-0">
-            <span
-              className="text-darkblue select-none leading-none transition-transform duration-300 group-hover:scale-105"
-              style={{ fontFamily: 'var(--font-amiri), "Amiri", serif', fontSize: '1.65rem' }}
-            >
-              أك
-            </span>
+            <SignatureMark className="bg-darkblue transition-transform duration-300 group-hover:scale-105" />
             <span className="font-display text-[15px] font-semibold text-darkblue tracking-tight">Armaan Kazi</span>
           </Link>
 
