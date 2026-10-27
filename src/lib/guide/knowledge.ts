@@ -35,9 +35,9 @@ const PAGE_LINKS: GuideLink[] = [
 
 // How the guide itself was made. Kept here because no content module covers it.
 const GUIDE_SELF = [
-  "The guide (the small green bird answering these questions) started as the scheduler bot in kazi lab, Armaan's multi-agent research lab.",
-  "It is drawn procedurally in Three.js (no model files): a lathe-turned body, a white belly panel, flippers, feet, and an antenna, animated with squash and stretch.",
-  "Its answers come from Claude on the server, given only the content of this website.",
+  "The guide is two small green birds, Huginn (thought) and Muninn (memory), named after Odin's two ravens in Norse myth, the same pair that names Armaan's research lab.",
+  "They started as the scheduler bot in that lab, a multi-agent research lab over academic papers. Each is drawn procedurally in Three.js (no model files): a lathe-turned body, a white belly panel, flippers, feet, and an antenna, animated with squash and stretch.",
+  "Their answers come from Claude on the server, given only the content of this website.",
 ].join(" ");
 
 function projectHref(p: (typeof projects)[number]): string {
