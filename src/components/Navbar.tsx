@@ -80,14 +80,14 @@ export default function Navbar() {
         }}
       >
         <div className="max-w-5xl mx-auto px-6 flex items-center justify-between h-16">
-          <Link href="/home" className="group flex items-center gap-3 shrink-0">
+          <Link href="/home" aria-label="Armaan Kazi, website home" className="group flex items-center gap-3 shrink-0">
             <SignatureMark className="bg-darkblue transition-transform duration-300 group-hover:scale-105" />
             <span className="hidden sm:inline font-display text-[15px] font-semibold text-darkblue tracking-tight">Armaan Kazi</span>
           </Link>
 
-          <div className="flex items-center gap-3 md:gap-6">
+          <div className="flex items-center gap-3 lg:gap-6">
             {/* Desktop nav */}
-            <div className="hidden md:flex items-center gap-6 ml-16">
+            <div className="hidden lg:flex items-center gap-6 ml-16">
               {sections.map((s) => (
                 <a
                   key={s.id}
@@ -114,12 +114,12 @@ export default function Navbar() {
               ))}
             </div>
 
-            <div className="hidden md:block w-px h-[18px] bg-sage/30" />
+            <div className="hidden lg:block w-px h-[18px] bg-sage/30" />
             <SiteHomeButtons />
 
             {/* Mobile hamburger */}
             <button
-              className="md:hidden flex flex-col gap-1 p-2"
+              className="lg:hidden flex flex-col gap-1 p-2"
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label="Toggle menu"
               aria-expanded={mobileOpen}
@@ -140,7 +140,7 @@ export default function Navbar() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/20 z-40 md:hidden"
+              className="fixed inset-0 bg-black/20 z-40 lg:hidden"
               onClick={() => setMobileOpen(false)}
             />
             <motion.div
@@ -148,7 +148,7 @@ export default function Navbar() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed top-0 right-0 h-full w-64 bg-paper z-50 shadow-xl p-8 flex flex-col gap-6 md:hidden"
+              className="fixed top-0 right-0 h-full w-64 bg-paper z-50 shadow-xl p-8 flex flex-col gap-6 lg:hidden"
             >
               <button
                 onClick={() => setMobileOpen(false)}
