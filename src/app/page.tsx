@@ -57,7 +57,7 @@ export default async function Chooser() {
   return (
     <div className="-mt-16 flex flex-col min-h-screen">
       <header className="absolute inset-x-0 top-0 z-30 flex items-center justify-center gap-3 pt-6 md:pt-8">
-        <SignatureMark className="bg-tan" />
+        <SignatureMark bold size="h-14 w-[118px] md:h-[68px] md:w-[142px]" className="bg-tan-light" />
         <span className="font-display text-[17px] font-semibold text-[#EFF4EF] tracking-tight">Armaan Kazi</span>
       </header>
       <ChooserGrid tiles={tiles} />
