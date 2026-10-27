@@ -8,8 +8,8 @@ import type { BotApi, BotTuning, GuideBirdState } from "./GuideBird3D";
 import { BIRD_NAMES, FIRST_QUIP, QUIPS, type BirdId, type Quip } from "@/lib/guide/quips";
 
 // ---------------------------------------------------------------------------
-// The site guide: two robot ravens, a purple one with glasses who thinks and
-// answers, and a green one with a feather crest who remembers and heckles,
+// The site guide: two robot ravens, a purple one with glasses who answers, and
+// a green one with a feather crest who heckles him,
 // in the bottom right corner. Click either to ask about Armaan; leave them alone
 // and they say something silly now and then, sometimes to each other.
 // Self contained (own colors, no globals.css classes) so the folder can be
@@ -365,7 +365,7 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
                 <p>
                   <span className={`font-mono text-[11px] uppercase tracking-wider ${LABEL_CLASS.thought}`}>{BIRD_NAMES.thought}</span>
                   <br />
-                  Hi. I am Thought, he is Memory, and between us we know this whole site. Ask us anything about Armaan.
+                  Hi. I am {BIRD_NAMES.thought}, he is {BIRD_NAMES.memory}, and between us we know this whole site. Ask us anything about Armaan.
                 </p>
                 <div className="flex flex-col items-start gap-1.5">
                   {SUGGESTIONS.map((s) => (
