@@ -4,6 +4,7 @@ import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import BirdGuide from "@/components/guide/BirdGuide";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -54,6 +55,10 @@ export default function RootLayout({
             {children}
           </main>
           <Footer />
+          {/* The guide birds sit on every page and stay mounted across
+              navigation. Inside this wrapper so the menu and lightbox (z-50)
+              still draw above them. */}
+          <BirdGuide />
         </div>
         <Analytics />
       </body>
