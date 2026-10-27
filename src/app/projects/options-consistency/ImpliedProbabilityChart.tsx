@@ -53,7 +53,9 @@ export default function ImpliedProbabilityChart() {
 
   const kMin = points[0].strike;
   const kMax = points[points.length - 1].strike;
-  const x = (K: number) => PAD.left + ((K - kMin) / (kMax - kMin)) * (W - PAD.left - PAD.right);
+  // The points are evenly spaced in log strike, so the axis is too: a pointer
+  // position then maps linearly to a point index.
+  const x = (K: number) => PAD.left + (Math.log(K / kMin) / Math.log(kMax / kMin)) * (W - PAD.left - PAD.right);
   const y = (p: number) => PAD.top + (1 - p) * (H - PAD.top - PAD.bottom);
 
   const sigmas = points.map((p) => p.sigma);
@@ -69,7 +71,7 @@ export default function ImpliedProbabilityChart() {
   const at = points[idx];
   const gapPp = (at.withSkew - at.flat) * 100;
 
-  const xTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => kMin + f * (kMax - kMin));
+  const xTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => kMin * Math.pow(kMax / kMin, f));
 
   function onPointer(e: React.PointerEvent<SVGSVGElement>) {
     const rect = e.currentTarget.getBoundingClientRect();
