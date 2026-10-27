@@ -404,48 +404,6 @@ const ANTICS: AnticDef[] = [
       rotZ: -0.04 * plateau(p, 0.28, 0.4, 0.7, 0.88),
     }),
   },
-  // Guide antics. Weight 0 means never picked at random: "fly" and "run"
-  // only make sense while BirdGuide moves the whole bird across the page, and
-  // their durations match the page-level paths there.
-  {
-    name: "fly",
-    duration: 5.2,
-    weight: 0,
-    pose: (p) => {
-      const air = plateau(p, 0.04, 0.14, 0.86, 0.97);
-      return {
-        flipL: (0.6 + 1.3 * Math.sin(p * 150)) * air,
-        flipR: -(0.6 + 1.3 * Math.sin(p * 150)) * air,
-        y: 0.16 * air + 0.03 * Math.sin(p * 40) * air,
-        rotX: 0.22 * air,
-        rotZ: 0.22 * Math.sin(p * Math.PI * 2) * air, // banks into the turns
-        squashDelta: -0.1 * win(p, 0, 0.06) + 0.06 * air - 0.12 * win(p, 0.94, 1),
-        footL: 0.05 * air,
-        footR: 0.05 * air,
-      };
-    },
-  },
-  {
-    name: "run",
-    duration: 4.0,
-    weight: 0,
-    pose: (p) => {
-      const go = plateau(p, 0.02, 0.08, 0.92, 0.98);
-      const stride = Math.sin(p * 70);
-      return {
-        // Faces left on the way out, right on the way back.
-        rotY: -0.85 * plateau(p, 0.0, 0.06, 0.42, 0.5) + 0.85 * plateau(p, 0.5, 0.58, 0.94, 1),
-        rotX: 0.2 * go,
-        rotZ: 0.1 * stride * go,
-        y: 0.06 * Math.abs(stride) * go,
-        flipL: 1.6 * Math.sin(p * 90) * go, // panicked windmilling
-        flipR: -1.6 * Math.sin(p * 90 + Math.PI) * go,
-        footL: 0.09 * Math.max(0, stride) * go,
-        footR: 0.09 * Math.max(0, -stride) * go,
-        squashDelta: 0.04 * go,
-      };
-    },
-  },
   {
     name: "faceplant",
     duration: 2.8,

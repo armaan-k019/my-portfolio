@@ -1,6 +1,6 @@
-// The four sites the chooser at / links to. Website, Portfolio, and a
-// read-only view of the Lab live in this app; Workflow will be a separate
-// deployment on its own subdomain.
+// The four sites the chooser at / links to. All four live in this app:
+// Website, Portfolio, Workflow (the read-only ark-console snapshot at /setup),
+// and Lab (the read-only corvid snapshot at /lab).
 // While a site is being built, its tile is not a link: clicking it says so.
 export interface Site {
   index: string;
@@ -45,9 +45,9 @@ export const sites: Site[] = [
     index: "04",
     name: "Workflow",
     blurb: "The Claude Code skills, subagents, and hooks I work with, and the build runs they produced.",
-    href: "https://workflow.armaankazi.com",
-    note: "Coming soon",
-    external: true,
-    building: true,
+    href: "/setup",
+    note: "armaankazi.com/setup",
+    external: false,
+    building: false,
   },
 ];

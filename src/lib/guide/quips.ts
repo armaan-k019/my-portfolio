@@ -6,7 +6,9 @@
 export type BirdId = "thought" | "memory";
 
 // Display names, in one place so a rename is one edit. The ids say who is who:
-// the purple one thinks and answers, the green one remembers and heckles.
+// the purple one does the thinking and answers, the green one does the
+// remembering and heckles. They can joke about that, but never name
+// themselves Thought or Memory; that stays an easter egg.
 export const BIRD_NAMES: Record<BirdId, string> = { thought: "Huey", memory: "Muni" };
 const T = BIRD_NAMES.thought;
 const M = BIRD_NAMES.memory;
@@ -48,14 +50,14 @@ export const QUIPS: Quip[] = [
   { text: "This crest is not hair. It is three feathers holding a meeting." },
   { who: "thought", text: "The glasses are not prescription. They are for looking smart. Is it working." },
   { text: "Sometimes I sneeze sparkles. I am told that is normal for a bird." },
-  { who: "thought", text: "I do my best thinking while walking in small circles." },
+  { who: "thought", text: "I do my best work while walking in small circles." },
   { text: "The journal has essays. I have read them. I nodded at the good parts.", href: "/journal" },
   // Two-bird bits, mostly bickering.
-  { who: "thought", text: "I am the brains of this operation.", reply: "I am the memory. I remember you saying that yesterday too." },
-  { who: "memory", text: `${T}, what were we doing?`, reply: "Thinking. That is literally my whole job." },
+  { who: "thought", text: "I am the brains of this operation.", reply: "I remember you saying that yesterday too. And the day before." },
+  { who: "memory", text: `${T}, what were we doing?`, reply: "Standing here. Looking good. Same as always." },
   { who: "memory", text: "Why are you purple?", reply: "Why are you green? We do not ask each other these questions." },
   { who: "thought", text: "Those feathers on your head look ridiculous.", reply: "Says the bird wearing glasses with no lenses." },
-  { who: "memory", text: "I remember every page on this site.", reply: "He also remembers every time I tripped. Unfortunately." },
+  { who: "memory", text: "I know every page on this site.", reply: "He also brings up every time I tripped. Every single time." },
   { who: "thought", text: "Are we a flock now?", reply: "Two is a flock if you believe hard enough." },
   { who: "thought", text: "Stop standing so close to me.", reply: "We overlap by 22 percent. It is in the code. Take it up with Armaan." },
   { who: "memory", text: "I was here first.", reply: "We were rendered in the same frame." },

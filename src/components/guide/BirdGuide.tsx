@@ -8,8 +8,8 @@ import type { BotApi, BotTuning, GuideBirdState } from "./GuideBird3D";
 import { BIRD_NAMES, FIRST_QUIP, QUIPS, type BirdId, type Quip } from "@/lib/guide/quips";
 
 // ---------------------------------------------------------------------------
-// The site guide: two robot ravens, a purple one with glasses who thinks and
-// answers, and a green one with a feather crest who remembers and heckles,
+// The site guide: two robot ravens, a purple one with glasses who answers, and
+// a green one with a feather crest who heckles him,
 // in the bottom right corner. Click either to ask about Armaan; leave them alone
 // and they say something silly now and then, sometimes to each other.
 // Self contained (own colors, no globals.css classes) so the folder can be
@@ -20,8 +20,6 @@ const BIRD_SIZE_PX = 104;
 const BIRD_SIZE_MOBILE_PX = 76;
 // The pair overlaps a little so it reads as two birds together.
 const BIRD_OVERLAP_FRACTION = 0.22;
-// The memory bird trails the thinker on excursions, a beat behind.
-const FOLLOW_DELAY_MS = 380;
 // Quips: the first comes a little after load, then occasionally, never while
 // the chat is open or the tab is hidden.
 const FIRST_QUIP_MS = 7_000;
@@ -34,28 +32,15 @@ const BUBBLE_HOLD_PER_CHAR_MS = 45;
 const SUCCESS_HOLD_MS = 1_300;
 const ERROR_HOLD_MS = 2_400;
 const HIDDEN_KEY = "guide-hidden";
-// Excursions: now and then the bird leaves its corner, flying a loop over the
-// page or sprinting off and back. Durations match the "fly" and "run" antics.
-const FIRST_EXCURSION_MS = 22_000;
-const EXCURSION_INTERVAL_MS = 40_000;
-const EXCURSION_JITTER_MS = 30_000;
-const FLY_MS = 5_200;
-const RUN_MS = 4_000;
-
-// Page-level paths as [x, y] offsets from the corner, in viewport units.
-const FLY_PATH: [number, number][] = [
-  [0, 0], [-6, -14], [-22, -34], [-40, -40], [-52, -26], [-40, -12], [-24, -22], [-10, -12], [0, 0],
-];
-const RUN_PATH: { offset: number; x: number }[] = [
-  { offset: 0, x: 0 }, { offset: 0.45, x: -45 }, { offset: 0.55, x: -45 }, { offset: 1, x: 0 },
-];
-
 type Bird = { id: BirdId; tuning: Partial<BotTuning> };
+// The birds stay in their corner: a short, slow shuffle in place, nothing that
+// crosses the page.
+const STAY_PUT: Partial<BotTuning> = { wanderRadius: 0.25, waddleSpeed: 0.7 };
 // Memory sits on the left, thought on the right next to the chat. Tunings are
 // module constants so the bird does not re-apply them on every render.
 const BIRDS: Bird[] = [
-  { id: "memory", tuning: { bodyColor: "#2E9968", profile: "playful", headgear: "crest", build: 0.92, eyeSize: 1.08 } },
-  { id: "thought", tuning: { bodyColor: "#8463D4", profile: "curious", glasses: true, build: 1.1, eyeSize: 0.92 } },
+  { id: "memory", tuning: { bodyColor: "#2E9968", profile: "playful", headgear: "crest", build: 0.92, eyeSize: 1.08, ...STAY_PUT } },
+  { id: "thought", tuning: { bodyColor: "#8463D4", profile: "curious", glasses: true, build: 1.1, eyeSize: 0.92, ...STAY_PUT } },
 ];
 // Speaker label colors, darker than the bodies so they read on the bubble.
 const LABEL_CLASS: Record<BirdId, string> = { thought: "text-[#5B3BA3]", memory: "text-[#1F6B48]" };
@@ -130,7 +115,6 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
   const lastQuipRef = useRef(-1);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const flightRef = useRef<Record<BirdId, HTMLDivElement | null>>({ thought: null, memory: null });
   const openRef = useRef(open);
   openRef.current = open;
   const busyRef = useRef(false); // a quip or a question is in progress
@@ -170,51 +154,6 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
     };
     schedule(FIRST_QUIP_MS);
     return () => window.clearTimeout(timer);
-  }, [hidden]);
-
-  // Excursions: fly a loop or sprint off and back, only while nothing else is
-  // going on, and never with reduced motion.
-  useEffect(() => {
-    if (hidden !== false) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let timer = 0;
-    const anims: Animation[] = [];
-    const followTimers: number[] = [];
-    const schedule = (delay: number) => {
-      timer = window.setTimeout(() => {
-        if (!openRef.current && !busyRef.current && document.visibilityState === "visible") {
-          // Only the current excursion is kept, so finished ones are released.
-          anims.splice(0).forEach((a) => a.cancel());
-          followTimers.splice(0).forEach((t) => window.clearTimeout(t));
-          const fly = Math.random() < 0.5;
-          // Thought leads, memory follows a beat behind on the same path.
-          BIRDS.forEach((b) => {
-            const el = flightRef.current[b.id];
-            if (!el) return;
-            const delay = b.id === "memory" ? FOLLOW_DELAY_MS : 0;
-            followTimers.push(window.setTimeout(() => apiRef.current[b.id]?.fireAntic(fly ? "fly" : "run"), delay));
-            anims.push(
-              fly
-                ? el.animate(
-                    FLY_PATH.map(([x, y]) => ({ transform: `translate(${x}vw, ${y}vh)` })),
-                    { duration: FLY_MS, delay, easing: "ease-in-out" },
-                  )
-                : el.animate(
-                    RUN_PATH.map((k) => ({ offset: k.offset, transform: `translateX(${k.x}vw)` })),
-                    { duration: RUN_MS, delay, easing: "cubic-bezier(0.45, 0, 0.55, 1)" },
-                  ),
-            );
-          });
-        }
-        schedule(EXCURSION_INTERVAL_MS + Math.random() * EXCURSION_JITTER_MS);
-      }, delay);
-    };
-    schedule(FIRST_EXCURSION_MS);
-    return () => {
-      window.clearTimeout(timer);
-      followTimers.forEach((t) => window.clearTimeout(t));
-      anims.forEach((a) => a.cancel());
-    };
   }, [hidden]);
 
   // Typewriter reveal, then hold scaled to length, then clear.
@@ -375,7 +314,7 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
                 <p>
                   <span className={`font-mono text-[11px] uppercase tracking-wider ${LABEL_CLASS.thought}`}>{BIRD_NAMES.thought}</span>
                   <br />
-                  Hi. I am Thought, he is Memory, and between us we know this whole site. Ask us anything about Armaan.
+                  Hi. I am {BIRD_NAMES.thought}, he is {BIRD_NAMES.memory}, and between us we know this whole site. Ask us anything about Armaan.
                 </p>
                 <div className="flex flex-col items-start gap-1.5">
                   {SUGGESTIONS.map((s) => (
@@ -469,14 +408,20 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
         </div>
       )}
 
-      <div className="flex items-end">
+      <div className="relative flex items-end">
+        <button
+          type="button"
+          onClick={hide}
+          aria-label="Hide the birds"
+          title="Hide the birds"
+          className="pointer-events-auto absolute left-0 top-0 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-[#16241A]/15 bg-[#FBFCFA]/90 font-mono text-[11px] leading-none text-[#4A6B4A] opacity-60 shadow-sm transition-opacity hover:opacity-100 focus-visible:opacity-100"
+        >
+          &times;
+        </button>
         {BIRDS.map((b, i) => (
           <div
             key={b.id}
-            ref={(el) => {
-              flightRef.current[b.id] = el;
-            }}
-            className="pointer-events-auto will-change-transform"
+            className="pointer-events-auto"
             style={i > 0 ? { marginLeft: -size * BIRD_OVERLAP_FRACTION } : undefined}
           >
             <GuideBird3D
