@@ -334,7 +334,7 @@ export default function SkillsConstellation({ graph }: { graph: SkillGraph }) {
         nodes.forEach((n, i) => {
           nodeLevel[i] += (nodeTarget[i] - nodeLevel[i]) * ease;
           const isFocus = i === focusNode;
-          const breathe = 1 + Math.sin(t * 1.6 + i) * 0.04 + (isFocus ? 0.25 : 0);
+          const breathe = 1 + (reduced ? 0 : Math.sin(t * 1.6 + i) * 0.04) + (isFocus ? 0.25 : 0);
           const r = layout.radius.get(n.id)!;
           meshes[i].scale.setScalar(r * breathe);
           const mat = meshes[i].material as InstanceType<typeof THREE.MeshStandardMaterial>;
@@ -376,7 +376,7 @@ export default function SkillsConstellation({ graph }: { graph: SkillGraph }) {
         }
         pulseGeo.attributes.position.needsUpdate = true;
         pulseGeo.attributes.color.needsUpdate = true;
-        stars.rotation.y += dt * 0.004;
+        if (!reduced) stars.rotation.y += dt * 0.004;
 
         renderer.render(scene, camera);
 
