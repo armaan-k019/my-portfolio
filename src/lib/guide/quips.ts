@@ -65,4 +65,17 @@ export const QUIPS: Quip[] = [
   { who: "memory", text: "I was here first.", reply: "We were rendered in the same frame." },
   { who: "thought", text: "Somewhere, a one-eyed guy is wondering where we went.", reply: "Do not tell him. The snacks here are better." },
   { who: "memory", text: `${T} thinks. I remember. Together we forget nothing and overthink everything.` },
+  // Muni on his own, about something other than his memory.
+  { who: "memory", text: "Honest review of this corner: good light, no snacks, one purple roommate." },
+  { who: "memory", text: "I rate every page I see. The demos get the most stars. Do not tell the journal.", href: "/demos" },
+  { who: "memory", text: "If you scroll fast enough, I get a little seasick. Please continue." },
+  { who: "memory", text: "Hot take: the best way to see this site is to ask us to take you somewhere. Try it." },
+  { who: "memory", text: "My crest goes up when I am curious. It is up right now. What are you looking for?" },
+  { who: "memory", text: `Most visitors click on ${T} first. I am trying not to take it personally.` },
+  { who: "memory", text: "Tell us a page and we will walk you there. Well. I will. He will make a speech first." },
+  // More back and forth where Muni gets the last word.
+  { who: "thought", text: "I have a theory about this page.", reply: "He has a theory about every page. Ask him about the footer. Actually, please do not." },
+  { who: "thought", text: "Let me think about that.", reply: "This could take a while. You could read a whole project in the meantime." },
+  { who: "thought", text: "I just had a brilliant idea.", reply: "It was a sandwich. The idea was a sandwich." },
+  { who: "thought", text: "I am going to explain the whole site in one sentence.", reply: "He is not. I have seen him try. Just ask us something specific." },
 ];
