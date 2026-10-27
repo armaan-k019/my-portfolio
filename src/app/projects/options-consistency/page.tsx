@@ -66,7 +66,7 @@ const RESULTS: { card: string; result: string; verdict: string }[] = [
   {
     card: "Cost-aware gap",
     result: "After spread, fees and delta-hedging cost, 4 of 412 contracts show a gap larger than the cost of trading it.",
-    verdict: "No gap survives costs. Null not rejected.",
+    verdict: "Too few to tell from chance. Null not rejected.",
   },
 ];
 
