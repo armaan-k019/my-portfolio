@@ -169,7 +169,7 @@ const CHEEK_COLOR = BOT.cheek; // faint blush, warmed to sit in the palette
 const CHEEK_OPACITY = 0.28; // sprite peak alpha; the soft texture makes it read ~0.05
 const FEET_TINT = BOT.feetTint; // feet darken the body green by this factor
 const ANTENNA_TINT = 0.8; // antenna darkens the body green by this factor
-const SHADOW_OPACITY = 0.15; // ground contact shadow; raise = heavier grounding
+const SHADOW_OPACITY = 0.26; // ground contact shadow; raise = heavier grounding
 
 // Face layout (relative to the body; eyeHeight tuning shifts on top of this).
 const EYE_BASE_Y = 0.06; // resting eye height; low-set reads cute
@@ -185,9 +185,9 @@ const CHEEK_X = 0.47;
 const CHEEK_SCALE = 0.24;
 
 // Material.
-const SOFT_ROUGHNESS = 0.55;
-const SOFT_CLEARCOAT = 0.4;
-const SOFT_CLEARCOAT_ROUGHNESS = 0.6;
+const SOFT_ROUGHNESS = 0.45;
+const SOFT_CLEARCOAT = 0.75;
+const SOFT_CLEARCOAT_ROUGHNESS = 0.32;
 
 // Animation timing (seconds unless noted). Everything eased, nothing linear.
 const BREATH_PERIOD_S = 3.2; // idle breath cycle
@@ -683,8 +683,10 @@ export function GuideBird3D({
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 20);
-    camera.position.set(0, 0.28, 4.6);
-    camera.lookAt(0, 0.05, 0);
+    // A slight three-quarter view from above so the body reads as a volume
+    // (top of the head, one flank) rather than a flat front.
+    camera.position.set(0.85, 0.75, 4.45);
+    camera.lookAt(0, 0.0, 0);
 
     // No WebGL (disabled, blocked, or a lost context): fall back to the flat
     // bird below instead of throwing and taking the page down with it.
@@ -695,14 +697,19 @@ export function GuideBird3D({
       setNoWebGL(true);
       return;
     }
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, PIXEL_RATIO_CAP));
     renderer.setSize(size, size);
     mount.appendChild(renderer.domElement);
 
     // The bot's own light rig: warm key upper-left, cool fill right, rim from
     // behind-top so the silhouette pops on any background.
-    scene.add(new THREE.AmbientLight(0xffffff, 0.34));
-    const key = new THREE.DirectionalLight(0xffe9d2, 1.25);
+    // Low ambient plus a sky/ground hemisphere: the top catches light, the
+    // underside falls into shade, which is most of what makes it look round.
+    scene.add(new THREE.AmbientLight(0xffffff, 0.16));
+    scene.add(new THREE.HemisphereLight(0xf2fff6, 0x1e2a22, 0.6));
+    const key = new THREE.DirectionalLight(0xffe9d2, 1.9);
     key.position.set(-2.2, 3, 2.5);
     scene.add(key);
     const fill = new THREE.DirectionalLight(0xd6e6ff, 0.55);
