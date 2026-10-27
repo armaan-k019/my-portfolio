@@ -10,16 +10,15 @@ export interface SketchbookEntry {
 }
 
 // The sketchbook is a small "latent space": every page is a card floating in
-// one shared 3D scene, and each view (sphere, orbit, scatter, grid) is just a
+// one shared 3D scene, and each view (sphere, orbit, grid) is just a
 // different set of target positions. Cards ease toward their targets every
 // frame, so switching views morphs the whole set instead of cutting.
 
-type View = "sphere" | "orbit" | "scatter" | "grid";
+type View = "sphere" | "orbit" | "grid";
 
 const VIEWS: { id: View; label: string }[] = [
   { id: "sphere", label: "3D" },
   { id: "orbit", label: "Orbit" },
-  { id: "scatter", label: "Scatter" },
   { id: "grid", label: "Grid" },
 ];
 
@@ -40,12 +39,6 @@ interface Layout {
   w: number;
   h: number;
   card: number; // card width in px
-}
-
-// Deterministic per-index noise so scatter positions are stable across renders.
-function hash(i: number, salt: number): number {
-  const s = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453;
-  return s - Math.floor(s);
 }
 
 function pageLabel(entry: SketchbookEntry): string {
@@ -75,20 +68,6 @@ function sceneTargets(view: View, n: number, layout: Layout): Vec[] {
     for (let i = 0; i < n; i++) {
       const t = (i / n) * Math.PI * 2;
       out.push({ x: Math.cos(t) * r, y: Math.sin(t * 3) * card * 0.35, z: Math.sin(t) * r, rot: 0 });
-    }
-    return out;
-  }
-
-  if (view === "scatter") {
-    const spanX = w / 2 - card * 0.6;
-    const spanY = h / 2 - card * CARD_ASPECT * 0.55;
-    for (let i = 0; i < n; i++) {
-      out.push({
-        x: (hash(i, 1) * 2 - 1) * spanX,
-        y: (hash(i, 2) * 2 - 1) * spanY,
-        z: (hash(i, 3) * 2 - 1) * 120,
-        rot: (hash(i, 4) * 2 - 1) * 14,
-      });
     }
     return out;
   }
@@ -236,7 +215,7 @@ export default function SketchbookGrid({ entries }: { entries: SketchbookEntry[]
         const y = c.y * depth + parallaxY * depth;
         const near = Math.max(0, Math.min(1, (c.z + 400) / 800));
         el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, -50%) rotate(${c.rot.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
-        el.style.opacity = (spins ? 0.28 + near * 0.72 : 1).toFixed(3);
+        el.style.opacity = (spins ? 0.45 + near * 0.55 : 1).toFixed(3);
         el.style.zIndex = String(isHover ? 5000 : Math.round(c.z + 2000));
       }
     };
