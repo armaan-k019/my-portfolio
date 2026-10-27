@@ -1,51 +1,80 @@
-import fs from "node:fs";
-import path from "node:path";
+import { loadSkillGraph, SKILLS_REPO_URL, type SkillNode } from "@/lib/skills-graph";
+import SkillsConstellation from "@/components/setup/SkillsConstellation";
 
 export const metadata = { title: "Setup | Armaan Kazi" };
 
-// public/console/ is the static, read-only export of ark-console, written by
-// `node lib/publish.js --out <this repo>/public/console` in ark-console and
-// committed here. It has no controls; see ark-console's docs/PUBLIC.md.
-const SNAPSHOT_FILE = path.join(process.cwd(), "public", "console", "data", "snapshot.json");
+// Rebuilt daily so the page follows the ark-skills repo.
+export const revalidate = 86400;
 
-function snapshotTime(): string | null {
-  try {
-    const snap = JSON.parse(fs.readFileSync(SNAPSHOT_FILE, "utf8"));
-    return typeof snap.generated_at === "string" ? snap.generated_at : null;
-  } catch {
-    return null;
-  }
+// The first sentence of a description, for the index below the graph.
+function firstSentence(text: string | null) {
+  if (!text) return null;
+  const m = text.match(/^(.+?[.!?])(\s|$)/);
+  return m ? m[1] : text;
 }
 
-export default function SetupPage() {
-  const generatedAt = snapshotTime();
+export default async function SetupPage() {
+  const graph = await loadSkillGraph(revalidate);
 
   return (
-    <div className="max-w-6xl mx-auto px-6 pt-12 pb-20">
-      <p className="eyebrow mb-3">ark-console, read-only</p>
+    <div className="max-w-7xl mx-auto px-6 pt-12 pb-20">
+      <p className="eyebrow mb-3">ark-skills</p>
       <h1 className="font-display display-lg font-semibold text-ink mb-4">Setup</h1>
-      <p className="text-ink/80 max-w-2xl mb-2">
-        How I work with Claude Code: which sessions are running, which models and agents they use, where the tokens go,
-        and the skills I have built. This is a snapshot published from my machine. Projects that are not public show as
-        &ldquo;private project&rdquo;, and nothing on this page can control anything.
+      <p className="text-ink/80 max-w-2xl mb-8">
+        The skills, subagents, and hooks I run Claude Code with, and how they reference each other. Every node is a file
+        in{" "}
+        <a href={SKILLS_REPO_URL} target="_blank" rel="noopener noreferrer" className="underline decoration-terracotta/40 underline-offset-2 hover:text-terracotta">
+          ark-skills
+        </a>
+        , and the map is generated from those files.
       </p>
-      {generatedAt && (
-        <p className="meta mb-6">
-          Snapshot from{" "}
-          {new Date(generatedAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" })} UTC
-        </p>
-      )}
-      <div className="tick-rule mb-8" />
 
-      {generatedAt ? (
-        <iframe
-          src="/console/index.html"
-          title="ark-console, read-only snapshot"
-          className="w-full h-[calc(100vh-8rem)] min-h-[600px] rounded border border-[rgba(45,90,39,0.15)]"
-          referrerPolicy="no-referrer"
-        />
+      {graph ? (
+        <>
+          <SkillsConstellation graph={graph} />
+
+          <section className="mt-16">
+            <h2 className="font-display text-xl font-semibold text-ink mb-1">Index</h2>
+            <hr className="rule mb-8" />
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-10">
+              {graph.families.map((f) => {
+                const members = graph.nodes.filter((n) => n.family === f.id);
+                return (
+                  <div key={f.id}>
+                    <p className="eyebrow mb-3">
+                      {f.label} <span className="text-ink/40">{members.length}</span>
+                    </p>
+                    <ul className="space-y-3">
+                      {members.map((n: SkillNode) => (
+                        <li key={n.id}>
+                          <a
+                            href={`${SKILLS_REPO_URL}/blob/main/${n.path}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="group block"
+                          >
+                            <span className="flex items-center gap-2 font-mono text-sm text-ink group-hover:text-terracotta transition-colors">
+                              <span className="h-2 w-2 shrink-0 rounded-full ring-1 ring-black/10" style={{ background: n.color }} />
+                              {n.name}
+                            </span>
+                            {firstSentence(n.description) && (
+                              <span className="mt-1 block text-[13px] leading-snug text-ink/60">{firstSentence(n.description)}</span>
+                            )}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        </>
       ) : (
-        <p className="meta">Not published yet.</p>
+        <p className="meta">
+          The skills graph couldn&apos;t be loaded right now. It lives in{" "}
+          <a href={SKILLS_REPO_URL} className="underline">ark-skills</a>.
+        </p>
       )}
     </div>
   );
