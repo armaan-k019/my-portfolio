@@ -5,17 +5,22 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { BotApi, GuideBirdState } from "./GuideBird3D";
-import { QUIPS, type Quip } from "@/lib/guide/quips";
+import { FIRST_QUIP, QUIPS, type BirdId, type Quip } from "@/lib/guide/quips";
 
 // ---------------------------------------------------------------------------
-// The site guide: the kazi lab bird in the bottom right corner. Click it to
-// ask about Armaan; leave it alone and it says something silly now and then.
+// The site guide: Huginn (thought) and Muninn (memory), two green ravens in
+// the bottom right corner. Click either to ask about Armaan; leave them alone
+// and they say something silly now and then, sometimes to each other.
 // Self contained (own colors, no globals.css classes) so the folder can be
 // dropped into the other sites, pointed at this site's /api/guide.
 // ---------------------------------------------------------------------------
 
-const BIRD_SIZE_PX = 116;
-const BIRD_SIZE_MOBILE_PX = 84;
+const BIRD_SIZE_PX = 104;
+const BIRD_SIZE_MOBILE_PX = 76;
+// The pair overlaps a little so it reads as two birds together.
+const BIRD_OVERLAP_FRACTION = 0.22;
+// Muninn trails Huginn on excursions, a beat behind.
+const FOLLOW_DELAY_MS = 380;
 // Quips: the first comes a little after load, then occasionally, never while
 // the chat is open or the tab is hidden.
 const FIRST_QUIP_MS = 7_000;
@@ -35,7 +40,6 @@ const EXCURSION_INTERVAL_MS = 40_000;
 const EXCURSION_JITTER_MS = 30_000;
 const FLY_MS = 5_200;
 const RUN_MS = 4_000;
-const FIRST_QUIP: Quip = { text: "Click on me to ask me anything about Armaan." };
 
 // Page-level paths as [x, y] offsets from the corner, in viewport units.
 const FLY_PATH: [number, number][] = [
@@ -45,7 +49,17 @@ const RUN_PATH: { offset: number; x: number }[] = [
   { offset: 0, x: 0 }, { offset: 0.45, x: -45 }, { offset: 0.55, x: -45 }, { offset: 1, x: 0 },
 ];
 
-// Three.js loads only once the bird is actually shown.
+type Bird = { id: BirdId; name: string; role: string; tuning: { bodyGreen: string; profile: "curious" | "playful" } };
+// Muninn sits on the left, Huginn on the right next to the chat. Tunings are
+// module constants so the bird does not re-apply them on every render.
+const BIRDS: Bird[] = [
+  { id: "muninn", name: "Muninn", role: "memory", tuning: { bodyGreen: "#1F6B48", profile: "playful" } },
+  { id: "huginn", name: "Huginn", role: "thought", tuning: { bodyGreen: "#2E9968", profile: "curious" } },
+];
+const NAMES: Record<BirdId, string> = { huginn: "Huginn", muninn: "Muninn" };
+const other = (b: BirdId): BirdId => (b === "huginn" ? "muninn" : "huginn");
+
+// Three.js loads only once the birds are actually shown.
 const GuideBird3D = dynamic(() => import("./GuideBird3D").then((m) => m.GuideBird3D), { ssr: false });
 
 const SUGGESTIONS = [
@@ -56,7 +70,9 @@ const SUGGESTIONS = [
 ];
 
 type GuideLink = { href: string; label: string };
-type Message = { role: "user" | "assistant"; text: string; links?: GuideLink[]; failed?: boolean };
+type Line = { who: BirdId; text: string };
+type Message = { role: "user" | "assistant"; text: string; lines?: Line[]; links?: GuideLink[]; failed?: boolean };
+type ActiveQuip = Quip & { who: BirdId };
 
 function readHidden(): boolean {
   try {
@@ -102,17 +118,17 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
   const [open, setOpen] = useState(false);
   const [size, setSize] = useState(BIRD_SIZE_PX);
   const [birdState, setBirdState] = useState<GuideBirdState>("idle");
-  const [quip, setQuip] = useState<Quip | null>(null);
+  const [quip, setQuip] = useState<ActiveQuip | null>(null);
   const [revealed, setRevealed] = useState(0);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
-  const apiRef = useRef<BotApi | null>(null);
+  const apiRef = useRef<Record<BirdId, BotApi | null>>({ huginn: null, muninn: null });
   const settleTimerRef = useRef(0);
   const lastQuipRef = useRef(-1);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const flightRef = useRef<HTMLDivElement | null>(null);
+  const flightRef = useRef<Record<BirdId, HTMLDivElement | null>>({ huginn: null, muninn: null });
   const openRef = useRef(open);
   openRef.current = open;
   const busyRef = useRef(false); // a quip or a question is in progress
@@ -135,14 +151,16 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
         if (openRef.current) first = false; // already found the chat, no intro needed
         if (first && !openRef.current && visible) {
           first = false;
-          setQuip(FIRST_QUIP);
-          apiRef.current?.fireAntic("notice_wave");
+          setQuip({ ...FIRST_QUIP, who: FIRST_QUIP.who ?? "huginn" });
+          apiRef.current.huginn?.fireAntic("notice_wave");
         } else if (!first && !openRef.current && visible) {
           let i = Math.floor(Math.random() * QUIPS.length);
           if (i === lastQuipRef.current) i = (i + 1) % QUIPS.length;
           lastQuipRef.current = i;
-          setQuip(QUIPS[i]);
-          apiRef.current?.fireAntic(Math.random() < 0.5 ? "notice_wave" : "peck_nod");
+          const q = QUIPS[i];
+          const who: BirdId = q.who ?? (Math.random() < 0.75 ? "muninn" : "huginn");
+          setQuip({ ...q, who });
+          apiRef.current[who]?.fireAntic(Math.random() < 0.5 ? "notice_wave" : "peck_nod");
         }
         // An intro skipped because the tab was hidden tries again soon.
         schedule(first ? FIRST_QUIP_MS : QUIP_INTERVAL_MS + Math.random() * QUIP_JITTER_MS);
@@ -158,22 +176,30 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
     if (hidden !== false) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let timer = 0;
-    let anim: Animation | null = null;
+    const anims: Animation[] = [];
+    const followTimers: number[] = [];
     const schedule = (delay: number) => {
       timer = window.setTimeout(() => {
-        const el = flightRef.current;
-        if (el && !openRef.current && !busyRef.current && document.visibilityState === "visible") {
+        if (!openRef.current && !busyRef.current && document.visibilityState === "visible") {
           const fly = Math.random() < 0.5;
-          apiRef.current?.fireAntic(fly ? "fly" : "run");
-          anim = fly
-            ? el.animate(
-                FLY_PATH.map(([x, y]) => ({ transform: `translate(${x}vw, ${y}vh)` })),
-                { duration: FLY_MS, easing: "ease-in-out" },
-              )
-            : el.animate(
-                RUN_PATH.map((k) => ({ offset: k.offset, transform: `translateX(${k.x}vw)` })),
-                { duration: RUN_MS, easing: "cubic-bezier(0.45, 0, 0.55, 1)" },
-              );
+          // Huginn leads, Muninn follows a beat behind on the same path.
+          BIRDS.forEach((b) => {
+            const el = flightRef.current[b.id];
+            if (!el) return;
+            const delay = b.id === "muninn" ? FOLLOW_DELAY_MS : 0;
+            followTimers.push(window.setTimeout(() => apiRef.current[b.id]?.fireAntic(fly ? "fly" : "run"), delay));
+            anims.push(
+              fly
+                ? el.animate(
+                    FLY_PATH.map(([x, y]) => ({ transform: `translate(${x}vw, ${y}vh)` })),
+                    { duration: FLY_MS, delay, easing: "ease-in-out" },
+                  )
+                : el.animate(
+                    RUN_PATH.map((k) => ({ offset: k.offset, transform: `translateX(${k.x}vw)` })),
+                    { duration: RUN_MS, delay, easing: "cubic-bezier(0.45, 0, 0.55, 1)" },
+                  ),
+            );
+          });
         }
         schedule(EXCURSION_INTERVAL_MS + Math.random() * EXCURSION_JITTER_MS);
       }, delay);
@@ -181,7 +207,8 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
     schedule(FIRST_EXCURSION_MS);
     return () => {
       window.clearTimeout(timer);
-      anim?.cancel();
+      followTimers.forEach((t) => window.clearTimeout(t));
+      anims.forEach((a) => a.cancel());
     };
   }, [hidden]);
 
@@ -196,7 +223,18 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
       for (let i = 1; i <= n; i++) timers.push(window.setTimeout(() => setRevealed((r) => Math.max(r, i)), i * TYPE_MS_PER_CHAR));
     }
     const hold = (reduced ? 0 : n * TYPE_MS_PER_CHAR) + BUBBLE_HOLD_BASE_MS + n * BUBBLE_HOLD_PER_CHAR_MS;
-    timers.push(window.setTimeout(() => setQuip(null), hold));
+    // A two-bird bit: the other bird answers once the first line has had its moment.
+    timers.push(
+      window.setTimeout(() => {
+        if (quip.reply && !openRef.current) {
+          const who = other(quip.who);
+          setQuip({ text: quip.reply, who });
+          apiRef.current[who]?.fireAntic("peck_nod");
+        } else {
+          setQuip(null);
+        }
+      }, hold),
+    );
     return () => timers.forEach((t) => window.clearTimeout(t));
   }, [quip]);
 
@@ -245,9 +283,12 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ question: q, path: pathname, history }),
         });
-        const data = (await res.json()) as { answer?: string; links?: GuideLink[]; error?: string };
-        if (!res.ok || typeof data.answer !== "string") throw new Error(data.error ?? `HTTP ${res.status}`);
-        setMessages((m) => [...m, { role: "assistant", text: data.answer as string, links: data.links ?? [] }]);
+        const data = (await res.json()) as { lines?: Line[]; answer?: string; links?: GuideLink[]; error?: string };
+        const lines = data.lines?.length ? data.lines : typeof data.answer === "string" ? [{ who: "huginn" as const, text: data.answer }] : null;
+        if (!res.ok || !lines) throw new Error(data.error ?? `HTTP ${res.status}`);
+        // History carries the exchange as one block with speaker names.
+        const text = lines.map((l) => `${NAMES[l.who]}: ${l.text}`).join("\n");
+        setMessages((m) => [...m, { role: "assistant", text, lines, links: data.links ?? [] }]);
         settle("success", SUCCESS_HOLD_MS);
       } catch {
         // Say plainly that the call failed, so it never reads as "nothing to say".
@@ -255,7 +296,8 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
           ...m,
           {
             role: "assistant",
-            text: "My antenna lost the signal, so I could not get an answer. You can always email Armaan directly.",
+            text: "Our antennas lost the signal, so we could not get an answer. You can always email Armaan directly.",
+            lines: [{ who: "huginn", text: "Our antennas lost the signal, so we could not get an answer. You can always email Armaan directly." }],
             links: [{ href: "mailto:archarmaan@gmail.com", label: "Email Armaan" }],
             failed: true,
           },
@@ -271,7 +313,10 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
   const toggleOpen = useCallback(() => {
     setQuip(null);
     setOpen((o) => {
-      if (!o) apiRef.current?.fireAntic("notice_wave");
+      if (!o) {
+        apiRef.current.huginn?.fireAntic("notice_wave");
+        apiRef.current.muninn?.fireAntic("peck_nod");
+      }
       return !o;
     });
   }, []);
@@ -294,7 +339,7 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
         }}
         className="fixed bottom-3 right-3 z-40 rounded-full border border-[#2E9968]/40 bg-[#FBFCFA]/90 px-3 py-1 font-mono text-[11px] text-[#1F6B48] shadow-sm backdrop-blur-sm hover:bg-[#FBFCFA]"
       >
-        bring back the bird
+        bring back the birds
       </button>
     );
   }
@@ -304,11 +349,11 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
       {open && (
         <div
           role="dialog"
-          aria-label="Ask the site guide"
+          aria-label="Ask Huginn and Muninn"
           className="pointer-events-auto mb-2 flex max-h-[min(520px,70vh)] w-[min(360px,calc(100vw-16px))] flex-col overflow-hidden rounded-2xl border border-[#16241A]/10 bg-[#FBFCFA] text-[#16241A] shadow-[0_30px_60px_-24px_rgba(26,42,26,0.35)]"
         >
           <div className="flex items-center justify-between border-b border-[#16241A]/10 px-4 py-2.5">
-            <p className="font-mono text-[11px] uppercase tracking-wider text-[#4A6B4A]">Ask the bird</p>
+            <p className="font-mono text-[11px] uppercase tracking-wider text-[#4A6B4A]">Ask Huginn &amp; Muninn</p>
             <div className="flex items-center gap-3">
               <button type="button" onClick={hide} className="font-mono text-[11px] text-[#4A6B4A] hover:text-[#16241A]">
                 hide
@@ -322,7 +367,11 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
           <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-3 text-sm leading-relaxed">
             {messages.length === 0 && (
               <>
-                <p>Hi. I know my way around this site. Ask me anything about Armaan and his work.</p>
+                <p>
+                  <span className="font-mono text-[11px] uppercase tracking-wider text-[#2E9968]">Huginn</span>
+                  <br />
+                  Hi. I am Thought, he is Memory, and between us we know this whole site. Ask us anything about Armaan.
+                </p>
                 <div className="flex flex-col items-start gap-1.5">
                   {SUGGESTIONS.map((s) => (
                     <button
@@ -344,7 +393,15 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
                 </p>
               ) : (
                 <div key={i} className="mr-6 space-y-2">
-                  <p className={m.failed ? "text-[#A4332F]" : undefined}>{m.text}</p>
+                  {(m.lines ?? [{ who: "huginn" as const, text: m.text }]).map((l, j) => (
+                    <p key={j} className={m.failed ? "text-[#A4332F]" : undefined}>
+                      <span className={`font-mono text-[11px] uppercase tracking-wider ${l.who === "huginn" ? "text-[#2E9968]" : "text-[#1F6B48]"}`}>
+                        {NAMES[l.who]}
+                      </span>
+                      <br />
+                      {l.text}
+                    </p>
+                  ))}
                   {m.links && m.links.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                       {m.links.map((l) => (
@@ -386,8 +443,11 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
       )}
 
       {quip && !open && (
-        <div className="pointer-events-auto relative mb-1 mr-6 max-w-[240px] rounded-2xl border border-[#16241A]/10 bg-[#FBFCFA]/95 px-3.5 py-2 text-[13px] leading-snug text-[#16241A] shadow-sm backdrop-blur-sm">
+        <div className="pointer-events-auto relative mb-1 max-w-[260px] rounded-2xl border border-[#16241A]/10 bg-[#FBFCFA]/95 px-3.5 py-2 text-[13px] leading-snug text-[#16241A] shadow-sm backdrop-blur-sm">
           <button type="button" onClick={() => setRevealed(quip.text.length)} className="text-left">
+            <span className={`block font-mono text-[10px] uppercase tracking-wider ${quip.who === "huginn" ? "text-[#2E9968]" : "text-[#1F6B48]"}`}>
+              {NAMES[quip.who]}
+            </span>
             {quip.text.slice(0, revealed)}
             {revealed < quip.text.length && <span className="text-[#4A6B4A]">…</span>}
           </button>
@@ -396,20 +456,36 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
               <GuideLinkChip link={{ href: quip.href, label: "take me there" }} onClick={() => setQuip(null)} />
             </div>
           )}
-          <span aria-hidden="true" className="absolute -bottom-1.5 right-6 h-3 w-3 rotate-45 border-b border-r border-[#16241A]/10 bg-[#FBFCFA]/95" />
+          {/* The tail points at whoever is talking. */}
+          <span
+            aria-hidden="true"
+            style={quip.who === "huginn" ? { right: size * 0.42 } : { right: size * (1.42 - BIRD_OVERLAP_FRACTION) }}
+            className="absolute -bottom-1.5 h-3 w-3 rotate-45 border-b border-r border-[#16241A]/10 bg-[#FBFCFA]/95" />
         </div>
       )}
 
-      <div ref={flightRef} className="pointer-events-auto will-change-transform">
-        <GuideBird3D
-          state={birdState}
-          size={size}
-          onClick={toggleOpen}
-          title={open ? "Close the guide" : "Ask me about Armaan"}
-          registerApi={(api) => {
-            apiRef.current = api;
-          }}
-        />
+      <div className="flex items-end">
+        {BIRDS.map((b, i) => (
+          <div
+            key={b.id}
+            ref={(el) => {
+              flightRef.current[b.id] = el;
+            }}
+            className="pointer-events-auto will-change-transform"
+            style={i > 0 ? { marginLeft: -size * BIRD_OVERLAP_FRACTION } : undefined}
+          >
+            <GuideBird3D
+              state={birdState}
+              size={size}
+              tuning={b.tuning}
+              onClick={toggleOpen}
+              title={open ? "Close the guide" : `${b.name} (${b.role}): ask us about Armaan`}
+              registerApi={(api) => {
+                apiRef.current[b.id] = api;
+              }}
+            />
+          </div>
+        ))}
       </div>
     </div>
   );
