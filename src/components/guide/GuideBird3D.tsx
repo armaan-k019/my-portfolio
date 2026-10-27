@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
 // The guide's mood, driven by the chat: idle between turns, thinking while a
@@ -661,6 +661,7 @@ export function GuideBird3D({
   const stateEnteredAtRef = useRef<number>(0);
   const tuningRef = useRef<BotTuning>({ ...BOT_DEFAULTS, ...tuning });
   const applyTuningRef = useRef<((t: BotTuning) => void) | null>(null);
+  const [noWebGL, setNoWebGL] = useState(false);
 
   useEffect(() => {
     if (stateRef.current !== state) {
@@ -685,7 +686,15 @@ export function GuideBird3D({
     camera.position.set(0, 0.28, 4.6);
     camera.lookAt(0, 0.05, 0);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    // No WebGL (disabled, blocked, or a lost context): fall back to the flat
+    // bird below instead of throwing and taking the page down with it.
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    } catch {
+      setNoWebGL(true);
+      return;
+    }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, PIXEL_RATIO_CAP));
     renderer.setSize(size, size);
     mount.appendChild(renderer.domElement);
@@ -1416,8 +1425,16 @@ export function GuideBird3D({
       onKeyDown={(e) => {
         if (onClick && (e.key === "Enter" || e.key === " ")) onClick();
       }}
-      className={onClick ? "cursor-pointer" : undefined}
+      className={`relative${onClick ? " cursor-pointer" : ""}`}
       style={{ width: size, height: size }}
-    />
+    >
+      {noWebGL && (
+        <span
+          aria-hidden="true"
+          className="absolute inset-[18%] rounded-[50%_50%_46%_46%/58%_58%_42%_42%] shadow-md"
+          style={{ background: `radial-gradient(ellipse 34% 40% at 50% 62%, ${BOT.belly} 96%, transparent), ${BOT.bodyGreen}` }}
+        />
+      )}
+    </div>
   );
 }

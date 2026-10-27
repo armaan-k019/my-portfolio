@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { GuideBird3D, type BotApi, type GuideBirdState } from "./GuideBird3D";
+import type { BotApi, GuideBirdState } from "./GuideBird3D";
 import { QUIPS, type Quip } from "@/lib/guide/quips";
 
 // ---------------------------------------------------------------------------
@@ -43,6 +44,9 @@ const FLY_PATH: [number, number][] = [
 const RUN_PATH: { offset: number; x: number }[] = [
   { offset: 0, x: 0 }, { offset: 0.45, x: -45 }, { offset: 0.55, x: -45 }, { offset: 1, x: 0 },
 ];
+
+// Three.js loads only once the bird is actually shown.
+const GuideBird3D = dynamic(() => import("./GuideBird3D").then((m) => m.GuideBird3D), { ssr: false });
 
 const SUGGESTIONS = [
   "How can I get in contact with Armaan?",
@@ -93,7 +97,8 @@ function GuideLinkChip({ link, onClick }: { link: GuideLink; onClick?: () => voi
 
 export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: string }) {
   const pathname = usePathname() ?? "/";
-  const [hidden, setHidden] = useState(false);
+  // null until the saved choice is read, so a hidden bird never loads.
+  const [hidden, setHidden] = useState<boolean | null>(null);
   const [open, setOpen] = useState(false);
   const [size, setSize] = useState(BIRD_SIZE_PX);
   const [birdState, setBirdState] = useState<GuideBirdState>("idle");
@@ -103,6 +108,7 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
   const apiRef = useRef<BotApi | null>(null);
+  const settleTimerRef = useRef(0);
   const lastQuipRef = useRef(-1);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -120,7 +126,7 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
   // Occasional quips, never the same one twice in a row. The first one of a
   // visit always says what clicking does.
   useEffect(() => {
-    if (hidden) return;
+    if (hidden !== false) return;
     let timer = 0;
     let first = true;
     const schedule = (delay: number) => {
@@ -146,7 +152,7 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
   // Excursions: fly a loop or sprint off and back, only while nothing else is
   // going on, and never with reduced motion.
   useEffect(() => {
-    if (hidden) return;
+    if (hidden !== false) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let timer = 0;
     let anim: Animation | null = null;
@@ -184,7 +190,7 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
     setRevealed(reduced ? n : 0);
     const timers: number[] = [];
     if (!reduced) {
-      for (let i = 1; i <= n; i++) timers.push(window.setTimeout(() => setRevealed(i), i * TYPE_MS_PER_CHAR));
+      for (let i = 1; i <= n; i++) timers.push(window.setTimeout(() => setRevealed((r) => Math.max(r, i)), i * TYPE_MS_PER_CHAR));
     }
     const hold = (reduced ? 0 : n * TYPE_MS_PER_CHAR) + BUBBLE_HOLD_BASE_MS + n * BUBBLE_HOLD_PER_CHAR_MS;
     timers.push(window.setTimeout(() => setQuip(null), hold));
@@ -207,17 +213,28 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
 
   const settle = useCallback((s: GuideBirdState, ms: number) => {
     setBirdState(s);
-    window.setTimeout(() => setBirdState("idle"), ms);
+    settleTimerRef.current = window.setTimeout(() => setBirdState("idle"), ms);
   }, []);
+  useEffect(() => () => window.clearTimeout(settleTimerRef.current), []);
 
   const ask = useCallback(
     async (question: string) => {
       const q = question.trim();
       if (!q || pending) return;
-      const history = messages.filter((m) => !m.failed).map((m) => ({ role: m.role, text: m.text }));
+      // Only complete exchanges: a question whose answer failed is dropped
+      // along with its failure message, so answers stay paired.
+      const history: { role: Message["role"]; text: string }[] = [];
+      for (let i = 0; i + 1 < messages.length; i++) {
+        const [a, b] = [messages[i], messages[i + 1]];
+        if (a.role === "user" && b.role === "assistant" && !b.failed) {
+          history.push({ role: "user", text: a.text }, { role: "assistant", text: b.text });
+          i++;
+        }
+      }
       setMessages((m) => [...m, { role: "user", text: q }]);
       setDraft("");
       setPending(true);
+      window.clearTimeout(settleTimerRef.current);
       setBirdState("thinking");
       try {
         const res = await fetch(endpoint, {
@@ -263,6 +280,7 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
     writeHidden(true);
   };
 
+  if (hidden === null) return null;
   if (hidden) {
     return (
       <button
