@@ -131,18 +131,21 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
     let first = true;
     const schedule = (delay: number) => {
       timer = window.setTimeout(() => {
-        if (first && !openRef.current) {
+        const visible = document.visibilityState === "visible";
+        if (openRef.current) first = false; // already found the chat, no intro needed
+        if (first && !openRef.current && visible) {
           first = false;
           setQuip(FIRST_QUIP);
           apiRef.current?.fireAntic("notice_wave");
-        } else if (!openRef.current && document.visibilityState === "visible") {
+        } else if (!first && !openRef.current && visible) {
           let i = Math.floor(Math.random() * QUIPS.length);
           if (i === lastQuipRef.current) i = (i + 1) % QUIPS.length;
           lastQuipRef.current = i;
           setQuip(QUIPS[i]);
           apiRef.current?.fireAntic(Math.random() < 0.5 ? "notice_wave" : "peck_nod");
         }
-        schedule(QUIP_INTERVAL_MS + Math.random() * QUIP_JITTER_MS);
+        // An intro skipped because the tab was hidden tries again soon.
+        schedule(first ? FIRST_QUIP_MS : QUIP_INTERVAL_MS + Math.random() * QUIP_JITTER_MS);
       }, delay);
     };
     schedule(FIRST_QUIP_MS);
