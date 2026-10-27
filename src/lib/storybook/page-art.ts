@@ -79,20 +79,21 @@ function gutter(ctx: CanvasRenderingContext2D, w: number, h: number, spineOnLeft
   ctx.fillRect(0, 0, w, h);
 }
 
-function wrap(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxW: number, lineH: number): number {
+// Breaks text into lines no wider than maxW at the current font.
+function wrap(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
+  const lines: string[] = [];
   let line = "";
   for (const word of text.split(/\s+/)) {
     const test = line ? `${line} ${word}` : word;
     if (ctx.measureText(test).width > maxW && line) {
-      ctx.fillText(line, x, y);
+      lines.push(line);
       line = word;
-      y += lineH;
     } else {
       line = test;
     }
   }
-  if (line) ctx.fillText(line, x, y);
-  return y + lineH;
+  if (line) lines.push(line);
+  return lines;
 }
 
 function drawingGrid(ctx: CanvasRenderingContext2D, w: number, h: number, step: number, color: string) {
@@ -186,8 +187,24 @@ function textPage(ctx: CanvasRenderingContext2D, side: Extract<PageSide, { kind:
   ctx.fillRect(x + 44 * s, y, w - x * 2 - 44 * s, 2 * s);
   y += 80 * s;
   ctx.fillStyle = "#3D5A3D";
-  ctx.font = `400 ${29 * s}px ${f.sans}`;
-  wrap(ctx, side.body, x, y, w - x * 2, 46 * s);
+  // Shrink the body until it fits above the folio. Past the smallest size the
+  // text is cut with an ellipsis and a console warning, never silently.
+  const bottom = h - 130 * s;
+  let size = 29;
+  let lines: string[] = [];
+  for (; size >= 18; size -= 1) {
+    ctx.font = `400 ${size * s}px ${f.sans}`;
+    lines = wrap(ctx, side.body, w - x * 2);
+    if (y + (lines.length - 1) * size * 1.6 * s <= bottom) break;
+  }
+  const lineH = Math.max(size, 18) * 1.6 * s;
+  const fit = Math.floor((bottom - y) / lineH) + 1;
+  if (lines.length > fit) {
+    console.warn(`Storybook page ${side.number} ("${side.title}"): body is too long for one page and was cut. Split it across text entries.`);
+    lines = lines.slice(0, fit);
+    lines[fit - 1] = `${lines[fit - 1].replace(/\s*\S+$/, "")} ...`;
+  }
+  lines.forEach((l, i) => ctx.fillText(l, x, y + i * lineH));
 }
 
 function contents(ctx: CanvasRenderingContext2D, side: Extract<PageSide, { kind: "contents" }>, w: number, h: number, f: Fonts) {

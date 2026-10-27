@@ -137,7 +137,7 @@ export default function StoryBook() {
       {!failed && (
         <nav aria-label="Book controls" className="absolute inset-x-0 bottom-0 z-10 flex flex-col items-center gap-3 pb-5 md:pb-7 px-4">
           {menu && (
-            <div className="w-full max-w-sm bg-[#0C120E]/95 ring-1 ring-white/10 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.8)] p-2">
+            <div className="w-full max-w-sm max-h-[calc(100svh-15rem)] overflow-y-auto bg-[#0C120E]/95 ring-1 ring-white/10 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.8)] p-2">
               <button onClick={() => { sceneRef.current?.goTo(0); setMenu(false); }} className="w-full flex justify-between px-3 py-2 text-left font-mono text-[12px] text-[#EFF4EF]/80 hover:bg-white/5 hover:text-tan">
                 <span>Cover</span><span className="text-[#EFF4EF]/40">00</span>
               </button>

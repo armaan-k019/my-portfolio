@@ -140,6 +140,8 @@ export class BookScene {
   // Public controls.
 
   next() {
+    // A page under the hand owns the stack until it is released.
+    if (this.pointer?.dragging) return;
     const n = this.leaves.length;
     if (this.narrow && this.isOpen() && this.focus === "left") {
       this.focus = "right";
@@ -154,6 +156,7 @@ export class BookScene {
   }
 
   prev() {
+    if (this.pointer?.dragging) return;
     const n = this.leaves.length;
     if (this.narrow && this.isOpen() && this.focus === "right" && this.flipped > 1) {
       this.focus = "left";
@@ -169,6 +172,7 @@ export class BookScene {
 
   // Turns leaves one after another until `flipped` leaves are turned.
   goTo(flipped: number, focus: Focus = "right") {
+    if (this.pointer?.dragging) return;
     const goal = clamp(flipped, 0, this.leaves.length);
     const step = this.reduced ? 0 : 0.11;
     let k = 0;
@@ -281,9 +285,10 @@ export class BookScene {
     if (!this.fonts) return;
     for (const leaf of this.leaves) {
       if (leaf.rigid || !leaf.sides) continue;
+      // Leaves still turning keep their art, so a long jump never shows blank paper.
       const d = Math.abs(leaf.index - this.flipped);
-      if (d <= 3 && !leaf.textured) this.buildTextures(leaf);
-      else if (d > 5 && leaf.textured) this.releaseTextures(leaf);
+      if ((d <= 3 || leaf.tween) && !leaf.textured) this.buildTextures(leaf);
+      else if (d > 5 && !leaf.tween && leaf.textured) this.releaseTextures(leaf);
     }
   }
 
@@ -401,7 +406,10 @@ export class BookScene {
       if (tw) {
         const p = clamp((performance.now() / 1000 - tw.start) / tw.dur, 0, 1);
         leaf.t = tw.from + (tw.to - tw.from) * easeInOut(p);
-        if (p >= 1) leaf.tween = null;
+        if (p >= 1) {
+          leaf.tween = null;
+          this.syncTextures();
+        }
         leaf.dirty = true;
       }
       if (leaf.dirty) {
@@ -551,8 +559,10 @@ export class BookScene {
     }
 
     if (this.narrow) {
-      // Swipe, or tap either half of the screen.
+      // Swipe, or tap either half of the screen. A tap anywhere on a shut book opens it.
       if (Math.abs(dx) > 40) return dx < 0 ? this.next() : this.prev();
+      if (this.flipped === 0) return this.next();
+      if (this.flipped === this.leaves.length) return this.prev();
       const rect = this.renderer.domElement.getBoundingClientRect();
       return e.clientX - rect.left > rect.width / 2 ? this.next() : this.prev();
     }
