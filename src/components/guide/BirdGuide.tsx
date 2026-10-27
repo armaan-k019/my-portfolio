@@ -8,8 +8,8 @@ import type { BotApi, BotTuning, GuideBirdState } from "./GuideBird3D";
 import { BIRD_NAMES, FIRST_QUIP, QUIPS, type BirdId, type Quip } from "@/lib/guide/quips";
 
 // ---------------------------------------------------------------------------
-// The site guide: two robot ravens, a purple one with glasses who thinks and
-// answers, and a green one with a feather crest who remembers and heckles,
+// The site guide: two robot ravens, a purple one with glasses who answers, and
+// a green one with a feather crest who heckles him,
 // in the bottom right corner. Click either to ask about Armaan; leave them alone
 // and they say something silly now and then, sometimes to each other.
 // Self contained (own colors, no globals.css classes) so the folder can be
@@ -34,18 +34,14 @@ const BUBBLE_HOLD_PER_CHAR_MS = 45;
 const SUCCESS_HOLD_MS = 1_300;
 const ERROR_HOLD_MS = 2_400;
 const HIDDEN_KEY = "guide-hidden";
-// Excursions: now and then the bird leaves its corner, flying a loop over the
-// page or sprinting off and back. Durations match the "fly" and "run" antics.
+// Excursions: now and then the birds leave their corner, sprinting off and
+// back. The duration matches the "run" antic.
 const FIRST_EXCURSION_MS = 22_000;
 const EXCURSION_INTERVAL_MS = 40_000;
 const EXCURSION_JITTER_MS = 30_000;
-const FLY_MS = 5_200;
 const RUN_MS = 4_000;
 
-// Page-level paths as [x, y] offsets from the corner, in viewport units.
-const FLY_PATH: [number, number][] = [
-  [0, 0], [-6, -14], [-22, -34], [-40, -40], [-52, -26], [-40, -12], [-24, -22], [-10, -12], [0, 0],
-];
+// Page-level path as x offsets from the corner, in viewport units.
 const RUN_PATH: { offset: number; x: number }[] = [
   { offset: 0, x: 0 }, { offset: 0.45, x: -45 }, { offset: 0.55, x: -45 }, { offset: 1, x: 0 },
 ];
@@ -172,7 +168,7 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
     return () => window.clearTimeout(timer);
   }, [hidden]);
 
-  // Excursions: fly a loop or sprint off and back, only while nothing else is
+  // Excursions: sprint off and back, only while nothing else is
   // going on, and never with reduced motion.
   useEffect(() => {
     if (hidden !== false) return;
@@ -186,23 +182,17 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
           // Only the current excursion is kept, so finished ones are released.
           anims.splice(0).forEach((a) => a.cancel());
           followTimers.splice(0).forEach((t) => window.clearTimeout(t));
-          const fly = Math.random() < 0.5;
           // Thought leads, memory follows a beat behind on the same path.
           BIRDS.forEach((b) => {
             const el = flightRef.current[b.id];
             if (!el) return;
             const delay = b.id === "memory" ? FOLLOW_DELAY_MS : 0;
-            followTimers.push(window.setTimeout(() => apiRef.current[b.id]?.fireAntic(fly ? "fly" : "run"), delay));
+            followTimers.push(window.setTimeout(() => apiRef.current[b.id]?.fireAntic("run"), delay));
             anims.push(
-              fly
-                ? el.animate(
-                    FLY_PATH.map(([x, y]) => ({ transform: `translate(${x}vw, ${y}vh)` })),
-                    { duration: FLY_MS, delay, easing: "ease-in-out" },
-                  )
-                : el.animate(
-                    RUN_PATH.map((k) => ({ offset: k.offset, transform: `translateX(${k.x}vw)` })),
-                    { duration: RUN_MS, delay, easing: "cubic-bezier(0.45, 0, 0.55, 1)" },
-                  ),
+              el.animate(
+                RUN_PATH.map((k) => ({ offset: k.offset, transform: `translateX(${k.x}vw)` })),
+                { duration: RUN_MS, delay, easing: "cubic-bezier(0.45, 0, 0.55, 1)" },
+              ),
             );
           });
         }
@@ -375,7 +365,7 @@ export default function BirdGuide({ endpoint = "/api/guide" }: { endpoint?: stri
                 <p>
                   <span className={`font-mono text-[11px] uppercase tracking-wider ${LABEL_CLASS.thought}`}>{BIRD_NAMES.thought}</span>
                   <br />
-                  Hi. I am Thought, he is Memory, and between us we know this whole site. Ask us anything about Armaan.
+                  Hi. I am {BIRD_NAMES.thought}, he is {BIRD_NAMES.memory}, and between us we know this whole site. Ask us anything about Armaan.
                 </p>
                 <div className="flex flex-col items-start gap-1.5">
                   {SUGGESTIONS.map((s) => (
