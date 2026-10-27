@@ -250,9 +250,12 @@ export default function SkillsConstellation({ graph }: { graph: SkillGraph }) {
           const focusFamily = focusNode !== null ? nodes[focusNode].family : f.family;
           el.style.opacity = focusFamily && focusFamily !== id ? "0.25" : "1";
         });
-        pulses = litEdges.length
-          ? litEdges.flatMap((edge) => [0, 0.5].map((t0) => ({ edge, t: t0, speed: 0.45 })))
-          : reduced ? [] : Array.from({ length: AMBIENT_PULSES }, randomPulse);
+        // no pulses for reduced motion, and none to place on a graph without edges
+        pulses = reduced || !graph.edges.length
+          ? []
+          : litEdges.length
+            ? litEdges.flatMap((edge) => [0, 0.5].map((t0) => ({ edge, t: t0, speed: 0.45 })))
+            : Array.from({ length: AMBIENT_PULSES }, randomPulse);
         controls.autoRotate = !reduced && f.selected === null && f.hovered === null;
       };
       apiRef.current = { setFocus: applyFocus };
@@ -324,7 +327,7 @@ export default function SkillsConstellation({ graph }: { graph: SkillGraph }) {
         const sel = focusRef.current.selected;
         target.set(0, 0, 0);
         if (sel && nodeIndex.has(sel)) target.copy(pos[nodeIndex.get(sel)!]).multiplyScalar(0.6);
-        controls.target.lerp(target, ease * 0.6);
+        controls.target.lerp(target, reduced ? 1 : ease * 0.6);
         controls.update();
 
         const t = clock.elapsedTime;
