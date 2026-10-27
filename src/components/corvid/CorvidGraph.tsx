@@ -181,9 +181,10 @@ interface Props {
   nodes: CorvidNode[];
   edges: [number, number, number][];
   highlight: number | null; // community to emphasize, or null
+  legendAction: number; // bumps on every legend hover or click; clears a selection
 }
 
-export default function CorvidGraph({ nodes, edges, highlight }: Props) {
+export default function CorvidGraph({ nodes, edges, highlight, legendAction }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const highlightRef = useRef<(c: number | null) => void>(() => {});
   // The latest selection, so one made while three.js is still loading is
@@ -193,6 +194,11 @@ export default function CorvidGraph({ nodes, edges, highlight }: Props) {
   const [noWebGL, setNoWebGL] = useState(false);
   const [selected, setSelected] = useState<{ label: string; community: number | null; connected: number } | null>(null);
   const clearRef = useRef<() => void>(() => {});
+
+  // Any legend action hands control back to the legend, as in the lab.
+  useEffect(() => {
+    if (legendAction > 0) clearRef.current();
+  }, [legendAction]);
 
   useEffect(() => {
     latestHighlight.current = highlight;
@@ -709,12 +715,20 @@ export default function CorvidGraph({ nodes, edges, highlight }: Props) {
       };
       // Click lights a paper's network (shift-click grows a hop); a click on
       // empty space or Esc clears. Drags are orbits, not clicks.
-      let downAt = { x: 0, y: 0 };
+      let downAt: { x: number; y: number } | null = null;
+      let dragged = false;
       const onDown = (e: PointerEvent) => {
         downAt = { x: e.clientX, y: e.clientY };
+        dragged = false;
+      };
+      const onDrag = (e: PointerEvent) => {
+        if (downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 5) dragged = true;
+      };
+      const onUp = () => {
+        downAt = null;
       };
       const onClick = (e: MouseEvent) => {
-        if (Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 5) return;
+        if (dragged) return;
         onStart();
         const r = renderer.domElement.getBoundingClientRect();
         const hit = pickAt(e.clientX - r.left, e.clientY - r.top, r.width, r.height);
@@ -727,6 +741,8 @@ export default function CorvidGraph({ nodes, edges, highlight }: Props) {
       renderer.domElement.addEventListener("pointermove", onMove);
       renderer.domElement.addEventListener("pointerleave", onLeave);
       renderer.domElement.addEventListener("pointerdown", onDown);
+      window.addEventListener("pointermove", onDrag);
+      window.addEventListener("pointerup", onUp);
       renderer.domElement.addEventListener("click", onClick);
       window.addEventListener("keydown", onKey);
 
@@ -800,6 +816,8 @@ export default function CorvidGraph({ nodes, edges, highlight }: Props) {
         renderer.domElement.removeEventListener("pointermove", onMove);
         renderer.domElement.removeEventListener("pointerleave", onLeave);
         renderer.domElement.removeEventListener("pointerdown", onDown);
+        window.removeEventListener("pointermove", onDrag);
+        window.removeEventListener("pointerup", onUp);
         renderer.domElement.removeEventListener("click", onClick);
         window.removeEventListener("keydown", onKey);
         clearRef.current = () => {};

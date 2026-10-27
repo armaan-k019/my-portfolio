@@ -11,20 +11,28 @@ const CorvidGraph = dynamic(() => import("./CorvidGraph"), { ssr: false });
 export default function CorvidExplorer({ snapshot }: { snapshot: Pick<CorvidSnapshot, "nodes" | "edges" | "communities"> }) {
   const [hover, setHover] = useState<number | null>(null);
   const [pinned, setPinned] = useState<number | null>(null);
+  const [legendAction, setLegendAction] = useState(0);
   const active = hover ?? pinned;
+  const bump = () => setLegendAction((n) => n + 1);
 
   return (
     <div>
       <div className="h-[58vh] min-h-[360px] overflow-hidden rounded-sm bg-[#121A16]">
-        <CorvidGraph nodes={snapshot.nodes} edges={snapshot.edges} highlight={active} />
+        <CorvidGraph nodes={snapshot.nodes} edges={snapshot.edges} highlight={active} legendAction={legendAction} />
       </div>
       <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2" onMouseLeave={() => setHover(null)}>
         {snapshot.communities.map((c) => (
           <li key={c.index}>
             <button
               type="button"
-              onMouseEnter={() => setHover(c.index)}
-              onClick={() => setPinned((p) => (p === c.index ? null : c.index))}
+              onMouseEnter={() => {
+                setHover(c.index);
+                bump();
+              }}
+              onClick={() => {
+                setPinned((p) => (p === c.index ? null : c.index));
+                bump();
+              }}
               aria-pressed={pinned === c.index}
               className={`meta flex items-center gap-2 text-left transition-colors ${active === null || active === c.index ? "text-brown" : "text-brown-light/60"}`}
             >
