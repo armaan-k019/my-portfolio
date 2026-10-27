@@ -35,9 +35,9 @@ const PAGE_LINKS: GuideLink[] = [
 
 // How the guide itself was made. Kept here because no content module covers it.
 const GUIDE_SELF = [
-  "The guide (the small green bird answering these questions) started as the scheduler bot in kazi lab, Armaan's multi-agent research lab.",
-  "It is drawn procedurally in Three.js (no model files): a lathe-turned body, a white belly panel, flippers, feet, and an antenna, animated with squash and stretch.",
-  "Its answers come from Claude on the server, given only the content of this website.",
+  "The guide is two small robot ravens: a purple one with glasses who thinks and answers, and a green one with a feather crest who remembers.",
+  "They started as the scheduler bot in Armaan's research lab, a multi-agent research lab over academic papers. Each is drawn procedurally in Three.js (no model files): a lathe-turned body, a white belly panel, flippers, feet, an antenna or a feather crest, and glasses on the thinker, animated with squash and stretch.",
+  "Their answers come from Claude on the server, given only the content of this website.",
 ].join(" ");
 
 function projectHref(p: (typeof projects)[number]): string {
