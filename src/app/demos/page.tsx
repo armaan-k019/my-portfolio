@@ -22,13 +22,6 @@ interface DemoCard {
 
 const demoCards: DemoCard[] = [
   {
-    slug: "world-labs",
-    company: "World Labs",
-    headline: "Ekphrasis: words to walkable worlds",
-    pitch: "Pick a passage, get a spatial DNA reading, and see a 3D world generated from that reading with every major choice annotated.",
-    url: "/demos/world-labs",
-  },
-  {
     slug: "illoca",
     company: "Illoca",
     headline: "The Precedent Interpreter",
