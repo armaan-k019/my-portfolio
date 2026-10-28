@@ -37,4 +37,11 @@ export const demoCards: DemoCard[] = [
     pitch: "An agent-based simulation of 1,200 prospects and 48 sellers. Set the price of looking personal and the price of knowing whom to write to, and watch where the channel holds and where it fails.",
     url: "/demos/clay",
   },
+  {
+    slug: "warp",
+    company: "Warp",
+    headline: "Agent Run Reviewer",
+    pitch: "Paste a coding agent's terminal session. Fixed rules mark risky steps like force pushes and skipped tests, then Claude checks the agent's final claim against the evidence.",
+    url: "/demos/warp",
+  },
 ];
