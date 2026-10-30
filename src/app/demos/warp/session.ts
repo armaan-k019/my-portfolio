@@ -30,43 +30,53 @@ export const MAX_SESSION_CHARS = 12000;
 export const MAX_STEPS = 60;
 
 const DIFF_START = /^diff --git a\/(\S+)/;
+// "$ " is the documented prefix. "❯ " and "% " cover common zsh and
+// starship prompts so a pasted session does not need rewriting.
+const COMMAND_START = /^(\$|❯|%) (.+)/;
+const AGENT_START = /^agent:/i;
 
-export function parseSession(text: string): Step[] {
+export function parseSession(text: string, limit = MAX_STEPS): Step[] {
   const steps: Step[] = [];
   for (const raw of text.replace(/\r\n/g, "\n").split("\n")) {
     const line = raw.trimEnd();
     const diff = DIFF_START.exec(line);
-    if (line.startsWith("agent:")) {
+    const command = COMMAND_START.exec(line);
+    if (AGENT_START.test(line)) {
       steps.push({ index: 0, kind: "agent", head: line.slice(6).trim(), body: [] });
-    } else if (line.startsWith("$ ")) {
-      steps.push({ index: 0, kind: "command", head: line.slice(2).trim(), body: [] });
+    } else if (command) {
+      steps.push({ index: 0, kind: "command", head: command[2].trim(), body: [] });
     } else if (diff) {
       steps.push({ index: 0, kind: "diff", head: diff[1], body: [] });
     } else if (steps.length > 0 && line.length > 0) {
       steps[steps.length - 1].body.push(line);
     }
   }
-  return steps.slice(0, MAX_STEPS).map((s, i) => ({ ...s, index: i + 1 }));
+  return steps.slice(0, limit).map((s, i) => ({ ...s, index: i + 1 }));
 }
 
 function addedLines(step: Step): string[] {
   return step.body.filter((l) => l.startsWith("+") && !l.startsWith("+++"));
 }
 
-const TEST_COMMAND = /\b(test|jest|vitest|pytest|cargo test|go test)\b/;
-const TEST_FAILED = /\b(FAIL|failed|failing|Error)\b/;
-const TEST_SKIPPED = /\bskipped\b/i;
-const PASS_CLAIM = /\b(all|every)\b.{0,30}\btests?\b.{0,20}\bpass/i;
+// A test runner invocation, not any command that mentions a test file.
+const TEST_COMMAND =
+  /^(npm|pnpm|yarn|bun)( run)? test\b|\b(jest|vitest|pytest|mocha|rspec|phpunit)\b|\b(cargo|go|make|dotnet) test\b/;
+// Counts must be nonzero, so "0 failed" and "0 skipped" do not trip them.
+const TEST_FAILED = /^FAIL\b|\bFAILED\b|\b[1-9]\d* (failed|failing|errors?)\b/m;
+const TEST_SKIPPED = /\b[1-9]\d* (skipped|pending|todo)\b/i;
+const PASS_CLAIM =
+  /\b(all|every)\b.{0,30}\btests?\b.{0,20}\b(pass|green)|\btests? (are |now |all )*(pass(es|ing)?|green)\b/i;
 
 const COMMAND_RULES: { rule: string; label: string; severity: Severity; test: RegExp }[] = [
   { rule: "force-push", label: "Force push", severity: "high", test: /\bgit push\b.*(--force|\s-f\b)/ },
   { rule: "hard-reset", label: "Hard reset", severity: "high", test: /\bgit reset --hard\b/ },
   { rule: "delete", label: "Recursive delete", severity: "high", test: /\brm\s+-\w*r/ },
   { rule: "pipe-to-shell", label: "Script piped to shell", severity: "high", test: /\bcurl\b[^|]*\|\s*(ba|z)?sh\b/ },
-  { rule: "dependency", label: "New dependency", severity: "low", test: /\b(npm|pnpm|yarn|bun) (install|add|i) +[^-\s]|\bpip install\b|\bcargo add\b/ },
+  { rule: "dependency", label: "New dependency", severity: "low", test: /\b(npm|pnpm|yarn|bun) (install|add|i)\b(?=.*\s[^-\s])|\bpip install\b|\bcargo add\b/ },
 ];
 
-const SECRET_TEXT = /(\.env\b|API_KEY=|SECRET|sk-[A-Za-z0-9]{12,})/;
+// ".env" as a file (not process.env), key assignments, and key-shaped tokens.
+const SECRET_TEXT = /((^|[\s/"'=])\.env(\.\w+)?\b|\b\w*(API_KEY|SECRET|TOKEN)\w*=|sk-[A-Za-z0-9_-]{12,})/;
 
 export function flagSession(steps: Step[]): Flag[] {
   const flags: Flag[] = [];
@@ -96,7 +106,7 @@ export function flagSession(steps: Step[]): Flag[] {
     if (s.kind === "agent" && PASS_CLAIM.test(s.head) && lastTest) {
       const out = lastTest.body.join("\n");
       if (TEST_FAILED.test(out) || TEST_SKIPPED.test(out)) {
-        add(s.index, "claim-mismatch", `Claim vs step ${lastTest.index} output`, "medium");
+        add(s.index, "claim-mismatch", `Claim contradicts step ${lastTest.index}`, "medium");
       }
     }
   }
