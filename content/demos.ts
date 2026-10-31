@@ -44,4 +44,11 @@ export const demoCards: DemoCard[] = [
     pitch: "Paste a coding agent's terminal session. Fixed rules mark risky steps like force pushes and skipped tests, then Claude checks the agent's final claim against the evidence.",
     url: "/demos/warp",
   },
+  {
+    slug: "dlr",
+    company: "DLR",
+    headline: "Reward Hack Probe",
+    pitch: "Sample agent rollouts for one coding task run in your browser against a naive grader and a hardened one. Claude reads the reward gap and says which rollouts solved the task and which gamed it.",
+    url: "/demos/dlr",
+  },
 ];
