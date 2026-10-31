@@ -4,7 +4,16 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CSS_VAR_COLORS } from "@/components/ThemeToggle";
 import CompanyThemeStyle from "@/components/CompanyThemeStyle";
-import { flagSession, parseSession, SAMPLE_SESSION, type Flag, type Review, type Severity, type Step } from "./session";
+import {
+  flagSession,
+  MAX_STEPS,
+  parseSession,
+  SAMPLE_SESSION,
+  type Flag,
+  type Review,
+  type Severity,
+  type Step,
+} from "./session";
 
 const COMPANY_THEME_CSS = `
 .company-theme {
@@ -55,14 +64,19 @@ export default function WarpPage() {
   const [review, setReview] = useState<Review | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [picked, setPicked] = useState<number | null>(null);
 
   // Rules run on the session as reviewed, so flags and Claude's notes agree.
   const steps = useMemo(() => parseSession(reviewed), [reviewed]);
   const flags = useMemo(() => flagSession(steps), [steps]);
   const rows = rowsFor(flags, review);
+  const truncated = useMemo(() => parseSession(reviewed, Infinity).length > MAX_STEPS, [reviewed]);
+  // The step shown under the timeline: the one picked, else the top row.
+  const shown = steps.find((s) => s.index === (picked ?? rows[0]?.step)) ?? null;
 
   const run = useCallback(async (text: string) => {
     setReviewed(text);
+    setPicked(null);
     setReview(null);
     setError(null);
     setLoading(true);
@@ -131,10 +145,15 @@ export default function WarpPage() {
             {/* Session input */}
             <section className="rounded-lg border flex flex-col" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
               <div className="flex items-center justify-between px-3 py-2 border-b text-xs" style={{ borderColor: C.cardBorder, color: C.dim }}>
-                <span className="font-mono">session.log (sample)</span>
+                <span className="font-mono">session.log{session === SAMPLE_SESSION ? " (sample)" : ""}</span>
+                {session !== SAMPLE_SESSION && !loading && (
+                  <button onClick={() => setSession(SAMPLE_SESSION)} className="ml-auto mr-3 hover:opacity-70">
+                    Reset
+                  </button>
+                )}
                 <button
                   onClick={() => run(session)}
-                  disabled={loading || session === reviewed}
+                  disabled={loading || !session.trim()}
                   className="font-semibold px-3 py-1 rounded transition-opacity hover:opacity-90 disabled:opacity-40"
                   style={{ backgroundColor: C.accent, color: "#0f1115" }}
                 >
@@ -146,6 +165,7 @@ export default function WarpPage() {
                 onChange={(e) => setSession(e.target.value)}
                 spellCheck={false}
                 wrap="off"
+                placeholder={"$ npm test\n...\nagent: All tests pass.\ndiff --git a/src/app.ts b/src/app.ts"}
                 aria-label="Agent session. Lines start with $ for commands, agent: for messages, or diff --git for diffs."
                 className="w-full flex-1 min-h-[260px] lg:min-h-[460px] font-mono text-[12px] leading-[1.55] p-3 bg-transparent resize-y outline-none"
                 style={{ color: C.text }}
@@ -154,20 +174,48 @@ export default function WarpPage() {
 
             {/* Review */}
             <section className="rounded-lg border p-4 order-first lg:order-none" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
-              <div className="flex gap-[3px] mb-4" aria-hidden>
+              <div className="flex gap-[3px] mb-2">
                 {steps.map((s) => (
-                  <div
+                  <button
                     key={s.index}
                     title={`${s.index}. ${s.head}`}
-                    className="h-6 flex-1 rounded-sm"
-                    style={{ backgroundColor: tickColor(s, flags) }}
+                    aria-label={`Show step ${s.index}`}
+                    onClick={() => setPicked(s.index)}
+                    className="h-6 flex-1 rounded-sm transition-opacity hover:opacity-80"
+                    style={{
+                      backgroundColor: tickColor(s, flags),
+                      outline: shown?.index === s.index ? `1px solid ${C.text}` : "none",
+                      outlineOffset: 1,
+                    }}
                   />
                 ))}
               </div>
+              {shown && (
+                <p className="font-mono text-[11px] mb-4 truncate" style={{ color: C.muted }} title={shown.head}>
+                  <span style={{ color: C.dim }}>{shown.index} </span>
+                  {shown.kind === "command" ? "$ " : shown.kind === "diff" ? "diff " : ""}
+                  {shown.head}
+                </p>
+              )}
+              {truncated && (
+                <p className="text-xs mb-3" style={{ color: SEVERITY_COLOR.medium }}>
+                  Only the first {MAX_STEPS} steps are reviewed.
+                </p>
+              )}
 
+              {!rows.length && !loading && (
+                <p className="text-sm mb-4" style={{ color: C.muted }}>
+                  No rule flags in this session.
+                </p>
+              )}
               <ul className="space-y-2 mb-4">
                 {rows.map((r) => (
-                  <li key={r.step} className="flex gap-3 text-sm">
+                  <li
+                    key={r.step}
+                    onClick={() => setPicked(r.step)}
+                    className="flex gap-3 text-sm cursor-pointer rounded -mx-1 px-1"
+                    style={{ backgroundColor: shown?.index === r.step ? C.accentBg : "transparent" }}
+                  >
                     <span className="font-mono text-xs w-6 pt-0.5 text-right flex-shrink-0" style={{ color: C.dim }}>
                       {r.step}
                     </span>
@@ -197,8 +245,8 @@ export default function WarpPage() {
                       {review.summary}
                     </p>
                     <ul className="space-y-1">
-                      {review.checklist.map((c) => (
-                        <li key={c} className="text-xs flex gap-2" style={{ color: C.muted }}>
+                      {review.checklist.map((c, i) => (
+                        <li key={i} className="text-xs flex gap-2" style={{ color: C.muted }}>
                           <span style={{ color: C.accent }}>&#9744;</span>
                           {c}
                         </li>
