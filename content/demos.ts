@@ -51,4 +51,11 @@ export const demoCards: DemoCard[] = [
     pitch: "Sample agent rollouts for one coding task run in your browser against a naive grader and a hardened one. Claude reads the reward gap and says which rollouts solved the task and which gamed it.",
     url: "/demos/dlr",
   },
+  {
+    slug: "goodfire",
+    company: "Goodfire",
+    headline: "Feature Finder",
+    pitch: "A sparse autoencoder trains in your browser on sentence embeddings. Claude labels each feature from its top examples, and plain code tests every label on sentences Claude never saw.",
+    url: "/demos/goodfire",
+  },
 ];
