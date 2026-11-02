@@ -57,4 +57,11 @@ export const demoCards: DemoCard[] = [
     pitch: "Claude proposes conjectures about an integer sequence, and a brute-force search in your browser hunts for the first case that breaks each one. Evidence, not proof: it does not run Lean.",
     url: "/demos/harmonic",
   },
+  {
+    slug: "thinking-machines",
+    company: "Thinking Machines",
+    headline: "Nondeterminism Probe",
+    pitch: "A float32 split-K matmul in your browser shows how batch size, set by server load, flips a temperature 0 token. Claude explains the divergence and what a batch-invariant kernel costs.",
+    url: "/demos/thinking-machines",
+  },
 ];
