@@ -51,4 +51,11 @@ export const demoCards: DemoCard[] = [
     pitch: "Sample agent rollouts for one coding task run in your browser against a naive grader and a hardened one. Claude reads the reward gap and says which rollouts solved the task and which gamed it.",
     url: "/demos/dlr",
   },
+  {
+    slug: "edison",
+    company: "Edison Scientific",
+    headline: "Hypothesis Ledger",
+    pitch: "Ask a research question. Each round pulls real abstracts, Claude proposes hypotheses with quoted evidence, and code checks every quote word for word. The ledger grows across rounds.",
+    url: "/demos/edison",
+  },
 ];
