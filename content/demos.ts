@@ -51,4 +51,11 @@ export const demoCards: DemoCard[] = [
     pitch: "Sample agent rollouts for one coding task run in your browser against a naive grader and a hardened one. Claude reads the reward gap and says which rollouts solved the task and which gamed it.",
     url: "/demos/dlr",
   },
+  {
+    slug: "thinking-machines",
+    company: "Thinking Machines",
+    headline: "Nondeterminism Probe",
+    pitch: "A float32 split-K matmul in your browser shows how batch size, set by server load, flips a temperature 0 token. Claude explains the divergence and what a batch-invariant kernel costs.",
+    url: "/demos/thinking-machines",
+  },
 ];
