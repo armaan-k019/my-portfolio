@@ -50,7 +50,8 @@ export const demoCards: DemoCard[] = [
     headline: "Reward Hack Probe",
     pitch: "Sample agent rollouts for one coding task run in your browser against a naive grader and a hardened one. Claude reads the reward gap and says which rollouts solved the task and which gamed it.",
     url: "/demos/dlr",
-  },  {
+  },
+  {
     slug: "harmonic",
     company: "Harmonic",
     headline: "Conjecture vs Counterexample",
@@ -63,5 +64,12 @@ export const demoCards: DemoCard[] = [
     headline: "Nondeterminism Probe",
     pitch: "A float32 split-K matmul in your browser shows how batch size, set by server load, flips a temperature 0 token. Claude explains the divergence and what a batch-invariant kernel costs.",
     url: "/demos/thinking-machines",
+  },
+  {
+    slug: "edison",
+    company: "Edison Scientific",
+    headline: "Hypothesis Ledger",
+    pitch: "Ask a research question. Each round pulls real abstracts, Claude proposes hypotheses with quoted evidence, and code checks every quote word for word. The ledger grows across rounds.",
+    url: "/demos/edison",
   },
 ];
