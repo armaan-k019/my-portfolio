@@ -50,7 +50,8 @@ export const demoCards: DemoCard[] = [
     headline: "Reward Hack Probe",
     pitch: "Sample agent rollouts for one coding task run in your browser against a naive grader and a hardened one. Claude reads the reward gap and says which rollouts solved the task and which gamed it.",
     url: "/demos/dlr",
-  },  {
+  },
+  {
     slug: "harmonic",
     company: "Harmonic",
     headline: "Conjecture vs Counterexample",
