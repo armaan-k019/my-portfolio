@@ -59,6 +59,13 @@ export const demoCards: DemoCard[] = [
     url: "/demos/harmonic",
   },
   {
+    slug: "thinking-machines",
+    company: "Thinking Machines",
+    headline: "Nondeterminism Probe",
+    pitch: "A float32 split-K matmul in your browser shows how batch size, set by server load, flips a temperature 0 token. Claude explains the divergence and what a batch-invariant kernel costs.",
+    url: "/demos/thinking-machines",
+  },
+  {
     slug: "edison",
     company: "Edison Scientific",
     headline: "Hypothesis Ledger",
