@@ -73,6 +73,13 @@ export const demoCards: DemoCard[] = [
     url: "/demos/edison",
   },
   {
+    slug: "physical-intelligence",
+    company: "Physical Intelligence",
+    headline: "Policy Failure Replayer",
+    pitch: "A scripted grasp policy runs 48 simulated tabletop scenes in your browser. Code logs each failure, Claude groups the failures by root cause, and you replay any episode in 3D.",
+    url: "/demos/physical-intelligence",
+  },
+  {
     slug: "goodfire",
     company: "Goodfire",
     headline: "Feature Finder",
