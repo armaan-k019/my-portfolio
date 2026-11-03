@@ -1,0 +1,1157 @@
+{
+ "note": "Made-up sentences written for this demo. Not from any dataset.",
+ "sentences": [
+  {
+   "text": "Rent went up by two hundred dollars.",
+   "split": "train"
+  },
+  {
+   "text": "When are you planning to leave?",
+   "split": "train"
+  },
+  {
+   "text": "The rain finally stopped around noon.",
+   "split": "train"
+  },
+  {
+   "text": "The test results came back normal.",
+   "split": "heldout"
+  },
+  {
+   "text": "The striker scored in the final minute.",
+   "split": "train"
+  },
+  {
+   "text": "The playlist is mostly old soul and funk.",
+   "split": "train"
+  },
+  {
+   "text": "The app freezes when you upload a large image.",
+   "split": "train"
+  },
+  {
+   "text": "The opera ran for almost four hours.",
+   "split": "train"
+  },
+  {
+   "text": "Can you send me the file by Friday?",
+   "split": "train"
+  },
+  {
+   "text": "Which bus goes to the stadium?",
+   "split": "train"
+  },
+  {
+   "text": "The fans stormed the field after the win.",
+   "split": "train"
+  },
+  {
+   "text": "I keep this album on repeat while I work.",
+   "split": "train"
+  },
+  {
+   "text": "The surgery went well and she is recovering.",
+   "split": "heldout"
+  },
+  {
+   "text": "The visa took six weeks to process.",
+   "split": "heldout"
+  },
+  {
+   "text": "The band played their new song at the end of the show.",
+   "split": "heldout"
+  },
+  {
+   "text": "Cash is tight until the next payday.",
+   "split": "train"
+  },
+  {
+   "text": "They refinanced the mortgage at a lower rate.",
+   "split": "train"
+  },
+  {
+   "text": "He grilled the fish on a cedar plank.",
+   "split": "train"
+  },
+  {
+   "text": "The puppy chewed through my shoelaces.",
+   "split": "train"
+  },
+  {
+   "text": "He yelled at the driver who cut him off.",
+   "split": "train"
+  },
+  {
+   "text": "The basketball game went into overtime.",
+   "split": "train"
+  },
+  {
+   "text": "Where is the nearest pharmacy?",
+   "split": "train"
+  },
+  {
+   "text": "The clinic is closed on weekends.",
+   "split": "train"
+  },
+  {
+   "text": "We camped by the river on the second night.",
+   "split": "train"
+  },
+  {
+   "text": "Stop interrupting me when I am talking.",
+   "split": "train"
+  },
+  {
+   "text": "The stew tastes better on the second day.",
+   "split": "train"
+  },
+  {
+   "text": "I appreciate your patience while we fixed it.",
+   "split": "train"
+  },
+  {
+   "text": "Peel the potatoes and boil them until soft.",
+   "split": "train"
+  },
+  {
+   "text": "Thank you for the advice, it worked.",
+   "split": "train"
+  },
+  {
+   "text": "Update the config file and restart the service.",
+   "split": "train"
+  },
+  {
+   "text": "Sleep is the best medicine for a cold.",
+   "split": "train"
+  },
+  {
+   "text": "I owe my brother fifty dollars.",
+   "split": "train"
+  },
+  {
+   "text": "He has a fever and a sore throat.",
+   "split": "heldout"
+  },
+  {
+   "text": "I need to renew my passport before the trip.",
+   "split": "train"
+  },
+  {
+   "text": "He threw the controller across the room.",
+   "split": "heldout"
+  },
+  {
+   "text": "Owls hunt mostly at night.",
+   "split": "train"
+  },
+  {
+   "text": "The company reported lower profits this quarter.",
+   "split": "train"
+  },
+  {
+   "text": "What should we name the new puppy?",
+   "split": "train"
+  },
+  {
+   "text": "The dog barked at the mail carrier.",
+   "split": "train"
+  },
+  {
+   "text": "She was livid when she saw the bill.",
+   "split": "heldout"
+  },
+  {
+   "text": "The team signed a new point guard.",
+   "split": "train"
+  },
+  {
+   "text": "She fried the dumplings until the bottoms were crisp.",
+   "split": "heldout"
+  },
+  {
+   "text": "Slice the tomatoes thin for the sandwich.",
+   "split": "train"
+  },
+  {
+   "text": "Stock prices fell sharply after the announcement.",
+   "split": "train"
+  },
+  {
+   "text": "I appreciate you checking in on me.",
+   "split": "train"
+  },
+  {
+   "text": "Bring an umbrella, the sky looks dark.",
+   "split": "train"
+  },
+  {
+   "text": "How long does it take to get there?",
+   "split": "train"
+  },
+  {
+   "text": "A family of deer crossed the road at dusk.",
+   "split": "train"
+  },
+  {
+   "text": "What does this word mean?",
+   "split": "train"
+  },
+  {
+   "text": "Check in online to skip the line at the airport.",
+   "split": "heldout"
+  },
+  {
+   "text": "Taxes are due in the middle of April.",
+   "split": "train"
+  },
+  {
+   "text": "Frogs were croaking by the pond.",
+   "split": "heldout"
+  },
+  {
+   "text": "The museum was closed when we arrived.",
+   "split": "train"
+  },
+  {
+   "text": "How was your weekend?",
+   "split": "heldout"
+  },
+  {
+   "text": "My grandmother never measured the spices in her curry.",
+   "split": "train"
+  },
+  {
+   "text": "The pitcher threw a perfect inning.",
+   "split": "train"
+  },
+  {
+   "text": "Knead the dough for ten minutes and let it rise overnight.",
+   "split": "train"
+  },
+  {
+   "text": "Why does this keep happening to me?",
+   "split": "train"
+  },
+  {
+   "text": "She glared at him across the table.",
+   "split": "train"
+  },
+  {
+   "text": "The quarterback threw two interceptions.",
+   "split": "train"
+  },
+  {
+   "text": "How much does a ticket cost?",
+   "split": "train"
+  },
+  {
+   "text": "The cows wandered into the neighbor's field.",
+   "split": "heldout"
+  },
+  {
+   "text": "I set up automatic payments for the electric bill.",
+   "split": "train"
+  },
+  {
+   "text": "The server crashed after the latest deploy.",
+   "split": "train"
+  },
+  {
+   "text": "They practiced free throws until dark.",
+   "split": "train"
+  },
+  {
+   "text": "The tennis match went to a fifth set.",
+   "split": "train"
+  },
+  {
+   "text": "The drummer kept perfect time all night.",
+   "split": "train"
+  },
+  {
+   "text": "The variable name is misspelled in two places.",
+   "split": "train"
+  },
+  {
+   "text": "I am grateful you took the time to explain.",
+   "split": "heldout"
+  },
+  {
+   "text": "The new version broke backward compatibility.",
+   "split": "train"
+  },
+  {
+   "text": "She broke her wrist when she fell on the ice.",
+   "split": "train"
+  },
+  {
+   "text": "The coach benched him for missing practice.",
+   "split": "heldout"
+  },
+  {
+   "text": "A squirrel stole seeds from the bird feeder.",
+   "split": "train"
+  },
+  {
+   "text": "The wind knocked over the fence last night.",
+   "split": "heldout"
+  },
+  {
+   "text": "I am furious that they cancelled without telling us.",
+   "split": "train"
+  },
+  {
+   "text": "The flu spread quickly through the office.",
+   "split": "train"
+  },
+  {
+   "text": "She broke the school record in the long jump.",
+   "split": "heldout"
+  },
+  {
+   "text": "The parrot can say hello and goodbye.",
+   "split": "train"
+  },
+  {
+   "text": "The build fails because a dependency is missing.",
+   "split": "heldout"
+  },
+  {
+   "text": "Chop the parsley finely and sprinkle it on top.",
+   "split": "train"
+  },
+  {
+   "text": "The golfer sank a long putt to win.",
+   "split": "train"
+  },
+  {
+   "text": "I fixed the bug in the login form.",
+   "split": "train"
+  },
+  {
+   "text": "Should I bring anything to dinner?",
+   "split": "train"
+  },
+  {
+   "text": "The song starts quiet and builds to a loud finish.",
+   "split": "heldout"
+  },
+  {
+   "text": "The vet said the dog needs more exercise.",
+   "split": "train"
+  },
+  {
+   "text": "The goat ate part of the fence.",
+   "split": "train"
+  },
+  {
+   "text": "The cat knocked a glass off the table.",
+   "split": "heldout"
+  },
+  {
+   "text": "Our team lost the game by one point.",
+   "split": "train"
+  },
+  {
+   "text": "This is the third time the order arrived broken.",
+   "split": "train"
+  },
+  {
+   "text": "The invoice is thirty days overdue.",
+   "split": "train"
+  },
+  {
+   "text": "He makes his own pizza dough every Friday.",
+   "split": "train"
+  },
+  {
+   "text": "The rabbit hid under the porch.",
+   "split": "train"
+  },
+  {
+   "text": "Is there parking near the venue?",
+   "split": "train"
+  },
+  {
+   "text": "Her voice cracked on the high note.",
+   "split": "train"
+  },
+  {
+   "text": "Our cat sleeps on the windowsill all afternoon.",
+   "split": "train"
+  },
+  {
+   "text": "We rented a car at the airport.",
+   "split": "heldout"
+  },
+  {
+   "text": "This function returns null when the list is empty.",
+   "split": "train"
+  },
+  {
+   "text": "Season the steak with pepper right before searing it.",
+   "split": "train"
+  },
+  {
+   "text": "The recipe calls for two eggs and a cup of flour.",
+   "split": "train"
+  },
+  {
+   "text": "Hail dented the roof of my car.",
+   "split": "heldout"
+  },
+  {
+   "text": "The patient was discharged after two days.",
+   "split": "train"
+  },
+  {
+   "text": "The taxi driver took the long way around.",
+   "split": "train"
+  },
+  {
+   "text": "The bread came out of the oven with a crackling crust.",
+   "split": "train"
+  },
+  {
+   "text": "We waited for the thunderstorm to pass.",
+   "split": "train"
+  },
+  {
+   "text": "Bees were swarming around the hive.",
+   "split": "train"
+  },
+  {
+   "text": "The nurse took my blood pressure.",
+   "split": "train"
+  },
+  {
+   "text": "We baked a lemon cake for her birthday.",
+   "split": "train"
+  },
+  {
+   "text": "Where did you put the car keys?",
+   "split": "heldout"
+  },
+  {
+   "text": "Clouds rolled in and the temperature fell fast.",
+   "split": "train"
+  },
+  {
+   "text": "Thanks for watering my plants while I was away.",
+   "split": "train"
+  },
+  {
+   "text": "My hamster runs on its wheel all night.",
+   "split": "heldout"
+  },
+  {
+   "text": "The weather turned cold and gray overnight.",
+   "split": "train"
+  },
+  {
+   "text": "We are so grateful for your support this year.",
+   "split": "train"
+  },
+  {
+   "text": "I bought tickets to see the jazz trio.",
+   "split": "heldout"
+  },
+  {
+   "text": "I really appreciate you staying late.",
+   "split": "train"
+  },
+  {
+   "text": "A hawk circled above the meadow.",
+   "split": "heldout"
+  },
+  {
+   "text": "Inflation made groceries more expensive this year.",
+   "split": "train"
+  },
+  {
+   "text": "The lizard sunned itself on a warm rock.",
+   "split": "heldout"
+  },
+  {
+   "text": "Who is coming to the party?",
+   "split": "train"
+  },
+  {
+   "text": "She burned the rice again because she forgot the timer.",
+   "split": "heldout"
+  },
+  {
+   "text": "She goes to physical therapy for her knee.",
+   "split": "train"
+  },
+  {
+   "text": "She serves faster than anyone on the tour.",
+   "split": "train"
+  },
+  {
+   "text": "Whisk the cream until it holds soft peaks.",
+   "split": "heldout"
+  },
+  {
+   "text": "The snow drifts were taller than the mailbox.",
+   "split": "train"
+  },
+  {
+   "text": "It is freezing outside, wear a heavy coat.",
+   "split": "train"
+  },
+  {
+   "text": "We got lost looking for the train station.",
+   "split": "train"
+  },
+  {
+   "text": "We split the bill evenly at dinner.",
+   "split": "heldout"
+  },
+  {
+   "text": "The goalkeeper saved a penalty kick.",
+   "split": "train"
+  },
+  {
+   "text": "We rolled back the release after users reported errors.",
+   "split": "heldout"
+  },
+  {
+   "text": "The compiler warns about an unused variable.",
+   "split": "train"
+  },
+  {
+   "text": "Thanks again for dinner last night.",
+   "split": "heldout"
+  },
+  {
+   "text": "The budget does not leave much for travel.",
+   "split": "heldout"
+  },
+  {
+   "text": "Lightning struck a tree near the school.",
+   "split": "heldout"
+  },
+  {
+   "text": "The concert sold out in ten minutes.",
+   "split": "train"
+  },
+  {
+   "text": "He refactored the parser into smaller modules.",
+   "split": "train"
+  },
+  {
+   "text": "Heavy rain is expected all afternoon.",
+   "split": "train"
+  },
+  {
+   "text": "He took out a loan to buy the truck.",
+   "split": "train"
+  },
+  {
+   "text": "Pin the package version to avoid surprises.",
+   "split": "train"
+  },
+  {
+   "text": "Is it okay if I bring a friend?",
+   "split": "train"
+  },
+  {
+   "text": "We are thankful for the warm welcome.",
+   "split": "heldout"
+  },
+  {
+   "text": "My back hurts after sitting all day.",
+   "split": "train"
+  },
+  {
+   "text": "The relay team dropped the baton.",
+   "split": "heldout"
+  },
+  {
+   "text": "Sunny skies and a gentle breeze all weekend.",
+   "split": "heldout"
+  },
+  {
+   "text": "The fish in the tank need fresh water.",
+   "split": "heldout"
+  },
+  {
+   "text": "Thanks a million for fixing my bike.",
+   "split": "heldout"
+  },
+  {
+   "text": "Do you know a good place for lunch?",
+   "split": "train"
+  },
+  {
+   "text": "I cannot believe how rude the manager was.",
+   "split": "heldout"
+  },
+  {
+   "text": "Merge the pull request after the review passes.",
+   "split": "train"
+  },
+  {
+   "text": "That comment made my blood boil.",
+   "split": "train"
+  },
+  {
+   "text": "Toast the cumin seeds in a dry skillet first.",
+   "split": "train"
+  },
+  {
+   "text": "The referee gave a yellow card for the late tackle.",
+   "split": "train"
+  },
+  {
+   "text": "I have had a headache since this morning.",
+   "split": "train"
+  },
+  {
+   "text": "Who left the milk out on the counter?",
+   "split": "train"
+  },
+  {
+   "text": "It has not rained here in six weeks.",
+   "split": "train"
+  },
+  {
+   "text": "The database query is too slow on large tables.",
+   "split": "train"
+  },
+  {
+   "text": "Many thanks to everyone who came tonight.",
+   "split": "train"
+  },
+  {
+   "text": "The tests pass locally but fail in CI.",
+   "split": "train"
+  },
+  {
+   "text": "Our flight was delayed by three hours.",
+   "split": "heldout"
+  },
+  {
+   "text": "He missed his connection in Chicago.",
+   "split": "train"
+  },
+  {
+   "text": "The customer demanded to speak to someone in charge.",
+   "split": "heldout"
+  },
+  {
+   "text": "The bass was too loud in the mix.",
+   "split": "train"
+  },
+  {
+   "text": "The cruise stopped at three islands.",
+   "split": "heldout"
+  },
+  {
+   "text": "She booked a hotel near the old town.",
+   "split": "train"
+  },
+  {
+   "text": "The guitar solo went on for five minutes.",
+   "split": "heldout"
+  },
+  {
+   "text": "I am so annoyed I could scream.",
+   "split": "heldout"
+  },
+  {
+   "text": "He wears a brace while his ankle heals.",
+   "split": "heldout"
+  },
+  {
+   "text": "The hostel had a view of the harbor.",
+   "split": "train"
+  },
+  {
+   "text": "They spent two weeks backpacking through the mountains.",
+   "split": "train"
+  },
+  {
+   "text": "She invested her savings in an index fund.",
+   "split": "train"
+  },
+  {
+   "text": "The melody stuck in my head all day.",
+   "split": "train"
+  },
+  {
+   "text": "Why is the light still on upstairs?",
+   "split": "train"
+  },
+  {
+   "text": "Your help made all the difference.",
+   "split": "train"
+  },
+  {
+   "text": "Elephants travel long distances to find water.",
+   "split": "train"
+  },
+  {
+   "text": "The doctor prescribed antibiotics for the infection.",
+   "split": "train"
+  },
+  {
+   "text": "We need more logging around the payment code.",
+   "split": "train"
+  },
+  {
+   "text": "The pancakes stuck to the pan because it was not hot enough.",
+   "split": "train"
+  },
+  {
+   "text": "Can I borrow your charger for a minute?",
+   "split": "train"
+  },
+  {
+   "text": "The subway map was confusing at first.",
+   "split": "train"
+  },
+  {
+   "text": "Add an index to speed up that query.",
+   "split": "heldout"
+  },
+  {
+   "text": "He learned the chords by ear.",
+   "split": "heldout"
+  },
+  {
+   "text": "The forecast says snow by Thursday night.",
+   "split": "train"
+  },
+  {
+   "text": "Big thanks to the team for finishing early.",
+   "split": "train"
+  },
+  {
+   "text": "The investors want to see revenue growth.",
+   "split": "heldout"
+  },
+  {
+   "text": "The bank raised its interest rate again.",
+   "split": "train"
+  },
+  {
+   "text": "She keeps a spreadsheet of every expense.",
+   "split": "train"
+  },
+  {
+   "text": "What time does the store close tonight?",
+   "split": "train"
+  },
+  {
+   "text": "The DJ mixed two tracks seamlessly.",
+   "split": "train"
+  },
+  {
+   "text": "A cold front will drop temperatures below freezing.",
+   "split": "heldout"
+  },
+  {
+   "text": "He sings in the church choir on Sundays.",
+   "split": "train"
+  },
+  {
+   "text": "I am tired of cleaning up after everyone.",
+   "split": "train"
+  },
+  {
+   "text": "The violinist played without sheet music.",
+   "split": "heldout"
+  },
+  {
+   "text": "He slammed the door and stormed out.",
+   "split": "train"
+  },
+  {
+   "text": "The bus was packed with tourists.",
+   "split": "train"
+  },
+  {
+   "text": "I have had enough of their excuses.",
+   "split": "train"
+  },
+  {
+   "text": "This is completely unacceptable.",
+   "split": "train"
+  },
+  {
+   "text": "She hummed the tune while washing dishes.",
+   "split": "train"
+  },
+  {
+   "text": "The fog was thick enough to close the airport.",
+   "split": "train"
+  },
+  {
+   "text": "We cannot thank the volunteers enough.",
+   "split": "train"
+  },
+  {
+   "text": "Wolves howled somewhere in the valley.",
+   "split": "train"
+  },
+  {
+   "text": "She practices piano for an hour every day.",
+   "split": "train"
+  },
+  {
+   "text": "The morning frost covered every window.",
+   "split": "heldout"
+  },
+  {
+   "text": "Have you seen my blue jacket anywhere?",
+   "split": "train"
+  },
+  {
+   "text": "The hospital waiting room was full.",
+   "split": "train"
+  },
+  {
+   "text": "The vaccine is free at the pharmacy.",
+   "split": "heldout"
+  },
+  {
+   "text": "The soup needs more salt and a squeeze of lemon.",
+   "split": "train"
+  },
+  {
+   "text": "The dog wags his tail whenever I come home.",
+   "split": "train"
+  },
+  {
+   "text": "Spring brought warm days and cool nights.",
+   "split": "train"
+  },
+  {
+   "text": "Are we still meeting tomorrow?",
+   "split": "train"
+  },
+  {
+   "text": "The login page throws an exception on mobile.",
+   "split": "train"
+  },
+  {
+   "text": "I roasted the carrots with honey and thyme.",
+   "split": "heldout"
+  },
+  {
+   "text": "The festival lineup has three bands I love.",
+   "split": "train"
+  },
+  {
+   "text": "Your kind note cheered me up.",
+   "split": "train"
+  },
+  {
+   "text": "The hurricane is moving north along the coast.",
+   "split": "train"
+  },
+  {
+   "text": "The crowd sang along to every chorus.",
+   "split": "train"
+  },
+  {
+   "text": "They ignored every complaint we filed.",
+   "split": "train"
+  },
+  {
+   "text": "They promised a refund and never sent it.",
+   "split": "train"
+  },
+  {
+   "text": "Thank you for being so understanding.",
+   "split": "train"
+  },
+  {
+   "text": "She lost her temper during the meeting.",
+   "split": "train"
+  },
+  {
+   "text": "She wrote the lyrics on a napkin.",
+   "split": "train"
+  },
+  {
+   "text": "I felt dizzy when I stood up too fast.",
+   "split": "train"
+  },
+  {
+   "text": "The horse refused to jump the fence.",
+   "split": "train"
+  },
+  {
+   "text": "The train to the coast leaves at seven.",
+   "split": "heldout"
+  },
+  {
+   "text": "He spent the night chasing a race condition.",
+   "split": "heldout"
+  },
+  {
+   "text": "Our league plays every Sunday afternoon.",
+   "split": "train"
+  },
+  {
+   "text": "She travels for work almost every month.",
+   "split": "heldout"
+  },
+  {
+   "text": "Add a pinch of chili flakes if you like it spicy.",
+   "split": "train"
+  },
+  {
+   "text": "The heat wave broke records across the region.",
+   "split": "train"
+  },
+  {
+   "text": "My eyes are itchy from the pollen.",
+   "split": "heldout"
+  },
+  {
+   "text": "She wrote a script to rename the files.",
+   "split": "train"
+  },
+  {
+   "text": "He plays saxophone in a wedding band.",
+   "split": "heldout"
+  },
+  {
+   "text": "The price of the house was far above our budget.",
+   "split": "heldout"
+  },
+  {
+   "text": "The cyclists climbed the mountain stage in the rain.",
+   "split": "train"
+  },
+  {
+   "text": "We adopted a kitten from the shelter.",
+   "split": "train"
+  },
+  {
+   "text": "Drink plenty of water and get some rest.",
+   "split": "train"
+  },
+  {
+   "text": "Did anyone call while I was out?",
+   "split": "train"
+  },
+  {
+   "text": "The orchestra tuned up before the symphony.",
+   "split": "heldout"
+  },
+  {
+   "text": "I really appreciate the quick reply.",
+   "split": "train"
+  },
+  {
+   "text": "Thank you so much for helping me move.",
+   "split": "train"
+  },
+  {
+   "text": "The fee was refunded after I called the bank.",
+   "split": "heldout"
+  },
+  {
+   "text": "Thank you for believing in me.",
+   "split": "heldout"
+  },
+  {
+   "text": "My paycheck was deposited a day late.",
+   "split": "heldout"
+  },
+  {
+   "text": "Could you help me carry these boxes?",
+   "split": "train"
+  },
+  {
+   "text": "Wash your hands often during flu season.",
+   "split": "train"
+  },
+  {
+   "text": "I paid off the credit card balance this month.",
+   "split": "heldout"
+  },
+  {
+   "text": "I am sick of waiting on hold for an hour.",
+   "split": "train"
+  },
+  {
+   "text": "Clear the cache and try the request again.",
+   "split": "heldout"
+  },
+  {
+   "text": "A light drizzle started just as we left.",
+   "split": "train"
+  },
+  {
+   "text": "He was so angry he could barely speak.",
+   "split": "train"
+  },
+  {
+   "text": "The night train had small sleeping cabins.",
+   "split": "train"
+  },
+  {
+   "text": "They recorded the record in a single week.",
+   "split": "train"
+  },
+  {
+   "text": "It was so humid that my glasses fogged up.",
+   "split": "train"
+  },
+  {
+   "text": "The ducklings followed their mother to the lake.",
+   "split": "train"
+  },
+  {
+   "text": "Our seats were in the last row of the plane.",
+   "split": "heldout"
+  },
+  {
+   "text": "Thanks for the ride, I would have been stuck.",
+   "split": "train"
+  },
+  {
+   "text": "He is allergic to peanuts and shellfish.",
+   "split": "heldout"
+  },
+  {
+   "text": "Let the sauce simmer on low heat for an hour.",
+   "split": "train"
+  },
+  {
+   "text": "The pasta was overcooked and a little mushy.",
+   "split": "train"
+  },
+  {
+   "text": "He sold his shares before the market dropped.",
+   "split": "train"
+  },
+  {
+   "text": "They won the championship for the third year in a row.",
+   "split": "train"
+  },
+  {
+   "text": "Pack light, the plane has strict baggage limits.",
+   "split": "train"
+  },
+  {
+   "text": "Thanks for the lovely gift, it made my day.",
+   "split": "train"
+  },
+  {
+   "text": "She ran the marathon in under four hours.",
+   "split": "heldout"
+  },
+  {
+   "text": "I am fed up with the constant noise.",
+   "split": "heldout"
+  },
+  {
+   "text": "He sprained his ankle during the second half.",
+   "split": "train"
+  },
+  {
+   "text": "Marinate the chicken in yogurt before you grill it.",
+   "split": "train"
+  },
+  {
+   "text": "Our savings account barely earns any interest.",
+   "split": "train"
+  },
+  {
+   "text": "He trains for the triathlon on weekends.",
+   "split": "train"
+  },
+  {
+   "text": "I swim laps at the gym every morning.",
+   "split": "train"
+  },
+  {
+   "text": "How do I reset my password?",
+   "split": "heldout"
+  },
+  {
+   "text": "The cough kept me awake all night.",
+   "split": "train"
+  },
+  {
+   "text": "Do not ever speak to me like that again.",
+   "split": "heldout"
+  },
+  {
+   "text": "Take one tablet twice a day with food.",
+   "split": "train"
+  },
+  {
+   "text": "The monsoon flooded the lower streets.",
+   "split": "train"
+  },
+  {
+   "text": "We lost our luggage on the connecting flight.",
+   "split": "train"
+  },
+  {
+   "text": "Nobody listens to a word I say.",
+   "split": "train"
+  },
+  {
+   "text": "The boxer won by knockout in the sixth round.",
+   "split": "train"
+  },
+  {
+   "text": "Thank you for listening, it meant a lot.",
+   "split": "train"
+  },
+  {
+   "text": "The API returns a timeout error under heavy load.",
+   "split": "train"
+  },
+  {
+   "text": "I need to schedule a dentist appointment.",
+   "split": "train"
+  },
+  {
+   "text": "The startup raised a new round of funding.",
+   "split": "train"
+  },
+  {
+   "text": "A tornado warning lasted until midnight.",
+   "split": "train"
+  },
+  {
+   "text": "The ferry crossing was rough and cold.",
+   "split": "heldout"
+  },
+  {
+   "text": "I owe you one for covering my shift.",
+   "split": "train"
+  },
+  {
+   "text": "Stir the onions until they turn golden, then add the garlic.",
+   "split": "train"
+  },
+  {
+   "text": "I am thankful for friends like you.",
+   "split": "train"
+  },
+  {
+   "text": "The memory leak only appears in production.",
+   "split": "train"
+  },
+  {
+   "text": "The road trip took us through four states.",
+   "split": "train"
+  },
+  {
+   "text": "The test suite takes twenty minutes to run.",
+   "split": "train"
+  }
+ ]
+}

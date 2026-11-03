@@ -1,0 +1,160 @@
+{
+ "6ee95a4be313a849d987913b98df1989fe3b3a1aaff82587af86a882ed8cf754": [
+  {
+   "id": 19,
+   "label": "physical activity routines",
+   "cues": [
+    "train",
+    "swim",
+    "exercise",
+    "therapy",
+    "gym",
+    "choir",
+    "practice"
+   ]
+  },
+  {
+   "id": 17,
+   "label": "social event planning",
+   "cues": [
+    "party",
+    "festival",
+    "venue",
+    "stadium",
+    "bring",
+    "coming",
+    "dinner"
+   ]
+  },
+  {
+   "id": 10,
+   "label": "repeated habitual actions",
+   "cues": [
+    "keep",
+    "every",
+    "often",
+    "repeat",
+    "practices",
+    "always",
+    "wash"
+   ]
+  },
+  {
+   "id": 12,
+   "label": "frustration or disappointment",
+   "cues": [
+    "furious",
+    "sick",
+    "lost",
+    "closed",
+    "cancelled",
+    "waiting",
+    "still"
+   ]
+  },
+  {
+   "id": 14,
+   "label": "questions or abrupt actions",
+   "cues": [
+    "why",
+    "when",
+    "did",
+    "what",
+    "slammed",
+    "stormed",
+    "still"
+   ]
+  },
+  {
+   "id": 23,
+   "label": "cooking instructions",
+   "cues": [
+    "chop",
+    "stir",
+    "marinate",
+    "toast",
+    "season",
+    "simmer",
+    "grill"
+   ]
+  },
+  {
+   "id": 5,
+   "label": "travel logistics",
+   "cues": [
+    "luggage",
+    "passport",
+    "plane",
+    "baggage",
+    "museum",
+    "trip",
+    "carry"
+   ]
+  },
+  {
+   "id": 7,
+   "label": "team sports activities",
+   "cues": [
+    "team",
+    "championship",
+    "game",
+    "point",
+    "practiced",
+    "backpacking",
+    "road"
+   ]
+  },
+  {
+   "id": 30,
+   "label": "rain weather",
+   "cues": [
+    "rain",
+    "drizzle",
+    "monsoon",
+    "umbrella",
+    "flooded",
+    "sky",
+    "rained"
+   ]
+  },
+  {
+   "id": 8,
+   "label": "night time references",
+   "cues": [
+    "night",
+    "nights",
+    "dark",
+    "sleeping",
+    "forecast",
+    "owls",
+    "snow"
+   ]
+  },
+  {
+   "id": 25,
+   "label": "urban transit",
+   "cues": [
+    "bus",
+    "subway",
+    "taxi",
+    "train",
+    "ride",
+    "station",
+    "tourist"
+   ]
+  },
+  {
+   "id": 27,
+   "label": "duration or waiting time",
+   "cues": [
+    "slow",
+    "timeout",
+    "long",
+    "waiting",
+    "hours",
+    "takes",
+    "minutes"
+   ]
+  }
+ ]
+}
