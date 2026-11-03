@@ -52,6 +52,27 @@ export const demoCards: DemoCard[] = [
     url: "/demos/dlr",
   },
   {
+    slug: "harmonic",
+    company: "Harmonic",
+    headline: "Conjecture vs Counterexample",
+    pitch: "Claude proposes conjectures about an integer sequence, and a brute-force search in your browser hunts for the first case that breaks each one. Evidence, not proof: it does not run Lean.",
+    url: "/demos/harmonic",
+  },
+  {
+    slug: "thinking-machines",
+    company: "Thinking Machines",
+    headline: "Nondeterminism Probe",
+    pitch: "A float32 split-K matmul in your browser shows how batch size, set by server load, flips a temperature 0 token. Claude explains the divergence and what a batch-invariant kernel costs.",
+    url: "/demos/thinking-machines",
+  },
+  {
+    slug: "edison",
+    company: "Edison Scientific",
+    headline: "Hypothesis Ledger",
+    pitch: "Ask a research question. Each round pulls real abstracts, Claude proposes hypotheses with quoted evidence, and code checks every quote word for word. The ledger grows across rounds.",
+    url: "/demos/edison",
+  },
+  {
     slug: "goodfire",
     company: "Goodfire",
     headline: "Feature Finder",
