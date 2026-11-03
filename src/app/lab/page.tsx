@@ -52,11 +52,13 @@ export default function LabPage() {
       </dl>
 
       <section className="mt-14">
-        <CorvidExplorer snapshot={corvid} />
-        <p className="meta mt-3 text-brown-light">
-          Each point is a paper; its position comes from its embedding and its color from the field it clustered into. Drag to
-          orbit, hover for a title, click a paper to light its network.
-        </p>
+        <CorvidExplorer snapshot={corvid}>
+          <p className="meta mt-3 text-brown-light">
+            Each point is a paper; its position comes from its embedding and its color from the field it clustered into. Rings mark
+            where two fields meet. Drag to orbit, hover for a title, click a paper to light its network or a ring to see why its
+            papers sit together.
+          </p>
+        </CorvidExplorer>
       </section>
 
       <section className="mt-20">

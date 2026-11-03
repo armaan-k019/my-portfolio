@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type * as THREEType from "three";
-import { communityColor, communityLabel, type CorvidNode } from "@/lib/corvid";
+import { communityColor, communityLabel, type CorvidMeeting, type CorvidNode } from "@/lib/corvid";
 
 // The corpus graph from the corvid snapshot, drawn the way the lab draws it:
 // soft glowing points sized by influence, faint community-hued edges plus warm
@@ -78,6 +78,18 @@ const STAR_COUNT = 240;
 const STAR_ALPHA = 0.32;
 const STAR_SIZE = 1.1;
 const STAR_COUNTER_ROTATE = 0.004;
+
+// Meeting points: a soft ring at the center of each spot where two fields'
+// papers are nearest neighbors. Selecting one lights its papers and draws the
+// cross-field links that put them there.
+const MEETING_COLOR = 0xf2d6a2;
+const MEETING_RING_SIZE = 3.2; // world units
+const MEETING_RING_OPACITY = 0.75;
+const MEETING_PICK_PX = 16;
+const MEETING_LINK_ALPHA = 0.85;
+const MEETING_PULSE_DENSITY = 0.6;
+const MEETING_FRAME_MIN = 22; // closest camera distance when framing a meeting
+const MEETING_FRAME_SCALE = 3.4; // camera distance = spot radius x this
 
 const EDGE_PROX_BOOST = 0.35;
 const EDGE_PROX_FALLOFF = 45;
@@ -182,9 +194,12 @@ interface Props {
   edges: [number, number, number][];
   highlight: number | null; // community to emphasize, or null
   legendAction: number; // bumps on every legend hover or click; clears a selection
+  meetings: CorvidMeeting[];
+  activeMeeting: number | null;
+  onMeetingSelect: (index: number | null) => void;
 }
 
-export default function CorvidGraph({ nodes, edges, highlight, legendAction }: Props) {
+export default function CorvidGraph({ nodes, edges, highlight, legendAction, meetings, activeMeeting, onMeetingSelect }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const highlightRef = useRef<(c: number | null) => void>(() => {});
   // The latest selection, so one made while three.js is still loading is
@@ -194,6 +209,14 @@ export default function CorvidGraph({ nodes, edges, highlight, legendAction }: P
   const [noWebGL, setNoWebGL] = useState(false);
   const [selected, setSelected] = useState<{ label: string; community: number | null; connected: number } | null>(null);
   const clearRef = useRef<() => void>(() => {});
+  const meetingRef = useRef<(i: number | null) => void>(() => {});
+  const latestMeeting = useRef(activeMeeting);
+  // The graph reports marker clicks through this ref so the effect below does
+  // not rebuild the scene when the parent re-renders.
+  const onMeetingSelectRef = useRef(onMeetingSelect);
+  useEffect(() => {
+    onMeetingSelectRef.current = onMeetingSelect;
+  }, [onMeetingSelect]);
 
   // Any legend action hands control back to the legend, as in the lab.
   useEffect(() => {
@@ -204,6 +227,11 @@ export default function CorvidGraph({ nodes, edges, highlight, legendAction }: P
     latestHighlight.current = highlight;
     highlightRef.current(highlight);
   }, [highlight]);
+
+  useEffect(() => {
+    latestMeeting.current = activeMeeting;
+    meetingRef.current(activeMeeting);
+  }, [activeMeeting]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -557,19 +585,85 @@ export default function CorvidGraph({ nodes, edges, highlight, legendAction }: P
         adjacency.get(e.b)!.add(e.a);
       }
 
+      // Meeting points: a ring per spot, and the spot's cross-field links,
+      // drawn only while that meeting is selected.
+      const ringCanvas = document.createElement("canvas");
+      ringCanvas.width = ringCanvas.height = 128;
+      const rctx = ringCanvas.getContext("2d")!;
+      rctx.strokeStyle = "rgba(255,255,255,1)";
+      rctx.shadowColor = "rgba(255,255,255,0.9)";
+      rctx.shadowBlur = 10;
+      rctx.lineWidth = 5;
+      rctx.beginPath();
+      rctx.arc(64, 64, 44, 0, Math.PI * 2);
+      rctx.stroke();
+      rctx.fillStyle = "rgba(255,255,255,1)";
+      rctx.beginPath();
+      rctx.arc(64, 64, 6, 0, Math.PI * 2);
+      rctx.fill();
+      const ringTex = new THREE.CanvasTexture(ringCanvas);
+      ringTex.colorSpace = THREE.SRGBColorSpace;
+      const meetingSpots = meetings.map((m) => {
+        const members = [...new Set([...m.a, ...m.b])].filter((i) => i >= 0 && i < n);
+        const center = new THREE.Vector3();
+        for (const i of members) center.add(pos[i]);
+        center.divideScalar(Math.max(1, members.length));
+        let radius = 0;
+        for (const i of members) radius = Math.max(radius, center.distanceTo(pos[i]));
+        const mat = new THREE.SpriteMaterial({ map: ringTex, color: MEETING_COLOR, transparent: true, opacity: MEETING_RING_OPACITY, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false });
+        const sprite = new THREE.Sprite(mat);
+        sprite.position.copy(center);
+        sprite.scale.setScalar(MEETING_RING_SIZE);
+        sprite.renderOrder = 9;
+        sprite.raycast = () => {};
+        scene.add(sprite);
+        return { members: new Set(members), center, radius, sprite, mat };
+      });
+      const meetingLinkList = meetings.flatMap((m, mi) => m.links.filter(([a, b]) => a >= 0 && a < n && b >= 0 && b < n).map(([a, b, w]) => ({ mi, a, b, w })));
+      const mlCount = meetingLinkList.length * 2;
+      const mlPos = new Float32Array(mlCount * 3);
+      const mlCol = new Float32Array(mlCount * 3);
+      const mlAlpha = new Float32Array(mlCount);
+      const mlGrad = new Float32Array(mlCount);
+      const mlRand = new Float32Array(mlCount);
+      const meetingColor = new THREE.Color(MEETING_COLOR);
+      meetingLinkList.forEach((l, k) => {
+        const r = pulseRng();
+        ([l.a, l.b] as const).forEach((idx, slot) => {
+          const v = k * 2 + slot;
+          pos[idx].toArray(mlPos, v * 3);
+          meetingColor.toArray(mlCol, v * 3);
+          mlGrad[v] = slot;
+          mlRand[v] = r;
+        });
+      });
+      const mlGeo = new THREE.BufferGeometry();
+      mlGeo.setAttribute("position", new THREE.BufferAttribute(mlPos, 3));
+      mlGeo.setAttribute("aColor", new THREE.BufferAttribute(mlCol, 3));
+      const mlAlphaAttr = new THREE.BufferAttribute(mlAlpha, 1);
+      mlGeo.setAttribute("aAlpha", mlAlphaAttr);
+      mlGeo.setAttribute("aGrad", new THREE.BufferAttribute(mlGrad, 1));
+      mlGeo.setAttribute("aRand", new THREE.BufferAttribute(mlRand, 1));
+      const mlMat = makeLineMat(MEETING_PULSE_DENSITY);
+      const meetingLines = new THREE.LineSegments(mlGeo, mlMat);
+      meetingLines.renderOrder = 4;
+      scene.add(meetingLines);
+
       // Visual state, as in the lab: a selected paper's network (root plus
       // neighbors) wins over legend emphasis; hover always lifts its paper.
+      // A selected meeting point lights both of its sides the same way.
       let emphasis: number | null = null;
       let selectedSet: Set<number> | null = null;
       let selectedRoot = -1;
       let hovered = -1;
+      let activeSpot = -1;
       const applyVisualState = () => {
         for (let i = 0; i < n; i++) {
           let hi = 0;
           let dim = 0;
           if (selectedSet) {
             if (i === selectedRoot) hi = 1;
-            else if (selectedSet.has(i)) hi = 0.45;
+            else if (selectedSet.has(i)) hi = activeSpot >= 0 ? 0.8 : 0.45;
             else dim = 1;
           } else if (emphasis !== null && nodes[i].community !== emphasis) {
             dim = LEGEND_DIM;
@@ -596,16 +690,35 @@ export default function CorvidGraph({ nodes, edges, highlight, legendAction }: P
         };
         apply(drawnIntra, intraBase, intraAlpha, 2, intraAlphaAttr);
         apply(drawnBridges, bridgeBase, bridgeAlpha, segs * 2, bridgeAlphaAttr);
+        meetingLinkList.forEach((l, k) => {
+          const a = l.mi === activeSpot ? MEETING_LINK_ALPHA * (0.6 + 0.4 * l.w) : 0;
+          mlAlpha[k * 2] = a;
+          mlAlpha[k * 2 + 1] = a;
+        });
+        mlAlphaAttr.needsUpdate = true;
+        meetingSpots.forEach((sp, i) => {
+          sp.mat.opacity = activeSpot < 0 ? MEETING_RING_OPACITY : i === activeSpot ? 1 : MEETING_RING_OPACITY * 0.3;
+        });
       };
 
       // Camera easing toward a selected paper (instant under reduced motion).
-      let ease: { t0: number; from: THREEType.Vector3; to: THREEType.Vector3 } | null = null;
-      const easeTargetTo = (to: THREEType.Vector3) => {
-        if (reducedMotion) controls.target.copy(to);
-        else ease = { t0: performance.now(), from: controls.target.clone(), to: to.clone() };
+      let ease: { t0: number; from: THREEType.Vector3; to: THREEType.Vector3; camFrom?: THREEType.Vector3; camTo?: THREEType.Vector3 } | null = null;
+      const easeTargetTo = (to: THREEType.Vector3, distance?: number) => {
+        // With a distance, the camera also moves to that range along its
+        // current direction, so a framed meeting point fills the view.
+        const camTo = distance === undefined ? undefined : to.clone().add(camera.position.clone().sub(controls.target).normalize().multiplyScalar(distance));
+        if (reducedMotion) {
+          controls.target.copy(to);
+          if (camTo) camera.position.copy(camTo);
+        } else ease = { t0: performance.now(), from: controls.target.clone(), to: to.clone(), camFrom: camTo ? camera.position.clone() : undefined, camTo };
       };
 
       const selectIndex = (idx: number, expand: boolean) => {
+        if (activeSpot >= 0) {
+          // A paper click leaves the meeting point for that paper's network.
+          activeSpot = -1;
+          onMeetingSelectRef.current(null);
+        }
         if (expand && selectedSet && selectedRoot >= 0) {
           // Shift-click grows the network by one hop.
           const grown = new Set(selectedSet);
@@ -622,6 +735,8 @@ export default function CorvidGraph({ nodes, edges, highlight, legendAction }: P
       };
       const clearSelection = () => {
         if (!selectedSet) return;
+        if (activeSpot >= 0) onMeetingSelectRef.current(null);
+        activeSpot = -1;
         selectedSet = null;
         selectedRoot = -1;
         applyVisualState();
@@ -629,10 +744,33 @@ export default function CorvidGraph({ nodes, edges, highlight, legendAction }: P
       };
       clearRef.current = clearSelection;
 
+      // The parent picks a meeting point (from its list or a ring click).
+      meetingRef.current = (i) => {
+        if (i === null || !meetingSpots[i]) {
+          if (activeSpot >= 0) {
+            activeSpot = -1;
+            selectedSet = null;
+            selectedRoot = -1;
+            applyVisualState();
+          }
+          return;
+        }
+        const spot = meetingSpots[i];
+        activeSpot = i;
+        selectedRoot = -1;
+        selectedSet = new Set(spot.members);
+        setSelected(null);
+        applyVisualState();
+        easeTargetTo(spot.center, Math.max(MEETING_FRAME_MIN, spot.radius * MEETING_FRAME_SCALE));
+      };
+      meetingRef.current(latestMeeting.current);
+
       // Legend emphasis replaces a selection, as in the lab.
       highlightRef.current = (h) => {
         emphasis = h;
         if (h !== null && selectedSet) {
+          if (activeSpot >= 0) onMeetingSelectRef.current(null);
+          activeSpot = -1;
           selectedSet = null;
           selectedRoot = -1;
           setSelected(null);
@@ -689,6 +827,22 @@ export default function CorvidGraph({ nodes, edges, highlight, legendAction }: P
         }
         return best;
       };
+      // A ring under the pointer, if any (rings sit on top of the points).
+      const pickSpot = (px: number, py: number, w: number, h: number) => {
+        let best = -1;
+        let bestD = MEETING_PICK_PX;
+        meetingSpots.forEach((sp, i) => {
+          viewPos.copy(sp.center).applyMatrix4(camera.matrixWorldInverse);
+          if (-viewPos.z <= 0) return;
+          projected.copy(sp.center).project(camera);
+          const d = Math.hypot((projected.x * 0.5 + 0.5) * w - px, (-projected.y * 0.5 + 0.5) * h - py);
+          if (d < bestD) {
+            best = i;
+            bestD = d;
+          }
+        });
+        return best;
+      };
       const setHovered = (i: number) => {
         if (i === hovered) return;
         hovered = i;
@@ -699,6 +853,14 @@ export default function CorvidGraph({ nodes, edges, highlight, legendAction }: P
         const r = renderer.domElement.getBoundingClientRect();
         const x = e.clientX - r.left;
         const y = e.clientY - r.top;
+        const spot = pickSpot(x, y, r.width, r.height);
+        if (spot >= 0) {
+          setHovered(-1);
+          renderer.domElement.style.cursor = "pointer";
+          setHover({ x, y, label: `Where ${meetings[spot].between[0]} meets ${meetings[spot].between[1]}: ${meetings[spot].headline}` });
+          onStart();
+          return;
+        }
         const hit = pickAt(x, y, r.width, r.height);
         if (hit >= 0) {
           setHovered(hit);
@@ -731,6 +893,11 @@ export default function CorvidGraph({ nodes, edges, highlight, legendAction }: P
         if (dragged) return;
         onStart();
         const r = renderer.domElement.getBoundingClientRect();
+        const spot = pickSpot(e.clientX - r.left, e.clientY - r.top, r.width, r.height);
+        if (spot >= 0) {
+          onMeetingSelectRef.current(spot === activeSpot ? null : spot);
+          return;
+        }
         const hit = pickAt(e.clientX - r.left, e.clientY - r.top, r.width, r.height);
         if (hit >= 0) selectIndex(hit, e.shiftKey);
         else clearSelection();
@@ -782,11 +949,13 @@ export default function CorvidGraph({ nodes, edges, highlight, legendAction }: P
         if (!reducedMotion) stars.rotation.y -= STAR_COUNTER_ROTATE * dt;
         intraMat.uniforms.uTime.value = now / 1000;
         bridgeMat.uniforms.uTime.value = now / 1000;
+        mlMat.uniforms.uTime.value = now / 1000;
 
         if (ease) {
           const t = Math.min(1, (now - ease.t0) / CAMERA_EASE_MS);
           const k = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
           controls.target.lerpVectors(ease.from, ease.to, k);
+          if (ease.camFrom && ease.camTo) camera.position.lerpVectors(ease.camFrom, ease.camTo, k);
           if (t >= 1) ease = null;
         }
         controls.update();
@@ -821,9 +990,12 @@ export default function CorvidGraph({ nodes, edges, highlight, legendAction }: P
         renderer.domElement.removeEventListener("click", onClick);
         window.removeEventListener("keydown", onKey);
         clearRef.current = () => {};
+        meetingRef.current = () => {};
         controls.dispose();
-        for (const geo of [pointGeo, starGeo, intraGeo, bridgeGeo]) geo.dispose();
-        for (const mat of [pointMat, starMat, intraMat, bridgeMat]) mat.dispose();
+        for (const geo of [pointGeo, starGeo, intraGeo, bridgeGeo, mlGeo]) geo.dispose();
+        for (const mat of [pointMat, starMat, intraMat, bridgeMat, mlMat]) mat.dispose();
+        for (const sp of meetingSpots) sp.mat.dispose();
+        ringTex.dispose();
         for (const c of clouds) c.mat.dispose();
         cloudTex.dispose();
         for (const l of labels) {
@@ -841,7 +1013,7 @@ export default function CorvidGraph({ nodes, edges, highlight, legendAction }: P
       disposed = true;
       cleanup();
     };
-  }, [nodes, edges]);
+  }, [nodes, edges, meetings]);
 
   return (
     <div

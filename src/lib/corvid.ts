@@ -20,6 +20,25 @@ export interface CorvidFinding {
   cPapers: string[];
 }
 
+// A meeting point: a spot where papers from two fields are each other's
+// nearest neighbors in embedding space. Paper references are indices into
+// nodes. shared lists the extracted terms both sides carry, ranked by how rare
+// each is across the two fields (fieldRate is that baseline); the headline and
+// explanation are written by Claude in the lab from only those terms and the
+// papers' extracted text.
+export interface CorvidMeeting {
+  between: [string, string];
+  communities: [number, number];
+  a: number[];
+  b: number[];
+  links: [number, number, number][]; // [a paper, b paper, similarity]
+  shared: { label: string; kind: "concept" | "method" | "dataset"; a: number; b: number; fieldRate: number }[];
+  headline: string;
+  explanation: string;
+  significance: string;
+  verdict: "substantive" | "surface";
+}
+
 export interface CorvidLibrary {
   name: string;
   papers: number;
@@ -30,11 +49,13 @@ export interface CorvidSnapshot {
   name: string;
   exportedAt: string;
   webBuiltAt: string | null;
-  counts: { papers: number; communities: number; findings: number; libraries: number };
+  counts: { papers: number; communities: number; findings: number; meetings?: number; libraries: number };
   communities: { index: number; label: string; size: number | null }[];
   nodes: CorvidNode[];
   edges: [number, number, number][]; // [from, to, weight]
   findings: CorvidFinding[];
+  // Absent in snapshots exported before meeting points existed.
+  meetings?: CorvidMeeting[];
   libraries: CorvidLibrary[];
 }
 
