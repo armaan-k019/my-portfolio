@@ -86,4 +86,11 @@ export const demoCards: DemoCard[] = [
     pitch: "A sparse autoencoder trains in your browser on sentence embeddings. Claude labels each feature from its top examples, and plain code tests every label on sentences Claude never saw.",
     url: "/demos/goodfire",
   },
+  {
+    slug: "fireworks",
+    company: "Fireworks AI",
+    headline: "Draft Length Tuner",
+    pitch: "Speculative decoding runs in your browser on toy draft and target models. Claude picks a draft length from acceptance stats, code measures the real speedup, and a sampling check shows the output never changes.",
+    url: "/demos/fireworks",
+  },
 ];
