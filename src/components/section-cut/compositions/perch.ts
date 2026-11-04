@@ -19,16 +19,16 @@
 import { seg } from "../geometry";
 import { Drawing, noise, smooth, type Box } from "../kit";
 
-const X = 40, Z = 46, CONTOUR = 1;
+const X = 28, Z = 46, CONTOUR = 1;
 
 export function build() {
   const n = noise(5207), spikes = noise(611);
-  // The rock: high at the back, its crest east of centre, falling to the
+  // The rock: high at the back, its crest just east of the notch, falling to the
   // apron at the front. Coarse noise facets the flanks; a sharper one
   // raises points along the crest.
   const natural = (x: number, z: number) => {
     const along = 33 * (1 - smooth(4, 40, z));
-    const across = Math.min(1, Math.max(0.12, 1 - ((x - 26) / 22) ** 2));
+    const across = Math.min(1, Math.max(0.12, 1 - ((x - 20) / 16) ** 2));
     const mass = along * across;
     return 1.5 + mass + 2.2 * n(x / 7, z / 7) * smooth(0, 10, mass) + 9 * Math.max(0, spikes(x / 3, z / 3)) * (mass / 33) ** 3;
   };
@@ -160,7 +160,7 @@ export function build() {
   d.walk(14.4, 37, 14.4, 46, (_x, z) => 9 - (7.5 * (z - 36)) / 12, 9);
   d.stand(10, 1.5, 44, -Math.PI / 2); d.stand(11, 1.5, 44.4, -Math.PI / 2, undefined, 0.6);
 
-  d.bird(26, 40, 8, 10, 6, 70, 1); d.bird(18, 34, 14, 8, 6, 55, 2); d.bird(30, 30, 20, 12, 8, 80, 3);
+  d.bird(20, 40, 8, 10, 6, 70, 1); d.bird(18, 34, 14, 8, 6, 55, 2); d.bird(22, 30, 22, 8, 8, 80, 3);
 
   const lo = d.contours(ground, X, Z, CONTOUR);
   return d.model(ground, X, Z, CONTOUR, Math.floor(lo) - 2, 4.5);
