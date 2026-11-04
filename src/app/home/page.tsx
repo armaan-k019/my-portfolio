@@ -40,7 +40,17 @@ export default function Home() {
           {/* Research */}
           <section id="research" className="py-20 md:py-24">
             <div className="max-w-5xl mx-auto px-6">
-              <h2 className="font-display display-md font-semibold text-darkblue mb-10">Publications</h2>
+              <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 mb-10">
+                <h2 className="font-display display-md font-semibold text-darkblue">Publications</h2>
+                <a
+                  href="https://scholar.google.com/citations?hl=en&user=zknNZicAAAAJ"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="eyebrow hover:text-terracotta-dark transition-colors"
+                >
+                  Google Scholar &rarr;
+                </a>
+              </div>
               <ResearchSection entries={researchEntries} />
             </div>
           </section>
