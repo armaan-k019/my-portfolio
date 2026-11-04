@@ -53,6 +53,19 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
             </a>
           )}
         </header>
+        {project.video && (
+          <figure className="mb-8">
+            <video
+              src={project.video.src}
+              poster={project.video.poster}
+              controls
+              playsInline
+              preload="metadata"
+              className="w-full border border-[var(--color-line)]"
+            />
+            <figcaption className="meta mt-2">Recorded demo</figcaption>
+          </figure>
+        )}
       </article>
     </div>
   );
