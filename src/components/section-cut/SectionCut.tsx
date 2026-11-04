@@ -12,6 +12,10 @@ const HINT: Record<Mode, [string, string][]> = {
   reduced: [["\u2194 MOVE", "slide the section cut"], ["\u2190 \u2192", "switch drawing"]],
   static: [["\u2190 \u2192", "switch drawing"]],
 };
+// With one composition there is nothing to switch to, so the arrows, the
+// counter and their hint all drop out.
+const SWITCHES = COMPOSITIONS.length > 1;
+const hints = (mode: Mode) => HINT[mode].filter(([key]) => SWITCHES || key !== "\u2190 \u2192");
 
 // Decorative canvas behind the hero text: a composition of ground and
 // structure, sectioned by the pointer. three and each
@@ -88,25 +92,29 @@ export default function SectionCut() {
       </div>
       <div className="max-w-5xl mx-auto px-6 pb-8 md:pb-0 md:absolute md:inset-x-0 md:bottom-6 flex justify-end">
         <div className="grid justify-items-end gap-2">
-          {mode !== null && (
+          {mode !== null && hints(mode).length > 0 && (
             <div data-hint className="grid grid-cols-[auto_auto] gap-x-3 gap-y-0.5 items-baseline mb-2 pb-2 border-b border-[var(--color-line)]">
               <span className="eyebrow col-span-2 mb-1">Controls</span>
-              {HINT[mode].map(([key, does]) => (
+              {hints(mode).map(([key, does]) => (
                 <span key={key} className="contents"><span className="meta">{key}</span><span className="coord">{does}</span></span>
               ))}
             </div>
           )}
           <dl className="grid grid-cols-[auto_auto_auto] gap-x-3 gap-y-1 items-baseline">
-            <dt className="meta" aria-hidden>{index === null ? "\u00a0" : `0${index + 1} / 0${COMPOSITIONS.length}`}</dt>
-            <dd />
-            <dd className="pointer-events-auto flex -my-1">
-              {index !== null && (
-                <>
-                  <button type="button" onClick={() => setIndex((index + COMPOSITIONS.length - 1) % COMPOSITIONS.length)} aria-label={`0${((index + COMPOSITIONS.length - 1) % COMPOSITIONS.length) + 1} / 0${COMPOSITIONS.length}`} className="coord px-1.5 py-1 hover:text-terracotta-dark">&larr;</button>
-                  <button type="button" onClick={() => setIndex((index + 1) % COMPOSITIONS.length)} aria-label={`0${((index + 1) % COMPOSITIONS.length) + 1} / 0${COMPOSITIONS.length}`} className="coord px-1.5 py-1 hover:text-terracotta-dark">&rarr;</button>
-                </>
-              )}
-            </dd>
+            {SWITCHES && (
+              <>
+                <dt className="meta" aria-hidden>{index === null ? "\u00a0" : `0${index + 1} / 0${COMPOSITIONS.length}`}</dt>
+                <dd />
+                <dd className="pointer-events-auto flex -my-1">
+                  {index !== null && (
+                    <>
+                      <button type="button" onClick={() => setIndex((index + COMPOSITIONS.length - 1) % COMPOSITIONS.length)} aria-label={`0${((index + COMPOSITIONS.length - 1) % COMPOSITIONS.length) + 1} / 0${COMPOSITIONS.length}`} className="coord px-1.5 py-1 hover:text-terracotta-dark">&larr;</button>
+                      <button type="button" onClick={() => setIndex((index + 1) % COMPOSITIONS.length)} aria-label={`0${((index + 1) % COMPOSITIONS.length) + 1} / 0${COMPOSITIONS.length}`} className="coord px-1.5 py-1 hover:text-terracotta-dark">&rarr;</button>
+                    </>
+                  )}
+                </dd>
+              </>
+            )}
             <dt className="meta" aria-hidden>CONTOUR</dt><dd className="coord whitespace-pre min-w-[21ch]" aria-hidden>{contour === null ? "" : `${contour.toFixed(1)} m`}</dd><dd aria-hidden />
             <dt className="meta" aria-hidden>CUT</dt><dd className="coord whitespace-pre min-w-[21ch]" aria-hidden ref={cutRef} /><dd aria-hidden />
             <dt className="meta" aria-hidden>VIEW</dt><dd className="coord whitespace-pre min-w-[21ch]" aria-hidden ref={viewRef} /><dd aria-hidden />
