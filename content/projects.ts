@@ -7,6 +7,8 @@ export interface Project {
   stack: string[];
   status?: "In Progress" | "Coming Soon";
   link?: string;
+  // A recorded demo shown beside the link, for when the live site is down.
+  video?: { src: string; poster?: string };
   github?: string;
 }
 
@@ -18,6 +20,7 @@ export const projects: Project[] = [
     description: "Archipedia is a real-time architectural precedent search tool that combines patch-level visual embeddings, LLM-expanded metadata, and climate cues to surface nuanced design relationships beyond simple visual similarity. Built on a dataset of 9,800+ ArchDaily images, it enables designers to steer retrieval across visual, contextual, and geographic dimensions through an interactive interface.",
     stack: ["DINOv2", "Python", "Next.js", "LLM", "ArchDaily API"],
     link: "https://archipedia.ai",
+    video: { src: "/projects/archipedia-demo.mp4", poster: "/projects/archipedia-demo-poster.jpg" },
   },
   {
     slug: "datum",
