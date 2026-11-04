@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/next";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import BirdGuide from "@/components/guide/BirdGuide";
+import PlainType from "@/components/PlainType";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -49,6 +50,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${amiri.variable} ${fraunces.variable} ${plexMono.variable} antialiased`}>
       <body className="min-h-screen flex flex-col font-sans relative">
+        <PlainType />
         <div className="relative z-10 flex flex-col min-h-screen">
           <Navbar />
           <main className="flex-1 pt-16">
