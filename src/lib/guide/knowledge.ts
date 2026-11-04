@@ -18,6 +18,7 @@ const CONTACT_LINKS: GuideLink[] = [
   { href: "mailto:archarmaan@gmail.com", label: "Email Armaan" },
   { href: "https://www.linkedin.com/in/kaziarmaan/", label: "LinkedIn" },
   { href: "https://github.com/armaan-k019", label: "GitHub" },
+  { href: "https://scholar.google.com/citations?hl=en&user=zknNZicAAAAJ", label: "Google Scholar" },
   { href: "https://www.instagram.com/armaankazi019/", label: "Instagram" },
   { href: "/home#contact", label: "Contact form" },
 ];
@@ -67,7 +68,7 @@ export function guideContext(): string {
 
   parts.push(
     "## Contact",
-    "Email: archarmaan@gmail.com. LinkedIn: https://www.linkedin.com/in/kaziarmaan/. GitHub: https://github.com/armaan-k019. Instagram: https://www.instagram.com/armaankazi019/.",
+    "Email: archarmaan@gmail.com. LinkedIn: https://www.linkedin.com/in/kaziarmaan/. GitHub: https://github.com/armaan-k019. Google Scholar: https://scholar.google.com/citations?hl=en&user=zknNZicAAAAJ. Instagram: https://www.instagram.com/armaankazi019/.",
     "There is also a contact section with a feedback form at /home#contact. For an introduction to someone Armaan has worked with, reach out to him and he will make the introduction.",
   );
 

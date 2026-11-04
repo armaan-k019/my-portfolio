@@ -6,6 +6,7 @@ const links = [
   { href: "mailto:archarmaan@gmail.com", label: "Email" },
   { href: "https://www.linkedin.com/in/kaziarmaan/", label: "LinkedIn" },
   { href: "https://github.com/armaan-k019", label: "GitHub" },
+  { href: "https://scholar.google.com/citations?hl=en&user=zknNZicAAAAJ", label: "Google Scholar" },
   { href: "https://www.instagram.com/armaankazi019/", label: "Instagram" },
 ];
 

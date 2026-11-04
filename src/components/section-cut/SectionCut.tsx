@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Mode } from "./scene";
 
-import { COMPOSITIONS, compositionOfTheDay } from "./compositions";
+import { COMPOSITIONS } from "./compositions";
 
 // How to drive the drawing, per mode. Touch gets one still frame, and reduced
 // motion holds the axonometric, so each hint names only what actually works.
@@ -13,8 +13,8 @@ const HINT: Record<Mode, [string, string][]> = {
   static: [["\u2190 \u2192", "switch drawing"]],
 };
 
-// Decorative canvas behind the hero text: one of three compositions of
-// ground and structure, sectioned by the pointer. three and each
+// Decorative canvas behind the hero text: a composition of ground and
+// structure, sectioned by the pointer. three and each
 // composition load on demand so the rest of the site never pays for them; if
 // WebGL is missing, nothing renders and the hero stands as plain text.
 export default function SectionCut() {
@@ -22,8 +22,8 @@ export default function SectionCut() {
   const cutRef = useRef<HTMLSpanElement>(null);
   const viewRef = useRef<HTMLSpanElement>(null);
   const [failed, setFailed] = useState(false);
-  // The day's composition is chosen on the client: the page is static, so
-  // the server cannot know the visitor's date.
+  // Set on the client with the mode, so the first frame and its readout
+  // arrive together.
   const [index, setIndex] = useState<number | null>(null);
   const [contour, setContour] = useState<number | null>(null);
   // Touch and coarse pointers get one static frame; reduced motion keeps the
@@ -39,7 +39,7 @@ export default function SectionCut() {
     const fine = matchMedia("(pointer: fine)"), reduce = matchMedia("(prefers-reduced-motion: reduce)");
     const pick = () => setMode(!fine.matches ? "static" : reduce.matches ? "reduced" : "live");
     pick();
-    setIndex(compositionOfTheDay());
+    setIndex(0);
     fine.addEventListener("change", pick);
     reduce.addEventListener("change", pick);
     return () => { fine.removeEventListener("change", pick); reduce.removeEventListener("change", pick); };
