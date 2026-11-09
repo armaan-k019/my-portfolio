@@ -93,4 +93,11 @@ export const demoCards: DemoCard[] = [
     pitch: "Speculative decoding runs in your browser on toy draft and target models. Claude picks a draft length from acceptance stats, code measures the real speedup, and a sampling check shows the output never changes.",
     url: "/demos/fireworks",
   },
+  {
+    slug: "dream-labs",
+    company: "Dream Labs",
+    headline: "One Motion, Five Robots",
+    pitch: "Draw a pick-and-place path once. Inverse kinematics retargets it onto five arms in your browser, shows where each runs out of reach, joints, wrist, or gripper, and exports the KUKA solution as KRL.",
+    url: "/demos/dream-labs",
+  },
 ];
