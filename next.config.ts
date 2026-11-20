@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Stamped at build time, so on Vercel it is the deploy time. The site guide
+  // birds mention it now and then (src/lib/guide/quips.ts).
+  env: {
+    SITE_LAST_UPDATED: new Date().toISOString(),
+  },
   async redirects() {
     return [
       {
