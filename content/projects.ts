@@ -23,6 +23,14 @@ export const projects: Project[] = [
     video: { src: "/projects/archipedia-demo.mp4", poster: "/projects/archipedia-demo-poster.jpg" },
   },
   {
+    slug: "tidepool",
+    title: "TidePool",
+    blurb: "AI sound editing for video: split a clip's audio into layers and edit each sound on its own.",
+    description: "TidePool separates the audio in a video into individual layers (dialogue, a barking dog, rain, music) so each sound can be edited on its own. Describe a change in plain language, click an object in the frame, or work directly on the timeline, then export as MP4, WAV or MP3. Vision models (YOLO for detection and tracking, SAM 3.1 for click selection) find what is on screen and when, and AudioSep isolates what it sounds like, returning a target and a residual that sum exactly to the original. Every edit is non-destructive, previewed before it is applied, and undoable.",
+    stack: ["React", "Vite", "FastAPI", "AudioSep", "SAM 3.1", "YOLO", "Demucs", "FFmpeg"],
+    link: "https://www.youtube.com/watch?v=FIcxfRrs-S8",
+  },
+  {
     slug: "datum",
     title: "Datum",
     blurb: "An architectural site analysis sheet, drawn from public data and exported as layered vector.",
