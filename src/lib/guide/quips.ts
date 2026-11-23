@@ -29,6 +29,24 @@ export const FIRST_QUIP: Quip = {
   reply: `I'm ${FULL_NAMES.memory}, he's ${FULL_NAMES.thought}. ${M} and ${T} for short. He does the thinking, I do the remembering.`,
 };
 
+// When the site was last deployed, from the build stamp in next.config.ts,
+// shown as a date in the visitor's own time zone. Undefined if the stamp is
+// missing, so the quip is simply left out rather than saying something wrong.
+function lastUpdatedQuip(): Quip | undefined {
+  const stamp = process.env.SITE_LAST_UPDATED;
+  if (!stamp) return undefined;
+  const date = new Date(stamp);
+  if (Number.isNaN(date.getTime())) return undefined;
+  const day = date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  return {
+    who: "memory",
+    text: `I remember the last time this site was updated: ${day}. I was there. I watched.`,
+    reply: "He says that about every update. He did not help with any of them.",
+  };
+}
+
+const LAST_UPDATED_QUIP = lastUpdatedQuip();
+
 export const QUIPS: Quip[] = [
   { text: "I am technically a bird. I have filed the paperwork." },
   { text: "Bird? Robot? Egg with ambition? Yes." },
@@ -78,4 +96,6 @@ export const QUIPS: Quip[] = [
   { who: "thought", text: "Let me think about that.", reply: "This could take a while. You could read a whole project in the meantime." },
   { who: "thought", text: "I just had a brilliant idea.", reply: "It was a sandwich. The idea was a sandwich." },
   { who: "thought", text: "I am going to explain the whole site in one sentence.", reply: "He is not. I have seen him try. Just ask us something specific." },
+  // One of the pool like any other, so it comes up only every so often.
+  ...(LAST_UPDATED_QUIP ? [LAST_UPDATED_QUIP] : []),
 ];
