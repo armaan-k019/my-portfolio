@@ -1,4 +1,5 @@
-export const maxDuration = 30;
+// Two Claude calls in a row (filter, then synthesis) ran past 30 seconds.
+export const maxDuration = 60;
 
 import { PRECEDENTS, type PrecedentEntry } from "@/app/demos/illoca/precedents";
 
@@ -88,6 +89,8 @@ Return ONLY the raw JSON array with no markdown code fences, no explanatory text
         max_tokens: 500,
         messages: [{ role: "user", content: filterPrompt }],
       }),
+      // On a slow filter, fall back to the first 20 so the synthesis keeps its time.
+      signal: AbortSignal.timeout(12000),
     });
 
     if (!res.ok) {
@@ -206,6 +209,7 @@ Return this JSON structure (no markdown, no extra text):
         system: systemPrompt,
         messages: [{ role: "user", content: userPrompt }],
       }),
+      signal: AbortSignal.timeout(44000),
     });
 
     if (res.status === 401) {

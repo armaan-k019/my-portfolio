@@ -101,11 +101,12 @@ export default function IllocaPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ brief }),
       });
-      const json = (await res.json()) as { result?: IllocaResult; error?: string };
-      if (!res.ok || !json.result) throw new Error(json.error ?? "No result returned.");
+      // A platform timeout answers with plain text, not JSON.
+      const json = (await res.json().catch(() => ({}))) as { result?: IllocaResult; error?: string };
+      if (!res.ok || !json.result) throw new Error(json.error ?? "That took too long. Try again.");
       setResult(json.result);
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
