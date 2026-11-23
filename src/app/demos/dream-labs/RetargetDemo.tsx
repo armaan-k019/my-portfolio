@@ -164,6 +164,9 @@ export default function RetargetDemo() {
   const [asking, setAsking] = useState(false);
   const [askError, setAskError] = useState<string | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  // Bumped whenever the path or width changes, so a reply for an older
+  // request is dropped instead of shown against the new path.
+  const askId = useRef(0);
 
   const path = useMemo(() => resample(raw, N), [raw]);
   const results = useMemo(() => ROBOTS.map((r) => run(r, path, objectWidth)), [path, objectWidth]);
@@ -178,11 +181,14 @@ export default function RetargetDemo() {
 
   // Advice belongs to one path and width; a new drawing or width drops it.
   function forget() {
+    askId.current += 1;
+    setAsking(false);
     setAdvice(null);
     setAskError(null);
   }
 
   async function ask() {
+    const id = ++askId.current;
     setAsking(true);
     setAskError(null);
     try {
@@ -192,13 +198,14 @@ export default function RetargetDemo() {
         body: JSON.stringify({ path, objectWidth }),
       });
       const json = (await res.json()) as { advice?: Advice; error?: string };
+      if (id !== askId.current) return;
       if (!res.ok || !json.advice) throw new Error(json.error ?? "No advice returned.");
       setYoursAtAsk(solvedCount);
       setAdvice(json.advice);
     } catch (err) {
-      setAskError(err instanceof Error ? err.message : "Claude could not be reached.");
+      if (id === askId.current) setAskError(err instanceof Error ? err.message : "Claude could not be reached.");
     } finally {
-      setAsking(false);
+      if (id === askId.current) setAsking(false);
     }
   }
 

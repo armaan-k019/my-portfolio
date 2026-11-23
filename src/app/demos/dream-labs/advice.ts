@@ -118,6 +118,8 @@ export function parseAdvice(text: string, failing: Set<string>): Advice | null {
       (p): p is Pt => Array.isArray(p) && p.length === 2 && finite(p[0]) && finite(p[1]),
     );
     if (waypoints.length < 2 || waypoints.length > MAX_WAYPOINTS) return null;
+    // Every failing arm needs a verdict, or the page would silently show none.
+    if (robots.length !== failing.size || new Set(robots.map((r) => r.id)).size !== failing.size) return null;
     return { summary: raw.summary.trim(), robots, waypoints };
   } catch {
     return null;
@@ -143,8 +145,10 @@ export function checkWaypoints(waypoints: Pt[], objectWidth: number): Check {
 
 // Whether the check bears out Claude's verdict for one arm: a path fix should
 // complete on Claude's path, a hardware limit should still fail on it.
+// A path that misses the pick or place point bears out nothing.
 export function borneOut(verdict: Verdict, check: Check, index: number): boolean {
-  const completes = check.endsOk && check.runs[index].firstFail === null;
+  if (!check.endsOk) return false;
+  const completes = check.runs[index].firstFail === null;
   return verdict === "path" ? completes : !completes;
 }
 

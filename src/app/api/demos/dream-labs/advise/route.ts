@@ -34,7 +34,7 @@ const cache = new Map<string, Advice>();
 export async function POST(request: Request) {
   let body: { path?: unknown; objectWidth?: unknown } = {};
   try {
-    body = (await request.json()) as typeof body;
+    body = ((await request.json()) as typeof body | null) ?? {};
   } catch {
     // fall through to the checks below
   }
