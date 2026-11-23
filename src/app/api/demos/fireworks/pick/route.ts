@@ -19,8 +19,7 @@ Setup: a draft model proposes k tokens, the target model checks all of them in o
 
 You get the measured acceptance rate alpha, acceptance by draft position, and the most frequent rejections. You do not get the measured speedups: pick k from 1 to ${K_VALUES[K_VALUES.length - 1]} to maximize tokens per unit cost, and the page will compare your pick with a measured grid search.
 
-Return JSON only, no markdown fences:
-{"k": number, "summary": string, "failures": string, "fix": string}
+Answer by calling submit_pick with these fields:
 
 - k: an integer from 1 to ${K_VALUES[K_VALUES.length - 1]}.
 - summary: why this k, citing alpha and any drop in acceptance by position. At most 25 words.
@@ -45,19 +44,31 @@ Most frequent first rejections at k = 8:
 ${hot}`;
 }
 
-function parse(text: string): ClaudePick | null {
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if (start < 0 || end <= start) return null;
-  try {
-    const raw = JSON.parse(text.slice(start, end + 1)) as Record<string, unknown>;
-    const k = raw.k;
-    if (typeof k !== "number" || !K_VALUES.includes(k)) return null;
-    if (typeof raw.summary !== "string" || typeof raw.failures !== "string" || typeof raw.fix !== "string") return null;
-    return { k, summary: raw.summary.trim(), failures: raw.failures.trim(), fix: raw.fix.trim() };
-  } catch {
-    return null;
-  }
+// Claude answers through a forced tool call, so the fields arrive as a parsed
+// object. Parsing JSON out of free text failed on every live request, and the
+// rejections it cites are JSON and Python fragments full of quotes and braces.
+const PICK_TOOL = {
+  name: "submit_pick",
+  description: "Submit the chosen draft length and the reasoning behind it.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      k: { type: "integer", description: "Draft length, an integer from 1 to 8." },
+      summary: { type: "string", description: "Why this k. At most 25 words." },
+      failures: { type: "string", description: "Where the draft disagrees with the target. At most 30 words." },
+      fix: { type: "string", description: "One change to the draft model. At most 20 words." },
+    },
+    required: ["k", "summary", "failures", "fix"],
+  },
+};
+
+function parse(input: unknown): ClaudePick | null {
+  if (!input || typeof input !== "object") return null;
+  const raw = input as Record<string, unknown>;
+  const k = typeof raw.k === "string" ? Number(raw.k) : raw.k;
+  if (typeof k !== "number" || !K_VALUES.includes(k)) return null;
+  if (typeof raw.summary !== "string" || typeof raw.failures !== "string" || typeof raw.fix !== "string") return null;
+  return { k, summary: raw.summary.trim(), failures: raw.failures.trim(), fix: raw.fix.trim() };
 }
 
 export async function POST(request: Request) {
@@ -87,15 +98,18 @@ export async function POST(request: Request) {
     const message = await client.messages.create(
       {
         model: "claude-sonnet-4-6",
-        max_tokens: 500,
+        max_tokens: 1000,
         system: SYSTEM_PROMPT,
+        tools: [PICK_TOOL],
+        tool_choice: { type: "tool", name: PICK_TOOL.name },
         messages: [{ role: "user", content: render(measure(domain.id, temperature)) }],
       },
       { signal: AbortSignal.timeout(28000) },
     );
-    const text = message.content.find((b) => b.type === "text");
-    const pick = text && text.type === "text" ? parse(text.text) : null;
+    const call = message.content.find((b) => b.type === "tool_use");
+    const pick = call && call.type === "tool_use" ? parse(call.input) : null;
     if (!pick) {
+      console.error("fireworks pick: unusable answer", message.stop_reason, JSON.stringify(message.content).slice(0, 600));
       return Response.json({ error: "Claude returned nothing usable. Try again." }, { status: 502 });
     }
     cache.set(key, pick);
