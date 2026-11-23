@@ -31,6 +31,24 @@ Use only the numbers given. Do not use em dashes; use commas, periods, or parent
 // Per-instance cache, so each path is sent to Claude once per warm function.
 const cache = new Map<string, Advice>();
 
+// Any drawn path is a new paid call, so each visitor gets a few per hour.
+// Per instance only: a cheap brake on abuse, not a hard cap. Cache hits are free.
+const LIMIT = 10;
+const WINDOW_MS = 60 * 60 * 1000;
+const asks = new Map<string, number[]>();
+
+function allow(ip: string, now: number): boolean {
+  const recent = (asks.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
+  if (recent.length >= LIMIT) {
+    asks.set(ip, recent);
+    return false;
+  }
+  recent.push(now);
+  asks.set(ip, recent);
+  if (asks.size > 5000) asks.clear(); // keep the map bounded on a long-lived instance
+  return true;
+}
+
 export async function POST(request: Request) {
   let body: { path?: unknown; objectWidth?: unknown } = {};
   try {
@@ -52,6 +70,11 @@ export async function POST(request: Request) {
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return Response.json({ error: "Claude is offline right now." }, { status: 503 });
+  }
+
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  if (!allow(ip, Date.now())) {
+    return Response.json({ error: "That is enough asks for now. Try again in an hour." }, { status: 429 });
   }
 
   try {
