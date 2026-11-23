@@ -98,32 +98,47 @@ export function isWidth(v: unknown): v is number {
   return finite(v) && v >= WIDTHS.min && v <= WIDTHS.max && (v - WIDTHS.min) % WIDTHS.step === 0;
 }
 
-// Defensive parse of Claude's JSON. Returns null on anything malformed.
-export function parseAdvice(text: string, failing: Set<string>): Advice | null {
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if (start < 0 || end <= start) return null;
-  try {
-    const raw = JSON.parse(text.slice(start, end + 1)) as Record<string, unknown>;
-    if (typeof raw.summary !== "string" || !Array.isArray(raw.robots) || !Array.isArray(raw.waypoints)) return null;
-    const robots: RobotAdvice[] = [];
-    for (const item of raw.robots as unknown[]) {
-      const r = item as Record<string, unknown>;
-      if (typeof r.id !== "string" || !failing.has(r.id)) continue;
-      if (r.verdict !== "path" && r.verdict !== "hardware") continue;
-      if (typeof r.note !== "string") continue;
-      robots.push({ id: r.id, verdict: r.verdict, note: r.note.trim() });
-    }
-    const waypoints = (raw.waypoints as unknown[]).filter(
-      (p): p is Pt => Array.isArray(p) && p.length === 2 && finite(p[0]) && finite(p[1]),
-    );
-    if (waypoints.length < 2 || waypoints.length > MAX_WAYPOINTS) return null;
-    // Every failing arm needs a verdict, or the page would silently show none.
-    if (robots.length !== failing.size || new Set(robots.map((r) => r.id)).size !== failing.size) return null;
-    return { summary: raw.summary.trim(), robots, waypoints };
-  } catch {
-    return null;
+// Defensive check of Claude's answer, which arrives as the input of a forced
+// tool call (see the route). Returns null on anything malformed.
+function num(v: unknown): number | null {
+  const n = typeof v === "string" ? Number(v) : v;
+  return finite(n) ? n : null;
+}
+
+function point(v: unknown): Pt | null {
+  if (Array.isArray(v) && v.length === 2) {
+    const x = num(v[0]);
+    const z = num(v[1]);
+    return x === null || z === null ? null : [x, z];
   }
+  if (v && typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    const x = num(o.x);
+    const z = num(o.z);
+    return x === null || z === null ? null : [x, z];
+  }
+  return null;
+}
+
+export function parseAdvice(input: unknown, failing: Set<string>): Advice | null {
+  if (!input || typeof input !== "object") return null;
+  const raw = input as Record<string, unknown>;
+  if (typeof raw.summary !== "string" || !Array.isArray(raw.robots) || !Array.isArray(raw.waypoints)) return null;
+  const robots: RobotAdvice[] = [];
+  for (const item of raw.robots as unknown[]) {
+    if (!item || typeof item !== "object") continue;
+    const r = item as Record<string, unknown>;
+    if (typeof r.id !== "string" || !failing.has(r.id)) continue;
+    if (r.verdict !== "path" && r.verdict !== "hardware") continue;
+    if (typeof r.note !== "string") continue;
+    robots.push({ id: r.id, verdict: r.verdict, note: r.note.trim() });
+  }
+  // Every failing arm needs a verdict, or the page would silently show none.
+  if (robots.length !== failing.size || new Set(robots.map((r) => r.id)).size !== failing.size) return null;
+  const waypoints = (raw.waypoints as unknown[]).map(point);
+  if (waypoints.some((p) => p === null)) return null;
+  if (waypoints.length < 2 || waypoints.length > MAX_WAYPOINTS) return null;
+  return { summary: raw.summary.trim(), robots, waypoints: waypoints as Pt[] };
 }
 
 export interface Check {

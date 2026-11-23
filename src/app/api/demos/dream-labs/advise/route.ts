@@ -11,7 +11,7 @@ import {
 } from "@/app/demos/dream-labs/advice";
 import { PICK, PLACE, ROBOTS, SAMPLES, run } from "@/app/demos/dream-labs/robots";
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const SYSTEM_PROMPT = `You plan pick-and-place motions for a robotics company whose goal is one motion that runs on any robot with grippers. You get a planar side-view scene, five arms with their geometry, and what an inverse kinematics solver found when it retargeted the visitor's drawn path onto each arm.
 
@@ -19,14 +19,50 @@ For each arm that fails, decide whether a different path would let it finish ("p
 
 The page will run your waypoints through the same solver and show which arms actually finish, next to your verdicts. Reason from the geometry given; do not guess.
 
-Return JSON only, no markdown fences:
-{"summary": string, "robots": [{"id": string, "verdict": "path" | "hardware", "note": string}], "waypoints": [[x, z], ...]}
+Answer by calling submit_advice with these fields:
 
 - summary: what limits this motion across the five arms. At most 15 words.
 - robots: one entry per failing arm, by its id. note: the cause, citing a number from the input. At most 12 words.
-- waypoints: 3 to ${MAX_WAYPOINTS} points in mm, joined by straight lines. The first is exactly [${PICK.join(", ")}] and the last exactly [${PLACE.join(", ")}].
+- waypoints: 3 to ${MAX_WAYPOINTS} points in mm as {x, z}, joined by straight lines. The first is exactly x ${PICK[0]}, z ${PICK[1]} and the last exactly x ${PLACE[0]}, z ${PLACE[1]}.
 
 Use only the numbers given. Do not use em dashes; use commas, periods, or parentheses.`;
+
+// Claude answers through a forced tool call, so the fields arrive as a parsed
+// object. Parsing JSON out of free text failed on the live preview, as it did
+// for the Fireworks demo before the same change.
+const ADVICE_TOOL = {
+  name: "submit_advice",
+  description: "Submit the verdict for each failing arm and one proposed path.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      summary: { type: "string", description: "What limits this motion across the five arms. At most 15 words." },
+      robots: {
+        type: "array",
+        description: "One entry per failing arm.",
+        items: {
+          type: "object",
+          properties: {
+            id: { type: "string", description: "The arm's id from the input." },
+            verdict: { type: "string", enum: ["path", "hardware"] },
+            note: { type: "string", description: "The cause, citing a number from the input. At most 12 words." },
+          },
+          required: ["id", "verdict", "note"],
+        },
+      },
+      waypoints: {
+        type: "array",
+        description: `3 to ${MAX_WAYPOINTS} points in mm, from the pick point to the place point.`,
+        items: {
+          type: "object",
+          properties: { x: { type: "number" }, z: { type: "number" } },
+          required: ["x", "z"],
+        },
+      },
+    },
+    required: ["summary", "robots", "waypoints"],
+  },
+};
 
 // Per-instance cache, so each path is sent to Claude once per warm function.
 const cache = new Map<string, Advice>();
@@ -82,15 +118,28 @@ export async function POST(request: Request) {
     const message = await client.messages.create(
       {
         model: "claude-sonnet-4-6",
-        max_tokens: 800,
+        max_tokens: 2000,
         system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: describe(path, objectWidth) }],
+        tools: [ADVICE_TOOL],
+        tool_choice: { type: "tool", name: ADVICE_TOOL.name },
+        messages: [
+          {
+            role: "user",
+            content: `${describe(path, objectWidth)}\n\nFailing arms, one robots entry each: ${[...failing].join(", ")}.`,
+          },
+        ],
       },
-      { signal: AbortSignal.timeout(28000) },
+      { signal: AbortSignal.timeout(55000) },
     );
-    const text = message.content.find((b) => b.type === "text");
-    const advice = text && text.type === "text" ? parseAdvice(text.text, failing) : null;
+    const call = message.content.find((b) => b.type === "tool_use");
+    const advice = call && call.type === "tool_use" ? parseAdvice(call.input, failing) : null;
     if (!advice) {
+      console.error(
+        "dream-labs advise: unusable answer",
+        message.stop_reason,
+        [...failing].join(","),
+        JSON.stringify(message.content).slice(0, 800),
+      );
       return Response.json({ error: "Claude returned nothing usable. Try again." }, { status: 502 });
     }
     cache.set(key, advice);
