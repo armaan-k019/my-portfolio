@@ -54,7 +54,7 @@ export default function DreamLabsPage() {
           <p className="text-sm leading-relaxed mb-6 max-w-2xl" style={{ color: C.muted }}>
             Draw a pick-and-place path in the side view. Inverse kinematics retargets it onto five arms, and each one
             shows where it runs out of reach, joints, wrist, or gripper. The KUKA solution exports as KRL, the language
-            KUKA|prc compiles toolpaths into.
+            KUKA|prc compiles toolpaths into. Claude proposes a better path, and the solver checks it.
           </p>
 
           <RetargetDemo />
@@ -64,7 +64,7 @@ export default function DreamLabsPage() {
               Built by{" "}
               <Link href="/" className="underline hover:opacity-70" style={{ color: C.muted }}>Armaan Kazi</Link>
               . Not affiliated with Dream Labs or KUKA. Planar model: KUKA reach and axis limits from its datasheet,
-              other arms generic. No AI calls.
+              other arms generic.
             </p>
           </footer>
         </div>

@@ -102,6 +102,8 @@ export const PICK: [number, number] = [430, OBJECT_HEIGHT / 2];
 export const SHELF = { x0: 560, x1: 760, z: 280 };
 export const PLACE: [number, number] = [660, SHELF.z + OBJECT_HEIGHT / 2];
 
+export const SAMPLES = 90; // points along a path after resampling
+
 export const DOWN = -90; // tool pointing straight down, degrees
 export const TILT_TOL = 10; // how far from straight down still counts as level
 
