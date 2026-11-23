@@ -8,6 +8,7 @@ import {
   PICK,
   PLACE,
   ROBOTS,
+  SAMPLES as N,
   SHELF,
   defaultPath,
   resample,
@@ -17,11 +18,11 @@ import {
   type Robot,
   type Run,
 } from "./robots";
+import { borneOut, checkWaypoints, type Advice, type Check } from "./advice";
 
 const C = CSS_VAR_COLORS;
 const OK = "#7fb069";
 const FAIL = "#e05d4f";
-const N = 90; // samples along the path
 
 // View window in millimeters (x forward, z up).
 const X0 = -160;
@@ -115,6 +116,7 @@ function Card({
   path,
   active,
   onClick,
+  verdict,
 }: {
   robot: Robot;
   result: Run;
@@ -122,6 +124,7 @@ function Card({
   path: Pt[];
   active: boolean;
   onClick: () => void;
+  verdict: { label: string; ok: boolean } | null;
 }) {
   const { pose, stuck } = poseAt(result, k);
   const done = result.firstFail === null;
@@ -140,6 +143,11 @@ function Card({
       <p className="font-mono text-[11px] truncate" style={{ color: done ? OK : FAIL }}>
         {done ? "completes" : `${FAILURE_LABEL[result.why!]} at ${Math.round((result.firstFail! / (N - 1)) * 100)}%`}
       </p>
+      {verdict && (
+        <p className="font-mono text-[11px] truncate" style={{ color: verdict.ok ? C.muted : FAIL }}>
+          {verdict.label} {verdict.ok ? "\u2713" : "\u2717"}
+        </p>
+      )}
     </button>
   );
 }
@@ -151,7 +159,14 @@ export default function RetargetDemo() {
   const [selected, setSelected] = useState("kuka");
   const [t, setT] = useState(1);
   const [playing, setPlaying] = useState(false);
+  const [advice, setAdvice] = useState<Advice | null>(null);
+  const [yoursAtAsk, setYoursAtAsk] = useState(0);
+  const [asking, setAsking] = useState(false);
+  const [askError, setAskError] = useState<string | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  // Bumped whenever the path or width changes, so a reply for an older
+  // request is dropped instead of shown against the new path.
+  const askId = useRef(0);
 
   const path = useMemo(() => resample(raw, N), [raw]);
   const results = useMemo(() => ROBOTS.map((r) => run(r, path, objectWidth)), [path, objectWidth]);
@@ -161,6 +176,38 @@ export default function RetargetDemo() {
   const result = results[idx];
   const { pose, stuck } = poseAt(result, k);
   const solvedCount = results.filter((r) => r.firstFail === null).length;
+  const check: Check | null = useMemo(() => (advice ? checkWaypoints(advice.waypoints, objectWidth) : null), [advice, objectWidth]);
+  const adviceFor = (i: number) => advice?.robots.find((a) => a.id === ROBOTS[i].id) ?? null;
+
+  // Advice belongs to one path and width; a new drawing or width drops it.
+  function forget() {
+    askId.current += 1;
+    setAsking(false);
+    setAdvice(null);
+    setAskError(null);
+  }
+
+  async function ask() {
+    const id = ++askId.current;
+    setAsking(true);
+    setAskError(null);
+    try {
+      const res = await fetch("/api/demos/dream-labs/advise", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ path, objectWidth }),
+      });
+      const json = (await res.json()) as { advice?: Advice; error?: string };
+      if (id !== askId.current) return;
+      if (!res.ok || !json.advice) throw new Error(json.error ?? "No advice returned.");
+      setYoursAtAsk(solvedCount);
+      setAdvice(json.advice);
+    } catch (err) {
+      if (id === askId.current) setAskError(err instanceof Error ? err.message : "Claude could not be reached.");
+    } finally {
+      if (id === askId.current) setAsking(false);
+    }
+  }
 
   useEffect(() => {
     if (!playing) return;
@@ -218,6 +265,7 @@ export default function RetargetDemo() {
             onPointerMove={(e) => drawing && setDrawing([...drawing, toMm(e)])}
             onPointerUp={() => {
               if (drawing && drawing.length > 4) {
+                forget();
                 setRaw(drawing);
                 setT(0);
                 setPlaying(true);
@@ -299,6 +347,11 @@ export default function RetargetDemo() {
                   : pose.joints.map((q) => q.toFixed(0)).join(", ")}
             </dd>
           </dl>
+          {adviceFor(idx) && (
+            <p className="text-xs" style={{ color: C.muted }}>
+              <span style={{ color: C.dim }}>Claude:</span> {adviceFor(idx)!.note}
+            </p>
+          )}
           <label className="text-xs flex items-center gap-3" style={{ color: C.muted }}>
             Object width
             <input
@@ -307,7 +360,10 @@ export default function RetargetDemo() {
               max={120}
               step={5}
               value={objectWidth}
-              onChange={(e) => setObjectWidth(Number(e.target.value))}
+              onChange={(e) => {
+                forget();
+                setObjectWidth(Number(e.target.value));
+              }}
               className="flex-1"
             />
             <span className="font-mono tabular-nums">{objectWidth} mm</span>
@@ -315,6 +371,7 @@ export default function RetargetDemo() {
           <div className="mt-auto flex flex-wrap gap-2">
             <button
               onClick={() => {
+                forget();
                 setRaw(defaultPath());
                 setT(1);
               }}
@@ -336,9 +393,63 @@ export default function RetargetDemo() {
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
         {ROBOTS.map((r, i) => (
-          <Card key={r.id} robot={r} result={results[i]} k={k} path={path} active={r.id === selected} onClick={() => setSelected(r.id)} />
+          <Card
+            key={r.id}
+            robot={r}
+            result={results[i]}
+            k={k}
+            path={path}
+            active={r.id === selected}
+            onClick={() => setSelected(r.id)}
+            verdict={
+              check && adviceFor(i)
+                ? {
+                    label: adviceFor(i)!.verdict === "path" ? "path fix" : "arm limit",
+                    ok: borneOut(adviceFor(i)!.verdict, check, i),
+                  }
+                : null
+            }
+          />
         ))}
       </div>
+
+      <section className="rounded-lg border p-3 flex flex-wrap items-center gap-3" style={{ borderColor: C.cardBorder, backgroundColor: C.cardBg }}>
+        {!advice ? (
+          <>
+            <button
+              onClick={ask}
+              disabled={asking}
+              className="text-xs font-semibold px-3 py-1 rounded"
+              style={{ backgroundColor: C.accent, color: "#0d0f11", opacity: asking ? 0.6 : 1 }}
+            >
+              {asking ? "Asking Claude" : "Ask Claude"}
+            </button>
+            <p className="text-xs" style={{ color: askError ? FAIL : C.muted }}>
+              {askError ?? "Which arms a better path would fix."}
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="text-xs flex-1 min-w-[16rem]" style={{ color: C.text }}>
+              <span style={{ color: C.dim }}>Claude:</span> {advice.summary}
+            </p>
+            <p className="font-mono text-xs" style={{ color: C.muted }}>
+              {check!.endsOk ? `its path ${check!.complete}/5, yours ${yoursAtAsk}/5` : "its path misses pick or place"}
+            </p>
+            <button
+              onClick={() => {
+                setRaw(advice.waypoints);
+                setT(0);
+                setPlaying(true);
+              }}
+              className="text-xs px-3 py-1 rounded border"
+              style={{ borderColor: C.accent, color: C.accent }}
+            >
+              Use its path
+            </button>
+          </>
+        )}
+      </section>
     </div>
   );
 }
